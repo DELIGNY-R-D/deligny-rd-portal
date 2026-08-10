@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-2acQcCF5M3dv2BE3Uh+SGCgrim8r/1sSNtZBS7zuV38='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-7nB3Euko0uQczgek2yUC88L+7Z0tSqD+HnmM37kOjHU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1635,6 +1635,10 @@ const SURFACE_BASES = {
    * de qualité qui encaisse. */
   lisse:   { label:'Lisse',              smooth:true, segMin:192, segMax:400, stepMax:2.5, stepMin:0.8 },
 };
+/* Bornes du champ de sculpture. Elles ne sont pas décoratives : c'est ce qui
+ * garantit qu'une phrase — la sienne ou celle d'une IA — ne peut pas produire
+ * une lampe impossible. Amplitude par terme, somme totale, nombre de termes. */
+const CHAMP = { maxTermes: 6, ampMaxMm: 14, sommeMaxMm: 22, pasMm: 1.2 };
 const RELIEF_STEP = {
   stries:    { stepMax:1.6, stepMin:0.55 },
   organique: { stepMax:2.1, stepMin:0.60 },
@@ -1643,7 +1647,7 @@ const RELIEF_STEP = {
 // Bornes du champ de martelage, à recalibrer si les constantes du hachage
 // changent (banc : scratchpad, 1er et 98e centile sur 100 000 échantillons).
 const MART_P1 = 0.436, MART_ETENDUE = 1.406;
-const hasRelief    = s => !!(s.stries || s.organique || s.martele);
+const hasRelief    = s => !!(s.stries || s.organique || s.martele || (s.champ && s.champ.length));
 /* Un ajourage Voronoï et un passage de câble sont le MÊME problème : percer une
  * coque en la gardant étanche. On passe donc par le même chemin — découpe du
  * contour sur un champ signé — au lieu d'inventer une seconde mécanique. */
@@ -1668,6 +1672,9 @@ function styleStepMm(surf){
   if(surf.stries)         besoins.push(lerp(RELIEF_STEP.stries));
   if(surf.organique)      besoins.push(lerp(RELIEF_STEP.organique));
   if(surf.martele)        besoins.push(lerp(RELIEF_STEP.martele));
+  // un champ de sculpture module le rayon en (θ,h) : il lui faut des anneaux
+  // serrés, sinon la forme sort en escalier
+  if(surf.champ && surf.champ.length) besoins.push(CHAMP.pasMm);
   return besoins.length ? Math.min(...besoins) : 0;
 }
 
@@ -1703,6 +1710,9 @@ function angularSegments(surf, chosen){
   let seg = Math.round((L.segMin + (L.segMax - L.segMin)*t) * q);
   if(surf.stries)  seg = Math.max(seg, Math.round(surf.strieCount*12*q));
   if(surf.martele) seg = Math.max(seg, Math.round(surf.martCount*10*q));
+  // et assez de segments pour résoudre le terme le plus lobé du champ
+  if(surf.champ) for(const t of surf.champ)
+    seg = Math.max(seg, Math.round(Math.max(6, (t.n||0)) * 9 * q));
   return Math.min(900, Math.max(24, Math.ceil(seg/4)*4));
 }
 
@@ -2565,6 +2575,52 @@ function surfaceDisplacement(surf, theta, h){
     let x = (best + MART_P1) / MART_ETENDUE;
     if(x < 0) x = 0;
     d -= amp * x;
+  }
+  /* ── CHAMP DE SCULPTURE (10/08) ────────────────────────────────────────────
+   * Ce moteur n'a jamais été un moteur de révolution : le déplacement dépend de
+   * θ ET de h — les losanges sont un cos(nθ)·cos(kh), le martelé un Voronoï en
+   * (θ,h). Ce qui bornait les formes, c'était le CATALOGUE de champs, pas le
+   * noyau. On ouvre donc le catalogue : `surf.champ` est une liste de termes
+   * composables, que l'utilisateur — ou l'IA — assemble librement.
+   *
+   * Ce que ça rend possible : lobes, torsades, renflements à une hauteur
+   * donnée, bosses d'un seul côté, ondes, facettes. C'est-à-dire des formes
+   * franchement NON axisymétriques.
+   * ⚠️ Ce que ça ne rendra jamais possible sans un autre noyau : ce qui change
+   * la TOPOLOGIE — une anse, un bec, une pièce séparée. Le rayon reste une
+   * fonction de (θ,h) : une seule valeur par direction. Il faut le dire au
+   * client plutôt que de faire semblant d'avoir compris.
+   *
+   * Chaque terme est BORNÉ, et la somme est écrêtée juste après : le champ
+   * traverse ensuite le même tuyau que tout le reste (paroi constante,
+   * étanchéité, bornes d'impression). Une phrase ne peut pas fabriquer une
+   * lampe non imprimable. */
+  if(surf.champ && surf.champ.length){
+    const g = 2*Math.PI;
+    let c = 0;
+    for(const t of surf.champ.slice(0, CHAMP.maxTermes)){
+      const amp = Math.max(-CHAMP.ampMaxMm, Math.min(CHAMP.ampMaxMm, +t.amp || 0));
+      if(!amp) continue;
+      const n   = Math.max(0, Math.min(24, Math.round(t.n || 0)));       // lobes sur le tour
+      const ph  = (+t.phase || 0) * Math.PI/180;
+      const h0  = +t.h0 || 0, larg = Math.max(4, +t.largeur || 30);
+      switch(t.type){
+        case 'lobes':      c += amp*Math.cos(n*theta + ph); break;
+        case 'torsade':    c += amp*Math.cos(n*theta + ph + (+t.pas||0)*h*Math.PI/180); break;
+        case 'onde':       c += amp*Math.sin(g*h/Math.max(6,+t.pasMm||40) + ph); break;
+        case 'renflement': c += amp*Math.exp(-Math.pow((h-h0)/larg, 2)); break;
+        case 'bosse': {    // локalisée en hauteur ET en angle : un seul côté
+          let dt = ((theta - ph) % g + g + Math.PI) % g - Math.PI;
+          const eA = Math.exp(-Math.pow(dt/Math.max(0.15, (+t.ouverture||60)*Math.PI/180), 2));
+          c += amp * eA * Math.exp(-Math.pow((h-h0)/larg, 2));
+          break; }
+        case 'facettes': { // polygone adouci : |cos| replié sur n secteurs
+          const s = Math.abs(Math.cos((n||6)*(theta+ph)/2));
+          c += amp*(s - 0.6366);                                          // moyenne retirée
+          break; }
+      }
+    }
+    d += Math.max(-CHAMP.sommeMaxMm, Math.min(CHAMP.sommeMaxMm, c));
   }
   return d * fondu;
 }

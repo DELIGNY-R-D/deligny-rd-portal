@@ -1,0 +1,106 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>LUMINE — DELIGNY R&D</title>
+<meta name="description" content="Un labo de neuroévolution robotique : un tripode simulé apprend à marcher, tenir debout et franchir un terrain irrégulier — direction : le vrai robot.">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' https://atlas-studio.pro; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<link rel="icon" href="../img/favicon.svg" type="image/svg+xml">
+<link rel="icon" href="../img/favicon.png" sizes="32x32" type="image/png">
+<link rel="apple-touch-icon" href="../img/apple-touch-icon.png">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DELIGNY R&D">
+<meta property="og:title" content="LUMINE — DELIGNY R&D">
+<meta property="og:description" content="Un labo de neuroévolution robotique : un tripode simulé apprend à marcher, tenir debout et franchir un terrain irrégulier — direction : le vrai robot.">
+<meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg">
+<meta property="og:url" content="https://deligny-rd.fr/lumine/">
+<meta name="twitter:card" content="summary_large_image">
+<!--
+  Page teaser / liste d'attente — DELIGNY R&D / LUMINE.
+  Gabarit repris à l'identique de la Landing Factory (HUB/factory/out/nano-worlds/index.html) :
+  palette dark Apple, zéro dépendance externe, zéro tracking, zéro cookie.
+  Mécanisme d'inscription = identique : pas de formulaire ni de stockage,
+  un simple lien mailto: stylé en CTA. Rien de plus n'est réinventé ici.
+-->
+<style>
+:root{
+  --bg:#000; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;min-height:100%;}
+body{background:var(--bg);color:var(--txt);font:16px/1.6 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:720px;margin:0 auto;padding:0 22px 70px;}
+header{text-align:center;padding:84px 0 30px;}
+h1{font-size:44px;font-weight:700;letter-spacing:-.025em;margin:0 0 14px;
+   background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);
+   -webkit-background-clip:text;background-clip:text;color:transparent;}
+.pitch{color:var(--dim);font-size:19px;max-width:560px;margin:0 auto;}
+.badge{display:inline-block;margin-top:18px;font-size:12px;font-weight:600;color:var(--amber);
+       background:rgba(255,159,10,.14);padding:5px 14px;border-radius:99px;}
+.cta{display:block;text-align:center;margin:44px auto 0;max-width:340px;
+     background:var(--blue-cta);color:#fff;font-weight:600;font-size:16px;
+     padding:14px 28px;border-radius:99px;transition:background .2s;}
+.cta:hover{background:#0a7cf0;text-decoration:none;}
+.cta-sub{text-align:center;color:var(--dim2);font-size:13px;margin-top:12px;}
+.card{background:var(--card);border-radius:20px;padding:26px;margin-top:40px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 12px;text-transform:uppercase;letter-spacing:.04em;}
+.card p{margin:0 0 10px;color:var(--dim);font-size:15px;}
+.card p:last-child{margin-bottom:0;}
+.status{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:10px;}
+.status li{display:flex;gap:10px;align-items:flex-start;font-size:14.5px;color:var(--dim);}
+.status .dot{flex:0 0 auto;width:8px;height:8px;border-radius:50%;margin-top:6px;}
+.dot.ok{background:var(--green);}
+.dot.mid{background:var(--amber);}
+.dot.no{background:#636366;}
+.status b{color:var(--txt);font-weight:600;}
+.divider{border-top:.5px solid var(--sep);margin:18px 0;}
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:56px;line-height:1.8;}
+footer .sep{border-top:.5px solid var(--sep);max-width:200px;margin:0 auto 16px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>LUMINE</h1>
+    <p class="pitch">Un labo de neuroévolution robotique : un tripode simulé apprend, par sélection génétique, à tenir debout, marcher et franchir un terrain irrégulier — avec un objectif final assumé : transférer la démarche apprise vers un vrai robot.</p>
+    <span class="badge">Labo de recherche en incubation · rien n'est vendu ici (encore)</span>
+  </header>
+
+  <a class="cta" href="mailto:contact@deligny-rd.fr?subject=LUMINE%20%E2%80%94%20je%20suis%20int%C3%A9ress%C3%A9">
+    Ça m'intéresse — me tenir au courant
+  </a>
+  <p class="cta-sub">Un simple mail suffit. Pas de formulaire, pas de tracking, pas de spam.</p>
+
+  <div class="card">
+    <h2>Le principe</h2>
+    <p>Un robot tripode (3 pattes, 9 servos) est simulé en physique réaliste, puis évolué génération après génération par algorithme génétique / CMA-ES : aucune démarche n'est programmée à la main, elle émerge de la sélection sur des dizaines de générations. Chaque comportement acquis (tenir debout, avancer, pivoter) doit passer une porte de validation mesurée avant d'être considéré comme acquis.</p>
+  </div>
+
+  <div class="card">
+    <h2>Ce qui est acquis (mesuré, pas promis)</h2>
+    <ul class="status">
+      <li><span class="dot ok"></span><span><b>Station debout sur 3 pattes</b> — maintien rigide et permanent, tilt proche de 0°, prouvé en runtime.</span></li>
+      <li><span class="dot ok"></span><span><b>Marche sur terrain irrégulier</b> — validée avec les mêmes seuils de qualité que sur sol plat.</span></li>
+      <li><span class="dot ok"></span><span><b>Pivot sur place</b> — le comportement le plus abouti à ce jour.</span></li>
+      <li><span class="dot ok"></span><span><b>Équilibre statique</b> — tenue parfaite, dérive quasi nulle.</span></li>
+      <li><span class="dot ok"></span><span><b>Transition tripode → bipède</b> — comportement acquis, validation visuelle en cours.</span></li>
+      <li><span class="dot mid"></span><span><b>Marche autonome apprise depuis zéro</b> — non encore émergée : la station debout est un optimum si profond que l'évolution n'a pas encore découvert de cycle de marche fiable sans elle. Travail en cours (approche par CPG modulé par le réseau).</span></li>
+      <li><span class="dot no"></span><span><b>Transfert vers un robot réel</b> — pas encore franchi : le pont simulation → firmware Arduino reste à construire.</span></li>
+    </ul>
+  </div>
+
+  <div class="card">
+    <h2>Pourquoi cette page ?</h2>
+    <p>Ce projet est en incubation active, en recherche, pas en démonstration : aucune simulation interactive n'est exposée ici. Cette page mesure une seule chose : est-ce que la trajectoire « apprendre à marcher en simulation, transférer sur un vrai robot » intéresse quelqu'un. Si oui, écris-nous — chaque mail compte réellement dans la décision de continuer et d'ouvrir davantage le projet.</p>
+  </div>
+
+  <footer>
+    <div class="sep"></div>
+    Aucun cookie · aucun tracker · aucune donnée collectée en dehors du mail
+    que tu choisis d'envoyer.<br>
+    LUMINE — DELIGNY R&D · Contact : <a href="mailto:contact@deligny-rd.fr">contact@deligny-rd.fr</a>
+  </footer>
+</div>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>
