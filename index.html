@@ -3,25 +3,32 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Vitrine R&D DELIGNY : conception produit, logiciel et structure informatique." />
+  <meta name="description" content="DELIGNY R&D : conception produit, logiciel et structure informatique." />
   <title>DELIGNY R&D - Vitrine R&D</title>
   <!--
     Profil STATIC_FORTRESS (deploy/STATIC_FORTRESS_CHECKLIST.md) — adapte a
-    l'hebergement reel (GitHub Pages, pas le VPS/nginx prevu initialement).
-    GitHub Pages n'autorise aucun en-tete HTTP personnalise. Verifie le
-    30/07 : HSTS est en realite deja envoye par GitHub automatiquement
-    pour les domaines custom en HTTPS force (pas besoin de proxy pour ca).
-    Restent reellement IMPOSSIBLES sans proxy devant GitHub Pages :
-    X-Content-Type-Options, Permissions-Policy, et un vrai en-tete CSP.
-    Consequence concrete : frame-ancestors et form-action dans la balise
-    CSP ci-dessous sont INERTES (ces directives ne sont respectees par
-    aucun navigateur quand elles viennent d'une <meta>, seulement d'un
-    en-tete) — la protection anti-clickjacking n'est donc pas active tant
-    que ce proxy n'existe pas. Decision actee le 23/07 : NO GO Cloudflare
-    pour l'instant, geste a decider par Baptiste.
+    l'hebergement reel (GitHub Pages). A jour au 10/08 : le domaine est
+    proxie par Cloudflare (nameservers bascules le 30/07), qui pose de
+    vrais en-tetes HTTP en periphrie — X-Content-Type-Options,
+    Permissions-Policy, X-Frame-Options — via une Response Header
+    Transform Rule. Le proxy Cloudflare EST le geste NO GO CloudFlare du
+    23/07, leve depuis. La balise CSP ci-dessous reste posee en meta pour
+    le navigateur (frame-ancestors/form-action y restent inertes, seul un
+    en-tete les rend actifs — non reproductible ici, GitHub Pages
+    n'expose aucun en-tete personnalise cote origine).
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="img/favicon.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="DELIGNY R&D" />
+  <meta property="og:title" content="DELIGNY R&D — Vitrine R&D" />
+  <meta property="og:description" content="DELIGNY R&D : conception produit, logiciel et structure informatique." />
+  <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
+  <meta property="og:url" content="https://deligny-rd.fr/" />
+  <meta name="twitter:card" content="summary_large_image" />
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
@@ -57,8 +64,8 @@
 
   <main>
     <section class="hero" id="desk">
-      <p class="eyebrow">Vitrine R&D DELIGNY</p>
-      <h1>La vitrine R&D DELIGNY : conception produit, logiciel et <span class="grad-text">structure informatique.</span></h1>
+      <p class="eyebrow">DELIGNY R&D</p>
+      <h1>DELIGNY R&D : conception produit, logiciel et <span class="grad-text">structure informatique.</span></h1>
       <p class="lead">
         DELIGNY R&D montre ici ce qui est reellement concu et construit : objets et
         produits physiques, logiciels et studios developpes en interne, infrastructure
@@ -79,7 +86,7 @@
 
     <section class="notice" id="statut">
       <div>
-        <strong>SASU immatriculee, paiement en finalisation</strong>
+        <strong>Offres pretes, paiement en finalisation</strong>
         <p>
           DELIGNY R&D (SASU) est immatriculee depuis le 15/07/2026. Le portail prepare
           les offres et les acces ; les ventes publiques et paiements en ligne restent

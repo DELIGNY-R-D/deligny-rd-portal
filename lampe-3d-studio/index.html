@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-eY22SDegDwBHKZujLKXZimTdMQJseXB+AFoko9Ak/sU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-yNKcAwSXxcZifqqtXfO9AB16s9jVDjilQNCBTpqiYks='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -3644,9 +3644,38 @@ function rebuildMesh(){
   const segExport = Math.max(...segsExport), segPreview = Math.max(...segsPreview);
   const volMm3 = MESH.parts.reduce((s,p)=>s+meshVolumeMm3(p.tris), 0);
   const tris   = MESH.parts.reduce((s,p)=>s+p.tris.length, 0);
-  // stabilité : évaluée sur le corps posé au sol (le premier), avec son rayon d'appui réel
-  const ground = MESH.parts.filter(p=>Math.abs(p.xf.tz)<0.01 && p.index===0);
+  /* ⚠️ EMPILEMENT (09/08) : la stabilité n'était calculée que sur le corps du
+   * BAS. Sur une lampe à modules empilés, tout ce qui est au-dessus est
+   * précisément ce qui fait monter le centre de gravité — mesuré, l'angle
+   * annonçait 34,8° de 1 à 7 modules, c'est-à-dire qu'il ne mesurait rien.
+   * Une pile est UN SEUL objet qui bascule : on prend donc tous les corps.
+   * En revanche, posés en ligne ou en couronne, les corps touchent le sol
+   * chacun de leur côté : là, chacun bascule pour son compte et on garde le
+   * plus défavorable. */
+  const empile = state.compo.count <= 1 || state.compo.layout === 'vertical';
+  const ground = empile
+    ? MESH.parts
+    : MESH.parts.filter(p=>Math.abs(p.xf.tz)<0.01 && p.index===0);
   const groundTris = ground.flatMap(p=>p.tris);
+  /* ⚠️ Et les triangles sont en coordonnées LOCALES : chaque module part de
+   * z=0. Les passer tels quels au centre de gravité revenait à empiler sept
+   * modules… tous posés au sol. Le centre de gravité ne bougeait pas d'un
+   * millimètre (mesuré : 65 mm pour 1 module comme pour 7, sur 1,2 m de haut).
+   * On combine donc les centres de gravité PARTIE PAR PARTIE, chacun remis à
+   * sa place : c'est exact et ça coûte O(pièces) au lieu de recopier
+   * 1,3 million de triangles. Le volume d'une pièce à l'échelle e vaut e³ fois
+   * son volume local. */
+  const cgAssemblage = ()=>{
+    let sx=0, sy=0, sz=0, sv=0;
+    for(const p of ground){
+      const c = meshCentroid(p.tris);
+      if(!c.vol) continue;
+      const w = placeVertex([c.x, c.y, c.z], p.xf, 0);
+      const v = c.vol * Math.pow(p.xf.scale || 1, 3);
+      sx += w[0]*v; sy += w[1]*v; sz += w[2]*v; sv += v;
+    }
+    return sv ? {x:sx/sv, y:sy/sv, z:sz/sv} : {x:0, y:0, z:0};
+  };
   /* ⚠️ La lampe ne repose PAS sur le pied de l'abat-jour : sous lui il y a la
    * bague puis la base d'atelier, et c'est le dessous de CELLE-CI qui touche la
    * table — Ø102,391 à z −5,400 (relevé sur l'assemblage P1+P2). Prendre le
@@ -3658,7 +3687,12 @@ function rebuildMesh(){
   const surBase = bagueActive() && DECO.etat === 'ok';
   const groundR = surBase ? BAGUE.appuiRMm
     : (ground.length ? Math.max(...ground.map(p=>Math.hypot(p.xf.tx,p.xf.ty) + (state.bodies[p.body].profile[0].r*p.xf.scale))) : 1);
-  const tip = groundTris.length ? tipAngleDeg(groundTris, groundR, surBase ? BAGUE.solZMm : 0) : {deg:0, cgHeightMm:0};
+  let tip = {deg:0, cgHeightMm:0};
+  if(groundTris.length){
+    const cg = cgAssemblage();
+    const cgH = Math.max(0.1, cg.z - (surBase ? BAGUE.solZMm : 0));
+    tip = { deg: Math.atan2(groundR, cgH)*180/Math.PI, cgHeightMm: cgH };
+  }
   // boîte englobante de l'assemblage (cadrage de l'aperçu + empreinte)
   let bb={minX:1e9,maxX:-1e9,minY:1e9,maxY:-1e9,minZ:1e9,maxZ:-1e9};
   MESH.preview.forEach(p=>p.tris.forEach(t=>t.forEach(v=>{
