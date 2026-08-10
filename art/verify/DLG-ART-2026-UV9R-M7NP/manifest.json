@@ -1,0 +1,235 @@
+{
+  "type": "cartouche-oeuvre/deligny-rd",
+  "oeuvre": {
+    "id": "DLG-ART-2026-UV9R-M7NP",
+    "titre": "Rébellion en Technicolor",
+    "artiste": "Baptiste Placier",
+    "collection": "Pop art",
+    "dimensions": "50 x 70cm",
+    "support": "200g",
+    "edition": "Pièce unique (1/1)",
+    "orientation": "Paysage — signature en bas à droite",
+    "lieu": "Paris",
+    "date_creation": {
+      "mode": "exacte",
+      "valeur": "2025-06-26"
+    },
+    "techniques": [
+      {
+        "nom": "collage",
+        "confiance": 0.9,
+        "declaree": true
+      },
+      {
+        "nom": "pochoir",
+        "confiance": 0.8,
+        "declaree": true
+      },
+      {
+        "nom": "impression",
+        "confiance": 0.85,
+        "declaree": false
+      },
+      {
+        "nom": "encre",
+        "confiance": 1.0,
+        "declaree": true
+      },
+      {
+        "nom": "crayon",
+        "confiance": 1.0,
+        "declaree": true
+      }
+    ],
+    "mots_cles": [
+      "rébellion",
+      "pop art",
+      "chaos",
+      "coloré",
+      "symbole",
+      "urbain"
+    ],
+    "encadrement": {
+      "mode": "reel",
+      "cadre": "photo:double-filet:or",
+      "passe_partout_mm": 0,
+      "etiquette": "blanche"
+    }
+  },
+  "significations": {
+    "intention_artiste": "Je crée un univers où l'absurde flirte avec la révolte, où l’argent, les icônes pop et les symboles de surveillance cohabitent. Un chat rêveur et un billet détourné se mêlent aux éclats colorés, formant une tension entre contrôle et liberté. Chaque élément visuel interpelle le statu quo dans un kaléidoscope chaotique et dynamique.\n\nMon geste artistique s'appuie sur la profusion et la juxtaposition. Les collages multicolores et les pochoirs précis soulignent la complexité du discours visuel. C’est une accumulation sans ordre apparent qui reflète le tumulte urbain tout en le bousculant.\n\nJe ne dicte rien, je présente. Je laisse au spectateur le soin de naviguer dans ce dédale saturé d'images et de décider comment réagir face à notre monde surchargé. C’est un espace d'interprétation libre et critique où chacun peut trouver sa vérité.",
+    "interpretation_ia": "L'œuvre s'articule autour de tensions modernes avec un collage dense et disparate, évoquant la saturation médiatique et culturelle. Les lignes sinueuses et motifs répétitifs créent une composition chaotique mais rythmée. La palette vive de néons et de pastels contraste avec le noir et blanc des pochoirs. Réminiscences de l'art urbain, cet assemblage de symboles culturels, pop et subversifs comme la surveillance ou la révolte, insuffle un message provocateur. L'utilisation d'éléments iconiques détourne notre perception, conjuguant autodérision et critique sociale.",
+    "analyse_esthetique": "Un collage riche composé de fragments colorés et de motifs variés. Les éléments sont juxtaposés sans lien évident, mais forment un ensemble dynamique. Les pochoirs apportent des détails précis, tandis que les impressions ajoutent de la texture et de la densité visuelle."
+  },
+  "contribution": {
+    "triangle": {
+      "auteur": 60,
+      "ia": 14,
+      "cocreateurs": 26
+    },
+    "ia_dans_oeuvre": true,
+    "note": "l'IA de documentation (titre, fiche) n'est pas comptabilisée"
+  },
+  "participants": [],
+  "artiste_reference": null,
+  "references": [
+    {
+      "element": "motif LV",
+      "reference": "motif Monogramme Louis Vuitton",
+      "artiste_ou_origine": "Louis Vuitton",
+      "type": "style",
+      "confiance": 1.0,
+      "position": "fond"
+    },
+    {
+      "element": "slogan Think Different",
+      "reference": "Think different, Apple 1997",
+      "artiste_ou_origine": null,
+      "type": "campagne",
+      "confiance": 1.0,
+      "position": "bas centre"
+    },
+    {
+      "element": "Felix le chat avec un télescope",
+      "reference": "Felix the Cat",
+      "artiste_ou_origine": "Otto Messmer & Pat Sullivan",
+      "type": "personnage",
+      "confiance": 1.0,
+      "position": "bas droite"
+    },
+    {
+      "element": "billet avec Benjamin Franklin et cornes",
+      "reference": "billet 100 USD",
+      "artiste_ou_origine": null,
+      "type": "billet",
+      "confiance": 1.0,
+      "position": "haut gauche"
+    },
+    {
+      "element": "chat endormi",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "photo",
+      "confiance": 0.9,
+      "position": "haut gauche"
+    },
+    {
+      "element": "homme en jaune avec des lunettes et arme",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "personnage",
+      "confiance": 0.9,
+      "position": "centre"
+    },
+    {
+      "element": "motif monogramme avec symboles et couleurs variées",
+      "reference": "motif monogramme Louis Vuitton",
+      "artiste_ou_origine": "Louis Vuitton",
+      "type": "style",
+      "confiance": 0.9,
+      "position": "fond"
+    },
+    {
+      "element": "texte Out Of Control",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "typographie",
+      "confiance": 0.8,
+      "position": "centre gauche"
+    },
+    {
+      "element": "caméra de surveillance",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "inconnu",
+      "confiance": 0.8,
+      "position": "bas gauche"
+    },
+    {
+      "element": "couronne noire et blanche sur globe terrestre",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "inconnu",
+      "confiance": 0.8,
+      "position": "bas gauche"
+    },
+    {
+      "element": "cheval ailé stylisé",
+      "reference": "Pégase",
+      "artiste_ou_origine": null,
+      "type": "personnage",
+      "confiance": 0.7,
+      "position": "haut centre"
+    },
+    {
+      "element": "planète avec couronne",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "motif",
+      "confiance": 0.7,
+      "position": "bas gauche"
+    },
+    {
+      "element": "surfeur sur planche rose",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "personnage",
+      "confiance": 0.6,
+      "position": "centre droite"
+    },
+    {
+      "element": "homme en silhouette avec sac à dos",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "personnage",
+      "confiance": 0.6,
+      "position": "bas centre"
+    },
+    {
+      "element": "œil stylisé et formes géométriques noires",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "motif",
+      "confiance": 0.6,
+      "position": "haut gauche"
+    },
+    {
+      "element": "triangle rose avec texture",
+      "reference": null,
+      "artiste_ou_origine": null,
+      "type": "motif",
+      "confiance": 0.5,
+      "position": "centre droite"
+    }
+  ],
+  "medias": [
+    {
+      "fichier": "originale.png",
+      "role": "originale",
+      "mime": "image/jpeg",
+      "sha256": "a07f50a25f7b7ca5cb8c2ee3f11a94e9e66165157e6c698bbcc7e990aa949ac2",
+      "apercu": "originale_apercu.jpg",
+      "kind": "image",
+      "format": "png",
+      "dhash": "cecad4b2d2d2472d"
+    }
+  ],
+  "chronologie": {
+    "creation_oeuvre": {
+      "mode": "exacte",
+      "valeur": "2025-06-26"
+    },
+    "prise_de_vue": null,
+    "generation_document": "2026-07-31 10:46"
+  },
+  "statut": "publié",
+  "verification_url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP",
+  "version": 2,
+  "manifeste_precedent_sha256": "34a24dff2de42ab56e29096da29358f18d2ca8a2d9351355a844396a672862ad",
+  "signature": {
+    "algo": "Ed25519 (RFC 8032)",
+    "cle_publique": "74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f",
+    "valeur_hex": "2bd56756af101870f9d5ade13a9b28bf8b4dcb98e0cc63c2a71739593bcee635e9b599c7b6b92e6125315c18419696728292dfa93c0fb16a2462473626ca560d",
+    "manifeste_sha256": "f8fe8e284c9692bfff4ccfe935c73169543e83c121f6ecf366fb26b149f19524"
+  }
+}

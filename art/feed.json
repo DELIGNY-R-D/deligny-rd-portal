@@ -4,5 +4,13 @@
   "home_page_url": "https://deligny-rd.fr/art/",
   "feed_url": "https://deligny-rd.fr/art/feed.json",
   "description": "Œuvres certifiées du studio : manifeste signé Ed25519, empreinte SHA-256 et page de vérification publique.",
-  "items": []
+  "items": [
+    {
+      "id": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/",
+      "url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/",
+      "title": "Rébellion en Technicolor — DLG-ART-2026-UV9R-M7NP",
+      "summary": "Baptiste Placier · 2025-06-26 · empreinte F8FE8E284C96",
+      "image": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg"
+    }
+  ]
 }
