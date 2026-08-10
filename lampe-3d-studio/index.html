@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-nsqvRcl2khjHO2+F2rOHs2jIOh4wgoeN+Ed5cGTmpmg='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-eY22SDegDwBHKZujLKXZimTdMQJseXB+AFoko9Ak/sU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -5665,9 +5665,23 @@ let studioTimer = null;
 function studioSoon(delai){
   clearTimeout(studioTimer);
   studioTimer = setTimeout(()=>{
-    try{ renderStudio(); }catch(e){}
-    majSourceRendu('canvas');
-    planifierLive();                       // Blender prend le relais s'il est là
+    const blenderDispo = (AI.ok === true) && BL_LIVE.on;
+    const img = $('blLiveImg');
+    const dejaRendu = !!(img && img.getAttribute('src'));
+    /* ⚠️ On NE REMPLACE PLUS l'image Blender par l'aperçu du navigateur à
+     * chaque modification : les deux ne se ressemblent pas (l'un est une pièce
+     * dans une pièce, l'autre un aplat stylisé), et pendant les ~3 s de calcul
+     * c'est l'aplat qu'on voyait — « le rendu n'est pas le bon ». La dernière
+     * image Blender RESTE affichée pendant que la suivante se calcule.
+     * L'aperçu du navigateur ne sert plus qu'à deux choses : la toute première
+     * image, et le site public où le moteur local est injoignable. */
+    if(!blenderDispo || !dejaRendu){
+      try{ renderStudio(); }catch(e){}
+      majSourceRendu('canvas');
+    } else {
+      majSourceRendu('attente');
+    }
+    planifierLive();
   }, delai === undefined ? 260 : delai);
 }
 /* Compte à rebours de l'attente. Deux phases, annoncées telles quelles :
@@ -5706,6 +5720,10 @@ function majSourceRendu(src){
     if(img) img.style.display = '';
     t.innerHTML = '<span style="color:var(--green)">— Blender, géométrie réelle</span>';
     if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s. Se refait à chaque modification.`;
+  } else if(src === 'attente'){
+    // l'image Blender reste à l'écran ; seul le libellé dit qu'elle date un peu
+    if(img) img.style.display = '';
+    t.innerHTML = '<span style="color:var(--amber)">— Blender, mise à jour…</span>';
   } else {
     if(img) img.style.display = 'none';
     t.innerHTML = BL_LIVE.busy
