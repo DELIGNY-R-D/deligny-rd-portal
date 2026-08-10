@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-8oVWbCBjzoAEhBARfifzqU0M0kl8GGvaGwlXxU0Ow7I='; style-src-attr 'unsafe-inline'; script-src 'sha256-SQ7x9MSAHbX9u7OMVDVUvuaIR1XamtXivqzwjp2QtH4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-nsqvRcl2khjHO2+F2rOHs2jIOh4wgoeN+Ed5cGTmpmg='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -106,6 +106,22 @@ table.pts tr.bad td{color:var(--red);}
 .controls .card{margin-top:0 !important;}
 .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 @media(max-width:1240px){.vgrid{grid-template-columns:1fr;}}
+/* Trois vues de front : coupe, coque, rendu. En dessous de 1500 px la
+ * troisième passe sous les deux autres plutôt que de les étrangler. */
+/* Le rendu est en 4:3 (canvas) ou 4:5 (Blender) : on lui donne une boîte de
+ * taille fixe et les deux s'y inscrivent en `contain`. Sans plafond de hauteur,
+ * la troisième vue mangeait l'écran et chassait le bandeau de cotes. */
+.rendu-box{position:relative;width:100%;aspect-ratio:4/3;max-height:330px;}
+.rendu-box canvas,.rendu-box img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;border-radius:12px;background:#0a0b0e;border:1px solid var(--sep);}
+/* Les deux vues de TRAVAIL côte à côte, le rendu sous elles sur toute la
+ * largeur. Trois colonnes de front tiendraient sur le papier, mais la colonne
+ * visuelle ne fait que ~730 px : la coupe cotée y devient illisible. Les trois
+ * sont à l'écran en même temps, c'est ce qui compte. */
+.vgrid3{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+.vgrid3 > :nth-child(3){grid-column:1 / -1;}
+@media(max-width:1000px){.vgrid3{grid-template-columns:1fr;}
+  .vgrid3 > :nth-child(3){grid-column:auto;}}
 @media(max-width:1000px){
   .app{grid-template-columns:1fr;}
   .viewer{position:static;max-height:none;overflow:visible;}
@@ -194,13 +210,12 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
   <div class="app">
   <div class="viewer">
     <div class="card">
-      <div class="vtabs">
-        <button data-pane="geo" class="on">Coupe 2D &amp; aperçu 3D</button>
-        <button data-pane="render">Rendu studio</button>
-      </div>
-
+      <!-- Les TROIS vues à l'écran en même temps (09/08) : on dessine dans la
+           coupe, on voit la coque tourner, et le rendu studio se refait tout
+           seul dès qu'on lâche la souris. Plus d'onglets : ce qu'on compare,
+           on ne devrait pas avoir à s'en souvenir. -->
       <div class="vpane" id="pane-geo">
-        <div class="vgrid">
+        <div class="vgrid3">
           <div class="canvas-col">
             <div class="lbl">Coupe 2D cotée — axe de symétrie au centre
               <small>Clique dans le vide pour ajouter un point · glisse un point pour le déplacer</small>
@@ -214,6 +229,15 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
             </div>
             <canvas id="previewCanvas" width="480" height="440"></canvas>
           </div>
+          <div class="canvas-col">
+            <div class="lbl">Rendu studio <span id="vueRenduSrc" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
+              <small id="vueRenduNote">Se refait à chaque modification, et dès que la souris s'arrête.</small>
+            </div>
+            <div class="rendu-box">
+              <canvas id="renderCanvas" width="1280" height="960"></canvas>
+              <img id="blLiveImg" alt="Rendu Blender de la lampe" style="display:none">
+            </div>
+          </div>
         </div>
         <div class="viewtools">
           <span>Orbite : glisse dans l'aperçu (horizontal = tourner, vertical = basculer). Zoom au curseur.</span>
@@ -225,10 +249,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         </div>
       </div>
 
-      <div class="vpane" id="pane-render" hidden>
-        <canvas id="renderCanvas" width="1280" height="960"></canvas>
-        <div class="warnbox" id="renderInfo"></div>
-      </div>
+      <div class="warnbox" id="renderInfo"></div>
 
       <div id="hud"></div>
     </div>
@@ -3877,7 +3898,9 @@ window.addEventListener('mousemove', e=>{
   lastX=e.clientX; lastY=e.clientY;
   syncViewInputs(); apercuProgressif();
 });
-window.addEventListener('mouseup', ()=>{ if(rotDrag){ rotDrag=false; apercuProgressif(); } });
+// La souris s'arrête = la caméra est posée = on refait le rendu studio. C'est
+// la demande telle quelle : « si la souris se stoppe, ça fait un rendu ».
+window.addEventListener('mouseup', ()=>{ if(rotDrag){ rotDrag=false; apercuProgressif(); studioSoon(); } });
 // Le zoom se règle UNIQUEMENT au curseur (#vZoom) : pas de molette, pas de
 // pincement à deux doigts — sur trackpad le pincement déclenchait un zoom
 // parasite pendant qu'on essayait simplement de faire défiler la page.
@@ -3889,7 +3912,7 @@ vc.addEventListener('touchmove', e=>{
   lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
   syncViewInputs(); apercuProgressif();
 }, {passive:true});
-window.addEventListener('touchend', ()=>{ rotDrag=false; });
+window.addEventListener('touchend', ()=>{ if(rotDrag){ rotDrag=false; studioSoon(); } });
 
 /* ════════════════════════════════════════════════════════════════════════
  * RENDU STUDIO — « photo produit » calculée en local, hors ligne.
@@ -4128,12 +4151,20 @@ async function rendreBlender(live){
     const t0 = performance.now();
     const r = await fetch(AI.base+'/api/blender', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ stls,
-        /* Le mode LIVE vise le retour rapide, pas la photo : EEVEE, scène studio
-         * (l'environnement et la translucidité exigent Cycles — c'est le rendu
-         * photo qui les garde), définition et échantillons réduits. */
-        largeur: enLive ? 620 : 1200, hauteur: enLive ? 775 : 1500,
-        samples: enLive ? 32 : parseInt($('blSamples').value,10),
-        moteur: enLive ? 'eevee' : $('blMoteur').value, couleur: bodyColor(0).replace('#',''),
+        /* Le mode LIVE rend LA MÊME IMAGE que la photo — même décor, même
+         * matière — mais en EEVEE, plus petit et moins échantillonné. Mesuré :
+         * 16 échantillons en 520 px suffisent, l'écart avec Cycles ne se voit
+         * pas à cette taille (les 15 s du premier essai étaient le démarrage à
+         * froid de Blender, pas le calcul). On ne montre plus un aperçu qui ne
+         * ressemble pas au résultat. */
+        largeur: enLive ? 520 : 1200, hauteur: enLive ? 650 : 1500,
+        samples: enLive ? 16 : parseInt($('blSamples').value,10),
+        moteur: enLive ? 'eevee' : $('blMoteur').value,
+        /* PLASTIQUE TRANSPARENT INCOLORE (09/08, demande Baptiste) : la couleur
+         * du filament ne teinte pas le rendu, la matière est translucide neutre.
+         * `diffusion translucide` = transmission diffuse, le bon modèle d'une
+         * paroi de 1,8 mm — ce n'est pas du verre. */
+        couleur: 'F4F2EE', diffusion: 'translucide',
         fond: RENDER.bg === 'clair' ? 'clair' : 'sombre',
         allumee: RENDER.lit, translucide: state.material === 'PLA_T',
         couche: parseFloat(($('blCouche')||{value:'0.20'}).value),
@@ -4141,13 +4172,13 @@ async function rendreBlender(live){
         fini: ($('blFini')||{value:'mat'}).value,
         zoom: enLive ? 1 : parseFloat(($('blZoom')||{value:'1'}).value),
         cible: 0.58,
-        scene: enLive ? 'studio' : ($('blScene')||{value:'studio'}).value,
+        scene: enLive ? 'environnement' : ($('blScene')||{value:'environnement'}).value,
         // un trou de service n'a rien à faire au premier plan d'une photo :
         // on donne son angle au moteur, il tourne la pièce pour le cacher
         trou: (SOCKETS[state.socket] && SOCKETS[state.socket].type==='module'
                && state.cable.on && trousCorps(socketEndBodyIdx()).length)
               ? state.cable.angleDeg : null,
-        transparence: parseFloat(($('blTransp')||{value:'0'}).value),
+        transparence: enLive ? 0.75 : parseFloat(($('blTransp')||{value:'0.7'}).value),
         paroi: parseFloat(state.wall),
         flou: 2.8,
         vue: Math.round(view.az*180/Math.PI) % 360, hauteur_vue: Math.round(view.el*180/Math.PI) })});
@@ -4156,11 +4187,18 @@ async function rendreBlender(live){
     else{
       BL_LIVE.derniereMs = j.ms;
       info.innerHTML = enLive
-        ? `<div class="line ok">Live EEVEE — image en ${(j.ms/1000).toFixed(1)} s (620 px, scène studio).</div>`
+        ? `<div class="line ok">Rendu studio — Blender EEVEE, image en ${(j.ms/1000).toFixed(1)} s (620 px).</div>`
         : `<div class="line ok">Rendu Blender en ${(j.ms/1000).toFixed(1)} s — `
           + `${MESH.parts.length} pièce(s), géométrie exacte, aucune IA.</div>`;
-      out.innerHTML = `<img src="${j.image}" style="width:100%;border-radius:14px;margin-top:10px" alt="Rendu Blender de la lampe">
-        <div class="row-btn"><a class="btn pri" href="${j.image}" download="lampe-rendu.png">⬇ Télécharger le PNG</a></div>`;
+      // en live, l'image RECOUVRE la troisième vue ; à la demande, elle va dans
+      // la carte Rendu avec son bouton de téléchargement
+      if(enLive){
+        const im = $('blLiveImg');
+        if(im){ im.src = j.image; majSourceRendu('blender'); }
+      } else {
+        out.innerHTML = `<img src="${j.image}" style="width:100%;border-radius:14px;margin-top:10px" alt="Rendu Blender de la lampe">
+          <div class="row-btn"><a class="btn pri" href="${j.image}" download="lampe-rendu.png">⬇ Télécharger le PNG</a></div>`;
+      }
     }
   }catch(e){
     info.innerHTML = `<div class="line bad">Moteur local injoignable (${e.name}). Il tourne bien sur le port 4555 ?</div>`;
@@ -4175,15 +4213,20 @@ async function rendreBlender(live){
  * pendant le calcul on relance UNE fois à la fin — jamais de file d'attente
  * qui s'accumule. Ce n'est pas du 30 i/s et on ne le prétend pas : la carte
  * affiche le temps réel de chaque image. */
+// `on` passe à vrai dès que le moteur local répond (detectAI) : les trois vues
+// sont demandées ensemble, la troisième n'a pas à être réclamée.
 const BL_LIVE = { on:false, busy:false, pending:false, timer:null, derniereMs:0 };
 function planifierLive(){
   if(!BL_LIVE.on || AI.ok !== true) return;
   clearTimeout(BL_LIVE.timer);
   BL_LIVE.timer = setTimeout(lancerLive, 900);
+  compteARebours('attente', 900);
 }
 async function lancerLive(){
   if(BL_LIVE.busy){ BL_LIVE.pending = true; return; }
   BL_LIVE.busy = true;
+  // estimation = durée RÉELLE de la dernière image (7 s au premier lancement)
+  compteARebours('rendu', BL_LIVE.derniereMs || 7000);
   try{ await rendreBlender(true); }
   finally{
     BL_LIVE.busy = false;
@@ -4203,6 +4246,12 @@ async function detectAI(){
     AI.ok = r.ok;
   }catch(e){ AI.ok=false; }
   renderAIBlock();
+  /* Le moteur est là : la troisième vue passe d'office en Blender. On ne fait
+   * pas cocher une case pour obtenir ce qui a été demandé — la case reste, elle
+   * sert à COUPER. Sur le site public (HTTPS), AI.ok est faux et la vue garde
+   * le rendu du navigateur, ce qui est écrit sous l'image. */
+  if(AI.ok === true && !BL_LIVE.on){ BL_LIVE.on = true; lancerLive(); }
+  majSourceRendu('canvas');
 }
 
 function renderBlenderBlock(){
@@ -4254,9 +4303,9 @@ function renderBlenderBlock(){
         </select></label>
       <label style="font-size:12.5px;color:var(--dim2)">Translucidité
         <select id="blTransp" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
-          <option value="0" selected>opaque</option>
+          <option value="0">opaque</option>
           <option value="0.35">laiteux</option>
-          <option value="0.7">diffusant — la lampe s'allume</option>
+          <option value="0.7" selected>plastique transparent incolore</option>
           <option value="1">au maximum du PLA</option>
         </select></label>
       <label style="font-size:12.5px;color:var(--dim2)">Cadrage
@@ -5434,7 +5483,7 @@ function renderAll(){
   const ex=$('vExplodeWrap'); if(ex) ex.style.display = MESH.parts.length>1 ? '' : 'none';
   $('type-hint').textContent = TYPES[state.type].hint;
   epurerNotes();                                    // replie les notes longues (cartes re-rendues comprises)
-  planifierLive();                                  // live EEVEE : relance après chaque modification
+  studioSoon();                                     // 3e vue : aperçu immédiat puis Blender
 }
 
 /* ── Socle : commandes ────────────────────────────────────────────────── */
@@ -5602,16 +5651,71 @@ $('vTurn').onclick  = e=>{
  * Les visuels sont collés en haut d'écran (position:sticky) : on édite le
  * profil en voyant la coque, le prix et l'étanchéité sans jamais descendre.
  * ──────────────────────────────────────────────────────────────────────── */
-document.querySelectorAll('.vtabs button').forEach(b=>{
-  b.onclick=()=>{
-    document.querySelectorAll('.vtabs button').forEach(x=>x.classList.remove('on'));
-    b.classList.add('on');
-    const pane=b.dataset.pane;
-    $('pane-geo').hidden    = pane!=='geo';
-    $('pane-render').hidden = pane!=='render';
-    if(pane==='render' && !RENDER.lastURL) renderStudio();
+/* ── Rendu studio permanent ───────────────────────────────────────────────
+ * Les onglets ont disparu : la troisième vue est toujours là et se refait
+ * toute seule. Deux moteurs, dans cet ordre :
+ *   · le rendu CANVAS, immédiat (72 ms mesurés) — il donne l'image tout de
+ *     suite, et c'est le seul disponible sur le site public (une page servie
+ *     en HTTPS ne peut pas appeler le moteur local) ;
+ *   · le rendu BLENDER, quelques secondes, qui vient le RECOUVRIR quand il
+ *     arrive. On écrit lequel des deux on regarde — jamais de doute.
+ * Déclencheurs : toute modification du modèle, et l'arrêt de la souris après
+ * une orbite (c'est la caméra qui a changé, donc l'image aussi). */
+let studioTimer = null;
+function studioSoon(delai){
+  clearTimeout(studioTimer);
+  studioTimer = setTimeout(()=>{
+    try{ renderStudio(); }catch(e){}
+    majSourceRendu('canvas');
+    planifierLive();                       // Blender prend le relais s'il est là
+  }, delai === undefined ? 260 : delai);
+}
+/* Compte à rebours de l'attente. Deux phases, annoncées telles quelles :
+ *   · « dans X s » — le délai de calme avant de lancer (on ne rend pas pendant
+ *     que la main bouge encore) ;
+ *   · « encore ~X s » — le calcul lui-même, estimé sur la DURÉE RÉELLE de la
+ *     dernière image et non sur une promesse ronde. Si ça déborde, on cesse de
+ *     promettre et on affiche le temps écoulé : mieux vaut un chiffre qui monte
+ *     qu'un compte à rebours qui ment. */
+let RENDU_TIC = null, RENDU_CIBLE = 0, RENDU_PHASE = '', RENDU_DEBUT = 0;
+function compteARebours(phase, ms){
+  RENDU_PHASE = phase; RENDU_CIBLE = performance.now() + ms; RENDU_DEBUT = performance.now();
+  const peindre = ()=>{
+    const n = $('vueRenduNote'); if(!n) return;
+    const reste = (RENDU_CIBLE - performance.now())/1000;
+    if(RENDU_PHASE === 'attente'){
+      n.textContent = reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s…` : 'Lancement du rendu…';
+    } else if(RENDU_PHASE === 'rendu'){
+      n.textContent = reste > 0.05
+        ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
+        : `Rendu Blender — ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s écoulées`;
+    }
   };
-});
+  peindre();
+  if(!RENDU_TIC) RENDU_TIC = setInterval(peindre, 100);
+}
+function arreterRebours(){
+  if(RENDU_TIC){ clearInterval(RENDU_TIC); RENDU_TIC = null; }
+  RENDU_PHASE = '';
+}
+function majSourceRendu(src){
+  const t = $('vueRenduSrc'), n = $('vueRenduNote'), img = $('blLiveImg');
+  if(!t) return;
+  if(src === 'blender'){
+    arreterRebours();
+    if(img) img.style.display = '';
+    t.innerHTML = '<span style="color:var(--green)">— Blender, géométrie réelle</span>';
+    if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s. Se refait à chaque modification.`;
+  } else {
+    if(img) img.style.display = 'none';
+    t.innerHTML = BL_LIVE.busy
+      ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
+      : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
+    if(n) n.textContent = (AI.ok === true)
+      ? "Se refait à chaque modification, et dès que la souris s'arrête."
+      : "Rendu du navigateur. Le rendu photo Blender demande le moteur local.";
+  }
+}
 
 function renderHud(){
   const el=$('hud'); if(!el) return;
