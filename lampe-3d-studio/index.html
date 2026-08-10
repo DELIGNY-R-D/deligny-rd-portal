@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-yNKcAwSXxcZifqqtXfO9AB16s9jVDjilQNCBTpqiYks='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-Cfvgpjn+RkJA8BQHoe4BR7mauKZZrDQgOqVAH/QR4JQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -252,6 +252,15 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       <div class="warnbox" id="renderInfo"></div>
 
       <div id="hud"></div>
+      <!-- Lien d'atelier vers le tableau de bord PROPAGATION. ⚠️ Affiché
+           UNIQUEMENT en local (voir `atelierSeulement` plus bas) : ce fichier
+           est miroité vers le portail PUBLIC, et le tableau de bord contient
+           l'état commercial et les trous de conformité. Rien de tout ça ne
+           doit se retrouver en ligne, pas même sous forme de lien mort. -->
+      <div id="lienAtelier" style="display:none;margin-top:12px;font-size:12px;color:var(--dim2)">
+        Atelier · <a href="/propagation/lamp-designer.html">Tableau de bord PROPAGATION</a>
+        — diffusion, conformité, prochaine action
+      </div>
     </div>
   </div>
 
@@ -6249,6 +6258,16 @@ function allerEtape(i){
 organiserEnEtapes();
 syncViewInputs();
 setPreset(TYPES[state.type].silhouettes[0]);
+/* Le lien vers le tableau de bord PROPAGATION n'apparaît QUE sur le poste de
+ * travail. Test sur l'hôte, pas sur le protocole : une page ouverte en
+ * file:// ou servie par le moteur local est un atelier ; tout le reste est le
+ * site public, et le tableau de bord n'y a rien à faire. */
+(function atelierSeulement(){
+  const h = location.hostname;
+  const local = h === '127.0.0.1' || h === 'localhost' || h === '' || h.endsWith('.local');
+  const el = document.getElementById('lienAtelier');
+  if(el && local) el.style.display = '';
+})();
 detectAI();
 </script>
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
