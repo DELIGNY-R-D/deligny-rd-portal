@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-Cfvgpjn+RkJA8BQHoe4BR7mauKZZrDQgOqVAH/QR4JQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-2acQcCF5M3dv2BE3Uh+SGCgrim8r/1sSNtZBS7zuV38='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -231,11 +231,18 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
           </div>
           <div class="canvas-col">
             <div class="lbl">Rendu studio <span id="vueRenduSrc" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
-              <small id="vueRenduNote">Se refait à chaque modification, et dès que la souris s'arrête.</small>
+              <small id="vueRenduNote">Point de vue fixe, comme une photo de catalogue. Se refait à chaque modification.</small>
             </div>
             <div class="rendu-box">
               <canvas id="renderCanvas" width="1280" height="960"></canvas>
               <img id="blLiveImg" alt="Rendu Blender de la lampe" style="display:none">
+            </div>
+            <!-- Éteinte / allumée : ce n'est pas un effet, c'est la même pièce
+                 sous deux éclairages. Sur une paroi translucide, la seconde
+                 montre ce que le client achète vraiment. -->
+            <div class="seg" id="litSeg" style="margin-top:10px">
+              <button data-lit="0" class="on">Lampe éteinte</button>
+              <button data-lit="1">Lampe allumée</button>
             </div>
           </div>
         </div>
@@ -3970,7 +3977,7 @@ const FINISHES = {
   translucide: { label:'Translucide diffusant', spec:0.16, shin:26, fres:0.50, trans:0.75 },
 };
 const BACKDROPS = {
-  jour:   { label:'Pièce de jour', top:'#eceaec', bot:'#d8d5d1', floor:'#b98b5a', pool:'rgba(255,255,255,.45)', dark:false },
+  jour:   { label:'Pièce de jour', top:'#eceaec', bot:'#d8d5d1', floor:'#b98b5a', pool:'rgba(255,255,255,.45)', dark:false, piece:true },
   studio: { label:'Studio sombre', top:'#17171a', bot:'#050506', floor:'#0a0a0c', pool:'rgba(255,255,255,.09)', dark:true },
   clair:  { label:'Studio clair',  top:'#f4f4f6', bot:'#dcdce1', floor:'#e8e8ec', pool:'rgba(255,255,255,.85)', dark:false },
   chaud:  { label:'Ambiance chaude', top:'#2b1d14', bot:'#0c0806', floor:'#150e09', pool:'rgba(255,186,110,.16)', dark:true },
@@ -3989,8 +3996,13 @@ function sceneFaces(W, H){
   const bb = MESH.stats.bbox || {minX:-50,maxX:50,minY:-50,maxY:50,minZ:0,maxZ:200};
   const spanXY = Math.max(1, Math.max(bb.maxX-bb.minX, bb.maxY-bb.minY));
   const totalH = Math.max(1, bb.maxZ-bb.minZ);
-  const scale = Math.min((W*0.78)/spanXY, (H*0.72)/totalH);
-  const cx = W/2, cy = H*0.60, midZ = (bb.minZ+bb.maxZ)/2;
+  /* ⚠️ CADRAGE : la lampe occupait 72 % de la hauteur, centrée à 60 % — son
+   * pied tombait donc à 96 % de l'image et le plateau n'existait plus qu'en
+   * une bande de quelques pixels. Un objet posé sur RIEN ne lit pas comme une
+   * photo. On lui laisse de l'air : 62 % de la hauteur, centrée à 52 %, ce qui
+   * dégage ~19 % de table sous elle et autant de mur au-dessus. */
+  const scale = Math.min((W*0.78)/spanXY, (H*0.62)/totalH);
+  const cx = W/2, cy = H*0.52, midZ = (bb.minZ+bb.maxZ)/2;
   const faces = [];
   let groundY = -1e9, footR = 0;
   parts.forEach(part=>{
@@ -4014,7 +4026,18 @@ function sceneFaces(W, H){
     }
   });
   faces.sort((f1,f2)=>f2.depth-f1.depth);
-  return {faces, cx, cy, groundY, footR, scale};
+  /* On RECALE la ligne de sol à 80 % de la hauteur, au lieu d'espérer qu'elle
+   * y tombe. La projection est en perspective : le point le plus bas ne se
+   * déduit pas de la boîte englobante, il faut l'avoir projeté pour le savoir.
+   * Un décalage vertical après coup coûte une passe et garantit le même
+   * cadrage pour toutes les formes — la table est toujours là, la lampe est
+   * toujours posée. */
+  const cible = H*0.80, dy = cible - groundY;
+  if(isFinite(dy) && Math.abs(dy) > 0.5){
+    for(const f of faces) for(const p of f.P) p.sy += dy;
+    groundY = cible;
+  }
+  return {faces, cx, cy:cy+dy, groundY, footR, scale};
 }
 
 /* COMPRESSION DES HAUTES LUMIÈRES (tone mapping filmique).
@@ -4058,16 +4081,50 @@ function renderStudio(){
   const bg=BACKDROPS[RENDER.bg], fin=FINISHES[RENDER.finish];
   const {faces, cx, groundY, footR} = sceneFaces(W,H);
 
-  // fond : dégradé vertical + halo de lumière derrière le sujet
-  const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,bg.top); g.addColorStop(1,bg.bot);
-  ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-  const pool=ctx.createRadialGradient(cx,H*0.34,10,cx,H*0.34,W*0.55);
-  pool.addColorStop(0,bg.pool); pool.addColorStop(1,'rgba(0,0,0,0)');
-  ctx.fillStyle=pool; ctx.fillRect(0,0,W,H);
-  // sol
   const gy=Math.min(H-8, groundY);
-  const fl=ctx.createLinearGradient(0,gy,0,H); fl.addColorStop(0,bg.floor); fl.addColorStop(1,bg.bot);
-  ctx.fillStyle=fl; ctx.fillRect(0,gy,W,H-gy);
+  if(bg.piece){
+    /* SCÈNE DE PIÈCE — c'est le SEUL rendu que verront les visiteurs du site
+     * public : une page en HTTPS ne peut pas appeler le moteur Blender local.
+     * Un dégradé gris ne vend pas une lampe. On peint donc ce que montre la
+     * photo de référence : mur sombre et chaud, plateau de bois veiné, lumière
+     * de fenêtre. Tout est du dessin 2D — aucun coût, aucune dépendance. */
+    const mur = ctx.createLinearGradient(0,0,0,gy);
+    mur.addColorStop(0,'#31343a'); mur.addColorStop(0.72,'#40403f'); mur.addColorStop(1,'#4c4640');
+    ctx.fillStyle=mur; ctx.fillRect(0,0,W,gy);
+    const halo = ctx.createRadialGradient(W*0.30, gy*0.20, 10, W*0.30, gy*0.20, W*0.66);
+    halo.addColorStop(0,'rgba(255,238,208,.20)'); halo.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=halo; ctx.fillRect(0,0,W,gy);
+
+    const bois = ctx.createLinearGradient(0,gy,0,H);
+    bois.addColorStop(0,'#7d5228'); bois.addColorStop(0.30,'#a87340'); bois.addColorStop(1,'#63401d');
+    ctx.fillStyle=bois; ctx.fillRect(0,gy,W,H-gy);
+    /* Veines : l'écartement CROÎT vers le bas — c'est la perspective d'un
+     * plateau vu de trois quarts. Des lignes régulières auraient lu « rayures ».
+     * Motif déterministe : la même lampe donne toujours la même image. */
+    ctx.save(); ctx.beginPath(); ctx.rect(0,gy,W,H-gy); ctx.clip();
+    let y = gy + 1.5, pas = Math.max(1.2, (H-gy)/90);
+    for(let i=0; y < H; i++){
+      ctx.globalAlpha = 0.05 + 0.10*(((i*37)%11)/11);
+      ctx.strokeStyle = (i%3===0) ? '#4e2f13' : '#c58f55';
+      ctx.lineWidth = Math.max(0.8, pas*0.30);
+      ctx.beginPath(); ctx.moveTo(0,y+((i*53)%7)*0.12); ctx.lineTo(W,y-((i*29)%5)*0.12); ctx.stroke();
+      pas *= 1.055; y += pas;
+    }
+    ctx.globalAlpha=1; ctx.restore();
+    // lumière rasante sur le plateau, du même côté que le halo
+    const lum = ctx.createRadialGradient(W*0.34, gy+(H-gy)*0.30, 8, W*0.34, gy+(H-gy)*0.30, W*0.55);
+    lum.addColorStop(0,'rgba(255,225,180,.16)'); lum.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=lum; ctx.fillRect(0,gy,W,H-gy);
+  } else {
+    // fond : dégradé vertical + halo de lumière derrière le sujet
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,bg.top); g.addColorStop(1,bg.bot);
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    const pool=ctx.createRadialGradient(cx,H*0.34,10,cx,H*0.34,W*0.55);
+    pool.addColorStop(0,bg.pool); pool.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=pool; ctx.fillRect(0,0,W,H);
+    const fl=ctx.createLinearGradient(0,gy,0,H); fl.addColorStop(0,bg.floor); fl.addColorStop(1,bg.bot);
+    ctx.fillStyle=fl; ctx.fillRect(0,gy,W,H-gy);
+  }
 
   const cols=state.bodies.map((_,i)=>hexToRgb(bodyColor(i)));
   const paint=(f,alpha)=>{
@@ -4083,10 +4140,12 @@ function renderStudio(){
   ctx.save();
   ctx.beginPath(); ctx.rect(0,gy,W,H-gy); ctx.clip();
   ctx.translate(0, 2*gy); ctx.scale(1,-1);
-  faces.forEach(f=>paint(f, 0.16));
+  // le bois est mat : un reflet de miroir y serait faux, on le réduit
+  faces.forEach(f=>paint(f, bg.piece ? 0.09 : 0.16));
   ctx.restore();
   ctx.globalAlpha=1;
-  const fade=ctx.createLinearGradient(0,gy,0,H); fade.addColorStop(0,'rgba(0,0,0,0)'); fade.addColorStop(1,bg.bot);
+  const fade=ctx.createLinearGradient(0,gy,0,H); fade.addColorStop(0,'rgba(0,0,0,0)');
+  fade.addColorStop(1, bg.piece ? 'rgba(99,64,29,.92)' : bg.bot);
   ctx.fillStyle=fade; ctx.fillRect(0,gy,W,H-gy);
 
   // ombre de contact
@@ -4221,10 +4280,17 @@ async function rendreBlender(live){
         trou: (SOCKETS[state.socket] && SOCKETS[state.socket].type==='module'
                && state.cable.on && trousCorps(socketEndBodyIdx()).length)
               ? state.cable.angleDeg : null,
-        transparence: enLive ? 0.75 : parseFloat(($('blTransp')||{value:'0.7'}).value),
+        transparence: enLive ? 0.80 : parseFloat(($('blTransp')||{value:'0.7'}).value),
         paroi: parseFloat(state.wall),
-        flou: 2.8,
-        vue: Math.round(view.az*180/Math.PI) % 360, hauteur_vue: Math.round(view.el*180/Math.PI) })});
+        flou: 4.5,
+        /* CAMÉRA FIXE — comme la photo de référence. Elle suivait l'orbite de
+         * l'aperçu 3D : chaque rotation refaisait une image sous un autre angle,
+         * et le rendu ne ressemblait jamais deux fois au même produit. Une photo
+         * de catalogue se prend d'un point de vue arrêté ; c'est l'objet qui
+         * change, pas l'objectif. La lampe étant un corps de révolution, seule
+         * l'élévation compte vraiment : 10°, un peu au-dessus du plateau, comme
+         * sur IMG_7106. L'orbite continue de piloter l'aperçu 3D, elle. */
+        vue: RENDU_CAM.vue, hauteur_vue: RENDU_CAM.hauteurVue })});
     const j = await r.json();
     if(!j.ok){ info.innerHTML = `<div class="line bad">${j.note||'échec du rendu'}</div>`; }
     else{
@@ -4258,19 +4324,41 @@ async function rendreBlender(live){
  * affiche le temps réel de chaque image. */
 // `on` passe à vrai dès que le moteur local répond (detectAI) : les trois vues
 // sont demandées ensemble, la troisième n'a pas à être réclamée.
-const BL_LIVE = { on:false, busy:false, pending:false, timer:null, derniereMs:0 };
+/* Point de vue ARRÊTÉ du rendu photo. Relevé sur IMG_7106 : objectif un peu
+ * au-dessus du plateau, objet vu de trois quarts. La lampe est un corps de
+ * révolution, donc l'azimut ne change presque rien — c'est l'élévation qui
+ * fait la photo. Fixe = deux lampes différentes sont comparables. */
+const RENDU_CAM = { vue: 35, hauteurVue: 10 };
+const BL_LIVE = { on:false, busy:false, pending:false, timer:null, derniereMs:0, signature:null };
 function planifierLive(){
   if(!BL_LIVE.on || AI.ok !== true) return;
   clearTimeout(BL_LIVE.timer);
   BL_LIVE.timer = setTimeout(lancerLive, 900);
   compteARebours('attente', 900);
 }
+/* Tout ce qui change RÉELLEMENT l'image. La caméra étant fixe, tourner
+ * l'aperçu 3D n'y figure pas — et c'est le but : sans cette signature, chaque
+ * orbite relançait 3 à 10 s de calcul pour reproduire la MÊME image. */
+function signatureRendu(){
+  const s = MESH.stats || {};
+  // ⚠️ RENDER.lit en fait partie : sans lui, basculer éteinte/allumée ne
+  // relancerait rien et le bouton n'aurait aucun effet visible.
+  return [s.tris, Math.round(s.volMm3||0), state.wall, state.material,
+          bodyColor(0), styleLabel(state.surface), RENDER.lit ? 'on' : 'off',
+          ($('blTransp')||{value:''}).value, MESH.parts.length].join('|');
+}
 async function lancerLive(){
   if(BL_LIVE.busy){ BL_LIVE.pending = true; return; }
+  const sig = signatureRendu();
+  const dejaUneImage = !!($('blLiveImg') && $('blLiveImg').getAttribute('src'));
+  if(dejaUneImage && sig === BL_LIVE.signature){
+    arreterRebours(); majSourceRendu('blender');   // rien n'a bougé : on garde l'image
+    return;
+  }
   BL_LIVE.busy = true;
   // estimation = durée RÉELLE de la dernière image (7 s au premier lancement)
   compteARebours('rendu', BL_LIVE.derniereMs || 7000);
-  try{ await rendreBlender(true); }
+  try{ await rendreBlender(true); BL_LIVE.signature = sig; }
   finally{
     BL_LIVE.busy = false;
     if(BL_LIVE.pending){ BL_LIVE.pending = false; lancerLive(); }
@@ -5762,7 +5850,7 @@ function majSourceRendu(src){
     arreterRebours();
     if(img) img.style.display = '';
     t.innerHTML = '<span style="color:var(--green)">— Blender, géométrie réelle</span>';
-    if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s. Se refait à chaque modification.`;
+    if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s · point de vue fixe. Se refait à chaque modification.`;
   } else if(src === 'attente'){
     // l'image Blender reste à l'écran ; seul le libellé dit qu'elle date un peu
     if(img) img.style.display = '';
@@ -5773,7 +5861,7 @@ function majSourceRendu(src){
       ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
       : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
     if(n) n.textContent = (AI.ok === true)
-      ? "Se refait à chaque modification, et dès que la souris s'arrête."
+      ? "Point de vue fixe, comme une photo. Se refait à chaque modification."
       : "Rendu du navigateur. Le rendu photo Blender demande le moteur local.";
   }
 }
@@ -5798,7 +5886,12 @@ function renderHud(){
   Object.entries(BACKDROPS).forEach(([k,v])=>{ const o=document.createElement('option'); o.value=k; o.textContent=v.label; if(k===RENDER.bg) o.selected=true; b.appendChild(o); });
   f.onchange=e=>{ RENDER.finish=e.target.value; if(RENDER.lastURL) renderStudio(); };
   b.onchange=e=>{ RENDER.bg=e.target.value; if(RENDER.lastURL) renderStudio(); };
-  $('rLit').onchange=e=>{ RENDER.lit=e.target.checked; if(RENDER.lastURL) renderStudio(); };
+  // l'interrupteur de la carte Rendu et celui sous l'image sont le MÊME état
+  $('rLit').onchange=e=>{
+    RENDER.lit=e.target.checked;
+    document.querySelectorAll('#litSeg button').forEach(x=>x.classList.toggle('on', (x.dataset.lit==='1')===RENDER.lit));
+    studioSoon(60);
+  };
   $('rRender').onclick=()=>renderStudio();
   $('rDownload').onclick=()=>{
     if(!RENDER.lastURL) return;
@@ -6262,6 +6355,17 @@ setPreset(TYPES[state.type].silhouettes[0]);
  * travail. Test sur l'hôte, pas sur le protocole : une page ouverte en
  * file:// ou servie par le moteur local est un atelier ; tout le reste est le
  * site public, et le tableau de bord n'y a rien à faire. */
+/* Éteinte / allumée — pilote le rendu photo comme l'aperçu du navigateur.
+ * Le même interrupteur que la carte Rendu (#rLit) : deux commandes, un seul
+ * état, sinon elles se contrediraient à l'écran. */
+document.querySelectorAll('#litSeg button').forEach(b=>{
+  b.onclick = ()=>{
+    RENDER.lit = b.dataset.lit === '1';
+    document.querySelectorAll('#litSeg button').forEach(x=>x.classList.toggle('on', x===b));
+    const rl = $('rLit'); if(rl) rl.checked = RENDER.lit;
+    studioSoon(60);
+  };
+});
 (function atelierSeulement(){
   const h = location.hostname;
   const local = h === '127.0.0.1' || h === 'localhost' || h === '' || h.endsWith('.local');
