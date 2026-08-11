@@ -1,7 +1,7 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>LUMINE — DELIGNY R&D</title>
-<meta name="description" content="Un labo de neuroévolution robotique : un tripode simulé apprend à marcher, tenir debout et franchir un terrain irrégulier — direction : le vrai robot.">
+<meta name="description" content="Technique de neuroévolution sim-to-real, adaptable à tout projet qui doit apprendre un comportement en simulation avant de le transférer au réel. Premier cas d'usage : un tripode qui apprend à marcher.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' https://atlas-studio.pro; style-src 'unsafe-inline'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'; upgrade-insecure-requests">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <link rel="icon" href="../img/favicon.svg" type="image/svg+xml">
@@ -10,7 +10,7 @@
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="DELIGNY R&D">
 <meta property="og:title" content="LUMINE — DELIGNY R&D">
-<meta property="og:description" content="Un labo de neuroévolution robotique : un tripode simulé apprend à marcher, tenir debout et franchir un terrain irrégulier — direction : le vrai robot.">
+<meta property="og:description" content="Technique de neuroévolution sim-to-real, adaptable à tout projet qui doit apprendre un comportement en simulation avant de le transférer au réel. Premier cas d'usage : un tripode qui apprend à marcher.">
 <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg">
 <meta property="og:url" content="https://deligny-rd.fr/lumine/">
 <meta name="twitter:card" content="summary_large_image">
@@ -63,7 +63,7 @@ footer .sep{border-top:.5px solid var(--sep);max-width:200px;margin:0 auto 16px;
 <div class="wrap">
   <header>
     <h1>LUMINE</h1>
-    <p class="pitch">Un labo de neuroévolution robotique : un tripode simulé apprend, par sélection génétique, à tenir debout, marcher et franchir un terrain irrégulier — avec un objectif final assumé : transférer la démarche apprise vers un vrai robot.</p>
+    <p class="pitch">Une technique de neuroévolution sim-to-real, adaptable à tout projet qui doit apprendre un comportement en simulation avant de le transférer au réel. Premier cas d'usage, en cours : un tripode simulé qui apprend, par sélection génétique, à tenir debout, marcher et franchir un terrain irrégulier — avec un objectif final assumé, transférer la démarche apprise vers un vrai robot.</p>
     <span class="badge">Labo de recherche en incubation · rien n'est vendu ici (encore)</span>
   </header>
 
@@ -75,6 +75,11 @@ footer .sep{border-top:.5px solid var(--sep);max-width:200px;margin:0 auto 16px;
   <div class="card">
     <h2>Le principe</h2>
     <p>Un robot tripode (3 pattes, 9 servos) est simulé en physique réaliste, puis évolué génération après génération par algorithme génétique / CMA-ES : aucune démarche n'est programmée à la main, elle émerge de la sélection sur des dizaines de générations. Chaque comportement acquis (tenir debout, avancer, pivoter) doit passer une porte de validation mesurée avant d'être considéré comme acquis.</p>
+  </div>
+
+  <div class="card">
+    <h2>Au-delà du tripode</h2>
+    <p>Le tripode est le premier cas d'usage, pas le seul objectif : LUMINE est la technique — simuler, faire émerger un comportement par sélection, valider, puis transférer au réel — pas un robot en particulier. Elle s'adapte à tout projet qui a besoin d'apprendre un comportement en simulation avant de le déployer sur du matériel réel.</p>
   </div>
 
   <div class="card">
