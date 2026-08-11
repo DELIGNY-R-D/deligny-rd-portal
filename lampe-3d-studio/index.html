@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Def1JMCYGQ7BdWmrg5bxI//c7vUcqKroJxM3iwxJkzI='; style-src-attr 'unsafe-inline'; script-src 'sha256-7nB3Euko0uQczgek2yUC88L+7Z0tSqD+HnmM37kOjHU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-W7nN8iojYxbsZ/jO1zdnGGoTsSBKOT+1OdpYCxmSxSQ='; style-src-attr 'unsafe-inline'; script-src 'sha256-bjaz7SLCBDiXU14iNtPDh53GbQYj2yg/vwE877VDoRk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -182,6 +182,24 @@ table.pts tr.bad td{color:var(--red);}
 footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
 footer .disc{max-width:680px;margin:0 auto 10px;}
 .disc-small{font-size:11.5px;color:var(--dim2);margin-top:10px;line-height:1.6;background:var(--card);border:1px solid var(--sep);border-radius:10px;padding:10px 12px;}
+
+/* Concierge — l'espace où l'on décrit la lampe en clair */
+.cv-fil{max-height:260px;overflow-y:auto;margin:12px 0 10px;display:flex;flex-direction:column;gap:8px;}
+.cv-fil:empty{display:none;}
+.cv-b{max-width:88%;padding:8px 11px;border-radius:13px;font-size:13px;line-height:1.5;white-space:pre-wrap;}
+.cv-moi{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px;}
+.cv-lui{align-self:flex-start;background:var(--card2);border:.5px solid var(--sep);border-bottom-left-radius:4px;}
+.cv-b.pense{opacity:.6;font-style:italic;}
+/* Ce qui a ete applique, et ce qui a ete refuse : jamais l'un sans l'autre. */
+.cv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+.cv-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(48,209,88,.14);color:#30d158;border:.5px solid rgba(48,209,88,.3);}
+.cv-tag.no{background:rgba(255,159,10,.14);color:#ff9f0a;border-color:rgba(255,159,10,.3);}
+.cv-saisie{display:flex;gap:8px;align-items:center;}
+.cv-saisie input{flex:1;background:#141416;color:var(--txt);border:.5px solid var(--sep);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;}
+.cv-saisie input:focus{outline:none;border-color:var(--blue);}
+.cv-etat{font-size:11.5px;color:var(--dim2);margin-top:9px;line-height:1.5;}
+#cvEx{margin-top:9px;}
+#cvEx button{font-size:11.5px;padding:4px 10px;}
 </style></head>
 <body>
 <div class="wrap">
@@ -272,6 +290,22 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
   </div>
 
   <div class="controls">
+
+  <!-- 0. CONCIERGE — dire la lampe en clair.
+       L'IA ne fabrique AUCUNE géométrie : elle propose des réglages dans le
+       vocabulaire du studio, et le studio les écrête. Ce qui est refusé est
+       affiché, jamais avalé en silence. Tout reste modifiable à la main. -->
+  <div class="card" id="conciergeCard" style="margin-top:20px;display:none">
+    <h2><span class="n">✦</span>Concierge — décris ta lampe</h2>
+    <div class="hint">Écris ce que tu veux, même de travers : « une lampe caneton », « plus haute et vrillée », « un gros ventre au milieu ». Le concierge ne dessine rien, il règle le studio, et le studio reste juge de ce qui est imprimable. Tu peux tout reprendre à la main après.</div>
+    <div id="cvFil" class="cv-fil"></div>
+    <div class="cv-saisie">
+      <input type="text" id="cvIn" placeholder="une lampe méduse, translucide…" autocomplete="off" maxlength="600">
+      <button class="btn pri" id="cvGo">Envoyer</button>
+    </div>
+    <div class="row-btn" id="cvEx"></div>
+    <div class="cv-etat" id="cvEtat"></div>
+  </div>
 
   <!-- 1. TYPE -->
   <div class="card" style="margin-top:20px">
@@ -4433,6 +4467,7 @@ async function detectAI(){
     AI.ok = r.ok;
   }catch(e){ AI.ok=false; }
   renderAIBlock();
+  renderConcierge();
   /* Le moteur est là : la troisième vue passe d'office en Blender. On ne fait
    * pas cocher une case pour obtenir ce qui a été demandé — la case reste, elle
    * sert à COUPER. Sur le site public (HTTPS), AI.ok est faux et la vue garde
@@ -6342,7 +6377,9 @@ $('prepEmail').onclick=()=>{
  * leur position : ajouter une carte ailleurs ne casse pas le regroupement.
  * ────────────────────────────────────────────────────────────────────────── */
 const ETAPES = [
-  { titre:'Forme',       sous:'silhouette, corps',      ancres:['#type-seg','#presetRow','#bodyCount'] },
+  // #cvIn en tête : le concierge est la porte d'entrée, il ouvre l'étape Forme.
+  // Sans cette ancre il partirait en dernière étape avec les cartes orphelines.
+  { titre:'Forme',       sous:'silhouette, corps',      ancres:['#cvIn','#type-seg','#presetRow','#bodyCount'] },
   { titre:'Aspect',      sous:'surface, couleur, rendu', ancres:['#surface-seg','#swatches','#rFinish'] },
   { titre:'Fabrication', sous:'matière, paroi', ancres:['#socketList','#splitOn','#material'] },
   { titre:'Commande',    sous:'prix, dossier, envoi',    ancres:['#s-price','#exportStl','#prepEmail'] },
@@ -6428,6 +6465,227 @@ document.querySelectorAll('#litSeg button').forEach(b=>{
   const el = document.getElementById('lienAtelier');
   if(el && local) el.style.display = '';
 })();
+/* ══════════════════════════════════════════════════════════════════════════
+ * CONCIERGE — une phrase du client, des RÉGLAGES du studio
+ *
+ * Le partage des rôles ne bouge pas d'un millimètre : l'IA PROPOSE des
+ * valeurs, le studio construit, mesure et écrête. Rien ici ne touche la
+ * géométrie en direct — tout passe par les fonctions qu'actionnent déjà les
+ * boutons (setPreset, normalizeProfile, propagateProfile, bodySurfaceForEdit,
+ * renderAll), donc par les mêmes garde-fous, dans le même ordre.
+ *
+ * Ce qui est écrêté ou refusé est AFFICHÉ. Un réglage qui disparaît sans un
+ * mot ressemble à une panne, et fait douter de tout le reste.
+ * ══════════════════════════════════════════════════════════════════════════ */
+const CONCIERGE = { busy:false, tours:0 };
+
+/* Le concierge a besoin du moteur local. Sur le site public, la page est
+ * servie en HTTPS et le navigateur INTERDIT d'appeler http://127.0.0.1 : le
+ * chat échouerait à chaque message. Un chat mort vaut moins que pas de chat,
+ * donc la carte n'apparaît que lorsque le moteur a répondu. Même règle que le
+ * rendu Blender, qui retombe sur le rendu du navigateur.
+ * ⚠️ Le display va sur la CARTE : le stepper la déplace, pas son emballage. */
+function renderConcierge(){
+  const c = $('conciergeCard'); if(!c) return;
+  c.style.display = (AI.ok === true) ? '' : 'none';
+}
+
+function cvBulle(qui, texte, cls){
+  const f = $('cvFil'); if(!f) return null;
+  const d = document.createElement('div');
+  d.className = 'cv-b ' + (qui==='moi' ? 'cv-moi' : 'cv-lui') + (cls ? ' '+cls : '');
+  d.textContent = texte;
+  f.appendChild(d); f.scrollTop = f.scrollHeight;
+  return d;
+}
+function cvTags(el, faits, refus){
+  if(!el || (!faits.length && !refus.length)) return;
+  const w = document.createElement('div'); w.className='cv-tags';
+  const puce = (t, no)=>{ const s=document.createElement('span');
+    s.className='cv-tag'+(no?' no':''); s.textContent=t; w.appendChild(s); };
+  faits.forEach(t=>puce(t,false));
+  refus.forEach(t=>puce(t,true));
+  el.appendChild(w);
+  const f=$('cvFil'); if(f) f.scrollTop=f.scrollHeight;
+}
+
+/* Applique une proposition. Rend ce qui a été fait ET ce qui a été refusé. */
+function appliquerConcierge(params, champ){
+  const p = params||{}, faits = [], refus = [];
+  const b = bounds();
+  const serre = (v, lo, hi, nom, unite, dec)=>{
+    const x = Math.max(lo, Math.min(hi, +v));
+    if(Math.abs(x - v) > 1e-6)
+      refus.push(nom+' ramené de '+(+v).toFixed(dec||0)+' à '+x.toFixed(dec||0)+' '+unite);
+    return x;
+  };
+
+  if(p.silhouette){
+    if(TYPES[state.type].silhouettes.includes(p.silhouette)){
+      setPreset(p.silhouette);                       // le chemin d'un bouton
+      faits.push(SILHOUETTES[p.silhouette].label);
+    } else refus.push('silhouette « '+p.silhouette+' » : pas dans ce type de lampe');
+  }
+
+  // Hauteur et rayon : on met la méridienne À L'ÉCHELLE. On ne la réinvente
+  // pas — sinon un simple « plus haute » effacerait le dessin du client.
+  if(p.hauteurMm != null && state.profile.length > 1){
+    const H = serre(p.hauteurMm, b.minH, b.maxH, 'hauteur', 'mm');
+    const h0 = profileTopH();
+    if(h0 > 1){
+      const k = H/h0;
+      state.profile.forEach(q=>{ q.h *= k; });
+      normalizeProfile(); propagateProfile();
+      faits.push('hauteur '+Math.round(profileTopH())+' mm');
+    }
+  }
+  if(p.rayonMaxMm != null && state.profile.length > 1){
+    const R = serre(p.rayonMaxMm, 8, b.maxR, 'rayon', 'mm');
+    const r0 = Math.max.apply(null, state.profile.map(q=>q.r));
+    if(r0 > 1){
+      const k = R/r0;
+      state.profile.forEach(q=>{ q.r *= k; });
+      normalizeProfile(); propagateProfile();
+      faits.push('rayon max '+Math.round(R)+' mm');
+    }
+  }
+
+  // Bornes des curseurs du panneau expert : les mêmes valeurs, pas des copies
+  // approchantes — un écart ici ferait mentir l'affichage.
+  const co = state.bodies[state.body];
+  if(p.echelle != null){
+    co.scale = serre(p.echelle, 0.35, 2.2, 'échelle', '×', 2);
+    faits.push('échelle ×'+co.scale.toFixed(2));
+  }
+  if(p.torsionDegParMm != null){
+    co.sculpt.twistDegPerMm = serre(p.torsionDegParMm, -1.2, 1.2, 'torsion', '°/mm', 2);
+    faits.push('torsion '+co.sculpt.twistDegPerMm.toFixed(2)+' °/mm');
+  }
+  if(p.courbureDeg != null){
+    co.sculpt.bendDeg = serre(p.courbureDeg, -35, 35, 'courbure', '°');
+    faits.push('courbure '+Math.round(co.sculpt.bendDeg)+'°');
+  }
+
+  if(p.matiere && MATERIALS[p.matiere]){
+    state.material = p.matiere;
+    faits.push(MATERIALS[p.matiere]);            // MATERIALS tient des libellés
+  } else if(p.matiere) refus.push('matière « '+p.matiere+' » indisponible');
+  if(p.paroiMm != null){
+    state.wall = serre(p.paroiMm, 0.8, 4, 'paroi', 'mm', 1);
+    faits.push('paroi '+state.wall.toFixed(1)+' mm');
+  }
+  if(p.corps != null){
+    const cfg = TYPES[state.type].compo;
+    state.compo.count = serre(p.corps, 1, cfg.maxBodies, 'nombre de corps', 'corps');
+    faits.push(state.compo.count+' corps');
+  }
+  if(p.agencement){
+    const cfg = TYPES[state.type].compo;
+    if(cfg.layouts.includes(p.agencement)){ state.compo.layout = p.agencement; faits.push(p.agencement); }
+    else refus.push('agencement « '+p.agencement+' » indisponible ici');
+  }
+
+  // Surface : on écrit là où les cases à cocher écrivent, pour que le réglage
+  // suive le partage « lié / par corps » sans le contourner.
+  const s = bodySurfaceForEdit();
+  const bascule = (cle, nom)=>{ if(p[cle] != null){ s[cle] = !!p[cle]; if(s[cle]) faits.push(nom); } };
+  if(p.base === 'lisse' || p.base === 'facette'){ s.base = p.base; faits.push('surface '+p.base+'e'); }
+  if(p.lissage != null) s.smoothing = Math.max(0, Math.min(90, +p.lissage));
+  bascule('stries','cannelures'); bascule('croise','croisées');
+  bascule('martele','martelage'); bascule('organique','ondulations');
+  bascule('ajour','ajourage');
+  if(p.strieCount != null)  s.strieCount  = Math.max(4, Math.min(60, Math.round(p.strieCount)));
+  if(p.strieDepthMm != null)s.strieDepthMm= Math.max(0, Math.min(5,  +p.strieDepthMm));
+  if(p.martCount != null)   s.martCount   = Math.max(6, Math.min(48, Math.round(p.martCount)));
+  if(p.martDepthMm != null) s.martDepthMm = Math.max(0, Math.min(4,  +p.martDepthMm));
+  if(p.orgAmpMm != null)    s.orgAmpMm    = Math.max(0, Math.min(8,  +p.orgAmpMm));
+  if(p.voroCells != null)   s.voroCells   = Math.max(12,Math.min(260,Math.round(p.voroCells)));
+
+  // Champ de sculpture : c'est lui qui sort du vase symétrique. Le moteur
+  // borne déjà chaque terme et leur somme ; on ne double pas ce travail ici,
+  // on se contente de ne pas dépasser le nombre de termes qu'il lit.
+  if(Array.isArray(champ)){
+    if(champ.length){
+      s.champ = champ.slice(0, CHAMP.maxTermes);
+      s.champ.forEach(t=>faits.push(t.type+' '+(+t.amp||0).toFixed(1)+' mm'));
+      if(champ.length > CHAMP.maxTermes)
+        refus.push('seuls '+CHAMP.maxTermes+' termes de sculpture sont lus');
+    } else if(s.champ && s.champ.length && Object.keys(p).length){
+      // une proposition sans champ ne doit pas effacer la sculpture en cours
+    }
+  }
+
+  normalizeProfile();
+  renderAll();
+  // Le studio a le dernier mot : s'il a écrêté, il le dit lui-même.
+  // MESH.clamped tient des objets {body, from, to} : le rayon du haut a été
+  // remonté pour que le culot loge. Le formater à la main, pas String().
+  if(MESH.clamped && MESH.clamped.length)
+    MESH.clamped.slice(0,4).forEach(c=>refus.push(
+      'corps '+c.body+' : haut élargi de '+c.from+' à '+c.to+' mm pour le culot'));
+  return { faits, refus };
+}
+
+async function cvEnvoyer(texte){
+  if(CONCIERGE.busy) return;
+  texte = (texte || ($('cvIn')||{}).value || '').trim();
+  if(!texte) return;
+  CONCIERGE.busy = true;
+  const inp = $('cvIn'), go = $('cvGo');
+  if(inp) inp.value = '';
+  if(go){ go.disabled = true; go.textContent = '…'; }
+  cvBulle('moi', texte);
+  const attente = cvBulle('lui', 'Je regarde…', 'pense');
+  const etat = {
+    silhouettes: TYPES[state.type].silhouettes.slice(),
+    courant: {
+      silhouette: state.shape, hauteurMm: Math.round(profileTopH()),
+      rayonMaxMm: Math.round(Math.max.apply(null, state.profile.map(q=>q.r)||[0])),
+      matiere: state.material, paroiMm: state.wall, corps: state.compo.count,
+    }
+  };
+  try{
+    const r = await fetch(AI.base + '/api/lampe/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: texte, etat })
+    });
+    const d = await r.json();
+    if(attente) attente.remove();
+    if(!d.ok){ cvBulle('lui', d.note || 'Le concierge n\'a pas pu répondre.'); return; }
+    const el = cvBulle('lui', d.reponse || 'Voilà.');
+    const { faits, refus } = appliquerConcierge(d.params, d.champ);
+    (d.rejets||[]).forEach(x=>refus.push(x));
+    cvTags(el, faits, refus);
+    CONCIERGE.tours++;
+    const et = $('cvEtat');
+    if(et) et.textContent = d.moteur === 'local'
+      ? 'Réponse du dictionnaire local : aucun fournisseur IA n\'est configuré sur ce poste.'
+      : 'Le studio a construit et vérifié la pièce après application. Tout reste modifiable à la main.';
+  }catch(e){
+    if(attente) attente.remove();
+    cvBulle('lui', "Le moteur local ne répond pas (" + (e.message||e) + "). "
+      + "Le concierge a besoin du moteur sur ce poste ; les réglages à la main, eux, fonctionnent toujours.");
+  }finally{
+    CONCIERGE.busy = false;
+    if(go){ go.disabled = false; go.textContent = 'Envoyer'; }
+    if(inp) inp.focus();
+  }
+}
+
+(function cvInit(){
+  const go = $('cvGo'), inp = $('cvIn'), ex = $('cvEx');
+  if(!go || !inp) return;
+  go.onclick = ()=>cvEnvoyer();
+  inp.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); cvEnvoyer(); } });
+  ['une lampe méduse','plus haute et vrillée','un gros ventre au milieu',
+   'très japonais et sobre','translucide et ajourée'].forEach(t=>{
+    const b = document.createElement('button');
+    b.className = 'btn'; b.textContent = t;
+    b.onclick = ()=>cvEnvoyer(t);
+    if(ex) ex.appendChild(b);
+  });
+})();
+
 detectAI();
 </script>
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
