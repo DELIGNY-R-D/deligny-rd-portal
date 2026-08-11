@@ -1,32 +1,57 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-W7nN8iojYxbsZ/jO1zdnGGoTsSBKOT+1OdpYCxmSxSQ='; style-src-attr 'unsafe-inline'; script-src 'sha256-bjaz7SLCBDiXU14iNtPDh53GbQYj2yg/vwE877VDoRk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-P9/T93IY1850xCigcV9b4Lh5aRXgdkqOyb/wvK4wOjE='; style-src-attr 'unsafe-inline'; script-src 'sha256-vwlShSMb/NRU51xfDCAlh+FGTGDVbnLz6G6ExopsIWM='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
 <style>
 :root{
-  --bg:#060709; --bg1:#0a0b0e; --card:#101114; --card2:#16181d;
-  --txt:#f2f4f8; --dim:#9ba1ab; --dim2:#7c8290; --sep:rgba(255,255,255,.08);
-  --blue:#4da3ff; --blue-cta:#2e7ef7; --green:#34d97b; --amber:#ffb340; --red:#ff5d55; --cyan:#6fd6ff;
-  --glow:rgba(77,163,255,.28);
+  /* ══ THÈME ÉDITORIAL (11/08) ═══════════════════════════════════════════
+   * Même grammaire que l'affiche DUNE No.01 : feuille crème, vert profond,
+   * contraste d'échelle. Les NOMS de variables sont conservés (--blue reste
+   * le nom de l'accent, désormais vert) pour que les 200 règles écrites plus
+   * bas continuent de marcher sans être reprises une par une.
+   * --acc-rgb et --ink-rgb portent les triplets : les 27 rgba() du fichier
+   * les lisent, donc un changement de thème se fait ICI et nulle part ailleurs. */
+  --acc-rgb:44,74,56; --ink-rgb:22,22,22;
+  /* Les couleurs de verdict avaient été choisies pour un fond sombre : claires
+   * et saturées. Sur crème elles crient et perdent leur sens de signal. */
+  --ok-rgb:47,107,69; --warn-rgb:138,90,18; --bad-rgb:163,50,40;
+  --bg:#e3e0d6; --bg1:#f6f4ed; --card:#efede6; --card2:#e7e4da;
+  --txt:#161616; --dim:#494943; --dim2:#6b6b63; --sep:rgba(var(--ink-rgb),.17);
+  --blue:#2c4a38; --blue-cta:#2c4a38; --green:#2f6b45; --amber:#8a5a12; --red:#a33228; --cyan:#3d6249;
+  --glow:rgba(var(--acc-rgb),.16);
+  /* couleurs de dessin des canvas, lues par le JS via PAL */
+  --canvas-fond:#e9e6dd; --canvas-grille:rgba(22,22,22,.085);
+  --canvas-grille-maj:rgba(22,22,22,.22); --canvas-texte:#6b6b63;
   --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
   --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
 }
 *,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
-body{background:radial-gradient(1100px 520px at 50% -8%,rgba(77,163,255,.075),transparent 60%) var(--bg);
+body{background:radial-gradient(1100px 520px at 50% -8%,rgba(var(--acc-rgb),.075),transparent 60%) var(--bg);
   color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.008em;}
-::selection{background:rgba(77,163,255,.30);}
-:focus-visible{outline:2px solid rgba(77,163,255,.55);outline-offset:2px;}
-::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+::selection{background:rgba(var(--acc-rgb),.30);}
+:focus-visible{outline:2px solid rgba(var(--acc-rgb),.55);outline-offset:2px;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(var(--ink-rgb),.12);border-radius:99px;}
 a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
 .wrap{max-width:1560px;margin:0 auto;padding:18px 20px 60px;}
-header{text-align:center;padding:10px 0 14px;}
-h1{font-size:26px;font-weight:600;letter-spacing:-.02em;margin:0 0 5px;}
-h1 .g{background:linear-gradient(90deg,#a8ccff,#4da3ff 55%,#6fd6ff);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.sub{color:var(--dim);font-size:13px;max-width:760px;margin:0 auto;}
-.free{display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:var(--green);background:rgba(52,217,123,.08);border:1px solid rgba(52,217,123,.30);padding:2px 10px;border-radius:99px;}
+/* ── En-tête éditorial ────────────────────────────────────────────────────
+ * L'ancien en-tête était centré, avec un titre de 26 px : correct, mais sans
+ * voix. Ici la hiérarchie est brutale et assumée, comme sur l'affiche. */
+header{text-align:left;padding:6px 0 10px;}
+.ligne-marque{display:flex;align-items:center;justify-content:space-between;
+  gap:16px;padding-bottom:10px;border-bottom:1px solid var(--sep);}
+.marque{font-size:18px;font-weight:600;letter-spacing:-.025em;color:var(--txt);}
+.menu-ed{display:flex;gap:20px;}
+.menu-ed a{font-size:12.5px;color:var(--txt);text-decoration:none;}
+.menu-ed a:hover{text-decoration:underline;text-underline-offset:3px;}
+.ref-produit{font-size:clamp(15px,2vw,20px);font-weight:600;letter-spacing:-.01em;margin-top:14px;}
+h1{font-size:clamp(56px,11vw,132px);line-height:.82;font-weight:800;
+  letter-spacing:-.055em;margin:-.02em 0 10px;}
+h1 .g{color:var(--blue);}
+.sub{color:var(--dim);font-size:13px;max-width:760px;margin:0;}
+.free{display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:var(--green);background:rgba(var(--ok-rgb),.08);border:1px solid rgba(var(--ok-rgb),.30);padding:2px 10px;border-radius:99px;}
 
-.safety{margin-top:12px;background:rgba(255,93,85,.05);border:1px solid rgba(255,93,85,.25);border-radius:12px;padding:10px 14px;text-align:left;}
+.safety{margin-top:12px;background:rgba(var(--bad-rgb),.05);border:1px solid rgba(var(--bad-rgb),.25);border-radius:12px;padding:10px 14px;text-align:left;}
 .safety summary{cursor:pointer;font-size:13px;color:var(--txt);list-style:none;}
 .safety summary::-webkit-details-marker{display:none;}
 .safety summary b{color:var(--red);}
@@ -39,12 +64,12 @@ h1 .g{background:linear-gradient(90deg,#a8ccff,#4da3ff 55%,#6fd6ff);-webkit-back
 @media(max-width:900px){.grid{grid-template-columns:1fr;}}
 .card{background:var(--card);border:1px solid var(--sep);border-radius:16px;padding:24px;}
 .card h2{font-size:11px;font-weight:600;color:var(--dim2);margin:0 0 16px;letter-spacing:.12em;text-transform:uppercase;}
-.card h2 .n{display:inline-block;width:18px;height:18px;line-height:17px;text-align:center;border-radius:50%;border:1px solid rgba(77,163,255,.55);color:var(--blue);background:transparent;font-size:10px;letter-spacing:0;margin-right:8px;}
+.card h2 .n{display:inline-block;width:18px;height:18px;line-height:17px;text-align:center;border-radius:50%;border:1px solid rgba(var(--acc-rgb),.55);color:var(--blue);background:transparent;font-size:10px;letter-spacing:0;margin-right:8px;}
 
 .seg{display:flex;gap:8px;flex-wrap:wrap;}
 .seg button{flex:1;min-width:110px;font:600 13px var(--font);padding:10px 12px;border-radius:10px;border:1px solid var(--sep);background:transparent;color:var(--dim);cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
-.seg button.on{background:rgba(77,163,255,.12);color:#fff;border-color:rgba(77,163,255,.60);}
-.seg button:hover:not(.on){border-color:rgba(255,255,255,.24);color:var(--txt);}
+.seg button.on{background:var(--blue);color:var(--card);border-color:var(--blue);}
+.seg button:hover:not(.on){border-color:rgba(var(--ink-rgb),.24);color:var(--txt);}
 
 .hint{margin-top:10px;font-size:12.5px;color:var(--dim2);line-height:1.6;}
 .hint b{color:var(--dim);}
@@ -56,28 +81,28 @@ h1 .g{background:linear-gradient(90deg,#a8ccff,#4da3ff 55%,#6fd6ff);-webkit-back
 .clamp.open{-webkit-mask-image:none;mask-image:none;}
 .clamp:hover{color:var(--dim);}
 
-canvas{display:block;background:#0a0b0e;border-radius:12px;border:1px solid var(--sep);width:100%;height:auto;touch-action:none;cursor:crosshair;}
+canvas{display:block;background:var(--canvas-fond);border-radius:12px;border:1px solid var(--sep);width:100%;height:auto;touch-action:none;cursor:crosshair;}
 .canvas-row{display:flex;gap:14px;flex-wrap:wrap;}
 .canvas-col{flex:1;min-width:240px;}
 .canvas-col .lbl{font-size:10.5px;color:var(--dim2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.09em;font-weight:600;}
 .canvas-col .lbl small{display:block;text-transform:none;letter-spacing:0;font-weight:400;margin-top:2px;color:var(--dim2);opacity:.85;}
 
 .row-btn{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
-.btn{font:600 12.5px var(--font);padding:8px 14px;border-radius:99px;border:1px solid transparent;cursor:pointer;background:rgba(255,255,255,.07);color:var(--txt);transition:background .15s,border-color .15s;}
-.btn:hover{background:rgba(255,255,255,.12);}
-.btn.pri{background:var(--blue-cta);color:#fff;box-shadow:0 0 18px var(--glow);} .btn.pri:hover{background:#4a8ffa;}
-.btn.danger{background:rgba(255,93,85,.12);color:var(--red);} .btn.danger:hover{background:rgba(255,93,85,.22);}
+.btn{font:600 12.5px var(--font);padding:8px 14px;border-radius:99px;border:1px solid transparent;cursor:pointer;background:rgba(var(--ink-rgb),.07);color:var(--txt);transition:background .15s,border-color .15s;}
+.btn:hover{background:rgba(var(--ink-rgb),.12);}
+.btn.pri{background:var(--blue-cta);color:var(--card);} .btn.pri:hover{background:#3d6249;}
+.btn.danger{background:rgba(var(--bad-rgb),.12);color:var(--red);} .btn.danger:hover{background:rgba(var(--bad-rgb),.22);}
 .btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;}
 
 table.pts{width:100%;border-collapse:collapse;margin-top:10px;font:12px var(--mono);color:var(--dim);}
 table.pts th{text-align:left;color:var(--dim2);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--sep);}
 table.pts td{padding:4px 6px;border-bottom:.5px solid var(--sep);}
-table.pts tr.sel td{color:var(--txt);background:rgba(77,163,255,.08);}
+table.pts tr.sel td{color:var(--txt);background:rgba(var(--acc-rgb),.08);}
 table.pts tr.warn td{color:var(--amber);}
 table.pts tr.bad td{color:var(--red);}
 
 .warnbox{margin-top:10px;font-size:12.5px;}
-.warnbox .line{padding:5px 10px;border-radius:0 8px 8px 0;margin-top:6px;border-left:2px solid;background:rgba(255,255,255,.03);}
+.warnbox .line{padding:5px 10px;border-radius:0 8px 8px 0;margin-top:6px;border-left:2px solid;background:rgba(var(--ink-rgb),.03);}
 .warnbox .ok{color:var(--green);}
 .warnbox .warn{color:var(--amber);}
 .warnbox .bad{color:var(--red);}
@@ -88,14 +113,14 @@ table.pts tr.bad td{color:var(--red);}
   width:100%;background:var(--bg1);border:1px solid var(--sep);border-radius:10px;color:var(--txt);
   padding:10px 12px;font:14px var(--font);transition:border-color .15s,box-shadow .15s;
 }
-.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:rgba(77,163,255,.55);box-shadow:0 0 0 3px rgba(77,163,255,.12);}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:rgba(var(--acc-rgb),.55);box-shadow:0 0 0 3px rgba(var(--acc-rgb),.12);}
 .field textarea{resize:vertical;min-height:70px;}
 .field select{cursor:pointer;}
 .swatches{display:flex;gap:8px;flex-wrap:wrap;}
 .swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
-.swatch.on{border-color:var(--blue);box-shadow:0 0 0 3px rgba(77,163,255,.22);}
+.swatch.on{border-color:var(--blue);box-shadow:0 0 0 3px rgba(var(--acc-rgb),.22);}
 .seed{font:600 12px var(--mono);color:var(--txt);background:var(--bg1);border:1px solid var(--sep);border-radius:99px;padding:8px 12px;width:96px;text-align:center;}
-.seed:focus{outline:none;border-color:rgba(77,163,255,.55);}
+.seed:focus{outline:none;border-color:rgba(var(--acc-rgb),.55);}
 .viewtools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--dim2);}
 .viewtools input[type=range]{accent-color:var(--blue);width:110px;}
 
@@ -113,7 +138,7 @@ table.pts tr.bad td{color:var(--red);}
  * la troisième vue mangeait l'écran et chassait le bandeau de cotes. */
 .rendu-box{position:relative;width:100%;aspect-ratio:4/3;max-height:330px;}
 .rendu-box canvas,.rendu-box img{position:absolute;inset:0;width:100%;height:100%;
-  object-fit:contain;border-radius:12px;background:#0a0b0e;border:1px solid var(--sep);}
+  object-fit:contain;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
 /* Les deux vues de TRAVAIL côte à côte, le rendu sous elles sur toute la
  * largeur. Trois colonnes de front tiendraient sur le papier, mais la colonne
  * visuelle ne fait que ~730 px : la coupe cotée y devient illisible. Les trois
@@ -129,21 +154,21 @@ table.pts tr.bad td{color:var(--red);}
 .vtabs{display:flex;gap:8px;margin-bottom:12px;}
 .vtabs button{flex:1;font:600 13px var(--font);padding:9px 12px;border-radius:10px;border:1px solid var(--sep);
   background:transparent;color:var(--dim);cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
-.vtabs button.on{background:rgba(77,163,255,.12);color:#fff;border-color:rgba(77,163,255,.60);}
+.vtabs button.on{background:var(--blue);color:var(--card);border-color:var(--blue);}
 .vpane[hidden]{display:none;}
 /* ── Étapes : une seule ouverte à la fois ─────────────────────────────────
  * 13 cartes et 52 réglages d'affilée, c'est 5,7 écrans à faire défiler avant
  * d'atteindre la commande. Les regrouper en 4 étapes ramène la colonne à une
  * hauteur lisible sans rien retirer : tout reste accessible, à un clic. */
 .stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;position:sticky;top:8px;z-index:5;
-  background:rgba(6,7,9,.82);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  background:rgba(227,224,214,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
   border-radius:12px;padding:2px 0 10px;}
 .stepper button{font:600 12.5px var(--font);padding:10px 8px;border-radius:10px;border:1px solid var(--sep);
   background:transparent;color:var(--dim);cursor:pointer;transition:border-color .15s,background .15s,color .15s;line-height:1.25;text-align:left;}
 .stepper button .n{display:block;font-size:10px;color:var(--dim2);font-weight:600;letter-spacing:.08em;text-transform:uppercase;}
-.stepper button.on{background:rgba(77,163,255,.12);color:#fff;border-color:rgba(77,163,255,.60);}
-.stepper button.on .n{color:rgba(168,204,255,.80);}
-.stepper button:hover:not(.on){border-color:rgba(255,255,255,.24);color:var(--txt);}
+.stepper button.on{background:var(--blue);color:var(--card);border-color:var(--blue);}
+.stepper button.on .n{color:rgba(239,237,230,.72);}
+.stepper button:hover:not(.on){border-color:rgba(var(--ink-rgb),.24);color:var(--txt);}
 .etape[hidden]{display:none;}
 .etape{display:flex;flex-direction:column;gap:18px;}
 .etape-pied{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:2px;}
@@ -158,24 +183,28 @@ table.pts tr.bad td{color:var(--red);}
 @media(max-width:560px){#hud{grid-template-columns:repeat(2,1fr);}}
 
 .socket-opt{display:flex;gap:10px;border:1px solid var(--sep);border-radius:12px;padding:12px 14px;margin-top:8px;cursor:pointer;background:transparent;transition:border-color .15s,background .15s;}
-.socket-opt.on{border-color:rgba(77,163,255,.60);background:rgba(77,163,255,.08);}
+.socket-opt.on{border-color:rgba(var(--acc-rgb),.60);background:rgba(var(--acc-rgb),.08);}
 .socket-opt input{margin-top:3px;accent-color:var(--blue);}
 .socket-opt .t{font-weight:600;}
 .socket-opt .d{font-size:12px;color:var(--dim2);margin-top:3px;line-height:1.5;}
 .tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:1px;}
-.tag.measured{background:rgba(52,217,123,.08);border:1px solid rgba(52,217,123,.35);color:var(--green);}
-.tag.standard{background:rgba(255,179,64,.08);border:1px solid rgba(255,179,64,.35);color:var(--amber);}
+.tag.measured{background:rgba(var(--ok-rgb),.08);border:1px solid rgba(var(--ok-rgb),.35);color:var(--green);}
+.tag.standard{background:rgba(var(--warn-rgb),.08);border:1px solid rgba(var(--warn-rgb),.35);color:var(--amber);}
 
 .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
 .stat{background:var(--card2);border:1px solid var(--sep);border-radius:12px;padding:14px;}
 .stat .k{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:.09em;font-weight:600;}
 .stat .v{font-size:21px;font-weight:650;letter-spacing:-.02em;margin-top:5px;line-height:1;font-feature-settings:"tnum";}
 .stat .v small{font-size:12px;color:var(--dim);font-weight:500;}
-.price-big{text-align:center;margin-top:16px;padding:18px;background:rgba(77,163,255,.06);border:1px solid rgba(77,163,255,.30);border-radius:14px;}
-.price-big .amt{font-size:38px;font-weight:650;letter-spacing:-.02em;font-feature-settings:"tnum";
-  background:linear-gradient(90deg,#a8ccff,#4da3ff 55%,#6fd6ff);-webkit-background-clip:text;background-clip:text;color:transparent;}
-.price-big .amt small{font-size:16px;color:var(--dim);font-weight:500;-webkit-text-fill-color:var(--dim);}
-.price-big .note{font-size:12px;color:var(--dim2);margin-top:4px;}
+/* Le prix devient le BANDEAU VERT de l'affiche : bord à bord dans la carte,
+ * texte crème. C'est l'élément qui signe le langage, et le seul endroit du
+ * configurateur où une couleur pleine est justifiée. */
+.price-big{margin:16px -24px -24px;padding:16px 24px 18px;background:var(--blue);
+  color:var(--card);text-align:left;border-radius:0 0 15px 15px;}
+.price-big .amt{font-size:38px;font-weight:700;letter-spacing:-.025em;font-feature-settings:"tnum";
+  color:var(--card);line-height:1.05;}
+.price-big .amt small{font-size:16px;color:rgba(239,237,230,.72);font-weight:500;-webkit-text-fill-color:rgba(239,237,230,.72);}
+.price-big .note{font-size:12px;color:rgba(239,237,230,.66);margin-top:4px;}
 .breakdown{margin-top:12px;font:12.5px var(--mono);color:var(--dim);}
 .breakdown div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--sep);}
 
@@ -187,13 +216,13 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
 .cv-fil{max-height:260px;overflow-y:auto;margin:12px 0 10px;display:flex;flex-direction:column;gap:8px;}
 .cv-fil:empty{display:none;}
 .cv-b{max-width:88%;padding:8px 11px;border-radius:13px;font-size:13px;line-height:1.5;white-space:pre-wrap;}
-.cv-moi{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px;}
+.cv-moi{align-self:flex-end;background:var(--blue);color:var(--card);border-bottom-right-radius:4px;}
 .cv-lui{align-self:flex-start;background:var(--card2);border:.5px solid var(--sep);border-bottom-left-radius:4px;}
 .cv-b.pense{opacity:.6;font-style:italic;}
 /* Ce qui a ete applique, et ce qui a ete refuse : jamais l'un sans l'autre. */
 .cv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
-.cv-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(48,209,88,.14);color:#30d158;border:.5px solid rgba(48,209,88,.3);}
-.cv-tag.no{background:rgba(255,159,10,.14);color:#ff9f0a;border-color:rgba(255,159,10,.3);}
+.cv-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(var(--ok-rgb),.14);color:#30d158;border:.5px solid rgba(var(--ok-rgb),.3);}
+.cv-tag.no{background:rgba(var(--warn-rgb),.14);color:#ff9f0a;border-color:rgba(var(--warn-rgb),.3);}
 .cv-saisie{display:flex;gap:8px;align-items:center;}
 .cv-saisie input{flex:1;background:#141416;color:var(--txt);border:.5px solid var(--sep);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;}
 .cv-saisie input:focus{outline:none;border-color:var(--blue);}
@@ -203,9 +232,21 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
 </style></head>
 <body>
 <div class="wrap">
+  <!-- En-tête éditorial (11/08) : même grammaire que l'affiche DUNE No.01.
+       La ligne de marque et le menu au-dessus d'un filet, puis LE mot en très
+       grand. C'est le contraste d'échelle qui fait le style, pas un effet. -->
   <header>
-    <h1><span class="g">Custom 3D Lamp Studio</span></h1>
-    <div class="sub">Dessine la forme — le prix, les contrôles d'imprimabilité et le dossier de fabrication se calculent en direct.
+    <div class="ligne-marque">
+      <div class="marque">deligny</div>
+      <nav class="menu-ed">
+        <a href="dune.html">DUNE No.01</a>
+        <a href="../index.html">Atelier</a>
+        <a href="../contact.html">Contact</a>
+      </nav>
+    </div>
+    <div class="ref-produit">Configurateur</div>
+    <h1><span class="g">Forme</span></h1>
+    <div class="sub">Dessine la forme : le prix, les contrôles d'imprimabilité et le dossier de fabrication se calculent en direct.
     <span class="free">aucun compte · tout se calcule dans ton navigateur</span></div>
 
     <!-- Bandeau masqué (07/08, demande Baptiste). ⚠️ Seul le TEXTE disparaît :
@@ -3033,10 +3074,34 @@ function overhangDeg(p1,p2){
   return dr <= 0 ? 0 : Math.atan2(dr, Math.max(0.001,dh)) * 180/Math.PI;
 }
 
+/* ── Palette de dessin ────────────────────────────────────────────────────
+ * La coupe 2D est un DESSIN TECHNIQUE : elle vit sur le papier, donc ses
+ * couleurs doivent suivre le thème. Elles étaient écrites en dur pour un fond
+ * noir ; au premier changement de thème elles mentaient.
+ * ⚠️ L'aperçu 3D et le rendu studio, eux, gardent leur fond propre : ce sont
+ * des PHOTOGRAPHIES, et une pièce claire sur fond clair ne se lit plus. Une
+ * photo posée sur une feuille, c'est cohérent ; un dessin sur fond noir au
+ * milieu d'une page crème, non. */
+const PAL = (()=>{ const s = getComputedStyle(document.documentElement);
+  const v = (n,d) => (s.getPropertyValue(n).trim() || d);
+  return { fond:      v('--canvas-fond', '#e9e6dd'),
+           grille:    v('--canvas-grille', 'rgba(22,22,22,.085)'),
+           grilleMaj: v('--canvas-grille-maj', 'rgba(22,22,22,.22)'),
+           texte:     v('--canvas-texte', '#6b6b63'),
+           acc:       v('--blue', '#2c4a38'),
+           trait:     v('--txt', '#161616'),
+           alerte:    v('--amber', '#8a5a12'),
+           mauvais:   v('--red', '#a33228'),
+           encreRgb:  {r:22,g:22,b:22} }; })();
+// teinte l'accent sans dupliquer sa valeur : #rrggbb -> rgba(r,g,b,a)
+const accA = a => { const h = PAL.acc.replace('#','');
+  const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
+
 function drawProfile(){
   const w=pc.width,h=pc.height;
   pctx.clearRect(0,0,w,h);
-  pctx.fillStyle='#0a0b0e'; pctx.fillRect(0,0,w,h);
+  pctx.fillStyle=PAL.fond; pctx.fillRect(0,0,w,h);
   const bH = bounds().maxH, axisX = pAxisX();
   const MONO = '10px "SF Mono",ui-monospace,Menlo,monospace';
 
@@ -3044,18 +3109,18 @@ function drawProfile(){
   // sur une réglette à gauche (mineure 10 mm, majeure 20 mm, cote tous les 40).
   for(let hh=0; hh<=bH; hh+=20){
     const y=pMapY(hh);
-    pctx.strokeStyle = (hh%40===0) ? 'rgba(255,255,255,.07)' : 'rgba(255,255,255,.035)';
+    pctx.strokeStyle = (hh%40===0) ? PAL.grille : PAL.grille.replace(/[\d.]+\)$/,'.045)');
     pctx.lineWidth=1;
     pctx.beginPath(); pctx.moveTo(PAD.l,y); pctx.lineTo(w-PAD.r,y); pctx.stroke();
   }
-  pctx.strokeStyle='rgba(255,255,255,.20)'; pctx.lineWidth=1;
+  pctx.strokeStyle=PAL.grilleMaj; pctx.lineWidth=1;
   pctx.beginPath(); pctx.moveTo(PAD.l-6,pMapY(0)); pctx.lineTo(PAD.l-6,pMapY(bH)); pctx.stroke();
   for(let hh=0; hh<=bH; hh+=10){
     const y=pMapY(hh), maj = hh%20===0;
-    pctx.strokeStyle = maj ? 'rgba(255,255,255,.30)' : 'rgba(255,255,255,.14)';
+    pctx.strokeStyle = maj ? PAL.grilleMaj : PAL.grille;
     pctx.beginPath(); pctx.moveTo(PAD.l-6,y); pctx.lineTo(PAD.l-6-(maj?7:4),y); pctx.stroke();
   }
-  pctx.fillStyle='#7c8290'; pctx.font=MONO; pctx.textAlign='right';
+  pctx.fillStyle=PAL.texte; pctx.font=MONO; pctx.textAlign='right';
   for(let hh=0; hh<=bH; hh+=40){ pctx.fillText(hh+' mm', PAD.l-17, pMapY(hh)+3); }
 
   const pr = state.profile;
@@ -3069,24 +3134,24 @@ function drawProfile(){
     if(g>0 || pr.some(p=>(p.conge||0)>0)) forme = appliquerConges(pr, g);
   }catch(_){ forme = pr; }
   if(forme.length>1){
-    const col = hexToRgb(bodyColor(state.body));
+    const col = PAL.encreRgb;
     pctx.beginPath();
     forme.forEach((p,i)=>{ const x=pMapX(p.r), y=pMapY(p.h); if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y); });
     for(let i=forme.length-1;i>=0;i--){
       const p=forme[i]; pctx.lineTo(axisX-(pMapX(p.r)-axisX), pMapY(p.h));
     }
     pctx.closePath();
-    pctx.fillStyle=`rgba(${col.r},${col.g},${col.b},0.10)`;
+    pctx.fillStyle=`rgba(${col.r},${col.g},${col.b},0.055)`;
     pctx.fill();
-    pctx.strokeStyle=`rgba(${col.r},${col.g},${col.b},0.45)`;
+    pctx.strokeStyle=`rgba(${col.r},${col.g},${col.b},0.30)`;
     pctx.lineWidth=1.5; pctx.stroke();
   }
 
   // Axe de rotation, au centre
-  pctx.strokeStyle='rgba(77,163,255,.50)'; pctx.setLineDash([5,5]); pctx.lineWidth=1;
+  pctx.strokeStyle=accA(.55); pctx.setLineDash([5,5]); pctx.lineWidth=1;
   pctx.beginPath(); pctx.moveTo(axisX,PAD.t); pctx.lineTo(axisX,h-PAD.b+6); pctx.stroke();
   pctx.setLineDash([]);
-  pctx.fillStyle='rgba(77,163,255,.75)'; pctx.font=MONO; pctx.textAlign='center';
+  pctx.fillStyle=accA(.85); pctx.font=MONO; pctx.textAlign='center';
   pctx.fillText('axe de rotation', axisX, h-8);
 
   // Polyligne ÉDITABLE : trait plein à droite, miroir atténué à gauche
@@ -3098,14 +3163,14 @@ function drawProfile(){
     });
   }
   pctx.lineWidth=1.5; pctx.globalAlpha=0.35;
-  pctx.strokeStyle=bodyColor(state.body); pathSide(-1); pctx.stroke();
+  pctx.strokeStyle=PAL.trait; pathSide(-1); pctx.stroke();
   pctx.globalAlpha=1; pctx.lineWidth=2;
   pathSide(1); pctx.stroke();
 
   // Segments d'alerte (évasement) : des deux côtés, la droite en plus appuyé
   for(let i=0;i<pr.length-1;i++){
     const a=overhangDeg(pr[i],pr[i+1]);
-    const col = a>OVERHANG.HARD_DEG?'#ff5d55':(a>OVERHANG.WARN_DEG?'#ffb340':null);
+    const col = a>OVERHANG.HARD_DEG?PAL.mauvais:(a>OVERHANG.WARN_DEG?PAL.alerte:null);
     if(col){
       const x1=pMapX(pr[i].r), y1=pMapY(pr[i].h), x2=pMapX(pr[i+1].r), y2=pMapY(pr[i+1].h);
       pctx.strokeStyle=col; pctx.lineWidth=4;
@@ -3120,9 +3185,9 @@ function drawProfile(){
   pr.forEach((p,i)=>{
     const x=pMapX(p.r), y=pMapY(p.h);
     pctx.beginPath(); pctx.arc(x,y, i===state.selected?7:5,0,7);
-    pctx.fillStyle = i===state.selected ? '#4da3ff' : '#f2f4f8';
+    pctx.fillStyle = i===state.selected ? PAL.acc : '#fbfaf6';
     pctx.fill();
-    pctx.strokeStyle='#000', pctx.lineWidth=1.5; pctx.stroke();
+    pctx.strokeStyle=PAL.trait, pctx.lineWidth=1.5; pctx.stroke();
   });
 }
 
