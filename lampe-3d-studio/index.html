@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-P9/T93IY1850xCigcV9b4Lh5aRXgdkqOyb/wvK4wOjE='; style-src-attr 'unsafe-inline'; script-src 'sha256-vwlShSMb/NRU51xfDCAlh+FGTGDVbnLz6G6ExopsIWM='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-P9/T93IY1850xCigcV9b4Lh5aRXgdkqOyb/wvK4wOjE='; style-src-attr 'unsafe-inline'; script-src 'sha256-9NwRsD7rpQVOQ3RzVF4e1fqdZxsNIiFEPSWRM87KuKI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1348,7 +1348,11 @@ function openEndR(b){ const bd=b||state.bodies[state.body]; return bd.profile[op
 let state = {
   type: 'poser',
   socket: 'USB_BAMBU',
-  material: 'PLA',
+  /* La lampe de reference est TRANSLUCIDE et ALLUMEE (photo d'atelier du
+   * 11/08) : c'est la paroi diffusante qui fait le produit, pas un plastique
+   * opaque. Le rendu ne bascule en matiere translucide que si le materiau
+   * l'est (`translucide: state.material === 'PLA_T'`), d'ou ce defaut. */
+  material: 'PLA_T',
   wall: 1.8,        // défaut atelier — cf. la note sous le sélecteur
   color: COLORS[0],
   selected: -1,
@@ -4146,7 +4150,7 @@ const BACKDROPS = {
 /* Défauts alignés sur la photo de référence de Baptiste (05/08) : une pièce
  * de jour, lampe ÉTEINTE, matière mate — pas le plateau sombre à halo chaud
  * qui « ne correspond pas à la demande ». */
-const RENDER = { finish:'mat', bg:'jour', lit:false, lastURL:null, ms:0 };
+const RENDER = { finish:'mat', bg:'jour', lit:true, lastURL:null, ms:0 };
 
 // Faces projetées à une résolution arbitraire (indépendant de l'aperçu live).
 function sceneFaces(W, H){
