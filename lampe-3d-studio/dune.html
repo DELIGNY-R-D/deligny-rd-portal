@@ -1,0 +1,210 @@
+<!doctype html><html lang="fr"><head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-vNDmuqlU0CzR1HP5xv/OHq74fvZ1wqQrlhjRiH/t7V4='; style-src-attr 'unsafe-inline'; script-src 'sha256-s2HebK6/PCt7V3L7gBuA5EqphJege04BGeuwezaHVxQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>DUNE No.01, lampe imprimée sur mesure | DELIGNY R&D</title>
+<meta name="description" content="DUNE No.01 : lampe à poser dessinée dans le configurateur, cannelures calculées dans la matière, coque creuse en PLA imprimée à la commande. 179 mm, 151 cm³, 5 V USB.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232c4a38'/%3E%3Cpath d='M32 14 L46 46 H18 Z' fill='%23efede6'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DELIGNY R&D">
+<meta property="og:title" content="DUNE No.01, la lampe qui sort du configurateur">
+<meta property="og:description" content="Profil dessiné point par point, cannelures calculées dans la matière, coque creuse imprimée à la commande.">
+<style>
+/* ============================================================================
+ * AFFICHE PRODUIT : DUNE No.01
+ * Mise en page d'affiche : une feuille crème posée sur fond sombre, un mot en
+ * très grand, le produit détouré qui chevauche la typographie. Le mot passe
+ * DERRIÈRE la lampe et la lampe déborde sur lui : c'est ce recouvrement qui
+ * fait lire une affiche plutôt qu'une fiche produit.
+ *
+ * Aucune police externe : la page doit tenir sous la CSP du portail
+ * (default-src 'none') et se charger sans requête tierce. La graisse et le
+ * crénage serré font le caractère, pas le fichier de police.
+ * ========================================================================== */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --creme:#efede6; --creme2:#e6e3d9;
+  --vert:#2c4a38; --vert-clair:#3d6249;
+  --encre:#161616; --gris:#6b6b63;
+  --page:#0a0a0a;
+  --gro:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--page);font-family:var(--gro);color:var(--encre);
+     display:flex;flex-direction:column;align-items:center;
+     padding:26px 18px 60px;line-height:1.5}
+
+.feuille{width:100%;max-width:880px;background:var(--creme);border-radius:26px;
+         padding:40px 44px 0;position:relative;overflow:hidden;
+         box-shadow:0 30px 90px rgba(0,0,0,.5)}
+/* grain discret : sans lui l'aplat crème sonne « écran », pas « papier » */
+.feuille::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
+  background-size:3px 3px;mix-blend-mode:multiply}
+
+.signature{font-size:11.5px;line-height:1.45;color:var(--encre);letter-spacing:.01em}
+.signature b{display:block;font-weight:600}
+
+nav{display:flex;align-items:center;justify-content:space-between;margin-top:46px}
+.mot-marque{font-size:19px;font-weight:600;letter-spacing:-.02em}
+.liens{display:flex;align-items:center;gap:26px}
+.liens a{font-size:12.5px;color:var(--encre);text-decoration:none;letter-spacing:.01em}
+.liens a:hover{text-decoration:underline;text-underline-offset:3px}
+.pastille{width:26px;height:26px;border-radius:50%;background:var(--vert);
+  display:grid;place-items:center;color:var(--creme);font-size:12px;text-decoration:none;flex:none}
+.filet{height:1px;background:rgba(22,22,22,.35);margin-top:16px}
+
+/* --- le bloc d'affiche : référence, mot géant, produit --- */
+.affiche{position:relative;margin-top:22px}
+.reference{font-size:clamp(19px,3.4vw,30px);font-weight:600;letter-spacing:-.01em;
+  position:relative;z-index:3}
+/* Le mot doit tenir dans la feuille SANS être coupé : à 880 px de large moins
+   les marges, « Métier » en 800 avec ce crénage sature vers 200 px. */
+.geant{font-size:clamp(74px,21vw,200px);line-height:.80;font-weight:800;
+  color:var(--vert);letter-spacing:-.055em;margin-top:-.04em;
+  position:relative;z-index:1;user-select:none;white-space:nowrap}
+
+/* Une chaise est un objet AJOURÉ : elle peut se poser au milieu du mot sans
+   l'effacer. Une lampe est un volume plein, donc elle est réduite et décalée
+   à droite : le mot reste lisible par ses premières lettres. */
+.produit{display:block;width:clamp(215px,37.5%,320px);height:auto;
+  position:relative;z-index:2;margin:-21% auto 0;transform:translateX(15%);
+  /* l'ombre portée remplace le sol : la pièce est détourée, sans elle
+     elle flotte sans poids */
+  filter:drop-shadow(0 26px 26px rgba(44,74,56,.22))}
+
+/* --- notice, calée à gauche sous le mot --- */
+.notice{position:relative;z-index:3;max-width:250px;margin-top:-14%}
+.tiret{width:34px;height:7px;background:var(--vert);border-radius:2px;margin-bottom:12px}
+.notice p{font-size:12px;line-height:1.6;color:var(--encre)}
+.cachet{margin-top:10px;font-size:15px;color:var(--vert-clair);
+  font-style:italic;font-family:"Snell Roundhand","Apple Chancery",cursive;letter-spacing:.01em}
+
+.actions{display:flex;gap:11px;margin-top:26px;position:relative;z-index:3;flex-wrap:wrap}
+.pilule{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border-radius:22px;
+  border:1.2px solid var(--encre);background:transparent;color:var(--encre);
+  font-size:13px;font-weight:500;text-decoration:none;cursor:pointer;font-family:inherit;
+  transition:background .15s,color .15s}
+.pilule:hover{background:var(--encre);color:var(--creme)}
+.pilule.plein{background:var(--vert);border-color:var(--vert);color:var(--creme)}
+.pilule.plein:hover{background:var(--vert-clair);border-color:var(--vert-clair)}
+
+/* --- bandeau vert, bord à bord : il ferme l'affiche --- */
+.bandeau{margin:30px -44px 0;background:var(--vert);color:var(--creme);
+  padding:16px 44px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+.bandeau a{color:var(--creme);text-decoration:none;font-size:14px;font-weight:500}
+.bandeau a:hover{text-decoration:underline;text-underline-offset:3px}
+.prix{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
+
+.pied{display:flex;align-items:flex-end;justify-content:space-between;
+  padding:14px 0 22px;font-size:11.5px;color:var(--gris)}
+.pied a{color:var(--gris);text-decoration:none}
+.pied a:hover{color:var(--encre)}
+.monogramme{font-size:17px;font-weight:700;font-style:italic;color:var(--encre)}
+
+/* --- fiche technique : les cotes réelles, sous l'affiche --- */
+.fiche{max-width:880px;width:100%;margin:26px auto 0;color:var(--creme2)}
+.fiche h2{font-size:12px;letter-spacing:.16em;text-transform:uppercase;
+  color:#8d8d84;font-weight:600;margin-bottom:14px}
+.cotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
+  gap:1px;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.11);
+  border-radius:12px;overflow:hidden}
+.cote{background:#111;padding:13px 15px}
+.cote span{display:block;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#8d8d84}
+.cote b{display:block;font-size:16px;font-weight:600;margin-top:5px;
+  font-variant-numeric:tabular-nums;color:var(--creme)}
+.note{font-size:11.5px;color:#8d8d84;margin-top:12px;line-height:1.6}
+.note a{color:#b9b9ae}
+
+@media (max-width:640px){
+  .feuille{padding:26px 22px 0;border-radius:20px}
+  .bandeau{margin:24px -22px 0;padding:14px 22px;flex-wrap:wrap}
+  .liens{gap:15px}
+  .liens a:nth-child(n+3){display:none}
+  .produit{width:64%;margin-top:-10%}
+  .notice{margin-top:12px;max-width:none}
+}
+</style></head><body>
+
+<div class="feuille">
+
+  <div class="signature">Conçu et imprimé par<b>DELIGNY R&amp;D</b></div>
+
+  <nav>
+    <div class="mot-marque">deligny</div>
+    <div class="liens">
+      <a href="index.html">Configurateur</a>
+      <a href="../index.html">Atelier</a>
+      <a href="../factory.html">Boutique</a>
+      <a href="../contact.html">Contact</a>
+      <a class="pastille" href="index.html" title="Ouvrir le configurateur">◔</a>
+    </div>
+  </nav>
+  <div class="filet"></div>
+
+  <div class="affiche">
+    <div class="reference">DUNE No.01</div>
+    <div class="geant">Métier</div>
+    <img class="produit" src="media/dune-hero.png" alt="Lampe DUNE No.01, coque martelée en PLA ambré posée sur sa bague d'atelier">
+  </div>
+
+  <div class="notice">
+    <div class="tiret"></div>
+    <p>DUNE No.01 est la lampe qui définit l'atelier : profil dessiné point par
+       point, cannelures calculées dans la matière et non plaquées dessus,
+       coque creuse imprimée à la commande.</p>
+    <div class="cachet">Fait à Buc, pièce par pièce</div>
+  </div>
+
+  <div class="actions">
+    <a class="pilule plein" href="index.html">Dessiner la mienne</a>
+    <button class="pilule" id="partager">Partager</button>
+  </div>
+
+  <div class="bandeau">
+    <a href="#fiche">Fiche technique</a>
+    <div class="prix">203 €</div>
+  </div>
+
+  <div class="pied">
+    <a href="https://deligny-rd.fr">deligny-rd.fr</a>
+    <div class="monogramme">D</div>
+  </div>
+
+</div>
+
+<!-- Les cotes viennent du configurateur, mesurées sur le maillage exporté :
+     ce sont celles du fichier livré, pas des valeurs d'illustration. -->
+<section class="fiche" id="fiche">
+  <h2>Cotes mesurées sur la pièce exportée</h2>
+  <div class="cotes">
+    <div class="cote"><span>Hauteur</span><b>179 mm</b></div>
+    <div class="cote"><span>Diamètre</span><b>142 mm</b></div>
+    <div class="cote"><span>Volume</span><b>151 cm³</b></div>
+    <div class="cote"><span>Matière</span><b>PLA 187 g</b></div>
+    <div class="cote"><span>Paroi</span><b>1,8 mm</b></div>
+    <div class="cote"><span>Basculement</span><b>38°</b></div>
+  </div>
+  <p class="note">Alimentation module USB 5 V (très basse tension de sécurité) :
+     aucun raccordement au secteur, montage à la main. Le prix suit la pièce,
+     il est recalculé sur le volume réellement imprimé.
+     <a href="index.html">Ouvrir le configurateur</a> pour changer la silhouette,
+     la surface et les cotes.</p>
+</section>
+
+<script>
+/* Partage : l'API native quand elle existe, sinon copie du lien. Aucun
+   traceur, aucun appel tiers, la page reste servie telle quelle. */
+document.getElementById('partager').onclick = async () => {
+  const b = document.getElementById('partager');
+  const donnees = {title:'DUNE No.01, DELIGNY R&D', url:location.href};
+  try{
+    if(navigator.share){ await navigator.share(donnees); return; }
+    await navigator.clipboard.writeText(location.href);
+    b.textContent = 'Lien copié';
+  }catch(e){ b.textContent = 'Lien : ' + location.href; }
+  setTimeout(()=>{ b.textContent = 'Partager'; }, 2200);
+};
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=dune" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>
