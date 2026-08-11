@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-P9/T93IY1850xCigcV9b4Lh5aRXgdkqOyb/wvK4wOjE='; style-src-attr 'unsafe-inline'; script-src 'sha256-9NwRsD7rpQVOQ3RzVF4e1fqdZxsNIiFEPSWRM87KuKI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-KrUz/D960uoMcvVtoZD8kxxpARPfHFVinBwBMX8dZu8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -40,7 +40,7 @@ a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
 header{text-align:left;padding:6px 0 10px;}
 .ligne-marque{display:flex;align-items:center;justify-content:space-between;
   gap:16px;padding-bottom:10px;border-bottom:1px solid var(--sep);}
-.marque{font-size:18px;font-weight:600;letter-spacing:-.025em;color:var(--txt);}
+.marque{font-size:15px;font-weight:700;letter-spacing:.02em;color:var(--txt);}
 .menu-ed{display:flex;gap:20px;}
 .menu-ed a{font-size:12.5px;color:var(--txt);text-decoration:none;}
 .menu-ed a:hover{text-decoration:underline;text-underline-offset:3px;}
@@ -137,6 +137,12 @@ table.pts tr.bad td{color:var(--red);}
  * taille fixe et les deux s'y inscrivent en `contain`. Sans plafond de hauteur,
  * la troisième vue mangeait l'écran et chassait le bandeau de cotes. */
 .rendu-box{position:relative;width:100%;aspect-ratio:4/3;max-height:330px;}
+/* Cartouche d'attente : il occupe la place du rendu tant que Blender n'a pas
+ * fini. L'apercu du navigateur ne s'affiche PLUS ici, ni pendant l'attente. */
+#renduAttente{position:absolute;inset:0;display:grid;place-items:center;border-radius:12px;
+  border:1px dashed var(--sep);background:var(--card2);color:var(--dim2);
+  font-size:12.5px;letter-spacing:.04em;}
+#renduAttente[hidden]{display:none;}
 .rendu-box canvas,.rendu-box img{position:absolute;inset:0;width:100%;height:100%;
   object-fit:contain;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
 /* Les deux vues de TRAVAIL côte à côte, le rendu sous elles sur toute la
@@ -237,14 +243,14 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
        grand. C'est le contraste d'échelle qui fait le style, pas un effet. -->
   <header>
     <div class="ligne-marque">
-      <div class="marque">deligny</div>
+      <div class="marque">DELIGNY R&amp;D</div>
       <nav class="menu-ed">
         <a href="dune.html">DUNE No.01</a>
         <a href="../index.html">Atelier</a>
         <a href="../contact.html">Contact</a>
       </nav>
     </div>
-    <div class="ref-produit">Configurateur</div>
+    <div class="ref-produit">Lampe Designer</div>
     <h1><span class="g">Forme</span></h1>
     <div class="sub">Dessine la forme : le prix, les contrôles d'imprimabilité et le dossier de fabrication se calculent en direct.
     <span class="free">aucun compte · tout se calcule dans ton navigateur</span></div>
@@ -293,8 +299,9 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
               <small id="vueRenduNote">Point de vue fixe, comme une photo de catalogue. Se refait à chaque modification.</small>
             </div>
             <div class="rendu-box">
-              <canvas id="renderCanvas" width="1280" height="960"></canvas>
+              <canvas id="renderCanvas" width="1280" height="960" style="display:none"></canvas>
               <img id="blLiveImg" alt="Rendu Blender de la lampe" style="display:none">
+              <div id="renduAttente">Rendu Blender en cours…</div>
             </div>
             <!-- Éteinte / allumée : ce n'est pas un effet, c'est la même pièce
                  sous deux éclairages. Sur une paroi translucide, la seconde
@@ -4468,7 +4475,8 @@ async function rendreBlender(live){
       // la carte Rendu avec son bouton de téléchargement
       if(enLive){
         const im = $('blLiveImg');
-        if(im){ im.src = j.image; majSourceRendu('blender'); }
+        if(im){ im.src = j.image; const w=document.getElementById('renduAttente');
+                if(w) w.hidden = true; majSourceRendu('blender'); }
       } else {
         out.innerHTML = `<img src="${j.image}" style="width:100%;border-radius:14px;margin-top:10px" alt="Rendu Blender de la lampe">
           <div class="row-btn"><a class="btn pri" href="${j.image}" download="lampe-rendu.png">⬇ Télécharger le PNG</a></div>`;
@@ -6022,7 +6030,9 @@ function majSourceRendu(src){
     if(img) img.style.display = '';
     t.innerHTML = '<span style="color:var(--amber)">— Blender, mise à jour…</span>';
   } else {
-    if(img) img.style.display = 'none';
+    // ⚠️ On NE REVIENT PLUS au canvas. S'il existe deja une image Blender, elle
+    // reste ; sinon c'est le cartouche d'attente, jamais l'apercu du navigateur.
+    if(img && img.getAttribute('src')) img.style.display = '';
     t.innerHTML = BL_LIVE.busy
       ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
       : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
