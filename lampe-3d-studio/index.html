@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-iVpUZnkDCLseGMzolE3m7XZWDm3M1BHb6ozVllMA+BI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-ilySJtdGmtZbiWKpB90/dh7tUvDFYf9sfNl2J9oU+js='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -454,6 +454,27 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
     <div id="aiBlock" style="margin-top:14px"></div>
   </div>
 
+
+  <!-- LITHOPHANIE : une image dans l'epaisseur de la paroi -->
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">✦</span>Image dans la matière</h2>
+    <div class="hint">Une image gravée dans l'ÉPAISSEUR, pas sur la surface : le dehors reste lisse, seule la peau intérieure s'enfonce. Le sombre devient épais, le clair devient mince, donc l'image n'apparaît qu'une fois la lampe allumée. La paroi ne s'amincit jamais : elle ne fait que s'épaissir localement.</div>
+    <div class="field">
+      <label>Image <small>elle est convertie en noir et blanc, et reste dans ton navigateur</small></label>
+      <input type="file" id="embFichier" accept="image/*">
+    </div>
+    <div class="field">
+      <label>Profondeur : <b id="embAmpVal">0,60 mm</b> <span class="dim">0,6 mm au maximum</span></label>
+      <input type="range" id="embAmp" min="0.05" max="0.6" step="0.05" value="0.6" style="width:100%;accent-color:var(--blue)">
+    </div>
+    <label class="socket-opt" id="embInvWrap" style="display:none">
+      <input type="checkbox" id="embInv">
+      <div><div class="t">Inverser</div><div class="d">Si le rendu est en négatif : le clair devient épais.</div></div>
+    </label>
+    <div class="row-btn"><button class="btn" id="embOff" style="display:none">Retirer l'image</button></div>
+    <canvas id="embApercu" width="360" height="180" style="display:none;margin-top:10px;cursor:default"></canvas>
+    <div class="warnbox" id="embInfo"></div>
+  </div>
   <!-- 6. COMPOSITION MULTI-CORPS -->
   <div class="card" style="margin-top:16px">
     <h2><span class="n">6</span>Composition — nombre de corps &amp; agencement</h2>
@@ -1768,6 +1789,10 @@ function styleStepMm(surf){
   // un champ de sculpture module le rayon en (θ,h) : il lui faut des anneaux
   // serrés, sinon la forme sort en escalier
   if(surf.champ && surf.champ.length) besoins.push(CHAMP.pasMm);
+  // Une image demande des anneaux SERRES : a 4 mm de pas, un visage devient
+  // une suite de bandes horizontales. 0,9 mm est le pas ou l'oeil cesse de
+  // voir les marches sur une piece de 250 mm.
+  if(EMBOSS.on && EMBOSS.data) besoins.push(0.9);
   return besoins.length ? Math.min(...besoins) : 0;
 }
 
@@ -1806,6 +1831,9 @@ function angularSegments(surf, chosen){
   // et assez de segments pour résoudre le terme le plus lobé du champ
   if(surf.champ) for(const t of surf.champ)
     seg = Math.max(seg, Math.round(Math.max(6, (t.n||0)) * 9 * q));
+  // et beaucoup de segments : l'image fait le tour, donc sa largeur utile EST
+  // le nombre de segments. En dessous de 360 on perd les details du visage.
+  if(EMBOSS.on && EMBOSS.data) seg = Math.max(seg, Math.round(420 * q));
   return Math.min(900, Math.max(24, Math.ceil(seg/4)*4));
 }
 
@@ -2809,12 +2837,59 @@ function sculptXY(x, y, z, sc, hRef){
 }
 
 // Anneau de sommets à une hauteur donnée, déplacement de style + sculpture compris.
-function ringAt(r, h, segments, surf, sign, sculpt, hRef){
+/* ── LITHOPHANIE : une image dans l'epaisseur ─────────────────────────────
+ * « Embossage positif interieur » : la peau EXTERIEURE ne bouge pas, seule la
+ * peau interne s'enfonce. L'epaisseur locale vaut donc paroi + relief, jamais
+ * moins : la coque ne peut pas s'amincir, quelle que soit l'image. C'est ce
+ * qui rend la chose sure sur une paroi de 1,8 mm.
+ *
+ * Convention de lithophanie : le SOMBRE est EPAIS (il laisse passer moins de
+ * lumiere), le clair est mince. L'image n'apparait donc qu'allumee, et c'est
+ * exactement ce qu'on veut d'une lampe.
+ *
+ * ⚠️ 0,6 mm au maximum (borne posee par Baptiste). Au-dela, sur une paroi de
+ * 1,8 mm, on imprime une piece dont l'epaisseur varie du simple au double :
+ * le retrait du PLA n'est plus uniforme et la coque se voile.
+ */
+const EMBOSS = { on:false, ampMm:0.6, data:null, w:0, h:0, invert:false, nom:'' };
+const EMBOSS_AMP_MAX = 0.6;
+
+/* Luminance echantillonnee en (u,v), interpolee bilineairement : sans
+ * interpolation, un tour de 288 segments sur une image de 720 px donnerait des
+ * marches visibles a la lumiere. */
+function embossLum(u, v){
+  const E = EMBOSS;
+  if(!E.data) return 1;
+  u = u - Math.floor(u);                       // le tour boucle
+  v = Math.max(0, Math.min(1, v));
+  const x = u*(E.w-1), y = (1-v)*(E.h-1);      // v=0 en bas de la piece
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  const x1 = Math.min(E.w-1, x0+1), y1 = Math.min(E.h-1, y0+1);
+  const fx = x-x0, fy = y-y0;
+  const a = E.data[y0*E.w+x0], b = E.data[y0*E.w+x1];
+  const c = E.data[y1*E.w+x0], dd = E.data[y1*E.w+x1];
+  const l = (a*(1-fx)+b*fx)*(1-fy) + (c*(1-fx)+dd*fx)*fy;
+  return E.invert ? 1-l : l;
+}
+
+/* Enfoncement de la peau interne, en mm. Toujours >= 0. */
+function embossAt(theta, h, hRef){
+  const E = EMBOSS;
+  if(!E.on || !E.data || !hRef) return 0;
+  const u = theta/(Math.PI*2);
+  const l = embossLum(u, h/hRef);
+  return Math.max(0, Math.min(EMBOSS_AMP_MAX, E.ampMm)) * (1 - l);
+}
+
+function ringAt(r, h, segments, surf, sign, sculpt, hRef, embosse){
   const ring = [];
   for(let j=0;j<segments;j++){
     const th = j/segments*Math.PI*2;
     const d = surfaceDisplacement(surf, th, h);
-    const rr = Math.max(0.4, r + d*sign);
+    // l'enfoncement ne s'applique QU'A la peau interne : la silhouette
+    // exterieure reste celle que le client a dessinee
+    const e = embosse ? embossAt(th, h, hRef) : 0;
+    const rr = Math.max(0.4, r + d*sign - e);
     const [x,y] = sculptXY(rr*Math.cos(th), rr*Math.sin(th), h, sculpt, hRef);
     ring.push([x, y, h]);
   }
@@ -2831,7 +2906,7 @@ function buildShellMesh(profile, wallMm, segments, surf, sculpt, hRef){
   const N = Math.max(3, segments|0);
   const H = hRef || outerP[outerP.length-1].h;
   const outR = outerP.map(p=>ringAt(p.r, p.h, N, surf, 1, sculpt, H));
-  const inR  = inner.map(p=>ringAt(p.r, p.h, N, surf, 1, sculpt, H));
+  const inR  = inner.map(p=>ringAt(p.r, p.h, N, surf, 1, sculpt, H, true));
   const tris = [];
 
   // surface extérieure — normale radiale sortante
@@ -3471,7 +3546,14 @@ function segFor(bi, mode){
     return (mode==='preview') ? Math.min(seg, 100) : seg;
   }
   const chosen = parseInt(($('stlSegments')||{}).value||'14',10);
-  const seg = angularSegments(surf, chosen);
+  let seg = angularSegments(surf, chosen);
+  /* ⚠️ UNE IMAGE PASSE AVANT LE STYLE. Le style Facetté laisse le client
+   * choisir son nombre de facettes, 14 par defaut : une lithophanie y serait
+   * un tour de 14 colonnes, c'est-a-dire rien. Des qu'une image est chargee,
+   * la resolution angulaire est celle qu'exige l'image, pas celle du style.
+   * Mesure a l'origine du garde-fou : a 14 segments, l'image mesuree sur le
+   * maillage n'avait que 14 valeurs distinctes sur le tour. */
+  if(EMBOSS.on && EMBOSS.data) seg = Math.max(seg, 360);
   // l'aperçu est plafonné pour rester fluide (invisible à cette taille) ; l'export
   // garde la pleine résolution, et l'écart est affiché sous l'aperçu
   if(mode==='draft')   return Math.min(seg, 36);
@@ -6855,6 +6937,93 @@ async function cvEnvoyer(texte){
     b.onclick = ()=>cvEnvoyer(t);
     if(ex) ex.appendChild(b);
   });
+})();
+
+/* ── Lithophanie : chargement de l'image ──────────────────────────────────
+ * Tout se passe dans le navigateur : le fichier n'est jamais televerse. Il est
+ * dessine dans un canvas hors ecran, reduit a une grille de luminance, et
+ * c'est cette grille SEULE qui entre dans la geometrie. */
+(function embossInit(){
+  const fich = $('embFichier'), amp = $('embAmp'), inv = $('embInv'),
+        off = $('embOff'), apercu = $('embApercu'), info = $('embInfo'),
+        val = $('embAmpVal'), invW = $('embInvWrap');
+  if(!fich) return;
+
+  const GRILLE_L = 720, GRILLE_H = 360;   // le tour fait 720, la hauteur 360
+
+  function majInfo(){
+    if(!info) return;
+    if(!EMBOSS.on || !EMBOSS.data){ info.innerHTML = ''; return; }
+    const ep = state.wall, epMax = state.wall + Math.min(EMBOSS_AMP_MAX, EMBOSS.ampMm);
+    info.innerHTML =
+      `<div class="line ok">Épaisseur de ${ep.toFixed(1)} mm dans les clairs à `
+      + `${epMax.toFixed(1)} mm dans les noirs. La paroi ne descend jamais sous `
+      + `${ep.toFixed(1)} mm : l'image AJOUTE de la matière, elle n'en retire pas.</div>`
+      + `<div class="line warn">L'image se lit quand la lampe est allumée. `
+      + `Éteinte, la pièce paraît lisse — c'est le principe.</div>`;
+  }
+
+  function afficherApercu(){
+    if(!apercu || !EMBOSS.data) return;
+    const c = apercu.getContext('2d');
+    const im = c.createImageData(apercu.width, apercu.height);
+    for(let y=0;y<apercu.height;y++){
+      for(let x=0;x<apercu.width;x++){
+        const l = embossLum(x/apercu.width, 1 - y/apercu.height);
+        const v = Math.round(l*255), k = (y*apercu.width+x)*4;
+        im.data[k]=im.data[k+1]=im.data[k+2]=v; im.data[k+3]=255;
+      }
+    }
+    c.putImageData(im,0,0);
+    apercu.style.display = '';
+  }
+
+  fich.onchange = e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const img = new Image();
+    img.onload = () => {
+      const cv = document.createElement('canvas');
+      cv.width = GRILLE_L; cv.height = GRILLE_H;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fff'; c.fillRect(0,0,GRILLE_L,GRILLE_H);
+      /* On REMPLIT la grille en gardant les proportions : etirer un portrait
+       * sur un tour complet le rendrait meconnaissable. Ce qui deborde est
+       * rogne, comme un cadrage photo. */
+      const k = Math.max(GRILLE_L/img.width, GRILLE_H/img.height);
+      const w = img.width*k, h = img.height*k;
+      c.drawImage(img, (GRILLE_L-w)/2, (GRILLE_H-h)/2, w, h);
+      const d = c.getImageData(0,0,GRILLE_L,GRILLE_H).data;
+      const lum = new Float32Array(GRILLE_L*GRILLE_H);
+      for(let i=0, j=0; i<d.length; i+=4, j++){
+        // luminance perceptuelle : une conversion naive (moyenne RVB) ecrase
+        // les rouges et les bleus, et un ciel bleu ressortirait aussi epais
+        // qu'une ombre
+        lum[j] = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
+      }
+      EMBOSS.data = lum; EMBOSS.w = GRILLE_L; EMBOSS.h = GRILLE_H;
+      EMBOSS.on = true; EMBOSS.nom = f.name;
+      if(off) off.style.display = '';
+      if(invW) invW.style.display = '';
+      afficherApercu(); majInfo();
+      renderAll();
+    };
+    img.onerror = () => { if(info) info.innerHTML = '<div class="line bad">Image illisible.</div>'; };
+    img.src = URL.createObjectURL(f);
+  };
+
+  amp.oninput = e => {
+    EMBOSS.ampMm = Math.min(EMBOSS_AMP_MAX, parseFloat(e.target.value));
+    val.textContent = EMBOSS.ampMm.toFixed(2).replace('.', ',') + ' mm';
+    majInfo(); renderSoon();
+  };
+  if(inv) inv.onchange = e => { EMBOSS.invert = e.target.checked; afficherApercu(); renderAll(); };
+  if(off) off.onclick = () => {
+    EMBOSS.on = false; EMBOSS.data = null; EMBOSS.nom = '';
+    if(apercu) apercu.style.display = 'none';
+    off.style.display = 'none'; if(invW) invW.style.display = 'none';
+    if(fich) fich.value = ''; majInfo(); renderAll();
+  };
 })();
 
 detectAI();
