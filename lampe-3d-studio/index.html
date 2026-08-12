@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-LtOOWCp6SV8ZJA+dcenLqj7QR1yPCM68Mf0/TZ+o9kA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-v6KPyEPiAaZftl6UmdstEU6l6J7Y5rlzHXDSi6X1uPs='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4572,7 +4572,7 @@ function aiPrompt(){
  * replacer), et il renvoie une photo de la géométrie réelle.
  * Le rendu prend 15 à 40 s : c'est du calcul, pas une attente réseau.
  * ────────────────────────────────────────────────────────────────────────── */
-async function rendreBlender(live){
+async function rendreBlender(live, sigAttendue){
   const enLive = live === true;                     // onclick passe l'évènement, pas un booléen
   const info = $('blInfo'), out = $('blOut'), bouton = $('blGo');
   if(!MESH.parts.length) return;
@@ -4648,7 +4648,11 @@ async function rendreBlender(live){
          * conversion, verifiee deux fois (4,9 % mesures pour 5 % vises) — un
          * point de cadrage est sous le bruit de ma methode de mesure, un rendu
          * de controle n'aurait rien prouve de plus. */
-        recul: 1.15, cadre_x: -0.01, cadre_y: -0.14,
+        /* Decalee d'un point vers la GAUCHE (12/08) : -0,02. Elle serrait les
+         * pots a droite ; ce point lui rend de l'air sans la coller au
+         * feuillage. Si c'est l'autre sens qui etait voulu, il suffit de
+         * repasser a 0,00. */
+        recul: 1.15, cadre_x: -0.02, cadre_y: -0.14,
         transparence: enLive ? 0.80 : parseFloat(($('blTransp')||{value:'0.7'}).value),
         paroi: parseFloat(state.wall),
         flou: 4.5,
@@ -4671,6 +4675,18 @@ async function rendreBlender(live){
       // en live, l'image RECOUVRE la troisième vue ; à la demande, elle va dans
       // la carte Rendu avec son bouton de téléchargement
       if(enLive){
+        /* ⚠️ COURSE ETAT / IMAGE. Basculer allume-eteint pendant un calcul
+         * laissait l'image PRECEDENTE s'afficher a l'arrivee : le bouton
+         * disait « eteinte » et la photo montrait la lampe allumee, le temps
+         * du rendu suivant. Une image qui ne decrit plus l'etat courant est
+         * pire qu'une absence d'image — elle se lit comme la verite.
+         * On compare donc la signature demandee a la signature ACTUELLE : si
+         * l'etat a bouge depuis le lancement, on jette l'image et on laisse le
+         * decompte, le rendu suivant est deja en route. */
+        if(sigAttendue && sigAttendue !== signatureRendu()){
+          console.info('[rendu] image perimee ignoree (l\'etat a change pendant le calcul)');
+          return;
+        }
         const im = $('blLiveImg');
         if(im){ im.src = j.image; const w=document.getElementById('renduAttente');
                 if(w) w.hidden = true; majSourceRendu('blender'); }
@@ -4728,7 +4744,7 @@ async function lancerLive(){
   BL_LIVE.busy = true;
   // estimation = durée RÉELLE de la dernière image (7 s au premier lancement)
   compteARebours('rendu', BL_LIVE.derniereMs || 7000);
-  try{ await rendreBlender(true); BL_LIVE.signature = sig; }
+  try{ await rendreBlender(true, sig); BL_LIVE.signature = sig; }
   finally{
     BL_LIVE.busy = false;
     if(BL_LIVE.pending){ BL_LIVE.pending = false; lancerLive(); }
