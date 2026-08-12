@@ -36,7 +36,8 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # L'affiche produit porte elle aussi un <style> et un <script> en ligne : sans
 # empreinte, le `script-src 'self'` de la forteresse nginx tuerait son bouton
 # de partage, et la page aurait l'air cassée sans rien dans la console.
-PAGES = ["lampe-3d-studio/index.html", "lampe-3d-studio/dune.html"]
+PAGES = ["lampe-3d-studio/index.html", "lampe-3d-studio/dune.html",
+         "lampe-3d-studio/gamme.html"]
 BEACON_HOST = "https://atlas-studio.pro"
 AI_LOCAL = "http://127.0.0.1:4555 http://localhost:4555"
 
