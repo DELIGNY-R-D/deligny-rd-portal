@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-S41Cd1n5OmG2aplMXn5JMRSOKWqQrzSUGAc4j3fOjv4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-UV4zOK8gqicos3mK8PF4Gq8fN0zx7zz/b19kAPo7qoE='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -308,7 +308,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
                  sous deux éclairages. Sur une paroi translucide, la seconde
                  montre ce que le client achète vraiment. -->
             <div class="seg" id="litSeg" style="margin-top:10px">
-              <button data-lit="0" class="on">Lampe éteinte</button>
+              <button data-lit="0">Lampe éteinte</button>
               <button data-lit="1">Lampe allumée</button>
             </div>
           </div>
@@ -444,7 +444,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         <select id="rBg" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)"></select>
       </label>
       <label style="font-size:12.5px;color:var(--dim2);display:flex;align-items:center;gap:6px">
-        <input type="checkbox" id="rLit" checked> Lampe allumée
+        <input type="checkbox" id="rLit"> Lampe allumée
       </label>
       <button class="btn pri" id="rRender">📸 Calculer le rendu</button>
       <button class="btn" id="rDownload" disabled>⬇ Télécharger le PNG</button>
@@ -4356,7 +4356,23 @@ const BACKDROPS = {
 /* Défauts alignés sur la photo de référence de Baptiste (05/08) : une pièce
  * de jour, lampe ÉTEINTE, matière mate — pas le plateau sombre à halo chaud
  * qui « ne correspond pas à la demande ». */
-const RENDER = { finish:'mat', bg:'papier', lit:true, lastURL:null, ms:0 };
+/* ⚠️ `lit` EST LA SEULE VERITE. Au chargement, TROIS sources se
+ * contredisaient : cet objet disait « allumee », le bouton segmente portait la
+ * classe `on` sur « eteinte », et la case #rLit etait `checked`. Le premier
+ * rendu suivait l'objet, l'interface montrait le contraire. Le markup ne porte
+ * plus d'etat : il est SYNCHRONISE depuis ici au demarrage (voir syncLit).
+ * Eteinte par defaut, demande de Baptiste : au redemarrage, bouton eteint ET
+ * rendu eteint. */
+const RENDER = { finish:'mat', bg:'papier', lit:false, lastURL:null, ms:0 };
+
+/* Applique RENDER.lit aux DEUX commandes. Appelee au demarrage et a chaque
+ * bascule : deux commandes pour un seul etat ne peuvent plus diverger. */
+function syncLit(){
+  document.querySelectorAll('#litSeg button').forEach(x=>
+    x.classList.toggle('on', (x.dataset.lit === '1') === RENDER.lit));
+  const rl = document.getElementById('rLit');
+  if(rl) rl.checked = RENDER.lit;
+}
 
 // Faces projetées à une résolution arbitraire (indépendant de l'aperçu live).
 function sceneFaces(W, H){
@@ -6395,7 +6411,7 @@ function renderHud(){
   // l'interrupteur de la carte Rendu et celui sous l'image sont le MÊME état
   $('rLit').onchange=e=>{
     RENDER.lit=e.target.checked;
-    document.querySelectorAll('#litSeg button').forEach(x=>x.classList.toggle('on', (x.dataset.lit==='1')===RENDER.lit));
+    syncLit();                       // une seule fonction pose les deux commandes
     studioSoon(60);
   };
   $('rRender').onclick=()=>renderStudio();
@@ -6869,8 +6885,7 @@ setPreset(TYPES[state.type].silhouettes[0]);
 document.querySelectorAll('#litSeg button').forEach(b=>{
   b.onclick = ()=>{
     RENDER.lit = b.dataset.lit === '1';
-    document.querySelectorAll('#litSeg button').forEach(x=>x.classList.toggle('on', x===b));
-    const rl = $('rLit'); if(rl) rl.checked = RENDER.lit;
+    syncLit();                       // idem : jamais deux chemins pour un etat
     studioSoon(60);
   };
 });
@@ -7195,6 +7210,7 @@ async function cvEnvoyer(texte){
   };
 })();
 
+syncLit();          // l'interface part de l'etat, jamais l'inverse
 detectAI();
 </script>
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
