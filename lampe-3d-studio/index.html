@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-UV4zOK8gqicos3mK8PF4Gq8fN0zx7zz/b19kAPo7qoE='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-vcytq3KrYY2ncFBX0swGmcXg/s+b+VMQQbiOdULdhoQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -366,7 +366,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
   <div class="card" style="margin-top:20px">
     <h2><span class="n">1</span>Type de lampe</h2>
     <div class="seg" id="type-seg">
-      <button data-v="suspension" class="on">Suspension</button>
+      <button data-v="suspension">Suspension</button>
       <button data-v="poser">Lampe à poser</button>
       <button data-v="applique">Applique</button>
     </div>
@@ -3460,7 +3460,10 @@ const EL_HAUT = -1.40, EL_BAS = -3 * Math.PI / 180;
 /* Vue de FACE par defaut : azimut 0, legerement au-dessus. L'ancien 0,7 rad
  * (40 degres) presentait la lampe de trois quarts, ce qui deforme la
  * silhouette qu'on est justement en train de dessiner. */
-const view = { az:0, el:-0.24, zoom:1, explode:0, spin:0 };
+/* zoom 0,80 : la piece respire dans la fenetre au lieu d'en toucher les
+ * bords. ⚠️ view.zoom ne sert QU'A l'apercu (drawPreview) : le rendu studio a
+ * son propre cadrage, il n'est pas touche. */
+const view = { az:0, el:-0.24, zoom:0.8, explode:0, spin:0 };
 function project3d(x,y,z){
   // rotate around Y (azimuth) then tilt (elevation) — depth croissante = plus loin
   const cx=Math.cos(view.az), sx=Math.sin(view.az);
@@ -4270,11 +4273,8 @@ function drawPreview(hq){
     ctx.strokeStyle = fill; ctx.lineWidth = SS; ctx.stroke();   // supprime les coutures d'anticrénelage
   });
 
-  ctx.fillStyle='#86868b'; ctx.font=(11*SS)+'px -apple-system,sans-serif';
-  const st = { label: styleLabel(bodySurface(state.body)) };
-  const nb = MESH.stats.bodies||1;
-  ctx.fillText(`${st.label} · ${MESH.stats.segPreview||0} segments affichés (export : ${MESH.stats.segExport||0}) · `
-    + `${nb>1?nb+' corps':'1 corps'} · ${parts.length} pièce${parts.length>1?'s':''} à imprimer`, 12*SS, h-12*SS);
+  /* Mention incrustee RETIREE (12/08, demande Baptiste). Elle empietait sur la
+   * piece et repetait ce que le bandeau de cotes dit deja proprement. */
   blit();
 }
 /* RAFFINEMENT PROGRESSIF — pendant qu'on tourne ou qu'on règle un curseur, on
@@ -4842,7 +4842,16 @@ async function detectAI(){
    * pas cocher une case pour obtenir ce qui a été demandé — la case reste, elle
    * sert à COUPER. Sur le site public (HTTPS), AI.ok est faux et la vue garde
    * le rendu du navigateur, ce qui est écrit sous l'image. */
-  if(AI.ok === true && !BL_LIVE.on){ BL_LIVE.on = true; lancerLive(); }
+  if(AI.ok === true && !BL_LIVE.on){
+    BL_LIVE.on = true;
+    /* ⚠️ La carte a ete construite AVANT cette ligne, en recopiant BL_LIVE.on
+     * qui valait encore false : la case disait « off » pendant que le rendu
+     * live tournait. On la remet d'accord avec l'etat au lieu d'esperer que
+     * l'ordre d'appel se maintienne. */
+    const c = document.getElementById('blLive');
+    if(c) c.checked = true;
+    lancerLive();
+  }
   majSourceRendu('canvas');
 }
 
@@ -6065,8 +6074,27 @@ function epurerNotes(){
     } else el.dataset.epure='0';
   });
 }
+/* ⚠️ TROIS DESYNCHRONISATIONS TROUVEES A L'AUDIT, meme famille que
+ * l'interrupteur : l'etat initial etait ecrit dans le MARKUP en plus de
+ * l'objet. Le markup ne decide plus, il est ecrit DEPUIS l'etat.
+ *   · #type-seg  : « Suspension » portait la classe `on` alors que l'etat vaut
+ *     « poser ». Pire, suspension est retiree de l'offre donc son bouton est
+ *     masque : le seul bouton visible ne paraissait PAS selectionne.
+ *   · #material  : aucune option `selected`, le navigateur affichait donc
+ *     « PLA » pendant que l'etat, l'apercu, le rendu ET LE PRIX partaient en
+ *     PLA translucide. C'est le plus grave : le selecteur mentait sur ce qui
+ *     etait chiffre.
+ * (le troisieme, #blLive, est traite dans detectAI) */
+function syncEtatUI(){
+  document.querySelectorAll('#type-seg button').forEach(b=>
+    b.classList.toggle('on', b.dataset.v === state.type));
+  const m = document.getElementById('material');
+  if(m && m.value !== state.material) m.value = state.material;
+}
+
 function renderAll(){
   syncBodies();
+  syncEtatUI();
   rebuildMesh();
   drawProfile();
   apercuProgressif();
@@ -6246,7 +6274,7 @@ $('seedInput').onkeydown = e=>{ if(e.key==='Enter') $('seedApply').onclick(); };
 $('vElev').oninput  = e=>{ view.el = Math.max(EL_HAUT, Math.min(EL_BAS, -parseFloat(e.target.value)*Math.PI/180)); apercuProgressif(); };
 $('vZoom').oninput  = e=>{ view.zoom = parseFloat(e.target.value)/100; apercuProgressif(); };
 $('vExplode').oninput = e=>{ view.explode = parseFloat(e.target.value)/100; apercuProgressif(); };
-$('vReset').onclick = ()=>{ view.az=0; view.el=-0.24; view.zoom=1; syncViewInputs(); apercuProgressif(); };
+$('vReset').onclick = ()=>{ view.az=0; view.el=-0.24; view.zoom=0.8; syncViewInputs(); apercuProgressif(); };
 $('vTurn').onclick  = e=>{
   if(view.spin){ cancelAnimationFrame(view.spin); view.spin=0; e.target.textContent='▶ Tourner'; apercuProgressif(); return; }
   e.target.textContent='⏸ Arrêter';
