@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-FF1W+1APPLJ6unJGW7WzOaoObtDXTKdPkmYqs5Ske9I='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-xxKM/9PJ4hsstP0zaAc5Tz8J+iBQY//zB0yFJmzeTPw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4591,7 +4591,12 @@ async function rendreBlender(live){
          * Le cadrage est MESURE sur la reference de Baptiste : la lampe y
          * occupe 48,5 % de la hauteur du cadre. A recul 1.15 on releve 48 %. */
         fond_image: RENDER.lit ? 'verriere-nuit.png' : 'verriere-jour.png',
-        recul: 1.15, cadre_x: -0.04, cadre_y: -0.06,
+        /* Descendue sur le plateau (12/08) : a -0,06 la base tombait a 72 % de
+         * la hauteur, c'est-a-dire sur le BORD ARRIERE de la table, et la lampe
+         * semblait posee dans le vide derriere. Trois cadrages rendus et
+         * compares (-0,10 / -0,14 / -0,18) : a -0,18 la base tombe a 80 %,
+         * franchement sur le bois. Mesure sur l'image, pas jugee a l'oeil. */
+        recul: 1.15, cadre_x: -0.01, cadre_y: -0.18,
         transparence: enLive ? 0.80 : parseFloat(($('blTransp')||{value:'0.7'}).value),
         paroi: parseFloat(state.wall),
         flou: 4.5,
