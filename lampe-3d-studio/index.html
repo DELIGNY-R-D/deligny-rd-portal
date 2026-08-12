@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-Yc/lqng/O2p8IAjWVyww5Lpld6BW+NrBCxs7gZ4+0Aw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-iVpUZnkDCLseGMzolE3m7XZWDm3M1BHb6ozVllMA+BI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4124,9 +4124,13 @@ window.addEventListener('mousemove', e=>{
   lastX=e.clientX; lastY=e.clientY;
   syncViewInputs(); apercuProgressif();
 });
-// La souris s'arrête = la caméra est posée = on refait le rendu studio. C'est
-// la demande telle quelle : « si la souris se stoppe, ça fait un rendu ».
-window.addEventListener('mouseup', ()=>{ if(rotDrag){ rotDrag=false; apercuProgressif(); studioSoon(); } });
+/* ⚠️ L'ORBITE NE DECLENCHE PLUS DE RENDU (12/08, demande Baptiste : « il ne
+ * doit pas y avoir le rendu si la souris s'arrete, juste la visualisation 3D »).
+ * C'est aussi devenu SANS OBJET : depuis que la photo se prend en camera fixe,
+ * tourner l'apercu ne change plus rien a l'image studio. On relancait donc un
+ * calcul de plusieurs secondes pour reproduire exactement la meme photo.
+ * Cette fenetre est un visualiseur : on la manipule, elle ne coute rien. */
+window.addEventListener('mouseup', ()=>{ if(rotDrag){ rotDrag=false; apercuProgressif(); } });
 // Le zoom se règle UNIQUEMENT au curseur (#vZoom) : pas de molette, pas de
 // pincement à deux doigts — sur trackpad le pincement déclenchait un zoom
 // parasite pendant qu'on essayait simplement de faire défiler la page.
@@ -4138,7 +4142,7 @@ vc.addEventListener('touchmove', e=>{
   lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
   syncViewInputs(); apercuProgressif();
 }, {passive:true});
-window.addEventListener('touchend', ()=>{ if(rotDrag){ rotDrag=false; studioSoon(); } });
+window.addEventListener('touchend', ()=>{ if(rotDrag){ rotDrag=false; apercuProgressif(); } });
 
 /* ════════════════════════════════════════════════════════════════════════
  * RENDU STUDIO — « photo produit » calculée en local, hors ligne.
@@ -4486,6 +4490,14 @@ async function rendreBlender(live){
         trou: (SOCKETS[state.socket] && SOCKETS[state.socket].type==='module'
                && state.cable.on && trousCorps(socketEndBodyIdx()).length)
               ? state.cable.angleDeg : null,
+        /* FOND PHOTOGRAPHIQUE : la piece est COMPOSEE dans une vraie scene
+         * d'atelier, pas posee sur un decor calcule. Deux images, une par etat
+         * de l'interrupteur : la nuit a sa propre lumiere, on ne l'obtient pas
+         * en assombrissant le jour.
+         * Le cadrage est MESURE sur la reference de Baptiste : la lampe y
+         * occupe 48,5 % de la hauteur du cadre. A recul 1.15 on releve 48 %. */
+        fond_image: RENDER.lit ? 'verriere-nuit.png' : 'verriere-jour.png',
+        recul: 1.15, cadre_x: -0.04, cadre_y: -0.06,
         transparence: enLive ? 0.80 : parseFloat(($('blTransp')||{value:'0.7'}).value),
         paroi: parseFloat(state.wall),
         flou: 4.5,
@@ -6036,6 +6048,15 @@ function compteARebours(phase, ms){
   const peindre = ()=>{
     const n = $('vueRenduNote'); if(!n) return;
     const reste = (RENDU_CIBLE - performance.now())/1000;
+    // le decompte s'ecrit AUSSI en grand dans le cartouche, a la place de
+    // l'image : c'est lui qu'on regarde pendant l'attente, pas la note
+    const att = $('renduAttente');
+    if(att && !att.hidden){
+      att.textContent = RENDU_PHASE === 'attente'
+        ? (reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s` : 'Lancement du rendu…')
+        : (reste > 0.05 ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
+                        : `Rendu Blender — ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s`);
+    }
     if(RENDU_PHASE === 'attente'){
       n.textContent = reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s…` : 'Lancement du rendu…';
     } else if(RENDU_PHASE === 'rendu'){
@@ -6064,9 +6085,15 @@ function majSourceRendu(src){
     t.innerHTML = '<span style="color:var(--green)">— Blender, géométrie réelle</span>';
     if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s · point de vue fixe. Se refait à chaque modification.`;
   } else if(src === 'attente'){
-    // l'image Blender reste à l'écran ; seul le libellé dit qu'elle date un peu
-    if(img) img.style.display = '';
-    t.innerHTML = '<span style="color:var(--amber)">— Blender, mise à jour…</span>';
+    /* ⚠️ PENDANT LE CALCUL, PAS D'IMAGE (12/08, demande Baptiste : « je ne veux
+     * pas d'image, juste un decompte a la place »). L'ancienne image restait
+     * affichee et donnait a croire qu'elle etait a jour, alors qu'elle decrit
+     * une piece qu'on vient de modifier. Un cartouche vide avec le decompte
+     * ment moins qu'une photo perimee. */
+    if(img) img.style.display = 'none';
+    const cvR = $('renderCanvas'); if(cvR) cvR.style.display = 'none';
+    const att = $('renduAttente'); if(att) att.hidden = false;
+    t.innerHTML = '<span style="color:var(--amber)">— Blender, calcul en cours…</span>';
   } else {
     /* Une image Blender deja calculee vaut mieux que l'apercu : on la garde et
      * on dit seulement qu'elle date. Sinon on montre l'apercu du navigateur,
