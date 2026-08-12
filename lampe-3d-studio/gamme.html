@@ -1,0 +1,169 @@
+<!doctype html><html lang="fr"><head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>La gamme, douze silhouettes | Lampe Designer, DELIGNY R&D</title>
+<meta name="description" content="Les douze silhouettes de la Lampe Designer, chacune rendue depuis sa geometrie reelle : PLA translucide diffusant, nervures fines, lampe allumee. Chaque forme reste modifiable dans le configurateur.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232c4a38'/%3E%3Cpath d='M32 14 L46 46 H18 Z' fill='%23efede6'/%3E%3C/svg%3E">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="DELIGNY R&D">
+<meta property="og:title" content="La gamme, douze silhouettes">
+<meta property="og:description" content="Douze silhouettes rendues depuis leur geometrie reelle. Chacune reste modifiable point par point.">
+<style>
+/* ============================================================================
+ * PLANCHE DE GAMME
+ * Meme grammaire que l'affiche : feuille creme, un mot en tres grand, bandeau
+ * vert bord a bord. Ce qui change, c'est ce que la feuille doit FAIRE : ici on
+ * compare douze pieces, donc une grille SANS marge interieure, comme une
+ * planche contact d'atelier.
+ *
+ * ⚠️ Ces images sont des rendus BLENDER de la geometrie reelle, calcules a
+ * l'atelier et servis en statique. Le rendu a la demande n'a pas sa place ici :
+ * mesure faite, le serveur du site mettrait 57 minutes par image.
+ * ========================================================================== */
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--creme:#efede6;--creme2:#e6e3d9;--vert:#2c4a38;--vert-clair:#3d6249;
+  --encre:#161616;--gris:#6b6b63;--page:#0a0a0a;
+  --gro:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}
+html{-webkit-text-size-adjust:100%}
+body{background:var(--page);font-family:var(--gro);color:var(--encre);
+  display:flex;flex-direction:column;align-items:center;padding:26px 18px 60px;line-height:1.5}
+.feuille{width:100%;max-width:880px;background:var(--creme);border-radius:26px;
+  padding:40px 44px 0;position:relative;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.5)}
+.feuille::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+  background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
+  background-size:3px 3px;mix-blend-mode:multiply}
+.signature{font-size:11.5px;line-height:1.45;letter-spacing:.01em}
+.signature b{display:block;font-weight:600}
+nav{display:flex;align-items:center;justify-content:space-between;margin-top:46px}
+.mot-marque{font-size:16px;font-weight:700;letter-spacing:.02em}
+.liens{display:flex;align-items:center;gap:26px}
+.liens a{font-size:12.5px;color:var(--encre);text-decoration:none}
+.liens a:hover{text-decoration:underline;text-underline-offset:3px}
+.filet{height:1px;background:rgba(22,22,22,.35);margin-top:16px}
+.reference{font-size:clamp(19px,3.4vw,30px);font-weight:600;margin-top:22px}
+.geant{font-size:clamp(70px,20vw,190px);line-height:.80;font-weight:800;color:var(--vert);
+  letter-spacing:-.055em;margin-top:-.04em;white-space:nowrap;user-select:none}
+.intro{max-width:430px;margin-top:14px;font-size:12px;line-height:1.6}
+.tiret{width:34px;height:7px;background:var(--vert);border-radius:2px;margin-bottom:11px}
+/* grille sans marge interieure : les pieces se comparent bord a bord */
+.grille{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:26px;
+  background:rgba(22,22,22,.15);border-top:1px solid rgba(22,22,22,.15);
+  border-bottom:1px solid rgba(22,22,22,.15)}
+.case{background:var(--creme);padding:14px 10px 12px;display:flex;flex-direction:column;
+  align-items:center;gap:8px;text-decoration:none;color:var(--encre);transition:background .15s}
+.case:hover{background:#f6f4ee}
+.vignette{height:120px;display:grid;place-items:center}
+.vignette img{max-height:120px;width:auto;max-width:100%;
+  filter:drop-shadow(0 10px 12px rgba(44,74,56,.18))}
+.nom{font-size:11.5px;font-weight:600;letter-spacing:-.01em;text-align:center}
+.bandeau{margin:28px -44px 0;background:var(--vert);color:var(--creme);padding:15px 44px;
+  display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px}
+.bandeau a{color:var(--creme);text-decoration:none;font-weight:600}
+.bandeau a:hover{text-decoration:underline;text-underline-offset:3px}
+.pied{display:flex;align-items:flex-end;justify-content:space-between;padding:14px 0 22px;
+  font-size:11.5px;color:var(--gris)}
+.pied a{color:var(--gris);text-decoration:none}
+.monogramme{font-size:17px;font-weight:700;font-style:italic;color:var(--encre)}
+.note{max-width:880px;width:100%;margin:22px auto 0;font-size:11.5px;color:#8d8d84;line-height:1.65}
+.note a{color:#b9b9ae}
+@media (max-width:760px){.grille{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:520px){
+  .feuille{padding:26px 22px 0;border-radius:20px}
+  .bandeau{margin:22px -22px 0;padding:14px 22px;flex-wrap:wrap}
+  .grille{grid-template-columns:repeat(2,1fr)}
+  .liens a:nth-child(n+3){display:none}
+}
+</style></head><body>
+
+<div class="feuille">
+  <div class="signature">Conçu et imprimé par<b>DELIGNY R&amp;D</b></div>
+  <nav>
+    <div class="mot-marque">DELIGNY R&amp;D</div>
+    <div class="liens">
+      <a href="dune.html">L'affiche</a>
+      <a href="index.html">Configurateur</a>
+      <a href="../index.html">Atelier</a>
+      <a href="../contact.html">Contact</a>
+    </div>
+  </nav>
+  <div class="filet"></div>
+
+  <div class="reference">Lampe Designer</div>
+  <div class="geant">Gamme</div>
+  <div class="intro">
+    <div class="tiret"></div>
+    Douze points de départ, pas douze produits finis. Chaque silhouette
+    s'ouvre dans le configurateur et se reprend point par point : hauteur,
+    galbe, nervures, matière. Ce que tu vois ici est la géométrie réelle,
+    photographiée par le moteur de rendu de l'atelier.
+  </div>
+
+  <div class="grille">
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-dune.png?v=d4be79c3" alt="Lampe Designer, silhouette Dune, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Dune</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-galet.png?v=f6530aaf" alt="Lampe Designer, silhouette Galet, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Galet</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-colonne.png?v=1b339fbe" alt="Lampe Designer, silhouette Colonne, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Colonne</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-gradins.png?v=eb641dc8" alt="Lampe Designer, silhouette Gradins, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Gradins</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-organiques.png?v=17d70388" alt="Lampe Designer, silhouette Organique, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Organique</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-minimal.png?v=2d829756" alt="Lampe Designer, silhouette Minimaliste, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Minimaliste</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-cubique.png?v=06b32948" alt="Lampe Designer, silhouette Cubique, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Cubique</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-design.png?v=4216856b" alt="Lampe Designer, silhouette Design, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Design</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-retro.png?v=0fb0b60a" alt="Lampe Designer, silhouette Rétro 70s, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Rétro 70s</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-baroque.png?v=4f8b5a81" alt="Lampe Designer, silhouette Baroque, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Baroque</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-artnouveau.png?v=d2ec0e25" alt="Lampe Designer, silhouette Art nouveau, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Art nouveau</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal-artdeco.png?v=0a59278e" alt="Lampe Designer, silhouette Art déco, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="nom">Art déco</div>
+      </a>
+  </div>
+
+  <div class="bandeau">
+    <span>Le prix se calcule sur la pièce, pas sur le catalogue</span>
+    <a href="index.html">Dessiner la mienne</a>
+  </div>
+
+  <div class="pied">
+    <a href="https://deligny-rd.fr">deligny-rd.fr</a>
+    <div class="monogramme">D</div>
+  </div>
+</div>
+
+<p class="note">Chaque image est un rendu Blender de la coque réellement
+exportée, en PLA translucide diffusant, lampe allumée. Aucune retouche, aucune
+image d'illustration. Les cotes et le prix de la pièce que tu dessines
+s'affichent en direct dans <a href="index.html">le configurateur</a>.</p>
+
+<img src="https://atlas-studio.pro/deligny/api/px?page=gamme" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>
