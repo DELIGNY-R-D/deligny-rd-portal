@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-v6KPyEPiAaZftl6UmdstEU6l6J7Y5rlzHXDSi6X1uPs='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-MKEEj8mV7nsLtyIBJkaIFsVrbxSV8vSwZ1oBlQWfcbY='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -3404,11 +3404,19 @@ const vc = $('previewCanvas'), vctx = vc.getContext('2d');
  * pas un defaut de rendu, c'est la piece — mais ça ne se montre pas.
  * EL_MIN a 3 degres et non 0 : a exactement 0 la camera est dans le plan de la
  * couronne basse, qui se reduit alors a un trait et scintille. */
-const EL_MIN = 3 * Math.PI / 180, EL_MAX = 1.40;
+/* ⚠️ SENS DE L'ELEVATION, MESURE et non suppose. En projetant le bord avant
+ * et le bord arriere de l'ouverture haute, on constate que view.el NEGATIF
+ * fait voir le DESSUS et POSITIF le DESSOUS. J'avais suppose l'inverse et pose
+ * un plancher a +3 degres : il forçait la camera SOUS la lampe, exactement le
+ * contraire de ce qui etait demande.
+ * Domaine autorise : de -80 degres (bien au-dessus) a -3 (au ras du plateau).
+ * -3 et non 0 : a zero la camera est dans le plan de la couronne basse, qui se
+ * reduit a un trait et scintille. */
+const EL_HAUT = -1.40, EL_BAS = -3 * Math.PI / 180;
 /* Vue de FACE par defaut : azimut 0, legerement au-dessus. L'ancien 0,7 rad
  * (40 degres) presentait la lampe de trois quarts, ce qui deforme la
  * silhouette qu'on est justement en train de dessiner. */
-const view = { az:0, el:0.24, zoom:1, explode:0, spin:0 };
+const view = { az:0, el:-0.24, zoom:1, explode:0, spin:0 };
 function project3d(x,y,z){
   // rotate around Y (azimuth) then tilt (elevation) — depth croissante = plus loin
   const cx=Math.cos(view.az), sx=Math.sin(view.az);
@@ -4246,14 +4254,14 @@ function hexToRgb(hex){
 let rotDrag=false, lastX=0, lastY=0;
 function syncViewInputs(){
   const e=$('vElev'), z=$('vZoom');
-  if(e) e.value = Math.round(view.el*180/Math.PI);
+  if(e) e.value = Math.round(-view.el*180/Math.PI);   // le curseur compte vers le HAUT
   if(z) z.value = Math.round(view.zoom*100);
 }
 vc.addEventListener('mousedown', e=>{ rotDrag=true; lastX=e.clientX; lastY=e.clientY; e.preventDefault(); });
 window.addEventListener('mousemove', e=>{
   if(!rotDrag) return;
   view.az += (e.clientX-lastX)*0.01;
-  view.el = Math.max(EL_MIN, Math.min(EL_MAX, view.el + (e.clientY-lastY)*0.008));
+  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el + (e.clientY-lastY)*0.008));
   lastX=e.clientX; lastY=e.clientY;
   syncViewInputs(); apercuProgressif();
 });
@@ -4271,7 +4279,7 @@ vc.addEventListener('touchstart', e=>{ rotDrag=true; lastX=e.touches[0].clientX;
 vc.addEventListener('touchmove', e=>{
   if(!rotDrag) return;
   view.az += (e.touches[0].clientX-lastX)*0.01;
-  view.el = Math.max(EL_MIN, Math.min(EL_MAX, view.el + (e.touches[0].clientY-lastY)*0.008));
+  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el + (e.touches[0].clientY-lastY)*0.008));
   lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
   syncViewInputs(); apercuProgressif();
 }, {passive:true});
@@ -6154,10 +6162,10 @@ $('seedApply').onclick   = ()=> randomShape($('seedInput').value.trim() || undef
 $('seedInput').onkeydown = e=>{ if(e.key==='Enter') $('seedApply').onclick(); };
 
 /* ── Contrôles de vue ─────────────────────────────────────────────────── */
-$('vElev').oninput  = e=>{ view.el = Math.max(EL_MIN, Math.min(EL_MAX, parseFloat(e.target.value)*Math.PI/180)); apercuProgressif(); };
+$('vElev').oninput  = e=>{ view.el = Math.max(EL_HAUT, Math.min(EL_BAS, -parseFloat(e.target.value)*Math.PI/180)); apercuProgressif(); };
 $('vZoom').oninput  = e=>{ view.zoom = parseFloat(e.target.value)/100; apercuProgressif(); };
 $('vExplode').oninput = e=>{ view.explode = parseFloat(e.target.value)/100; apercuProgressif(); };
-$('vReset').onclick = ()=>{ view.az=0; view.el=0.24; view.zoom=1; syncViewInputs(); apercuProgressif(); };
+$('vReset').onclick = ()=>{ view.az=0; view.el=-0.24; view.zoom=1; syncViewInputs(); apercuProgressif(); };
 $('vTurn').onclick  = e=>{
   if(view.spin){ cancelAnimationFrame(view.spin); view.spin=0; e.target.textContent='▶ Tourner'; apercuProgressif(); return; }
   e.target.textContent='⏸ Arrêter';
