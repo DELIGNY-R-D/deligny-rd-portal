@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-ilySJtdGmtZbiWKpB90/dh7tUvDFYf9sfNl2J9oU+js='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-FF1W+1APPLJ6unJGW7WzOaoObtDXTKdPkmYqs5Ske9I='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1096,9 +1096,20 @@ function chargerDeco(){
  * ⚠️ Rayon extérieur en retrait du Ø réel : au même rayon
  * que le pied de l'abat-jour, les deux cylindres seraient coplanaires et
  * scintilleraient — la famille de bugs qu'on vient d'éteindre. */
-let _bagueProxy = null, _decoProxy = null;
-function bagueProxy(){
-  if(_bagueProxy) return _bagueProxy;
+/* Substituts d'affichage : le cache est indexe PAR NOMBRE DE SEGMENTS.
+ * ⚠️ Un cache simple les figeait a 48 segments, quel que soit l'abat-jour. */
+let _bagueProxy = {}, _decoProxy = {};
+function bagueProxy(segments){
+  /* ⚠️ MEME NOMBRE DE SEGMENTS QUE L'ABAT-JOUR, et meme phase (12/08, demande
+   * Baptiste). A 48 segments face a un abat-jour qui en a 360 depuis la
+   * lithophanie, les deux polygones se croisent : le tri du peintre ne peut pas
+   * departager une grosse facette de bague et les fines facettes du pied, et on
+   * voit des tirets sombres tout autour du joint. Avec le meme compte, les
+   * aretes tombent aux MEMES angles (buildTube et ringAt partent tous deux de
+   * theta=0) : plus aucun croisement possible.
+   * On garde un plancher a 48 : sous ce compte le bourrelet se lit polygonal. */
+  const N = Math.max(48, Math.round(segments || 48));
+  if(_bagueProxy[N]) return _bagueProxy[N];
   /* V3 : seul le bourrelet z 0 → 4 se voit, le reste de la pièce est DANS
    * l'abat-jour. Rayon 59,45 et non 60,00 : sur les 0,5 mm où l'abat-jour mord
    * dans l'assise, les deux cylindres auraient exactement le même rayon
@@ -1106,18 +1117,19 @@ function bagueProxy(){
    * confondues sortent en tirets sombres avec le tri du peintre. 0,55 mm de
    * retrait suffit (la corde d'un tube à 48 segments ne s'écarte que de
    * 0,12 mm) et se lit comme un joint, ce qu'il est. */
-  _bagueProxy = buildTube(0, BAGUE.assiseMm, ()=>40, ()=>59.45, 48, 2, null, 10);
-  return _bagueProxy;
+  _bagueProxy[N] = buildTube(0, BAGUE.assiseMm, ()=>40, ()=>59.45, N, 2, null, 10);
+  return _bagueProxy[N];
 }
-function decoProxy(){
-  if(_decoProxy) return _decoProxy;
+function decoProxy(segments){
+  const N = Math.max(48, Math.round(segments || 48));
+  if(_decoProxy[N]) return _decoProxy[N];
   // fût plein (rayon intérieur quasi nul) : vue par en dessous, la base réelle
   // a un plancher — le substitut ne doit pas montrer un tunnel à la place
   // V3 « BQ P2 » : la base va de z −5,400 à +13,200, mais seule la partie sous
   // le bourrelet se voit (Ø118,6 à l'affleurement). On s'arrête 0,05 mm sous
   // z=0 pour ne pas confondre son plat avec le dessous de la bague.
-  _decoProxy = buildTube(-5.4, -0.05, ()=>0.5, ()=>59.0, 48, 2.7, null, 10);
-  return _decoProxy;
+  _decoProxy[N] = buildTube(-5.4, -0.05, ()=>0.5, ()=>59.0, N, 2.7, null, 10);
+  return _decoProxy[N];
 }
 
 function trianglesDeco(){
