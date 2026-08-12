@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-KrUz/D960uoMcvVtoZD8kxxpARPfHFVinBwBMX8dZu8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-sjZq6hb30xLiBKOvQW1v3gVjToDXFo6BVZQOrDIEYyA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -294,7 +294,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
             </div>
             <canvas id="previewCanvas" width="480" height="440"></canvas>
           </div>
-          <div class="canvas-col">
+          <div class="canvas-col" id="colRendu">
             <div class="lbl">Rendu studio <span id="vueRenduSrc" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
               <small id="vueRenduNote">Point de vue fixe, comme une photo de catalogue. Se refait à chaque modification.</small>
             </div>
@@ -6033,6 +6033,11 @@ function majSourceRendu(src){
     // ⚠️ On NE REVIENT PLUS au canvas. S'il existe deja une image Blender, elle
     // reste ; sinon c'est le cartouche d'attente, jamais l'apercu du navigateur.
     if(img && img.getAttribute('src')) img.style.display = '';
+    const att = $('renduAttente');
+    // Le cartouche ne parle d'attente QUE si un rendu est vraiment possible.
+    if(att) att.textContent = (AI.ok === true)
+      ? 'Rendu Blender en cours…'
+      : 'Rendu photo indisponible : il demande le moteur local de l\'atelier.';
     t.innerHTML = BL_LIVE.busy
       ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
       : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
@@ -6573,6 +6578,11 @@ const CONCIERGE = { busy:false, tours:0 };
 function renderConcierge(){
   const c = $('conciergeCard'); if(!c) return;
   c.style.display = (AI.ok === true) ? '' : 'none';
+  /* La 3e vue non plus n'a rien a montrer sans le moteur : le rendu photo est
+   * fait par Blender, et l'apercu du navigateur ne doit plus s'y substituer.
+   * Une carte vide qui ne se remplira jamais vaut moins que deux vues nettes. */
+  const r = $('colRendu');
+  if(r) r.style.display = (AI.ok === true) ? '' : 'none';
 }
 
 function cvBulle(qui, texte, cls){
