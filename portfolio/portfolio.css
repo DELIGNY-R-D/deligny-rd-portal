@@ -8,6 +8,7 @@
 .pf-gallery{display:flex;flex-direction:column;gap:14px;margin-top:18px;max-width:960px}
 .pf-gallery img{width:100%;border-radius:12px;display:block}
 .pf-back{display:inline-block;margin-bottom:10px}
+.pf-lead{max-width:640px;margin:14px 0 4px;color:var(--muted);font-size:1.02rem;line-height:1.6}
 .pf-fill{border:1px dashed rgba(255,180,80,.65);border-radius:8px;padding:2px 8px;font-size:.85rem;white-space:nowrap}
 .pf-table{width:100%;border-collapse:collapse;margin-top:14px}
 .pf-table th,.pf-table td{text-align:left;padding:9px 10px;border-bottom:1px solid rgba(255,255,255,.12);font-size:.93rem;vertical-align:top}
