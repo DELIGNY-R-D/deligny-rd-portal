@@ -37,6 +37,23 @@
         "valeur_hex": "6614b4af056eb854b870a6219f58d331497a80f39bf523437fab87aff62c7aaaf6f651990c7459dd4c4fff1fd5e08e285e9cdae78d67d6c46dca9728aa435b01",
         "entree_sha256": "6091ce6906d602e10785cb5e41ac8b280427c3bc8b90f96c19c18d72f5e11839"
       }
+    },
+    {
+      "version": 3,
+      "action": "inscrire",
+      "cle_publique": "ec177480db2767b2c2e61c71a7fd1945d7f5b2fc46a9a2b7ff4ee398f79e5a4d",
+      "role": "signature",
+      "algo": "ed25519",
+      "valide_depuis": "2026-08-12 19:07:00",
+      "valide_jusqu": null,
+      "motif": "cle de signature de l'API, generee sur le VPS incubateur merlinvps et jamais sortie de cette machine ; la racine reste hors du serveur expose",
+      "entree_precedente_sha256": "6091ce6906d602e10785cb5e41ac8b280427c3bc8b90f96c19c18d72f5e11839",
+      "endossement": {
+        "algo": "ed25519",
+        "par": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f",
+        "valeur_hex": "29b2eef1447c4c69075ad83e6870496202a101e4ae53844492025ea77843c214173cda9864ee7c19eaa73b1ca368f9dadcab5a00e8e33a8de010c1cceaf1bc0e",
+        "entree_sha256": "4f81b32992f81047065ae6b76ce6f6b4c51b5b010019f1a72f9a3451547fbe09"
+      }
     }
   ]
 }
