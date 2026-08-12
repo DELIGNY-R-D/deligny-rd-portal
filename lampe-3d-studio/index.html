@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-xxKM/9PJ4hsstP0zaAc5Tz8J+iBQY//zB0yFJmzeTPw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-OwyplFZh51CHZrVMVc6xg2di6GLal8b2J5nJ8Or7TVI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -6194,14 +6194,25 @@ function majSourceRendu(src){
     const att = $('renduAttente'); if(att) att.hidden = false;
     t.innerHTML = '<span style="color:var(--amber)">— Blender, calcul en cours…</span>';
   } else {
-    /* Une image Blender deja calculee vaut mieux que l'apercu : on la garde et
-     * on dit seulement qu'elle date. Sinon on montre l'apercu du navigateur,
-     * qui a l'immense avantage d'exister partout et tout de suite. */
+    /* ⚠️ DEUX CHEMINS MENAIENT ICI, ET UN SEUL AVAIT ETE TRAITE. Quand un
+     * rendu Blender est EN VOL, on arrivait dans cette branche (libelle
+     * « apercu, Blender en cours… ») et l'apercu du navigateur s'affichait
+     * quand meme, alors que Baptiste a demande de ne jamais le voir, pas meme
+     * pendant l'attente. Le decompte n'etait pose que sur la branche
+     * « attente ». Ici c'est le meme besoin : pendant le calcul, RIEN d'autre
+     * que le decompte. */
     const dejaBlender = !!(img && img.getAttribute('src'));
-    if(img) img.style.display = dejaBlender ? '' : 'none';
+    const att = $('renduAttente');
     const cvR = $('renderCanvas');
-    if(cvR) cvR.style.display = dejaBlender ? 'none' : '';
-    const att = $('renduAttente'); if(att) att.hidden = true;
+    if(BL_LIVE.busy){
+      if(img) img.style.display = 'none';
+      if(cvR) cvR.style.display = 'none';
+      if(att) att.hidden = false;
+    } else {
+      if(img) img.style.display = dejaBlender ? '' : 'none';
+      if(cvR) cvR.style.display = dejaBlender ? 'none' : '';
+      if(att) att.hidden = true;
+    }
     t.innerHTML = BL_LIVE.busy
       ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
       : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
