@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-MKEEj8mV7nsLtyIBJkaIFsVrbxSV8vSwZ1oBlQWfcbY='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-N24M0LjQJrxpaZSgj7KqAb/HPgwBGhOpaU+HIOAc3bo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4415,7 +4415,13 @@ function renderStudio(){
    * intacte a l'apercu 3D, qui doit rester manipulable. */
   const orbite = { az: view.az, el: view.el };
   view.az = RENDU_CAM.vue * Math.PI / 180;
-  view.el = RENDU_CAM.hauteurVue * Math.PI / 180;
+  /* ⚠️ SIGNE. RENDU_CAM.hauteurVue est exprimee dans la convention de BLENDER
+   * (positif = au-dessus) parce qu'elle part aussi au moteur telle quelle.
+   * La projection du navigateur, elle, compte a l'ENVERS : negatif = au-dessus
+   * (mesure en projetant l'ouverture haute). Sans ce signe, l'apercu se prenait
+   * SOUS la lampe et montrait le disque noir du fond ouvert — la meme erreur
+   * que sur l'orbite, a un endroit que je n'avais pas repris. */
+  view.el = -RENDU_CAM.hauteurVue * Math.PI / 180;
   let faces, cx, groundY, footR;
   try { ({faces, cx, groundY, footR} = sceneFaces(W,H)); }
   finally { view.az = orbite.az; view.el = orbite.el; }
