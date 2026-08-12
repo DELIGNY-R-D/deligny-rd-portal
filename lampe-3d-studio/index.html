@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-rbPvcgdoLr4tbtWGmVchzvK5f+GCVW3ASJiHXjZ75Ak='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-Yc/lqng/O2p8IAjWVyww5Lpld6BW+NrBCxs7gZ4+0Aw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -6079,9 +6079,18 @@ function majSourceRendu(src){
     t.innerHTML = BL_LIVE.busy
       ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
       : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
+    /* ⚠️ DEUX PUBLICS, DEUX PHRASES. « Le rendu photo Blender demande le
+     * moteur local » decrit un manque : sur le site public, ou Blender n'a
+     * jamais eu a exister, ça se lit comme une panne alors que tout va bien.
+     * Un visiteur n'a pas a connaitre notre tuyauterie. On ne parle du moteur
+     * que la ou son absence est VRAIMENT une anomalie : a l'atelier. */
+    const atelier = ['127.0.0.1','localhost',''].includes(location.hostname)
+                    || location.hostname.endsWith('.local');
     if(n) n.textContent = (AI.ok === true)
       ? "Point de vue fixe, comme une photo. Se refait à chaque modification."
-      : "Rendu du navigateur. Le rendu photo Blender demande le moteur local.";
+      : (atelier
+          ? "Le moteur local ne répond pas : le rendu photo Blender est indisponible."
+          : "Calculé dans ton navigateur à partir de la géométrie exacte, point de vue fixe.");
   }
 }
 
