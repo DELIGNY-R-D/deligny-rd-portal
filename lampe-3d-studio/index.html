@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-GxkmfGF+UmgJzRmyL0To64ONXLeAOT88pdxCM8F9kQo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-rbPvcgdoLr4tbtWGmVchzvK5f+GCVW3ASJiHXjZ75Ak='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -3961,13 +3961,16 @@ function drawPreview(hq){
   if(hq){
     // fond de studio : dégradé vertical + halo derrière le sujet
     const g=ctx.createLinearGradient(0,0,0,h);
-    g.addColorStop(0,'#1a1a1e'); g.addColorStop(1,'#08080a');
+    // ⚠️ Le fond de l'apercu suit desormais le VERT de l'application, pas un
+    // noir de visionneuse 3D. Il est peint ici et non en CSS : le canvas
+    // repeint son fond a chaque image, une couleur CSS serait recouverte.
+    g.addColorStop(0,'#35553f'); g.addColorStop(1,'#22392c');
     ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
     const pool=ctx.createRadialGradient(w/2,h*0.36,10,w/2,h*0.36,w*0.55);
-    pool.addColorStop(0,'rgba(255,255,255,.07)'); pool.addColorStop(1,'rgba(0,0,0,0)');
+    pool.addColorStop(0,'rgba(210,230,215,.10)'); pool.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle=pool; ctx.fillRect(0,0,w,h);
   } else {
-    ctx.fillStyle='#0e0e10'; ctx.fillRect(0,0,w,h);
+    ctx.fillStyle='#2c4a38'; ctx.fillRect(0,0,w,h);
   }
   const parts = hq ? MESH.preview : (MESH.draft || MESH.preview);
   if(!parts || !parts.length || state.profile.length<2){ blit(); return; }
@@ -4047,7 +4050,7 @@ function drawPreview(hq){
     faces.forEach(f=>f.P.forEach(P=>{ if(P.sy>bas) bas=P.sy; gx+=P.sx; n++; }));
     const cxo=gx/n, gy=Math.min(h-6*SS, bas);
     const fl=ctx.createLinearGradient(0,gy,0,h);
-    fl.addColorStop(0,'rgba(255,255,255,.05)'); fl.addColorStop(1,'rgba(0,0,0,0)');
+    fl.addColorStop(0,'rgba(210,230,215,.07)'); fl.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle=fl; ctx.fillRect(0,gy,w,h-gy);
     const rr=Math.max(40*SS, (w*0.22));
     const sh=ctx.createRadialGradient(cxo,gy,4,cxo,gy,rr);
