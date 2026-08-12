@@ -1,0 +1,21 @@
+# DELIGNY R&D — position vis-à-vis des robots et des IA.
+#
+# POSITION : « citez-nous, ne vous entraînez pas sur nous ».
+#   search=yes    → indexation et résultats de recherche classiques : oui.
+#   ai-input=yes  → utilisation comme SOURCE CITÉE dans une réponse d'IA
+#                   (grounding, RAG, résumé avec lien) : oui. C'est ce qui
+#                   rend DELIGNY visible dans ChatGPT, Gemini, Mistral.
+#   ai-train=no   → entraînement / fine-tuning de modèles : non.
+#
+# ⚠️ CE FICHIER NE SUFFIT PAS. Cloudflare injecte son propre bloc managé
+# (« BEGIN Cloudflare Managed content ») qui bloque aujourd'hui Google-Extended
+# — donc Gemini ne peut pas nous citer — ainsi que ClaudeBot, GPTBot, CCBot.
+# Tant que ce réglage n'est pas changé dans le tableau de bord Cloudflare
+# (AI Crawl Control), la ligne ai-input=yes ci-dessous reste sans effet réel
+# pour Gemini. Voir HUB/docs/VISIBILITE_IA_GESTES_BAPTISTE.md
+
+Sitemap: https://deligny-rd.fr/sitemap.xml
+
+User-agent: *
+Content-Signal: search=yes, ai-input=yes, ai-train=no
+Allow: /

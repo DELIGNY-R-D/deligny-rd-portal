@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="estime volume, dimensions et poids instantanément" />
+  <title>Print Checker — questions fréquentes | DELIGNY R&amp;D</title>
+  <!-- Page GÉNÉRÉE par Hub::CitableSubstrate depuis config/product_dna.yml.
+       Ne pas éditer à la main : toute modification est écrasée à la
+       prochaine génération. Corriger les FAITS dans le DNA. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="canonical" href="https://deligny-rd.fr/reponses/print-checker.html" />
+  <link rel="stylesheet" href="../styles.css" />
+</head>
+<body>
+
+  <main>
+    <h1>Print Checker — questions fréquentes</h1>
+    <p>Réponses factuelles publiées par DELIGNY R&amp;D. Outil : <a href="https://deligny-r-d.github.io/print-checker/">https://deligny-r-d.github.io/print-checker/</a>.</p>
+    <h2>Quel problème Print Checker résout-il ?</h2>
+    <p>Contrôler l'imprimabilité d'un modèle 3D demande normalement d'ouvrir un slicer complet.</p>
+    <h2>Que fait Print Checker exactement ?</h2>
+    <p>Estime volume, dimensions et poids instantanément. Lit STL, OBJ, 3MF, PLY, GLTF/GLB, FBX, DAE, OFF, AMF — pas seulement STL. Sélecteur d'unité (mm/cm/m/in) pour les formats sans unité normée (OBJ, FBX, DAE...). Détecte les surplombs au-delà du seuil critique. Détecte les parois trop fines. Matériaux résine castable et cire de coulée pour la bijouterie (casting), avec profils d'imprimantes résine format bijouterie. Tourne 100% dans le navigateur, aucun fichier envoyé à un serveur. Aucun compte, aucune installation.</p>
+    <h2>Comment Print Checker fonctionne-t-il techniquement ?</h2>
+    <p>Rendu three.js chargé depuis CDN (esm.sh), loaders three/addons pour les formats non-STL. Calcul géométrique entièrement côté client.</p>
+    <h2>Quelles sont les limites connues de Print Checker ?</h2>
+    <p>Estimation par débit fixe (~10 mm³/s) pour le FDM — pas une trajectoire d'impression réelle comme un vrai slicer. Le calcul exact de paroi minimale nécessite un vrai slicing. Temps résine/cire = modèle indicatif (nb de couches × cure), pas un slicer résine réel ; densité/prix résine et cire sont des ordres de grandeur de catégorie, pas ceux d'une référence précise. Les formats CAO paramétriques (STEP, IGES) ne sont pas supportés.</p>
+    <h2>À qui s'adresse Print Checker ?</h2>
+    <p>Makers. Ateliers d'impression 3D. Hobbyistes. Bijoutiers/joailliers (casting).</p>
+    <p><a href="index.html">Toutes les réponses</a> · <a href="../index.html">DELIGNY R&amp;D</a></p>
+  </main>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  "name": "Print Checker",
+  "description": "estime volume, dimensions et poids instantanément",
+  "url": "https://deligny-r-d.github.io/print-checker/",
+  "publisher": {
+    "@type": "Organization",
+    "name": "DELIGNY R&D"
+  },
+  "applicationCategory": "DesignApplication",
+  "operatingSystem": "Web browser",
+  "keywords": "vérifier fichier stl avant impression, coût impression 3d en ligne, détection surplomb stl, calculateur temps impression 3d gratuit, résine castable bijouterie 3d, cire perdue impression 3d, coût casting bijou 3d"
+}
+</script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "FAQPage",
+  "mainEntity": [
+    {
+      "@type": "Question",
+      "name": "Quel problème Print Checker résout-il ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Contrôler l'imprimabilité d'un modèle 3D demande normalement d'ouvrir un slicer complet."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Que fait Print Checker exactement ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Estime volume, dimensions et poids instantanément. Lit STL, OBJ, 3MF, PLY, GLTF/GLB, FBX, DAE, OFF, AMF — pas seulement STL. Sélecteur d'unité (mm/cm/m/in) pour les formats sans unité normée (OBJ, FBX, DAE...). Détecte les surplombs au-delà du seuil critique. Détecte les parois trop fines. Matériaux résine castable et cire de coulée pour la bijouterie (casting), avec profils d'imprimantes résine format bijouterie. Tourne 100% dans le navigateur, aucun fichier envoyé à un serveur. Aucun compte, aucune installation."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Comment Print Checker fonctionne-t-il techniquement ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Rendu three.js chargé depuis CDN (esm.sh), loaders three/addons pour les formats non-STL. Calcul géométrique entièrement côté client."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "Quelles sont les limites connues de Print Checker ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Estimation par débit fixe (~10 mm³/s) pour le FDM — pas une trajectoire d'impression réelle comme un vrai slicer. Le calcul exact de paroi minimale nécessite un vrai slicing. Temps résine/cire = modèle indicatif (nb de couches × cure), pas un slicer résine réel ; densité/prix résine et cire sont des ordres de grandeur de catégorie, pas ceux d'une référence précise. Les formats CAO paramétriques (STEP, IGES) ne sont pas supportés."
+      }
+    },
+    {
+      "@type": "Question",
+      "name": "À qui s'adresse Print Checker ?",
+      "acceptedAnswer": {
+        "@type": "Answer",
+        "text": "Makers. Ateliers d'impression 3D. Hobbyistes. Bijoutiers/joailliers (casting)."
+      }
+    }
+  ]
+}
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=print-checker" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body>
+</html>
