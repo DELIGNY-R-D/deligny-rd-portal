@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-sjZq6hb30xLiBKOvQW1v3gVjToDXFo6BVZQOrDIEYyA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-wtNNlCpruGAbrvtHiz9MSb+c7YdLz4EjJwGgFg0K98U='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4150,6 +4150,12 @@ const FINISHES = {
   translucide: { label:'Translucide diffusant', spec:0.16, shin:26, fres:0.50, trans:0.75 },
 };
 const BACKDROPS = {
+  /* PAPIER : la piece SEULE sur le fond creme de la page, sans faux sol ni
+   * faux reflet. C'est la scene du rendu live : elle doit pouvoir s'afficher
+   * partout, y compris sur le site public ou Blender n'existe pas. Un decor
+   * imite mal fait est ce qui faisait juger l'apercu « pas le bon rendu » ;
+   * sans decor, il ne reste que la geometrie, qui est exacte. */
+  papier: { label:'Papier', top:'#efede6', bot:'#efede6', floor:'#efede6', pool:'rgba(0,0,0,0)', dark:false, nu:true },
   jour:   { label:'Pièce de jour', top:'#eceaec', bot:'#d8d5d1', floor:'#b98b5a', pool:'rgba(255,255,255,.45)', dark:false, piece:true },
   studio: { label:'Studio sombre', top:'#17171a', bot:'#050506', floor:'#0a0a0c', pool:'rgba(255,255,255,.09)', dark:true },
   clair:  { label:'Studio clair',  top:'#f4f4f6', bot:'#dcdce1', floor:'#e8e8ec', pool:'rgba(255,255,255,.85)', dark:false },
@@ -4158,7 +4164,7 @@ const BACKDROPS = {
 /* Défauts alignés sur la photo de référence de Baptiste (05/08) : une pièce
  * de jour, lampe ÉTEINTE, matière mate — pas le plateau sombre à halo chaud
  * qui « ne correspond pas à la demande ». */
-const RENDER = { finish:'mat', bg:'jour', lit:true, lastURL:null, ms:0 };
+const RENDER = { finish:'mat', bg:'papier', lit:true, lastURL:null, ms:0 };
 
 // Faces projetées à une résolution arbitraire (indépendant de l'aperçu live).
 function sceneFaces(W, H){
@@ -4288,6 +4294,10 @@ function renderStudio(){
     const lum = ctx.createRadialGradient(W*0.34, gy+(H-gy)*0.30, 8, W*0.34, gy+(H-gy)*0.30, W*0.55);
     lum.addColorStop(0,'rgba(255,225,180,.16)'); lum.addColorStop(1,'rgba(0,0,0,0)');
     ctx.fillStyle=lum; ctx.fillRect(0,gy,W,H-gy);
+  } else if(bg.nu){
+    // fond PLAT : rien d'autre que le papier. Pas de degrade, pas de halo,
+    // pas de sol — c'est ce qui distingue une piece detouree d'un decor rate.
+    ctx.fillStyle=bg.top; ctx.fillRect(0,0,W,H);
   } else {
     // fond : dégradé vertical + halo de lumière derrière le sujet
     const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,bg.top); g.addColorStop(1,bg.bot);
@@ -4342,7 +4352,7 @@ function renderStudio(){
   // mention honnête, incrustée dans l'image exportée
   ctx.fillStyle = bg.dark ? 'rgba(255,255,255,.34)' : 'rgba(0,0,0,.38)';
   ctx.font='16px -apple-system,sans-serif';
-  ctx.fillText('Rendu indicatif — géométrie exacte, éclairage stylisé · Custom 3D Lamp Studio · DELIGNY R&D', 18, H-18);
+  ctx.fillText('Aperçu navigateur · géométrie exacte, éclairage stylisé · Lampe Designer · DELIGNY R&D', 18, H-18);
 
   RENDER.ms=Math.round(performance.now()-t0);
   RENDER.lastURL=cv.toDataURL('image/png');
@@ -4440,7 +4450,7 @@ async function rendreBlender(live){
          * `diffusion translucide` = transmission diffuse, le bon modèle d'une
          * paroi de 1,8 mm — ce n'est pas du verre. */
         couleur: 'F4F2EE', diffusion: 'translucide',
-        fond: RENDER.bg === 'clair' ? 'clair' : 'sombre',
+        fond: (RENDER.bg === 'clair' || RENDER.bg === 'papier') ? 'clair' : 'sombre',
         allumee: RENDER.lit, translucide: state.material === 'PLA_T',
         couche: parseFloat(($('blCouche')||{value:'0.20'}).value),
         buse: 0.40,
@@ -6024,6 +6034,10 @@ function majSourceRendu(src){
   if(src === 'blender'){
     arreterRebours();
     if(img) img.style.display = '';
+    // l'image Blender REMPLACE l'apercu, elle ne se pose pas dessus : sinon le
+    // canvas transparait par les bords si l'image porte de l'alpha
+    const cvR = $('renderCanvas'); if(cvR) cvR.style.display = 'none';
+    const att = $('renduAttente'); if(att) att.hidden = true;
     t.innerHTML = '<span style="color:var(--green)">— Blender, géométrie réelle</span>';
     if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s · point de vue fixe. Se refait à chaque modification.`;
   } else if(src === 'attente'){
@@ -6031,14 +6045,14 @@ function majSourceRendu(src){
     if(img) img.style.display = '';
     t.innerHTML = '<span style="color:var(--amber)">— Blender, mise à jour…</span>';
   } else {
-    // ⚠️ On NE REVIENT PLUS au canvas. S'il existe deja une image Blender, elle
-    // reste ; sinon c'est le cartouche d'attente, jamais l'apercu du navigateur.
-    if(img && img.getAttribute('src')) img.style.display = '';
-    const att = $('renduAttente');
-    // Le cartouche ne parle d'attente QUE si un rendu est vraiment possible.
-    if(att) att.textContent = (AI.ok === true)
-      ? 'Rendu Blender en cours…'
-      : 'Rendu photo indisponible : il demande le moteur local de l\'atelier.';
+    /* Une image Blender deja calculee vaut mieux que l'apercu : on la garde et
+     * on dit seulement qu'elle date. Sinon on montre l'apercu du navigateur,
+     * qui a l'immense avantage d'exister partout et tout de suite. */
+    const dejaBlender = !!(img && img.getAttribute('src'));
+    if(img) img.style.display = dejaBlender ? '' : 'none';
+    const cvR = $('renderCanvas');
+    if(cvR) cvR.style.display = dejaBlender ? 'none' : '';
+    const att = $('renduAttente'); if(att) att.hidden = true;
     t.innerHTML = BL_LIVE.busy
       ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
       : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
@@ -6579,11 +6593,13 @@ const CONCIERGE = { busy:false, tours:0 };
 function renderConcierge(){
   const c = $('conciergeCard'); if(!c) return;
   c.style.display = (AI.ok === true) ? '' : 'none';
-  /* La 3e vue non plus n'a rien a montrer sans le moteur : le rendu photo est
-   * fait par Blender, et l'apercu du navigateur ne doit plus s'y substituer.
-   * Une carte vide qui ne se remplira jamais vaut moins que deux vues nettes. */
+  /* ⚠️ La 3e vue reste VISIBLE partout (11/08, « je veux un rendu live, la ça
+   * marche pas rien ne s'affiche »). Sans le moteur, elle montre l'apercu du
+   * navigateur en scene PAPIER : la piece seule sur le fond de la page, sans
+   * faux decor. C'est ce faux decor, pas le rendu lui-meme, qui la faisait
+   * juger mauvaise. Blender reste la version haute qualite a l'atelier. */
   const r = $('colRendu');
-  if(r) r.style.display = (AI.ok === true) ? '' : 'none';
+  if(r) r.style.display = '';
 }
 
 function cvBulle(qui, texte, cls){
