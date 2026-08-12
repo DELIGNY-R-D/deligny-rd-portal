@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-ZAaS5YxdVgsiXapn2eewmLAp8w8hYbl5WxFc08mVtY0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-CoFBS4MiS5vV5HIxkezyNKj4oxlIq+nvWa1KiL4n3/4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -315,7 +315,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         </div>
         <div class="viewtools">
           <span>Orbite : glisse dans l'aperçu (horizontal = tourner, vertical = basculer). Zoom au curseur.</span>
-          <label>Hauteur de vue <input type="range" id="vElev" min="-70" max="80" step="1" value="20"></label>
+          <label>Hauteur de vue <input type="range" id="vElev" min="3" max="80" step="1" value="14"></label>
           <label>Zoom <input type="range" id="vZoom" min="40" max="400" step="1" value="100"></label>
           <label id="vExplodeWrap" style="display:none">Vue éclatée <input type="range" id="vExplode" min="0" max="100" step="1" value="0"></label>
           <button class="btn" id="vReset">⟲ Vue par défaut</button>
@@ -3398,7 +3398,17 @@ $('delPoint').onclick=()=>{
 
 /* ── Aperçu 3D (révolution du profil, wireframe/solide ombré) ───────────── */
 const vc = $('previewCanvas'), vctx = vc.getContext('2d');
-const view = { az:0.7, el:0.35, zoom:1, explode:0, spin:0 };
+/* ⚠️ ON NE PASSE PLUS SOUS LA LAMPE (12/08, demande Baptiste). Le dessous
+ * d'un abat-jour est OUVERT : vu d'en bas on regarde dans un tube, on voit la
+ * couronne de fond par l'interieur et le disque noir de l'ouverture. Ce n'est
+ * pas un defaut de rendu, c'est la piece — mais ça ne se montre pas.
+ * EL_MIN a 3 degres et non 0 : a exactement 0 la camera est dans le plan de la
+ * couronne basse, qui se reduit alors a un trait et scintille. */
+const EL_MIN = 3 * Math.PI / 180, EL_MAX = 1.40;
+/* Vue de FACE par defaut : azimut 0, legerement au-dessus. L'ancien 0,7 rad
+ * (40 degres) presentait la lampe de trois quarts, ce qui deforme la
+ * silhouette qu'on est justement en train de dessiner. */
+const view = { az:0, el:0.24, zoom:1, explode:0, spin:0 };
 function project3d(x,y,z){
   // rotate around Y (azimuth) then tilt (elevation) — depth croissante = plus loin
   const cx=Math.cos(view.az), sx=Math.sin(view.az);
@@ -4243,7 +4253,7 @@ vc.addEventListener('mousedown', e=>{ rotDrag=true; lastX=e.clientX; lastY=e.cli
 window.addEventListener('mousemove', e=>{
   if(!rotDrag) return;
   view.az += (e.clientX-lastX)*0.01;
-  view.el = Math.max(-1.22, Math.min(1.40, view.el + (e.clientY-lastY)*0.008));
+  view.el = Math.max(EL_MIN, Math.min(EL_MAX, view.el + (e.clientY-lastY)*0.008));
   lastX=e.clientX; lastY=e.clientY;
   syncViewInputs(); apercuProgressif();
 });
@@ -4261,7 +4271,7 @@ vc.addEventListener('touchstart', e=>{ rotDrag=true; lastX=e.touches[0].clientX;
 vc.addEventListener('touchmove', e=>{
   if(!rotDrag) return;
   view.az += (e.touches[0].clientX-lastX)*0.01;
-  view.el = Math.max(-1.22, Math.min(1.40, view.el + (e.touches[0].clientY-lastY)*0.008));
+  view.el = Math.max(EL_MIN, Math.min(EL_MAX, view.el + (e.touches[0].clientY-lastY)*0.008));
   lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
   syncViewInputs(); apercuProgressif();
 }, {passive:true});
@@ -6115,10 +6125,10 @@ $('seedApply').onclick   = ()=> randomShape($('seedInput').value.trim() || undef
 $('seedInput').onkeydown = e=>{ if(e.key==='Enter') $('seedApply').onclick(); };
 
 /* ── Contrôles de vue ─────────────────────────────────────────────────── */
-$('vElev').oninput  = e=>{ view.el = parseFloat(e.target.value)*Math.PI/180; apercuProgressif(); };
+$('vElev').oninput  = e=>{ view.el = Math.max(EL_MIN, Math.min(EL_MAX, parseFloat(e.target.value)*Math.PI/180)); apercuProgressif(); };
 $('vZoom').oninput  = e=>{ view.zoom = parseFloat(e.target.value)/100; apercuProgressif(); };
 $('vExplode').oninput = e=>{ view.explode = parseFloat(e.target.value)/100; apercuProgressif(); };
-$('vReset').onclick = ()=>{ view.az=0.7; view.el=0.35; view.zoom=1; syncViewInputs(); apercuProgressif(); };
+$('vReset').onclick = ()=>{ view.az=0; view.el=0.24; view.zoom=1; syncViewInputs(); apercuProgressif(); };
 $('vTurn').onclick  = e=>{
   if(view.spin){ cancelAnimationFrame(view.spin); view.spin=0; e.target.textContent='▶ Tourner'; apercuProgressif(); return; }
   e.target.textContent='⏸ Arrêter';
