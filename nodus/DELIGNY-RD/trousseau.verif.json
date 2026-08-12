@@ -1,0 +1,29 @@
+{
+  "format": "nodus.trousseau.verifiable/1",
+  "emetteur": {
+    "id": "DELIGNY-RD",
+    "nom": "Deligny R&D",
+    "racine_cle_publique": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f"
+  },
+  "racine_algo": "ed25519",
+  "entrees": [
+    {
+      "canonique_b64": "eyJhY3Rpb24iOiJyYWNpbmUiLCJjbGVfcHVibGlxdWUiOiI3NzM1YzdlYzRhMGY2MGRiMTQxMDMxYWVjMmRlZjZjNDViMTU1ZWI4NWM0MmNhYWMzNDZlZjZkNzNiM2IyODVmIiwiZW50cmVlX3ByZWNlZGVudGVfc2hhMjU2IjpudWxsLCJtb3RpZiI6IsOpdGFibGlzc2VtZW50IGR1IHRyb3Vzc2VhdSwgY2zDqSByYWNpbmUgYXV0by1lbmRvc3PDqWUiLCJyb2xlIjoicmFjaW5lIiwidmFsaWRlX2RlcHVpcyI6IjIwMjYtMDgtMTEgMDA6MzU6MDYiLCJ2YWxpZGVfanVzcXUiOm51bGwsInZlcnNpb24iOjF9",
+      "endossement": {
+        "algo": "Ed25519 (RFC 8032)",
+        "par": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f",
+        "valeur_hex": "a714ac21bb22130e8cd530aacb8132c8e6a07d08165af95529f8259ed288dde87df2c28bad5f50cb5d019d7116069ae2d9601a6b1561b0db5a5bc8762ffa1b08",
+        "entree_sha256": "12a637526170f9e00959725448113a6a38957eccd726f566da199e15f8c3a6e3"
+      }
+    },
+    {
+      "canonique_b64": "eyJhY3Rpb24iOiJpbnNjcmlyZSIsImNsZV9wdWJsaXF1ZSI6Ijc0ZDI5NWRlZjBmMDc3YTU3NzcwZDQ3OWEyZTEyZjkxZWMwOTU4MGZmMDY5NmE4MTI2MjBiOGUwNzhmYzAwN2YiLCJlbnRyZWVfcHJlY2VkZW50ZV9zaGEyNTYiOiIxMmE2Mzc1MjYxNzBmOWUwMDk1OTcyNTQ0ODExM2E2YTM4OTU3ZWNjZDcyNmY1NjZkYTE5OWUxNWY4YzNhNmUzIiwibW90aWYiOiJjbMOpIGRlIHNpZ25hdHVyZSBmb25kYXRyaWNlLCBpbnNjcml0ZSByw6l0cm9hY3RpdmVtZW50IGxlIDIwMjYtMDgtMTEgMDA6MzU6MDYgbG9ycyBkZSBsJ8OpdGFibGlzc2VtZW50IGR1IHRyb3Vzc2VhdSIsInJvbGUiOiJzaWduYXR1cmUiLCJ2YWxpZGVfZGVwdWlzIjoiMjAyNi0wNy0yOCAxOTo1Njo1MiIsInZhbGlkZV9qdXNxdSI6bnVsbCwidmVyc2lvbiI6Mn0=",
+      "endossement": {
+        "algo": "Ed25519 (RFC 8032)",
+        "par": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f",
+        "valeur_hex": "6614b4af056eb854b870a6219f58d331497a80f39bf523437fab87aff62c7aaaf6f651990c7459dd4c4fff1fd5e08e285e9cdae78d67d6c46dca9728aa435b01",
+        "entree_sha256": "6091ce6906d602e10785cb5e41ac8b280427c3bc8b90f96c19c18d72f5e11839"
+      }
+    }
+  ]
+}

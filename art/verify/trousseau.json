@@ -1,0 +1,42 @@
+{
+  "format": "nodus.trousseau/1",
+  "emetteur": {
+    "id": "DELIGNY-RD",
+    "nom": "Deligny R&D",
+    "racine_cle_publique": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f"
+  },
+  "entrees": [
+    {
+      "version": 1,
+      "action": "racine",
+      "cle_publique": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f",
+      "role": "racine",
+      "valide_depuis": "2026-08-11 00:35:06",
+      "valide_jusqu": null,
+      "motif": "établissement du trousseau, clé racine auto-endossée",
+      "entree_precedente_sha256": null,
+      "endossement": {
+        "algo": "Ed25519 (RFC 8032)",
+        "par": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f",
+        "valeur_hex": "a714ac21bb22130e8cd530aacb8132c8e6a07d08165af95529f8259ed288dde87df2c28bad5f50cb5d019d7116069ae2d9601a6b1561b0db5a5bc8762ffa1b08",
+        "entree_sha256": "12a637526170f9e00959725448113a6a38957eccd726f566da199e15f8c3a6e3"
+      }
+    },
+    {
+      "version": 2,
+      "action": "inscrire",
+      "cle_publique": "74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f",
+      "role": "signature",
+      "valide_depuis": "2026-07-28 19:56:52",
+      "valide_jusqu": null,
+      "motif": "clé de signature fondatrice, inscrite rétroactivement le 2026-08-11 00:35:06 lors de l'établissement du trousseau",
+      "entree_precedente_sha256": "12a637526170f9e00959725448113a6a38957eccd726f566da199e15f8c3a6e3",
+      "endossement": {
+        "algo": "Ed25519 (RFC 8032)",
+        "par": "7735c7ec4a0f60db141031aec2def6c45b155eb85c42caac346ef6d73b3b285f",
+        "valeur_hex": "6614b4af056eb854b870a6219f58d331497a80f39bf523437fab87aff62c7aaaf6f651990c7459dd4c4fff1fd5e08e285e9cdae78d67d6c46dca9728aa435b01",
+        "entree_sha256": "6091ce6906d602e10785cb5e41ac8b280427c3bc8b90f96c19c18d72f5e11839"
+      }
+    }
+  ]
+}
