@@ -7,12 +7,14 @@
 #                   rend DELIGNY visible dans ChatGPT, Gemini, Mistral.
 #   ai-train=no   → entraînement / fine-tuning de modèles : non.
 #
-# ⚠️ CE FICHIER NE SUFFIT PAS. Cloudflare injecte son propre bloc managé
-# (« BEGIN Cloudflare Managed content ») qui bloque aujourd'hui Google-Extended
-# — donc Gemini ne peut pas nous citer — ainsi que ClaudeBot, GPTBot, CCBot.
-# Tant que ce réglage n'est pas changé dans le tableau de bord Cloudflare
-# (AI Crawl Control), la ligne ai-input=yes ci-dessous reste sans effet réel
-# pour Gemini. Voir HUB/docs/VISIBILITE_IA_GESTES_BAPTISTE.md
+# CE FICHIER EST BIEN CELUI QUI EST SERVI (vérifié le 12/08/2026). Le bloc
+# managé Cloudflare — qui bloquait Google-Extended, donc empêchait Gemini de
+# nous citer, ainsi que ClaudeBot/GPTBot/CCBot — a été DÉSACTIVÉ ce jour dans
+# le tableau de bord (AI Crawl Control → Signals → « Managed robots.txt »).
+#
+# ⚠️ Si ce toggle est réactivé un jour, Cloudflare réécrira ce fichier et la
+# ligne ai-input=yes ci-dessous redeviendra sans effet pour Gemini.
+# Voir HUB/docs/VISIBILITE_IA_GESTES_BAPTISTE.md
 
 Sitemap: https://deligny-rd.fr/sitemap.xml
 
