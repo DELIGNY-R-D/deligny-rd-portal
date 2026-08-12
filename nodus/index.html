@@ -10,90 +10,275 @@
 -->
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'self'; img-src 'self' data: https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>NODUS · vérifier un certificat</title>
+<title>NODUS · vérifier, prouver, tracer</title>
 <style>
   :root { --papier:#fffdf6; --encre:#191713; --rouge:#7e1e14; --brun:#5b4632;
-          --trait:#c9bb9c; --vert:#1d5c33; }
+          --trait:#c9bb9c; --vert:#1d5c33; --ambre:#8a6408; }
   * { box-sizing: border-box; }
   body { margin:0; background:var(--papier); color:var(--encre);
-         font:15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif; }
-  main { max-width:720px; margin:0 auto; padding:24px 18px 60px; }
-  h1 { font:600 20px/1.2 Georgia, serif; letter-spacing:.02em; margin:0 0 2px; }
+         font:15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, sans-serif; }
+  main { max-width:760px; margin:0 auto; padding:24px 18px 70px; }
+  h1 { font:600 21px/1.2 Georgia, serif; letter-spacing:.02em; margin:0; }
   h1 small { display:block; font:400 11px/1.4 inherit; letter-spacing:.14em;
              text-transform:uppercase; color:var(--brun); margin-top:6px; }
+  h2 { font:600 16px/1.3 Georgia, serif; margin:0 0 4px; }
+  p.intro { font-size:13px; color:var(--brun); margin:6px 0 14px; }
   .note { font-size:12.5px; color:var(--brun); border-top:1px solid var(--trait);
-          padding-top:10px; margin-top:22px; }
-  textarea { width:100%; min-height:90px; padding:10px; font:12px/1.4 Menlo, monospace;
-             border:1px solid var(--encre); background:#fff; border-radius:0; resize:vertical; }
-  .rangee { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
-  button { font:600 13px/1 inherit; padding:11px 16px; border:1px solid var(--encre);
-           background:var(--encre); color:var(--papier); cursor:pointer; }
+          padding-top:10px; margin-top:26px; }
+  .note-inline { font-size:12px; color:var(--brun); margin:10px 0 0; }
+  nav.onglets { display:flex; flex-wrap:wrap; gap:6px; margin:18px 0 20px;
+                border-bottom:1px solid var(--trait); padding-bottom:10px; }
+  nav.onglets button { font:600 12.5px/1 inherit; padding:9px 12px;
+    border:1px solid var(--trait); background:transparent; color:var(--brun);
+    cursor:pointer; border-radius:0; }
+  nav.onglets button.actif { background:var(--encre); color:var(--papier);
+    border-color:var(--encre); }
+  textarea, input[type=text] { width:100%; padding:10px; font:12px/1.45 Menlo, monospace;
+    border:1px solid var(--encre); background:#fff; color:var(--encre); border-radius:0; }
+  textarea { min-height:86px; resize:vertical; }
+  input[type=text] { font-size:12px; }
+  label { display:block; font-size:11.5px; letter-spacing:.06em; text-transform:uppercase;
+          color:var(--brun); margin:12px 0 4px; }
+  .rangee { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; align-items:center; }
+  button.action { font:600 13px/1 inherit; padding:11px 16px; border:1px solid var(--encre);
+    background:var(--encre); color:var(--papier); cursor:pointer; }
   button.creux { background:transparent; color:var(--encre); }
   button:disabled { opacity:.4; cursor:default; }
-  #verdict { margin-top:22px; border:2px solid var(--trait); padding:14px 16px; display:none; }
-  #verdict.ok { border-color:var(--vert); }
-  #verdict.non { border-color:var(--rouge); }
-  #verdict.partiel { border-color:#a97b0d; }
+  select { padding:10px; font:12px/1 Menlo, monospace; border:1px solid var(--encre);
+           background:#fff; color:var(--encre); }
+  #verdict, .resultat { margin-top:20px; border:2px solid var(--trait);
+    padding:14px 16px; display:none; }
+  #verdict.ok, .resultat.ok { border-color:var(--vert); }
+  #verdict.non, .resultat.non { border-color:var(--rouge); }
+  #verdict.partiel, .resultat.partiel { border-color:var(--ambre); }
   .titre-verdict { font:600 17px/1.3 Georgia, serif; }
   .ok .titre-verdict { color:var(--vert); }
   .non .titre-verdict { color:var(--rouge); }
-  .partiel .titre-verdict { color:#8a6408; }
+  .partiel .titre-verdict { color:var(--ambre); }
   .motif { font-size:13px; color:var(--brun); margin-top:6px; }
   table { border-collapse:collapse; width:100%; margin-top:14px; font-size:12.5px; }
   th, td { border-top:1px solid var(--trait); padding:6px 8px; text-align:left;
            vertical-align:top; }
   th { width:38%; font-weight:600; color:var(--brun); }
-  td.mono { font-family:Menlo, monospace; font-size:11px; word-break:break-all; }
+  td.mono, .mono { font-family:Menlo, monospace; font-size:11px; word-break:break-all; }
+  .dim { color:var(--brun); }
   .etapes { margin-top:12px; font-size:12.5px; }
   .etapes div { padding:3px 0; }
-  .etapes b { font-weight:600; }
   video { width:100%; max-width:360px; border:1px solid var(--encre); display:none;
           margin-top:12px; }
+  #depot { border:2px dashed var(--trait); padding:26px 16px; text-align:center;
+           font-size:13px; color:var(--brun); cursor:pointer; }
+  #depot.survol { border-color:var(--vert); color:var(--vert); }
+  .grille { display:grid; grid-template-columns:1fr; gap:0; margin-top:12px; }
+  .cap { border-top:1px solid var(--trait); padding:10px 0; }
+  .cap b { font-size:13.5px; }
+  .cap p { margin:3px 0 0; font-size:12.5px; color:var(--brun); }
+  .etat { font-size:10.5px; letter-spacing:.08em; text-transform:uppercase;
+          padding:2px 6px; border:1px solid var(--trait); margin-left:6px;
+          white-space:nowrap; }
+  .etat.live { border-color:var(--vert); color:var(--vert); }
+  .etat.local { border-color:var(--ambre); color:var(--ambre); }
+  .etat.non { border-color:var(--rouge); color:var(--rouge); }
   @media (prefers-color-scheme: dark) {
     :root { --papier:#16150f; --encre:#f2ede0; --trait:#4a4234; --brun:#b4a583;
-            --rouge:#e2705f; --vert:#5fbd83; }
-    textarea { background:#1f1d15; color:var(--encre); }
-    button { background:var(--encre); color:var(--papier); }
-    button.creux { color:var(--encre); }
+            --rouge:#e2705f; --vert:#5fbd83; --ambre:#d9a441; }
+    textarea, input[type=text], select { background:#1f1d15; color:var(--encre); }
+    button.action { background:var(--encre); color:var(--papier); }
+    button.creux, nav.onglets button { color:var(--brun); }
+    nav.onglets button.actif { background:var(--encre); color:var(--papier); }
   }
 </style>
 
 <main>
-<h1>Vérifier un certificat<small>NODUS · authenticité d'objet</small></h1>
+<h1>NODUS<small>Vérifier · prouver · tracer</small></h1>
+<p class="intro">Tout ce qui suit s'exécute <b>dans ce navigateur</b>. Aucun
+fichier, aucun certificat et aucune empreinte n'est envoyé nulle part. Les
+trousseaux publiés sont les seules données lues sur ce serveur.</p>
 
-<p style="font-size:13px;color:var(--brun);margin:14px 0 12px">
-Colle ici le contenu du QR du certificat, ou scanne-le. La vérification
-s'exécute <b>dans ce navigateur</b>. Elle fonctionne hors ligne : dans ce cas
-elle établit que le certificat n'a pas été retouché, sans pouvoir confirmer
-l'émetteur, et elle le dit.</p>
+<nav class="onglets">
+  <button data-onglet="verifier">Certificat</button>
+  <button data-onglet="empreinte">Empreinte</button>
+  <button data-onglet="certificat">Preuve &amp; SBOM</button>
+  <button data-onglet="signature">Signature</button>
+  <button data-onglet="merkle">Lot &amp; Merkle</button>
+  <button data-onglet="trousseau">Trousseau</button>
+  <button data-onglet="capacites">Ce que fait NODUS</button>
+</nav>
 
-<textarea id="entree" spellcheck="false"
-  placeholder="NODUS1:..."></textarea>
-<div class="rangee">
-  <button id="btn-verifier">Vérifier</button>
-  <button id="btn-camera" class="creux">Scanner le QR</button>
-  <button id="btn-exemple" class="creux">Exemple</button>
-</div>
-<video id="apercu" playsinline muted></video>
+<!-- ------------------------------------------------------------ certificat -->
+<section data-panneau="verifier">
+  <h2>Vérifier un certificat d'objet</h2>
+  <p class="intro">Colle le contenu du QR, ou scanne-le. Fonctionne hors ligne :
+  la page établit alors l'intégrité seule, sans confirmer l'émetteur, et le dit.</p>
+  <textarea id="entree" spellcheck="false" placeholder="NODUS1:..."></textarea>
+  <div class="rangee">
+    <button class="action" id="btn-verifier">Vérifier</button>
+    <button class="action creux" id="btn-camera">Scanner le QR</button>
+    <button class="action creux" id="btn-exemple">Exemple</button>
+  </div>
+  <video id="apercu" playsinline muted></video>
+  <div id="verdict">
+    <div class="titre-verdict" id="verdict-titre"></div>
+    <div class="motif" id="verdict-motif"></div>
+    <div class="etapes" id="verdict-etapes"></div>
+    <table id="verdict-table"></table>
+  </div>
+</section>
 
-<div id="verdict">
-  <div class="titre-verdict" id="verdict-titre"></div>
-  <div class="motif" id="verdict-motif"></div>
-  <div class="etapes" id="verdict-etapes"></div>
-  <table id="verdict-table"></table>
-</div>
+<!-- -------------------------------------------------------------- empreinte -->
+<section data-panneau="empreinte" hidden>
+  <h2>Empreinte d'un fichier</h2>
+  <p class="intro">Le SHA-256 est calculé ici, dans ton navigateur. C'est cette
+  empreinte qu'on transmet à un horodateur ou à l'API, jamais le contenu. On
+  peut donc horodater un dossier confidentiel sans le confier.</p>
+  <div id="depot" onclick="document.getElementById('fichier').click()">
+    Dépose un fichier ici, ou clique pour le choisir
+  </div>
+  <input type="file" id="fichier" style="display:none">
+  <div class="resultat" id="empreinte-resultat"></div>
+  <div class="mono" id="empreinte-sortie" style="margin-top:10px"></div>
+</section>
+
+<!-- ----------------------------------------------------------- preuve/SBOM -->
+<section data-panneau="certificat" hidden>
+  <h2>Preuve d'existence ou attestation de construction</h2>
+  <p class="intro">Colle le certificat JSON produit par <span class="mono">bin/preuve.py</span>
+  ou <span class="mono">bin/sbom.py</span>. Joins le fichier ou l'artefact pour
+  contrôler en plus qu'il s'agit bien du même.</p>
+  <textarea id="cert-entree" spellcheck="false" placeholder='{ "format": "nodus.preuve/1", ... }'></textarea>
+  <label for="cert-fichier">Fichier à confronter (facultatif)</label>
+  <input type="file" id="cert-fichier">
+  <div class="rangee"><button class="action" id="btn-certificat">Vérifier</button></div>
+  <div class="resultat" id="cert-resultat"></div>
+</section>
+
+<!-- -------------------------------------------------------------- signature -->
+<section data-panneau="signature" hidden>
+  <h2>Vérifier une signature brute</h2>
+  <p class="intro">Pour contrôler à la main ce que l'API a signé. Nommer
+  l'émetteur fait lire l'algorithme dans son trousseau plutôt que de le croire
+  sur parole, ce qui ferme la faille « alg » des JWT.</p>
+  <label for="sig-empreinte">Empreinte signée (SHA-256)</label>
+  <input type="text" id="sig-empreinte" spellcheck="false" placeholder="34a24dff...">
+  <label for="sig-cle">Clé publique</label>
+  <input type="text" id="sig-cle" spellcheck="false" placeholder="74d295de...">
+  <label for="sig-valeur">Signature</label>
+  <input type="text" id="sig-valeur" spellcheck="false" placeholder="f9fb358e...">
+  <label for="sig-emetteur">Émetteur (facultatif, mais recommandé)</label>
+  <input type="text" id="sig-emetteur" spellcheck="false" placeholder="DELIGNY-RD">
+  <div class="rangee">
+    <select id="sig-algo">
+      <option value="ed25519">ed25519 (si aucun émetteur)</option>
+      <option value="ecdsa-p256">ecdsa-p256 (si aucun émetteur)</option>
+    </select>
+    <button class="action" id="btn-signature">Vérifier</button>
+  </div>
+  <div class="resultat" id="sig-resultat"></div>
+</section>
+
+<!-- ----------------------------------------------------------------- merkle -->
+<section data-panneau="merkle" hidden>
+  <h2>Émission par lot</h2>
+  <p class="intro">Une seule signature pour toute une série. Colle les empreintes
+  des objets, une par ligne : la racine calculée est ce que l'émetteur signe, et
+  chaque objet emporte une preuve courte de son appartenance.</p>
+  <textarea id="merkle-entree" spellcheck="false"
+    placeholder="34a24dff2de42ab56e29096da29358f18d2ca8a2d9351355a844396a672862ad&#10;f8fe8e284c9692bfff4ccfe935c73169543e83c121f6ecf366fb26b149f19524"></textarea>
+  <label for="merkle-rang">Rang de l'objet dont on veut la preuve</label>
+  <input type="text" id="merkle-rang" value="0">
+  <div class="rangee"><button class="action" id="btn-merkle">Calculer</button></div>
+  <div class="resultat" id="merkle-resultat"></div>
+</section>
+
+<!-- -------------------------------------------------------------- trousseau -->
+<section data-panneau="trousseau" hidden>
+  <h2>Trousseau d'un émetteur</h2>
+  <p class="intro">L'annuaire des clés d'un émetteur, avec sa chaîne
+  d'endossements vérifiée ici même. C'est ce qui répond à « cette signature
+  est-elle bien la sienne », question à laquelle la cryptographie seule ne
+  répond pas.</p>
+  <label for="trousseau-emetteur">Identifiant de l'émetteur</label>
+  <input type="text" id="trousseau-emetteur" value="DELIGNY-RD">
+  <div class="rangee"><button class="action" id="btn-trousseau">Afficher</button></div>
+  <div class="resultat" id="trousseau-resultat"></div>
+</section>
+
+<!-- -------------------------------------------------------------- capacités -->
+<section data-panneau="capacites" hidden>
+  <h2>Ce que fait NODUS</h2>
+  <p class="intro">État réel au 12 août 2026. <span class="etat live">en ligne</span>
+  utilisable ici même, <span class="etat local">local</span> livré et testé mais
+  pas encore servi publiquement, <span class="etat non">absent</span> pas
+  construit.</p>
+
+  <div class="grille">
+    <div class="cap"><b>Certificat auto-porteur</b><span class="etat live">en ligne</span>
+      <p>Le certificat tient dans le QR : 179 octets, vérifiable hors ligne, sans
+      serveur ni blockchain. Un cartouche imprimé reste vérifiable même si ce
+      site disparaît.</p></div>
+    <div class="cap"><b>Trousseau multi-émetteur</b><span class="etat live">en ligne</span>
+      <p>Une clé racine qui ne signe jamais de document et n'endosse que des clés
+      de signature. Entrées chaînées, révocation datée qui arrête l'avenir sans
+      réécrire le passé. Plusieurs émetteurs sans qu'aucun puisse endosser pour
+      un autre.</p></div>
+    <div class="cap"><b>Deux algorithmes, choisis par la clé</b><span class="etat live">en ligne</span>
+      <p>Ed25519 et ECDSA P-256. L'algorithme est un attribut de la clé inscrite
+      au trousseau, jamais du document signé par elle.</p></div>
+    <div class="cap"><b>Émission par lot</b><span class="etat live">en ligne</span>
+      <p>Une signature pour 100 000 objets par arbre de Merkle, 548 octets de
+      preuve par objet. La clé n'a plus besoin de vivre près de la chaîne de
+      production.</p></div>
+    <div class="cap"><b>Liaison au physique</b><span class="etat local">local</span>
+      <p>Empreinte de la photographie, empreinte visuelle, décodage réel du QR
+      imprimé, comparaison des vues. C'est ce qui distingue NODUS des plateformes
+      qui ne suivent qu'un identifiant.</p></div>
+    <div class="cap"><b>Horodatage par un tiers</b><span class="etat local">local</span>
+      <p>RFC 3161 contre DigiCert, Sectigo ou FreeTSA, avec nonce anti-rejeu.
+      Ferme l'antidatage par un signataire compromis.</p></div>
+    <div class="cap"><b>Preuve d'existence</b><span class="etat local">local</span>
+      <p>Un fichier existait, sous cette forme exacte, à cette date. Le fichier ne
+      quitte jamais la machine : seul son hachage part.</p></div>
+    <div class="cap"><b>SBOM et attestation de construction</b><span class="etat local">local</span>
+      <p>CycloneDX 1.6, artefact et SBOM liés dans une même signature, barrière de
+      déploiement en CI. Prouver qu'un composant figure au SBOM sans publier le
+      SBOM.</p></div>
+    <div class="cap"><b>Journal d'audit chaîné</b><span class="etat local">local</span>
+      <p>Append-only, signé, à points de contrôle Merkle. Prouver une entrée à un
+      auditeur sans lui livrer le journal.</p></div>
+    <div class="cap"><b>API HTTP, 17 routes</b><span class="etat local">local</span>
+      <p>Signer, vérifier, horodater, prouver, attester. Vérifier est gratuit et
+      sans clé ; émettre demande une clé dont seule l'empreinte est conservée.</p></div>
+    <div class="cap"><b>Propriété et cession</b><span class="etat local">local</span>
+      <p>Jeton de propriété à usage unique sous scellé physique, registre public,
+      cession contresignée avec réémission du jeton.</p></div>
+    <div class="cap"><b>Post-quantique</b><span class="etat non">absent</span>
+      <p>ML-DSA fait 2 420 octets de signature : elle ne rentre pas dans un QR.
+      Falcon-512 rentrerait mais n'a pas d'implémentation vendorisable sérieuse.</p></div>
+    <div class="cap"><b>C2PA, contenus générés par IA</b><span class="etat non">absent</span>
+      <p>Le format repose sur des certificats X.509 rattachés à une liste de
+      confiance, là où NODUS est délibérément non-X.509. Arbitrage non tranché.</p></div>
+    <div class="cap"><b>Seuil n parmi m, chiffrement d'annexes, RSA</b><span class="etat non">absent</span>
+      <p>Faisables, non construits. Aucun client ne les a demandés.</p></div>
+  </div>
+
+  <p class="note-inline"><b>Ce que NODUS n'est pas.</b> Pas une blockchain : son
+  ancre est une clé d'émetteur et un registre publié, ce qui le rend excellent
+  là où un émetteur légitime existe et inutile là où le but est que personne ne
+  soit digne de confiance. Pas un émetteur de monnaie : empêcher la double
+  dépense sans tiers de confiance exige un consensus, l'exact contraire du
+  socle. Pas un coffre-fort de documents : stocker n'est pas prouver.</p>
+</section>
 
 <div class="note">
-Ce que cette page prouve, dans l'ordre. <b>1.</b> Le certificat n'a pas été
-modifié depuis son scellage, sa signature portant sur son contenu exact.
-<b>2.</b> La clé qui l'a signé appartient bien à l'émetteur annoncé, ce qui
-exige de consulter le trousseau publié de cet émetteur, donc du réseau.
-<b>3.</b> Que l'objet devant toi soit celui du certificat se contrôle en
-comparant l'empreinte visuelle affichée à la photographie de référence.
-La propriété courante n'est pas dans le QR, parce qu'elle change de main et
-qu'un papier imprimé ne change pas.
+Ce que la vérification d'un certificat établit, dans l'ordre. <b>1.</b> Le
+certificat n'a pas été modifié depuis son scellage. <b>2.</b> La clé qui l'a
+signé appartient bien à l'émetteur annoncé, ce qui exige de consulter son
+trousseau publié, donc du réseau. <b>3.</b> Que l'objet devant toi soit celui du
+certificat se contrôle en comparant l'empreinte visuelle affichée à la
+photographie de référence. La propriété courante n'est pas dans le QR, parce
+qu'elle change de main et qu'un papier imprimé ne change pas.
 </div>
 </main>
 
 <script src="nodus-verificateur.js"></script>
-
+<script src="nodus-outils.js"></script>
