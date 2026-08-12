@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-N24M0LjQJrxpaZSgj7KqAb/HPgwBGhOpaU+HIOAc3bo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-S41Cd1n5OmG2aplMXn5JMRSOKWqQrzSUGAc4j3fOjv4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1575,10 +1575,43 @@ function profileFromSilhouette(name, H, Rmax, rng, jitter){
   return pts;
 }
 
+/* ── DEUX LIMITES DE DESSIN, POSEES PAR L'ATELIER (12/08) ─────────────────
+ * Elles ne sont pas esthetiques, elles sont de FABRICATION.
+ *
+ * Ø60 MINIMUM. Sous 30 mm de rayon, la coque n'a plus la place de loger le
+ * module ni de laisser passer la lumiere, et un col trop etroit devient une
+ * cheminee qui piege la chaleur de la LED.
+ *
+ * 60 DEGRES MINIMUM entre deux segments. Un angle plus ferme cree une gorge en
+ * V que la buse ne peut pas remplir : le trancheur y laisse un vide, et la
+ * piece casse a cet endroit. C'est aussi la ou l'oeil voit un pli sale.
+ * On mesure l'angle INTERIEUR au sommet, dans le plan (rayon, hauteur). */
+const DIA_MIN_MM = 60, ANGLE_MIN_DEG = 60;
+
+function angleAuSommet(prof, i){
+  if(i <= 0 || i >= prof.length-1) return 180;      // les extremites n'ont pas d'angle
+  const a = prof[i-1], b = prof[i], c = prof[i+1];
+  const u = [a.r-b.r, a.h-b.h], v = [c.r-b.r, c.h-b.h];
+  const nu = Math.hypot(u[0],u[1]), nv = Math.hypot(v[0],v[1]);
+  if(nu < 1e-6 || nv < 1e-6) return 180;
+  const cos = Math.max(-1, Math.min(1, (u[0]*v[0]+u[1]*v[1])/(nu*nv)));
+  return Math.acos(cos)*180/Math.PI;
+}
+/* Le plus petit angle que ce point et ses deux voisins presentent : bouger un
+ * point referme aussi les angles d'a cote, les verifier tous les trois. */
+function angleMiniAutour(prof, i){
+  let m = 180;
+  for(const k of [i-1, i, i+1]) if(k>0 && k<prof.length-1) m = Math.min(m, angleAuSommet(prof, k));
+  return m;
+}
+
 function clampPoint(p, isSocketEnd){
   const b = bounds();
   p.h = Math.max(0, Math.min(b.maxH, p.h));
-  const minR = isSocketEnd ? SOCKETS[state.socket].housingMinRadiusMm : 2;
+  // ⚠️ Le plancher de l'atelier (Ø60) prime sur l'ancien minimum de 2 mm, qui
+  // n'etait qu'un garde-fou contre le rayon nul.
+  const minR = Math.max(DIA_MIN_MM/2,
+                        isSocketEnd ? SOCKETS[state.socket].housingMinRadiusMm : 2);
   p.r = Math.max(minR, Math.min(b.maxR, p.r));
   return p;
 }
@@ -3346,8 +3379,14 @@ window.addEventListener('mousemove', e=>{
   if(dragIdx<0) return;
   const {x,y}=canvasPos(e);
   const p = state.profile[dragIdx];
+  /* On garde la derniere position VALIDE : plutot que d'interdire le geste, on
+   * laisse le point suivre la souris tant qu'il reste licite et on le retient
+   * des qu'il fermerait un angle. Le point colle alors a la limite au lieu de
+   * sauter, ce qui se lit comme une butee et non comme un bug. */
+  const avant = { r:p.r, h:p.h };
   p.r = pUnmapX(x); p.h = pUnmapY(y);
   clampPoint(p, dragIdx===socketEndIdx());
+  if(angleMiniAutour(state.profile, dragIdx) < ANGLE_MIN_DEG){ p.r = avant.r; p.h = avant.h; }
   drawProfile(); // live drag feedback without full renumber to keep index stable
 });
 window.addEventListener('mouseup', ()=>{
@@ -3369,7 +3408,12 @@ pc.addEventListener('touchstart', e=>{
     renderAll();
   }
 }, {passive:false});
-pc.addEventListener('touchmove', e=>{ e.preventDefault(); if(dragIdx<0) return; const {x,y}=canvasPos(e); const p=state.profile[dragIdx]; p.r=pUnmapX(x); p.h=pUnmapY(y); clampPoint(p, dragIdx===socketEndIdx()); drawProfile(); }, {passive:false});
+pc.addEventListener('touchmove', e=>{ e.preventDefault(); if(dragIdx<0) return;
+  const {x,y}=canvasPos(e); const p=state.profile[dragIdx];
+  const avant={r:p.r,h:p.h};                       // meme butee qu'a la souris
+  p.r=pUnmapX(x); p.h=pUnmapY(y); clampPoint(p, dragIdx===socketEndIdx());
+  if(angleMiniAutour(state.profile, dragIdx) < ANGLE_MIN_DEG){ p.r=avant.r; p.h=avant.h; }
+  drawProfile(); }, {passive:false});
 pc.addEventListener('touchend', ()=>{ if(dragIdx>=0){dragIdx=-1; normalizeProfile(); renderAll();} });
 
 $('addPoint').onclick=()=>{
@@ -5004,6 +5048,21 @@ function renderWarnings(){
   const box=$('warnbox'); box.innerHTML='';
   const lines=[];
   let hasHard=false, hasWarn=false;
+  /* Les deux limites d'atelier sont SIGNALEES et pas seulement empechees : un
+   * profil charge (preset, graine, etat ancien) peut les enfreindre sans qu'on
+   * l'ait dessine. Empecher le geste ne suffit donc pas, il faut le dire. */
+  for(let i=1;i<state.profile.length-1;i++){
+    const ang = angleAuSommet(state.profile, i);
+    if(ang < ANGLE_MIN_DEG){
+      hasHard = true;
+      lines.push(['bad', `Point ${i+1} : angle de ${ang.toFixed(0)}° (minimum ${ANGLE_MIN_DEG}°) — la buse ne remplit pas une gorge aussi fermée, la pièce casserait là.`]);
+    }
+  }
+  const rMin = Math.min(...state.profile.map(p=>p.r));
+  if(rMin < DIA_MIN_MM/2 - 0.01){
+    hasHard = true;
+    lines.push(['bad', `Diamètre minimum ${(rMin*2).toFixed(0)} mm (minimum ${DIA_MIN_MM} mm) — sous cette cote le module n'entre plus et le col piège la chaleur de la LED.`]);
+  }
   for(let i=0;i<state.profile.length-1;i++){
     const a=overhangDeg(state.profile[i],state.profile[i+1]);
     if(a>OVERHANG.HARD_DEG){ hasHard=true; lines.push(['bad', `Segment ${i+1}→${i+2} : la paroi s'évase de ${a.toFixed(0)}° en montant (> ${OVERHANG.HARD_DEG}°) — support d'impression nécessaire, ou retourne la pièce tête en bas.`]); }
