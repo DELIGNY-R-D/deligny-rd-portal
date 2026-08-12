@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-OwyplFZh51CHZrVMVc6xg2di6GLal8b2J5nJ8Or7TVI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-ZAaS5YxdVgsiXapn2eewmLAp8w8hYbl5WxFc08mVtY0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1107,8 +1107,16 @@ function bagueProxy(segments){
    * voit des tirets sombres tout autour du joint. Avec le meme compte, les
    * aretes tombent aux MEMES angles (buildTube et ringAt partent tous deux de
    * theta=0) : plus aucun croisement possible.
-   * On garde un plancher a 48 : sous ce compte le bourrelet se lit polygonal. */
-  const N = Math.max(48, Math.round(segments || 48));
+   * ⚠️ PAS DE PLANCHER. J'en avais pose un a 48 « pour que le bourrelet ne
+   * paraisse pas polygonal ». Il RECREAIT le defaut dans l'autre sens : a 14
+   * segments (style Facette), le pied de l'abat-jour descend a 58,50 mm au
+   * milieu de ses aretes alors qu'une bague a 48 segments reste a 59,32. La
+   * bague RESSORT de 0,79 mm une fois par facette, et on retrouve exactement 14
+   * tirets. Avec le meme compte, les deux polygones ont la MEME FORME : le
+   * retrait de 0,55 mm les separe partout, sans exception. Un bourrelet
+   * polygonal a cote d'un abat-jour polygonal est coherent ; un bourrelet lisse
+   * qui traverse le pied ne l'est pas. */
+  const N = Math.max(5, Math.round(segments || 48));
   if(_bagueProxy[N]) return _bagueProxy[N];
   /* V3 : seul le bourrelet z 0 → 4 se voit, le reste de la pièce est DANS
    * l'abat-jour. Rayon 59,45 et non 60,00 : sur les 0,5 mm où l'abat-jour mord
@@ -1117,11 +1125,21 @@ function bagueProxy(segments){
    * confondues sortent en tirets sombres avec le tri du peintre. 0,55 mm de
    * retrait suffit (la corde d'un tube à 48 segments ne s'écarte que de
    * 0,12 mm) et se lit comme un joint, ce qu'il est. */
-  _bagueProxy[N] = buildTube(0, BAGUE.assiseMm, ()=>40, ()=>59.45, N, 2, null, 10);
+  /* ⚠️ VRAIE CAUSE DES TIRETS, trouvee en mesurant les deux pieces. Le pied de
+   * l'abat-jour est une COQUE CREUSE : a cette hauteur son mur va de 58,22 a
+   * 60,02 mm. Un substitut a 59,45 tombe donc AU MILIEU DU MUR, entre les deux
+   * peaux. Partout ou la peau interne se dessine, le substitut la traverse.
+   * Le retrait de 0,55 mm avait ete calcule du temps ou le pied etait plein.
+   * Remede : le substitut S'ARRETE sous le pied au lieu de s'y enfoncer. Le
+   * recouvrement de 0,5 mm existe pour la SOUDURE AU TRANCHAGE des pieces
+   * reelles ; a l'ecran il n'apporte rien et ne fait que creer ce conflit.
+   * Rayon ramene a 59,90 : le bourrelet retrouve son affleurement Ø120. */
+  _bagueProxy[N] = buildTube(0, BAGUE.assiseMm - 0.56, ()=>40, ()=>59.90, N, 2, null, 10);
   return _bagueProxy[N];
 }
 function decoProxy(segments){
-  const N = Math.max(48, Math.round(segments || 48));
+  // meme regle que bagueProxy : le compte suit l'abat-jour, sans plancher
+  const N = Math.max(5, Math.round(segments || 48));
   if(_decoProxy[N]) return _decoProxy[N];
   // fût plein (rayon intérieur quasi nul) : vue par en dessous, la base réelle
   // a un plancher — le substitut ne doit pas montrer un tunnel à la place
@@ -3773,7 +3791,7 @@ function buildParts(segList, mode){
         meshes[0] = meshes[0].concat(
           // l'export reçoit la VRAIE bague V2 ; l'écran (brouillon ET qualité)
           // reçoit le substitut fermé — cf. le commentaire de bagueProxy()
-          mode === 'export' ? trianglesBaseKit() : bagueProxy());
+          mode === 'export' ? trianglesBaseKit() : bagueProxy(segments));
       } else {
         // secours si le décodage échoue : reconstruction paramétrique, avec
         // avertissement (renderPoser) — ne pas lancer de série avec ça
@@ -3878,7 +3896,18 @@ function rebuildMesh(){
   PERF_ACC = { cells:0, kept:0 };
   MESH.parts   = buildParts(segsExport, 'export');
   const perfExport = { ...PERF_ACC };
-  MESH.preview = same ? MESH.parts : buildParts(segsPreview, 'preview');
+  /* ⚠️ CAUSE RACINE DES TIRETS SOMBRES AUTOUR DU PIED, trouvee le 12/08 en
+   * remontant la chaine. Quand l'export et l'apercu tombent sur le MEME nombre
+   * de segments — ce qui arrive des qu'on est en style Facette, le defaut —
+   * l'apercu n'etait pas reconstruit : il POINTAIT sur le maillage d'export.
+   * Or celui-ci contient la VRAIE bague et son filetage interne, que le tri du
+   * peintre ne sait pas ordonner derriere le pied. D'ou les tirets.
+   * Tout le travail precedent sur le nombre de segments du substitut etait donc
+   * sans effet dans ce cas : le substitut n'etait pas utilise du tout.
+   * Des qu'une bague est presente, l'apercu est donc TOUJOURS reconstruit, pour
+   * qu'il recoive le substitut ferme. Le partage de maillage reste acquis
+   * partout ailleurs, ou il ne coute rien. */
+  MESH.preview = (same && !bagueActive()) ? MESH.parts : buildParts(segsPreview, 'preview');
   /* MAILLAGE D'ÉBAUCHE — le coût de l'aperçu est dans le CALCUL par triangle
    * (projection, normale, tri en profondeur), pas dans le remplissage : mesuré,
    * diviser la résolution d'affichage par 4 ne gagnait que 14 %. Le seul vrai
@@ -3898,7 +3927,7 @@ function rebuildMesh(){
       // substitut fermé aussi en qualité — la vraie base part au rendu Blender,
       // jamais à l'écran (cf. bagueProxy : le peintre ne sait pas trier ses
       // nervures internes derrière le pied)
-      const deco = { tris: decoProxy(), decor:true, label:'base (visuel seulement)', body:0,
+      const deco = { tris: decoProxy(Math.max(...segsPreview)), decor:true, label:'base (visuel seulement)', body:0,
                      xf:{tx:0,ty:0,tz:0,rot:0,scale:1}, perfore:false, socle:false,
                      bague:false, platine:false };
       MESH.preview = [...MESH.preview, deco];
@@ -3909,7 +3938,7 @@ function rebuildMesh(){
     const segsDraft = Array.from({length:n},(_,i)=>segFor(i,'draft'));
     MESH.draft = buildParts(segsDraft, 'draft');
     if(bagueActive() && trianglesDeco().length){
-      MESH.draft = [...MESH.draft, { tris: decoProxy(), decor:true, label:'base (ébauche)',
+      MESH.draft = [...MESH.draft, { tris: decoProxy(Math.max(...segsDraft)), decor:true, label:'base (ébauche)',
         body:0, xf:{tx:0,ty:0,tz:0,rot:0,scale:1}, perfore:false }];
     }
   } else {
