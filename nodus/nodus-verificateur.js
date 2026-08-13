@@ -328,7 +328,15 @@ async function chargerTrousseau(emetteur) {
      lire un trousseau servi par un tiers. */
   const base = new URLSearchParams(location.search).get("annuaire")
     || (typeof window !== "undefined" && window.NODUS_ANNUAIRE) || "./";
-  const url = base.replace(/\/?$/, "/") + encodeURIComponent(emetteur) + "/trousseau.verif.json";
+  /* Paramètre de fraîcheur, changé chaque minute. Le trousseau est l'ancre de
+     confiance : une révocation qui met quatre heures à se propager parce qu'un
+     CDN garde l'ancienne version laisserait valider pendant tout ce temps une
+     clé déclarée compromise. `cache: "no-store"` ne concerne que le cache du
+     navigateur, il ne traverse pas un serveur périphérique ; une URL qui change
+     le traverse. Coût : deux kilooctets par minute et par visiteur. */
+  const minute = Math.floor(Date.now() / 60000);
+  const url = base.replace(/\/?$/, "/") + encodeURIComponent(emetteur)
+    + "/trousseau.verif.json?f=" + minute;
   const r = await fetch(url, { cache: "no-store" });
   if (!r.ok) throw new Error("trousseau introuvable (" + r.status + ")");
   return r.json();
