@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-nEzoY+wNeL5pz+1tBQUYUN+JxTvTw4WflCs2zE6y77E='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-VghQRqjuQmVwC+kvi4TdQyJwBWQRHXqVO6etkTyvz38='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -442,6 +442,17 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       </label>
       <label style="font-size:12.5px;color:var(--dim2)">Décor
         <select id="rBg" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)"></select>
+      </label>
+      <!-- BASE : apparence seulement. La base d'atelier est une piece ACHETEE,
+           aux cotes mesurees (V3 « BQ P2 », Ø118,6 x 18,6) : son aspect change,
+           jamais sa geometrie. Elle ne porte jamais les stries de l'abat-jour. -->
+      <label style="font-size:12.5px;color:var(--dim2)">Base
+        <select id="rBase" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="blanc">Blanche</option>
+          <option value="transparent">Transparente</option>
+          <option value="noir">Noire</option>
+          <option value="bois">Bois</option>
+        </select>
       </label>
       <label style="font-size:12.5px;color:var(--dim2);display:flex;align-items:center;gap:6px">
         <input type="checkbox" id="rLit"> Lampe allumée
@@ -3377,6 +3388,13 @@ pc.addEventListener('mousedown', e=>{
 });
 window.addEventListener('mousemove', e=>{
   if(dragIdx<0) return;
+  /* FILET : si le bouton a ete relache sans qu'on recoive le mouseup (bascule
+   * d'application en plein geste, relachement hors de la fenetre, dialogue
+   * systeme), dragIdx restait arme et le point CONTINUAIT de suivre la souris
+   * sans qu'aucun bouton soit enfonce : mesure 5,00 mm en rayon et 3,75 mm en
+   * hauteur pour un simple passage de souris. La cote changeait toute seule.
+   * e.buttons vaut 0 quand rien n'est enfonce : on referme le geste nous-memes. */
+  if(e.buttons === 0){ dragIdx=-1; normalizeProfile(); renderAll(); return; }
   const {x,y}=canvasPos(e);
   const p = state.profile[dragIdx];
   /* On garde la derniere position VALIDE : plutot que d'interdire le geste, on
@@ -4304,6 +4322,10 @@ function syncViewInputs(){
 vc.addEventListener('mousedown', e=>{ rotDrag=true; lastX=e.clientX; lastY=e.clientY; e.preventDefault(); });
 window.addEventListener('mousemove', e=>{
   if(!rotDrag) return;
+  /* Meme filet que dans l'editeur de profil : sans lui, un mouseup perdu
+   * laissait la piece tourner au simple passage de la souris (mesure : 1,6 rad
+   * de derive, soit 92°, pour un deplacement sans bouton). */
+  if(e.buttons === 0){ rotDrag=false; apercuProgressif(); return; }
   view.az += (e.clientX-lastX)*0.01;
   view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el + (e.clientY-lastY)*0.008));
   lastX=e.clientX; lastY=e.clientY;
@@ -4363,7 +4385,8 @@ const BACKDROPS = {
  * plus d'etat : il est SYNCHRONISE depuis ici au demarrage (voir syncLit).
  * Eteinte par defaut, demande de Baptiste : au redemarrage, bouton eteint ET
  * rendu eteint. */
-const RENDER = { finish:'mat', bg:'papier', lit:false, lastURL:null, ms:0 };
+const RENDER = { finish:'mat', bg:'papier', lit:false, base:'blanc', lastURL:null, ms:0 };
+const BASE_FINITIONS = ['blanc','transparent','noir','bois'];
 
 /* Applique RENDER.lit aux DEUX commandes. Appelee au demarrage et a chaque
  * bascule : deux commandes pour un seul etat ne peuvent plus diverger. */
@@ -4660,7 +4683,17 @@ async function rendreBlender(live, sigAttendue){
     // la base d'atelier part dans le RENDU (photo de la lampe montée), en plus
     // des pièces réelles — elle n'est toujours pas dans le STL téléchargé
     const avecDeco = bagueActive() ? [...MESH.parts, { tris: trianglesDeco(), label:'base atelier (rendu seulement)', xf:{tx:0,ty:0,tz:0,rot:0,scale:1} }] : MESH.parts;
-    const stls = avecDeco.filter(p=>p.tris.length).map(p=>{
+    /* L'index doit etre calcule sur la liste REELLEMENT ENVOYEE : le filtre
+     * ci-dessous ecarte les pieces vides, donc un index pris sur `avecDeco`
+     * designerait le mauvais module des qu'une piece est vide. */
+    const envoyes = avecDeco.filter(p=>p.tris.length);
+    /* La base d'atelier est PLEINE : le PLA translucide la rendait grise et
+     * metallique alors qu'elle est blanche. On la signale au moteur pour qu'il
+     * lui donne la meme teinte en opaque, et elle se fond dans la lampe. */
+    const modulesOpaques = envoyes
+      .map((p,i)=> /^base atelier/.test(p.label||'') ? i : -1)
+      .filter(i=> i >= 0);
+    const stls = envoyes.map(p=>{
       const tris = p.tris.map(t=>t.map(v=>placeVertex(v, p.xf, 0)));
       const buf = trianglesToSTLBinary(tris, p.label);
       let bin=''; const oct=new Uint8Array(buf);
@@ -4669,7 +4702,8 @@ async function rendreBlender(live, sigAttendue){
     });
     const t0 = performance.now();
     const r = await fetch(AI.base+'/api/blender', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ stls,
+      body: JSON.stringify({ stls, modules_opaques: modulesOpaques,
+        base_finition: BASE_FINITIONS.includes(RENDER.base) ? RENDER.base : 'blanc',
         /* Le mode LIVE rend LA MÊME IMAGE que la photo — même décor, même
          * matière — mais en EEVEE, plus petit et moins échantillonné. Mesuré :
          * 16 échantillons en 520 px suffisent, l'écart avec Cycles ne se voit
@@ -5691,21 +5725,11 @@ function renderCompo(){
     tabs.appendChild(lbl);
     for(let i=0;i<c.count;i++){
       const b=document.createElement('button');
-      const sel=state.body===i;
-      b.className='btn'+(sel?' pri':'');
+      b.className='btn'+(state.body===i?' pri':'');
       const nm=(cfg.baseFirst && i===0 && c.layout!=='vertical') ? 'Base' : 'Corps '+(i+1);
       const own=(!state.linkBodies && state.bodies[i] && state.bodies[i].surface) ? ' •' : '';
       b.textContent=nm+own;
       b.title = own ? 'Ce corps a son propre style de surface' : '';
-      // Onglet colore selon la couleur reelle du corps (bodyColor) : d'un
-      // coup d'oeil on retrouve quel onglet correspond a quelle bobine,
-      // surtout utile des 3 corps et plus.
-      const col=bodyColor(i), rgb=hexToRgb(col);
-      const lum=(0.299*rgb.r+0.587*rgb.g+0.114*rgb.b)/255;
-      const txt=lum>0.55 ? '#161616' : '#f6f4ed';
-      b.style.borderColor=col;
-      if(sel){ b.style.background=col; b.style.color=txt; }
-      else { b.style.background=`rgba(${rgb.r},${rgb.g},${rgb.b},.16)`; }
       b.onclick=()=>{ state.body=i; state.selected=-1; renderAll(); };
       tabs.appendChild(b);
     }
@@ -6100,6 +6124,8 @@ function syncEtatUI(){
     b.classList.toggle('on', b.dataset.v === state.type));
   const m = document.getElementById('material');
   if(m && m.value !== state.material) m.value = state.material;
+  const bs = document.getElementById('rBase');
+  if(bs && bs.value !== RENDER.base) bs.value = RENDER.base;
 }
 
 function renderAll(){
@@ -6446,6 +6472,17 @@ function renderHud(){
   Object.entries(BACKDROPS).forEach(([k,v])=>{ const o=document.createElement('option'); o.value=k; o.textContent=v.label; if(k===RENDER.bg) o.selected=true; b.appendChild(o); });
   f.onchange=e=>{ RENDER.finish=e.target.value; if(RENDER.lastURL) renderStudio(); };
   b.onchange=e=>{ RENDER.bg=e.target.value; if(RENDER.lastURL) renderStudio(); };
+  /* Finition de la base. Le <select> est ECRIT DEPUIS L'ETAT, jamais l'inverse :
+   * c'est la lecon des trois desynchronisations trouvees ce matin, ou le markup
+   * portait un etat initial que l'objet ne partageait pas. */
+  const bs=$('rBase');
+  if(bs){
+    bs.value = RENDER.base;
+    bs.onchange = e=>{
+      RENDER.base = BASE_FINITIONS.includes(e.target.value) ? e.target.value : 'blanc';
+      if(RENDER.lastURL) renderStudio();
+    };
+  }
   // l'interrupteur de la carte Rendu et celui sous l'image sont le MÊME état
   $('rLit').onchange=e=>{
     RENDER.lit=e.target.checked;

@@ -747,6 +747,40 @@ h3 {
   text-underline-offset: 2px;
 }
 
+.sovereign-badge {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.9);
+  backdrop-filter: blur(6px);
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
+}
+
+.sovereign-badge .flags {
+  font-size: 15px;
+  letter-spacing: 2px;
+}
+
+@media (max-width: 640px) {
+  .sovereign-badge {
+    right: 10px;
+    bottom: 10px;
+    padding: 6px 10px;
+    font-size: 11px;
+  }
+}
+
 @media (max-width: 860px) {
   .topbar,
   .notice,
