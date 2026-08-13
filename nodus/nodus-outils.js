@@ -8,48 +8,6 @@
    en local. Un outil de confiance qui téléverserait les fichiers qu'on lui
    confie serait un dépôt, avec la responsabilité de conservation qui va avec. */
 
-/* ------------------------------------------------------------ forme canonique
-   Le piège central du système. Refaire en JavaScript le tri et l'échappement de
-   Python, c'est parier sur une équivalence qui finit par se rompre. Là où c'est
-   possible on l'évite en publiant les octets signés ; pour un certificat JSON
-   déposé par l'utilisateur, il n'y a pas d'autre voie que de recanonicaliser.
-   Alors on le fait de façon STRICTE, et on refuse tout ce qui pourrait diverger
-   au lieu de produire silencieusement de mauvais octets. */
-function comparerCodePoints(a, b) {
-  const A = Array.from(a), B = Array.from(b);
-  for (let i = 0; i < Math.min(A.length, B.length); i++) {
-    const x = A[i].codePointAt(0), y = B[i].codePointAt(0);
-    if (x !== y) return x - y;
-  }
-  return A.length - B.length;
-}
-
-function serialiserCanonique(v) {
-  if (v === null) return "null";
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "number") {
-    if (!Number.isInteger(v)) {
-      throw new Error("nombre non entier : Python et JavaScript ne l'écrivent pas "
-        + "de la même façon, la forme canonique divergerait sans prévenir");
-    }
-    return String(v);
-  }
-  if (typeof v === "string") return JSON.stringify(v);
-  if (Array.isArray(v)) return "[" + v.map(serialiserCanonique).join(",") + "]";
-  if (typeof v === "object") {
-    const cles = Object.keys(v).sort(comparerCodePoints);
-    return "{" + cles.map(k => JSON.stringify(k) + ":"
-      + serialiserCanonique(v[k])).join(",") + "}";
-  }
-  throw new Error("type non sérialisable : " + typeof v);
-}
-
-function canonique(objet, sauf) {
-  const filtre = {};
-  for (const k of Object.keys(objet)) if (k !== sauf) filtre[k] = objet[k];
-  return new TextEncoder().encode(serialiserCanonique(filtre));
-}
-
 /* --------------------------------------------------------------- empreintes */
 async function empreinteFichier(fichier) {
   /* WebCrypto ne sait pas hacher en flux : le fichier est lu entier en mémoire.

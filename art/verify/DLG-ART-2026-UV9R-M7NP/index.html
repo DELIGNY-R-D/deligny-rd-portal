@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src 'self' https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <title>Rébellion en Technicolor — DLG-ART-2026-UV9R-M7NP — Deligny R&D</title>
 <meta name="description" content="Je crée un univers où l&#x27;absurde flirte avec la révolte, où l’argent, les icônes pop et les symboles de surveillance cohabitent. Un chat rêveur et un billet détourné se mêlent aux é">
 <meta property="og:type" content="article">
@@ -120,6 +120,9 @@ Je ne dicte rien, je présente. Je laisse au spectateur le soin de naviguer dans
 
 
 
+<h2>Vérification</h2>
+<div id="nodus-verdict" class="note">Vérification en cours dans ton navigateur…</div>
+
 <h2>Signature du manifeste</h2>
 <table>
 <tr><th>Algorithme</th><td>Ed25519 (RFC 8032)</td></tr>
@@ -128,9 +131,10 @@ Je ne dicte rien, je présente. Je laisse au spectateur le soin de naviguer dans
 <tr><th>Clé publique</th><td class="mono">74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f (<a href="../cle-publique.txt">cle-publique.txt</a>)</td></tr>
 </table>
 
-<div class="note">Le manifeste complet est disponible en <a href="manifest.json">JSON</a>. La signature Ed25519
-prouve l'intégrité, l'émetteur et l'antériorité du dossier de preuve — pas, à elle seule, la véracité absolue
-de la déclaration d'auteur. Chaîne de preuve : photo originale → empreintes → manifeste signé → certificat
+<div class="note">Le manifeste complet est disponible en <a href="manifest.json">JSON</a>. La vérification
+ci-dessus est exécutée dans ton navigateur, pas affirmée par cette page : elle recalcule la forme canonique du
+manifeste, contrôle la signature Ed25519 et confronte la clé signataire au trousseau publié de l'émetteur. Elle
+établit l'intégrité et l'émetteur, pas la véracité absolue de la déclaration d'auteur. Chaîne de preuve : photo originale → empreintes → manifeste signé → certificat
 imprimé → scan + photo certificat&nbsp;+&nbsp;œuvre, versionnés et chaînés par hachage.</div>
 <div class="note" style="border-top:none;padding-top:0;margin-top:10px">
 <b>Pérennité de cette adresse.</b> L'adresse de cette page est imprimée sur le cartouche
@@ -138,6 +142,48 @@ de l'œuvre et gravée dans ses QR codes. DELIGNY R&amp;D s'engage à la mainten
 <b>vingt ans</b> à compter de la date de génération du certificat. Elle ne sera ni déplacée
 ni redirigée : un cartouche imprimé aujourd'hui reste vérifiable sans que son porteur ait
 la moindre démarche à faire.</div>
+<script>window.NODUS_ANNUAIRE = "/nodus/";</script>
+<script src="/nodus/nodus-verificateur.js"></script>
+<script>
+/* Vérification RÉELLE du manifeste, exécutée chez le visiteur. Avant le
+   12/08/2026 cette page affichait la signature et laissait la comparaison à
+   l'œil du lecteur, tout en affirmant qu'elle prouvait quelque chose. Elle
+   exécute désormais ce qu'elle affirme. */
+(async function () {
+  var boite = document.getElementById("nodus-verdict");
+  if (!boite || typeof verifierManifeste !== "function") {
+    if (boite) boite.textContent = "Vérificateur indisponible sur ce navigateur.";
+    return;
+  }
+  function ligne(m, t) { return "<div>" + m + " <b>" + t + "</b></div>"; }
+  try {
+    /* On lit le TEXTE, pas l'objet : JSON.parse perdrait les littéraux
+       numériques (Python écrit 1.0, JavaScript écrirait 1) et la forme
+       canonique divergerait de celle qui a été signée. */
+    var t = await (await fetch("manifest.json", { cache: "no-store" })).text();
+    var v = await verifierManifeste(t, "DELIGNY-RD");
+    var couleur = v.authentique ? "#1d5c33" : (v.signature_ok ? "#8a6408" : "#7e1e14");
+    var titre = v.authentique ? "Certificat authentique"
+              : v.indetermine ? "Indéterminé sur ce navigateur"
+              : v.signature_ok ? "Manifeste intact, émetteur non confirmé"
+                               : "Certificat NON valide";
+    boite.style.borderTop = "2px solid " + couleur;
+    boite.style.paddingTop = "12px";
+    boite.innerHTML =
+      '<div style="font:600 16px/1.3 Georgia,serif;color:' + couleur + '">' + titre + "</div>"
+      + '<div style="margin:6px 0 8px">' + v.motif + "</div>"
+      + v.etapes.map(function (e) { return ligne(e[0], e[1]); }).join("")
+      + '<div style="margin-top:10px;font-size:11.5px">Recalculé ici : empreinte '
+      + '<span style="font-family:Menlo,monospace">' + (v.empreinte || "").slice(0, 24)
+      + '…</span>, algorithme ' + v.algo + '.</div>'
+      + '<div style="margin-top:8px;font-size:11.5px">Les versions antérieures'
+      + ' ne sont pas publiées : ce contrôle porte sur cette version et sur son'
+      + ' émetteur. <a href="/nodus/">Vérifier un autre certificat</a>.</div>';
+  } catch (e) {
+    boite.textContent = "Vérification impossible : " + e.message;
+  }
+})();
+</script>
 <script>
 /* Attention mesurée anonymement : ni IP, ni cookie. Le fuseau du navigateur est
    la seule indication de région ; la durée est envoyée au départ de la page. */

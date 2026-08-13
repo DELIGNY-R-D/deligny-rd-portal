@@ -178,6 +178,130 @@ async function sha256hex(u8) {
   return [...new Uint8Array(h)].map(b => b.toString(16).padStart(2, "0")).join("");
 }
 
+/* ------------------------------------------------------------ forme canonique
+   Le piège central du système. Refaire en JavaScript le tri et l'échappement de
+   Python, c'est parier sur une équivalence qui finit par se rompre. Là où c'est
+   possible on l'évite en publiant les octets signés ; pour un certificat JSON
+   déposé par l'utilisateur, il n'y a pas d'autre voie que de recanonicaliser.
+   Alors on le fait de façon STRICTE, et on refuse tout ce qui pourrait diverger
+   au lieu de produire silencieusement de mauvais octets. */
+/* Lecture JSON qui PRÉSERVE les littéraux numériques.
+   `JSON.parse` perd une information dont la forme canonique dépend : Python
+   écrit `1.0` là où JavaScript écrit `1`, et une fois passé par `JSON.parse`
+   plus rien ne distingue l'un de l'autre. Le manifeste d'une œuvre porte des
+   scores de confiance valant 1.0, 0.85, 0.9 : recanonicaliser après un
+   `JSON.parse` produirait donc d'autres octets que ceux qui ont été signés, et
+   la vérification échouerait sur un certificat parfaitement valide.
+   On garde donc le texte exact de chaque nombre et on le réémet tel quel. */
+class NombreBrut {
+  constructor(jeton) { this.jeton = jeton; }
+  valueOf() { return Number(this.jeton); }
+  toJSON() { return Number(this.jeton); }
+  toString() { return this.jeton; }
+}
+
+function analyserJson(texte) {
+  let i = 0;
+  const blancs = () => { while (i < texte.length && " \t\n\r".includes(texte[i])) i++; };
+  function valeur() {
+    blancs();
+    const c = texte[i];
+    if (c === "{") {
+      i++; const o = {}; blancs();
+      if (texte[i] === "}") { i++; return o; }
+      for (;;) {
+        blancs();
+        if (texte[i] !== '"') throw new Error("clé attendue en position " + i);
+        const cle = chaine();
+        blancs();
+        if (texte[i] !== ":") throw new Error("':' attendu en position " + i);
+        i++;
+        o[cle] = valeur();
+        blancs();
+        if (texte[i] === ",") { i++; continue; }
+        if (texte[i] === "}") { i++; return o; }
+        throw new Error("',' ou '}' attendu en position " + i);
+      }
+    }
+    if (c === "[") {
+      i++; const a = []; blancs();
+      if (texte[i] === "]") { i++; return a; }
+      for (;;) {
+        a.push(valeur());
+        blancs();
+        if (texte[i] === ",") { i++; continue; }
+        if (texte[i] === "]") { i++; return a; }
+        throw new Error("',' ou ']' attendu en position " + i);
+      }
+    }
+    if (c === '"') return chaine();
+    if (texte.startsWith("true", i)) { i += 4; return true; }
+    if (texte.startsWith("false", i)) { i += 5; return false; }
+    if (texte.startsWith("null", i)) { i += 4; return null; }
+    return nombre();
+  }
+  function chaine() {
+    const debut = i;
+    i++;
+    while (i < texte.length) {
+      if (texte[i] === "\\") { i += 2; continue; }
+      if (texte[i] === '"') { i++; return JSON.parse(texte.slice(debut, i)); }
+      i++;
+    }
+    throw new Error("chaîne non terminée");
+  }
+  function nombre() {
+    const debut = i;
+    if (texte[i] === "-") i++;
+    while (i < texte.length && "0123456789+-.eE".includes(texte[i])) i++;
+    const jeton = texte.slice(debut, i);
+    if (!/^-?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(jeton)) {
+      throw new Error("nombre invalide : " + jeton);
+    }
+    return new NombreBrut(jeton);
+  }
+  const v = valeur();
+  blancs();
+  if (i !== texte.length) throw new Error("caractères en trop après la valeur");
+  return v;
+}
+
+function comparerCodePoints(a, b) {
+  const A = Array.from(a), B = Array.from(b);
+  for (let i = 0; i < Math.min(A.length, B.length); i++) {
+    const x = A[i].codePointAt(0), y = B[i].codePointAt(0);
+    if (x !== y) return x - y;
+  }
+  return A.length - B.length;
+}
+
+function serialiserCanonique(v) {
+  if (v === null) return "null";
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (v instanceof NombreBrut) return v.jeton;   // réémis à l'identique
+  if (typeof v === "number") {
+    if (!Number.isInteger(v)) {
+      throw new Error("nombre non entier issu d'un JSON.parse : le littéral "
+        + "d'origine est perdu, employer analyserJson() pour le conserver");
+    }
+    return String(v);
+  }
+  if (typeof v === "string") return JSON.stringify(v);
+  if (Array.isArray(v)) return "[" + v.map(serialiserCanonique).join(",") + "]";
+  if (typeof v === "object") {
+    const cles = Object.keys(v).sort(comparerCodePoints);
+    return "{" + cles.map(k => JSON.stringify(k) + ":"
+      + serialiserCanonique(v[k])).join(",") + "}";
+  }
+  throw new Error("type non sérialisable : " + typeof v);
+}
+
+function canonique(objet, sauf) {
+  const filtre = {};
+  for (const k of Object.keys(objet)) if (k !== sauf) filtre[k] = objet[k];
+  return new TextEncoder().encode(serialiserCanonique(filtre));
+}
+
 /* -------------------------------------------------------------- trousseau
    On vérifie les endossements sur les OCTETS CANONIQUES publiés, jamais sur
    une recanonicalisation locale : refaire en JavaScript le tri et
@@ -196,7 +320,14 @@ function hexVersOctets(h) {
 }
 
 async function chargerTrousseau(emetteur) {
-  const base = new URLSearchParams(location.search).get("annuaire") || "./";
+  /* Où lire l'annuaire des clés. Une page qui n'est pas servie à côté des
+     trousseaux le déclare via window.NODUS_ANNUAIRE : c'est le cas de la fiche
+     d'une œuvre, qui vit dans /art/verify/<id>/ pendant que les trousseaux
+     vivent dans /nodus/. Le paramètre d'URL reste possible pour les bancs, et
+     reste borné par `connect-src 'self'` : aucune de ces valeurs ne peut faire
+     lire un trousseau servi par un tiers. */
+  const base = new URLSearchParams(location.search).get("annuaire")
+    || (typeof window !== "undefined" && window.NODUS_ANNUAIRE) || "./";
   const url = base.replace(/\/?$/, "/") + encodeURIComponent(emetteur) + "/trousseau.verif.json";
   const r = await fetch(url, { cache: "no-store" });
   if (!r.ok) throw new Error("trousseau introuvable (" + r.status + ")");
@@ -241,6 +372,106 @@ function parcDesCles(entrees) {
     }
   }
   return parc;
+}
+
+/* ------------------------------------------------- vérification d'un manifeste
+   La fiche publique d'un objet publie son manifeste signé. Le vérifier suppose
+   de recanonicaliser ici les mêmes octets que Python a signés : c'est le seul
+   endroit du système où ce pari est pris, et il est éprouvé par des bancs qui
+   comparent aux octets réellement produits par Python.
+
+   Ce que cette fonction établit, et ce qu'elle n'établit PAS. Elle établit que
+   CE manifeste n'a pas bougé et que la clé qui l'a signé appartient bien à
+   l'émetteur. Elle n'établit pas la chaîne des versions antérieures, qui n'est
+   pas publiée : une v2 authentique ne prouve pas à elle seule qu'aucune v1
+   n'a été réécrite. Le dire est préférable à le laisser croire. */
+async function verifierManifeste(manifesteOuTexte, emetteur) {
+  const r = { signature_ok: false, empreinte_ok: false, emetteur_reconnu: null,
+              authentique: false, motif: "", etapes: [], cle: "", algo: "" };
+  let manifeste;
+  try {
+    manifeste = typeof manifesteOuTexte === "string"
+      ? analyserJson(manifesteOuTexte) : manifesteOuTexte;
+  } catch (e) {
+    r.motif = "manifeste illisible : " + e.message;
+    return r;
+  }
+  const sig = manifeste && manifeste.signature;
+  if (!sig || !sig.valeur_hex || !sig.cle_publique) {
+    r.motif = "manifeste sans signature exploitable";
+    return r;
+  }
+  r.cle = String(sig.cle_publique);
+
+  let octets;
+  try {
+    octets = canonique(manifeste, "signature");
+  } catch (e) {
+    r.motif = "forme canonique impossible : " + e.message;
+    return r;
+  }
+
+  /* L'empreinte imprimée sur le cartouche doit correspondre à ce qu'on vient
+     de recalculer : c'est ce qui relie le papier au fichier. */
+  const empreinte = await sha256hex(octets);
+  r.empreinte_ok = !sig.manifeste_sha256 || empreinte === String(sig.manifeste_sha256);
+  r.empreinte = empreinte;
+
+  let algo = "ed25519", parc = null;
+  try {
+    const t = await chargerTrousseau(emetteur);
+    const vt = await verifierTrousseau(t);
+    if (!vt.toutOk) {
+      r.etapes.push(["✕", "trousseau de l'émetteur invalide"]);
+      r.motif = "trousseau de l'émetteur invalide";
+      return r;
+    }
+    r.etapes.push(["✓", "trousseau de " + emetteur + " valide, "
+      + vt.entrees.length + " entrée(s)"]);
+    parc = parcDesCles(vt.entrees);
+    if (parc[r.cle]) algo = parc[r.cle].algo;
+  } catch (e) {
+    r.etapes.push(["◇", "trousseau injoignable (" + e.message + ")"]);
+  }
+  r.algo = algo;
+
+  try {
+    r.signature_ok = await verifierSignature(algo, hexVersOctets(String(sig.cle_publique)),
+                                             octets, hexVersOctets(String(sig.valeur_hex)));
+  } catch (e) {
+    r.motif = e.message.replace(/^INCONNU:/, "");
+    r.indetermine = true;
+    return r;
+  }
+  r.etapes.push([r.signature_ok ? "✓" : "✕",
+    r.signature_ok ? "manifeste intact, pas un octet modifié depuis sa signature"
+                   : "signature invalide : le manifeste a été modifié"]);
+  if (!r.signature_ok) { r.motif = "signature invalide"; return r; }
+
+  if (!r.empreinte_ok) {
+    r.etapes.push(["✕", "l'empreinte inscrite au manifeste ne correspond pas"]);
+    r.motif = "empreinte incohérente";
+    return r;
+  }
+
+  if (!parc) {
+    r.motif = "manifeste intact, mais l'émetteur n'a pas été confronté à son "
+            + "trousseau : preuve incomplète";
+    return r;
+  }
+  const fiche = parc[r.cle];
+  const d = String((manifeste.chronologie || {}).generation_document || "");
+  let refus = null;
+  if (!fiche) refus = "clé absente du trousseau de l'émetteur";
+  else if (fiche.role === "racine") refus = "clé racine, non habilitée à signer";
+  else if (fiche.depuis && d && d < fiche.depuis) refus = "clé pas encore habilitée à cette date";
+  else if (fiche.jusqu && d && d >= fiche.jusqu) refus = "clé révoquée le " + fiche.jusqu;
+  r.emetteur_reconnu = !refus;
+  r.authentique = !refus;
+  r.etapes.push([refus ? "✕" : "✓",
+    refus || ("clé " + fiche.algo + " endossée par la racine de " + emetteur)]);
+  r.motif = refus || "manifeste authentique";
+  return r;
 }
 
 /* ----------------------------------------------------------------- verdict */
@@ -394,9 +625,11 @@ async function verifier(texte) {
 }
 
 /* --------------------------------------------------------------- interface */
-document.getElementById("btn-verifier").onclick = () =>
+const _btnVerifier = document.getElementById("btn-verifier");
+if (_btnVerifier) _btnVerifier.onclick = () =>
   verifier(document.getElementById("entree").value);
-document.getElementById("btn-exemple").onclick = async () => {
+const _btnExemple = document.getElementById("btn-exemple");
+if (_btnExemple) _btnExemple.onclick = async () => {
   const r = await fetch("exemple.txt").catch(() => null);
   if (r && r.ok) {
     document.getElementById("entree").value = (await r.text()).trim();
@@ -406,7 +639,8 @@ document.getElementById("btn-exemple").onclick = async () => {
 
 /* Scan par la caméra. jsQR est chargé à la demande depuis la même origine :
    absent, le bouton se désactive proprement plutôt que de casser la page. */
-document.getElementById("btn-camera").onclick = async function () {
+const _btnCamera = document.getElementById("btn-camera");
+if (_btnCamera) _btnCamera.onclick = async function () {
   const bouton = this, video = document.getElementById("apercu");
   if (!window.jsQR) {
     await new Promise((ok, ko) => {
@@ -445,4 +679,7 @@ document.getElementById("btn-camera").onclick = async function () {
    verificateur/?p=NODUS1:... */
 window.nodusVerifier = verifier;
 const direct = new URLSearchParams(location.search).get("p");
-if (direct) { document.getElementById("entree").value = direct; verifier(direct); }
+if (direct && document.getElementById("entree")) {
+  document.getElementById("entree").value = direct;
+  verifier(direct);
+}
