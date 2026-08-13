@@ -837,6 +837,7 @@ h3 {
 
   .nav {
     width: 100%;
+    flex-wrap: nowrap;
     overflow-x: auto;
     gap: 18px;
   }
