@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-hPBdiBZvX+JSLOPhXXs2x/OsoVMbBvtIFyYeKn6W6gA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://*.trycloudflare.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-jm82Z4NnvZzk+Au8n5/NaITQb7Bcwu9DdZ31y/m8HRw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://*.trycloudflare.com">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -3702,15 +3702,26 @@ function segFor(bi, mode){
    * segments pour 118 nervures, donc la passe de qualite se rallonge d'autant.
    * Le vrai poids de la page reste le maillage d'EXPORT (708 segments,
    * 462k triangles), lui n'a pas bouge. */
-  const PLAFOND_ECRAN = 420;             // limite de performance, pas de rendu
-  let plafond = hasRelief(surf) ? 152 : 110;
-  if(surf.stries && surf.strieCount > 0){
-    plafond = Math.max(plafond, Math.min(PLAFOND_ECRAN, Math.ceil(surf.strieCount * 3)));
-  }
-  if(surf.martele && surf.martCount > 0){
-    plafond = Math.max(plafond, Math.min(PLAFOND_ECRAN, Math.ceil(surf.martCount * 3)));
-  }
-  return Math.min(seg, plafond);
+  /* ⚠️ LEVEE DU PLAFOND : ESSAYEE, MESUREE, RETIREE (13/08).
+   *
+   * Porter le plafond a 3x le motif (354 segments pour 118 nervures) resolvait
+   * bien le moire : 3 echantillons par nervure au lieu de 1,29, nervures nettes
+   * du haut en bas. Mais l'apercu passait a 155 760 faces, que ce rasteriseur
+   * JavaScript trie et remplit une par une. Mesure sur la machine de Baptiste :
+   * passe de qualite 3,6 s puis 17,2 s, rendu studio 10,3 s, page gelee a
+   * chaque arret de souris. Retirer le sur-echantillonnage n'y a rien change :
+   * le cout est dans le NOMBRE DE FACES, pas dans les pixels.
+   *
+   * Une page qui gele 17 s est pire qu'un apercu imparfait. On revient donc au
+   * plafond fixe, et le moire reste present a l'ecran tant que le defaut est a
+   * 118 nervures. Ce n'est plus le meme enjeu depuis que le tunnel rend la
+   * VRAIE photo Blender joignable depuis le site : l'apercu n'est plus la
+   * seule image que le visiteur puisse obtenir.
+   *
+   * Les trois issues restent ouvertes et chiffrees : 48 nervures partout
+   * (l'apercu les resout deja), apercu lisse sans fausses nervures, ou
+   * rasteriseur en WebGL, pour qui 155 000 faces ne sont rien. */
+  return Math.min(seg, hasRelief(surf) ? 152 : 110);
 }
 // Pas vertical effectif : le plus fin des trois besoins (style, torsion, ajourage).
 // En mode aperçu on plafonne la finesse des styles continus — invisible sur un
@@ -3739,6 +3750,18 @@ function effectiveStepMm(bi, surf, mode){
    * — mesuré : 105 ms → ~35 ms par image. La passe de qualité repasse 170 ms
    * après le dernier geste avec la pleine résolution d'aperçu. */
   if(mode==='draft'   && step>0) step = Math.max(step, perf ? 5.5 : 5.0);
+  /* ⚠️ MAILLAGE DE RENDU (13/08). Ce qui coute cher dans une photo distante
+   * n'est PAS le calcul, c'est le transport : mesure, 4,1 s de Blender pour
+   * 29,7 Mo de maillage a monter. On envoie donc un maillage allege.
+   *
+   * On allege la finesse VERTICALE, jamais l'angulaire : a 118 nervures il
+   * faut 6 segments par nervure, c'est exactement d'ou viennent les 708.
+   * Descendre l'angulaire casserait les nervures, alors que les anneaux, eux,
+   * sont bien plus serres que ce qu'une image de 640 px peut montrer.
+   *
+   * Le STL telecharge, le prix et les controles gardent la pleine resolution :
+   * seul ce qui part au moteur d'image est allege. */
+  if(mode==='rendu'   && step>0) step = Math.max(step, perf ? 3.0 : 2.6);
   // Pas de forçage global pour les trous : buildPerforatedShell densifie
   // localement le méridien autour de chacun (densifierAutourDesTrous).
   return step;
@@ -3908,9 +3931,11 @@ function buildParts(segList, mode){
         // l'aperçu comme dans l'export, aucune reconstruction
         MESH.bague = { diaExtMm: BAGUE.diaExtMm, hautMm: BAGUE.hautMm, assiseMm: BAGUE.assiseMm, reelle: true, nTri: BASE_KIT.nTri, volMm3: BASE_KIT.volMm3 };
         meshes[0] = meshes[0].concat(
-          // l'export reçoit la VRAIE bague V2 ; l'écran (brouillon ET qualité)
-          // reçoit le substitut fermé — cf. le commentaire de bagueProxy()
-          mode === 'export' ? trianglesBaseKit() : bagueProxy(segments));
+          // l'export ET le maillage de rendu recoivent la VRAIE bague V2 ;
+          // l'ecran (brouillon ET qualite) recoit le substitut ferme, cf. le
+          // commentaire de bagueProxy(). Une PHOTO doit montrer la vraie piece :
+          // c'est le substitut, envoye par erreur, qui donnerait un pied faux.
+          (mode === 'export' || mode === 'rendu') ? trianglesBaseKit() : bagueProxy(segments));
       } else {
         // secours si le décodage échoue : reconstruction paramétrique, avec
         // avertissement (renderPoser) — ne pas lancer de série avec ça
@@ -4808,7 +4833,26 @@ async function rendreBlender(live, sigAttendue){
     // lampe montée qu'on veut voir, pas les pièces posées à plat côte à côte
     // la base d'atelier part dans le RENDU (photo de la lampe montée), en plus
     // des pièces réelles — elle n'est toujours pas dans le STL téléchargé
-    const avecDeco = bagueActive() ? [...MESH.parts, { tris: trianglesDeco(), label:'base atelier (rendu seulement)', xf:{tx:0,ty:0,tz:0,rot:0,scale:1} }] : MESH.parts;
+    /* MAILLAGE DE RENDU, construit A LA DEMANDE (13/08).
+     *
+     * Mesure qui a tout decide : le rendu Blender prend 4,1 s, mais l'envoi du
+     * maillage d'export pesait 29,7 Mo, d'ou 172 s d'aller-retour par le
+     * tunnel. Le gout n'est pas dans le calcul, il est dans le transport.
+     *
+     * On envoie donc un maillage a anneaux plus espaces (mode 'rendu'), en
+     * gardant la PLEINE resolution angulaire : a 118 nervures il faut 6
+     * segments par nervure, c'est exactement d'ou viennent les 708, et les
+     * rogner casserait le relief. Les anneaux, eux, sont bien plus serres que
+     * ce qu'une image de 640 px sait montrer.
+     *
+     * Il est construit ICI et pas dans rebuildMesh : sinon chaque geste
+     * paierait un troisieme maillage dont on ne se sert qu'au moment d'une
+     * photo. Le STL telecharge, le prix et les controles gardent la pleine
+     * resolution : seule l'image change de source. */
+    const nCorps = Math.max(1, state.compo.count);
+    const partsRendu = buildParts(
+      Array.from({length:nCorps}, (_,i)=>segFor(i,'rendu')), 'rendu');
+    const avecDeco = bagueActive() ? [...partsRendu, { tris: trianglesDeco(), label:'base atelier (rendu seulement)', xf:{tx:0,ty:0,tz:0,rot:0,scale:1} }] : partsRendu;
     /* L'index doit etre calcule sur la liste REELLEMENT ENVOYEE : le filtre
      * ci-dessous ecarte les pieces vides, donc un index pris sur `avecDeco`
      * designerait le mauvais module des qu'une piece est vide. */
@@ -4819,18 +4863,23 @@ async function rendreBlender(live, sigAttendue){
     const modulesOpaques = envoyes
       .map((p,i)=> /^base atelier/.test(p.label||'') ? i : -1)
       .filter(i=> i >= 0);
-    const stls = envoyes.map(p=>{
+    /* On garde les maillages en BINAIRE. Le base64 les gonfle de 33 % et,
+     * pire, il abime la compression : mesure, gzip rend 3,2 sur un STL brut
+     * mais seulement 2,4 sur le meme STL passe en base64. On ne convertit
+     * donc qu'au dernier moment, et seulement pour le chemin local. */
+    const tampons = envoyes.map(p=>{
       const tris = p.tris.map(t=>t.map(v=>placeVertex(v, p.xf, 0)));
-      const buf = trianglesToSTLBinary(tris, p.label);
+      return trianglesToSTLBinary(tris, p.label);
+    });
+    const enBase64 = buf => {
       let bin=''; const oct=new Uint8Array(buf);
       for(let i=0;i<oct.length;i+=8192) bin += String.fromCharCode.apply(null, oct.subarray(i,i+8192));
       return btoa(bin);
-    });
+    };
     const t0 = performance.now();
     // MOTEUR.base et non AI.base : en local les deux coincident, mais depuis le
     // site public c'est le tunnel, qui n'ouvre que cette route.
-    const r = await fetch(MOTEUR.base+'/api/blender', {method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ stls, modules_opaques: modulesOpaques,
+    const params = ({ modules_opaques: modulesOpaques,
         base_finition: BASE_FINITIONS.includes(RENDER.base) ? RENDER.base : 'blanc',
         /* Le mode LIVE rend LA MÊME IMAGE que la photo — même décor, même
          * matière — mais en EEVEE, plus petit et moins échantillonné. Mesuré :
@@ -4899,7 +4948,52 @@ async function rendreBlender(live, sigAttendue){
          * change, pas l'objectif. La lampe étant un corps de révolution, seule
          * l'élévation compte vraiment : 10°, un peu au-dessus du plateau, comme
          * sur IMG_7106. L'orbite continue de piloter l'aperçu 3D, elle. */
-        vue: RENDU_CAM.vue, hauteur_vue: RENDU_CAM.hauteurVue })});
+        vue: RENDU_CAM.vue, hauteur_vue: RENDU_CAM.hauteurVue });
+
+    /* ENVOI. Deux chemins, parce que les deux destinataires ne savent pas lire
+     * la meme chose.
+     *
+     * LOCAL : JSON avec les maillages en base64, exactement comme avant. Le
+     * serveur du studio n'a pas a changer, et sur une boucle 127.0.0.1 il n'y
+     * a rien a gagner a comprimer.
+     *
+     * DISTANT : conteneur BINAIRE, puis gzip. Mesures qui ont conduit la :
+     * l'aller-retour par le tunnel prenait 172 s pour 4,1 s de calcul, tout
+     * etait dans la montee. Le maillage de rendu a divise par 2,17, le gzip
+     * par 2,4 seulement — parce qu'on comprimait du base64. En binaire pur on
+     * retire les 33 % de surcharge ET on rend au gzip son vrai ratio.
+     *
+     * Format du conteneur, volontairement trivial :
+     *   [4 octets] longueur de l'en-tete, entier non signe, petit-boutiste
+     *   [en-tete]  JSON des parametres + `tailles`, la longueur de chaque STL
+     *   [donnees]  les STL bruts, bout a bout, dans l'ordre
+     * La passerelle le retraduit en JSON+base64 : le moteur ne voit AUCUN
+     * changement, donc rien de ce qui est deja prouve n'est remis en jeu. */
+    let corps, entetes;
+    if(MOTEUR.distant){
+      const entete = new TextEncoder().encode(JSON.stringify(
+        { ...params, tailles: tampons.map(b => b.byteLength) }));
+      const tete = new Uint8Array(4);
+      new DataView(tete.buffer).setUint32(0, entete.length, true);
+      const brut = new Blob([tete, entete, ...tampons]);
+      if(typeof CompressionStream === 'function'){
+        try{
+          corps = await new Response(
+            brut.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+          entetes = {'Content-Type':'application/octet-stream', 'Content-Encoding':'gzip'};
+        }catch(e){
+          // une optimisation ne doit jamais empecher le service de fonctionner
+          corps = brut; entetes = {'Content-Type':'application/octet-stream'};
+        }
+      } else {
+        corps = brut; entetes = {'Content-Type':'application/octet-stream'};
+      }
+    } else {
+      corps = JSON.stringify({ stls: tampons.map(enBase64), ...params });
+      entetes = {'Content-Type':'application/json'};
+    }
+    const r = await fetch(MOTEUR.base+'/api/blender',
+      {method:'POST', headers:entetes, body:corps});
     const j = await r.json();
     if(!j.ok){ info.innerHTML = `<div class="line bad">${j.note||'échec du rendu'}</div>`; }
     else{
