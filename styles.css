@@ -684,6 +684,11 @@ h3 {
   height: 172px;
 }
 
+img.app-banner {
+  object-fit: cover;
+  object-position: top;
+}
+
 .app-card-visual .app-body {
   display: flex;
   flex: 1;
