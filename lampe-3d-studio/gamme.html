@@ -1,20 +1,20 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-oGn6+KyW6d55q7i5rTGKaqnGMbKhAouEEpOm5VPcsMM='; style-src-attr 'unsafe-inline'; script-src 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-0kRyCN0wt8TFr9V8qVzsWTpCZNTmib99JIq/hUGrfMU='; style-src-attr 'unsafe-inline'; script-src 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>La gamme, douze silhouettes | Lampe Designer, DELIGNY R&D</title>
-<meta name="description" content="Les douze silhouettes de la Lampe Designer, chacune rendue depuis sa geometrie reelle : PLA translucide diffusant, nervures fines, lampe allumee. Chaque forme reste modifiable dans le configurateur.">
+<title>La gamme, cinquante silhouettes | Lampe Designer, DELIGNY R&D</title>
+<meta name="description" content="Cinquante silhouettes de la Lampe Designer, rangees de la plus large a la plus elancee, chacune rendue depuis sa geometrie reelle : PLA translucide diffusant, nervures fines, base blanche, bois, noire ou transparente.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%232c4a38'/%3E%3Cpath d='M32 14 L46 46 H18 Z' fill='%23efede6'/%3E%3C/svg%3E">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="DELIGNY R&D">
-<meta property="og:title" content="La gamme, douze silhouettes">
-<meta property="og:description" content="Douze silhouettes rendues depuis leur geometrie reelle. Chacune reste modifiable point par point.">
+<meta property="og:title" content="La gamme, cinquante silhouettes">
+<meta property="og:description" content="Cinquante silhouettes rendues depuis leur geometrie reelle, de la plus large a la plus elancee. Chacune reste modifiable point par point.">
 <style>
 /* ============================================================================
  * PLANCHE DE GAMME
  * Meme grammaire que l'affiche : feuille creme, un mot en tres grand, bandeau
  * vert bord a bord. Ce qui change, c'est ce que la feuille doit FAIRE : ici on
- * compare douze pieces, donc une grille SANS marge interieure, comme une
+ * compare cinquante pieces, donc une grille SANS marge interieure, comme une
  * planche contact d'atelier.
  *
  * ⚠️ Ces images sont des rendus BLENDER de la geometrie reelle, calcules a
@@ -28,8 +28,13 @@
 html{-webkit-text-size-adjust:100%}
 body{background:var(--page);font-family:var(--gro);color:var(--encre);
   display:flex;flex-direction:column;align-items:center;padding:26px 18px 60px;line-height:1.5}
-.feuille{width:100%;max-width:880px;background:var(--creme);border-radius:26px;
-  padding:40px 44px 0;position:relative;overflow:hidden;box-shadow:0 30px 90px rgba(0,0,0,.5)}
+/* Meme traitement que l'affiche : la feuille suivait une largeur FIGEE de
+   880 px et laissait deux bandes noires sur un ecran large. Avec cinquante
+   vignettes, c'etait pire encore : la grille etouffait. */
+.feuille{--pad-x:clamp(22px,3.4vw,52px);
+  width:100%;max-width:min(1240px,95vw);background:var(--creme);border-radius:26px;
+  padding:clamp(24px,3vh,40px) var(--pad-x) 0;position:relative;overflow:hidden;
+  box-shadow:0 30px 90px rgba(0,0,0,.5)}
 .feuille::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
   background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
   background-size:3px 3px;mix-blend-mode:multiply}
@@ -47,7 +52,9 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 .intro{max-width:430px;margin-top:14px;font-size:12px;line-height:1.6}
 .tiret{width:34px;height:7px;background:var(--vert);border-radius:2px;margin-bottom:11px}
 /* grille sans marge interieure : les pieces se comparent bord a bord */
-.grille{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;margin-top:26px;
+/* 4 colonnes convenaient a douze modeles. A cinquante, la planche ferait deux
+   ecrans de haut : on passe a 6, et les colonnes se raréfient a la fenetre. */
+.grille{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;margin-top:26px;
   background:rgba(22,22,22,.15);border-top:1px solid rgba(22,22,22,.15);
   border-bottom:1px solid rgba(22,22,22,.15)}
 .case{background:var(--creme);padding:14px 10px 12px;display:flex;flex-direction:column;
@@ -57,6 +64,12 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 .vignette img{max-height:120px;width:auto;max-width:100%;
   filter:drop-shadow(0 10px 12px rgba(44,74,56,.18))}
 .nom{font-size:11.5px;font-weight:600;letter-spacing:-.01em;text-align:center}
+/* La cote sous le nom : c'est elle qui rend la progression LISIBLE. Sans elle,
+   cinquante silhouettes blanches se ressemblent et le classement du plus large
+   au plus elance ne se voit pas. Chiffres tabulaires pour que la colonne
+   s'aligne d'une case a l'autre. */
+.cote{font-size:10px;color:var(--gris);text-align:center;margin-top:3px;
+  font-variant-numeric:tabular-nums;letter-spacing:.01em}
 .bandeau{margin:28px -44px 0;background:var(--vert);color:var(--creme);padding:15px 44px;
   display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px}
 .bandeau a{color:var(--creme);text-decoration:none;font-weight:600}
@@ -67,10 +80,12 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 .monogramme{font-size:17px;font-weight:700;font-style:italic;color:var(--encre)}
 .note{max-width:880px;width:100%;margin:22px auto 0;font-size:11.5px;color:#8d8d84;line-height:1.65}
 .note a{color:#b9b9ae}
-@media (max-width:760px){.grille{grid-template-columns:repeat(3,1fr)}}
+@media (max-width:1080px){.grille{grid-template-columns:repeat(5,1fr)}}
+@media (max-width:880px){.grille{grid-template-columns:repeat(4,1fr)}}
+@media (max-width:680px){.grille{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:520px){
-  .feuille{padding:26px 22px 0;border-radius:20px}
-  .bandeau{margin:22px -22px 0;padding:14px 22px;flex-wrap:wrap}
+  .feuille{border-radius:20px}          /* le padding suit deja --pad-x */
+  .bandeau{flex-wrap:wrap}
   .grille{grid-template-columns:repeat(2,1fr)}
   .liens a:nth-child(n+3){display:none}
 }
@@ -94,60 +109,265 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
   <div class="geant">Gamme</div>
   <div class="intro">
     <div class="tiret"></div>
-    Douze points de départ, pas douze produits finis. Chaque silhouette
+    Cinquante points de départ, pas cinquante produits finis. La planche est
+    rangée de la plus large à la plus élancée, et la base change de finition
+    au fil des cases : blanche, bois, noire, transparente. Chaque silhouette
     s'ouvre dans le configurateur et se reprend point par point : hauteur,
     galbe, nervures, matière. Ce que tu vois ici est la géométrie réelle,
-    photographiée par le moteur de rendu de l'atelier.
+    photographiée par le moteur de rendu de l'atelier, et les cotes sont
+    mesurées sur le maillage construit.
   </div>
 
   <div class="grille">
       <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-dune.png?v=d4be79c3" alt="Lampe Designer, silhouette Dune, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Dune</div>
+        <div class="vignette"><img src="media/gal01.png?v=fd142bb3" alt="Lampe Designer, silhouette Cloche, 98 mm de haut, diamètre 193 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Cloche</div>
+        <div class="cote">98 × Ø193</div>
       </a>
       <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-galet.png?v=f6530aaf" alt="Lampe Designer, silhouette Galet, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Galet</div>
-      </a>
-      <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-colonne.png?v=1b339fbe" alt="Lampe Designer, silhouette Colonne, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Colonne</div>
-      </a>
-      <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-gradins.png?v=eb641dc8" alt="Lampe Designer, silhouette Gradins, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="vignette"><img src="media/gal02.png?v=2d795d0f" alt="Lampe Designer, silhouette Gradins, 102 mm de haut, diamètre 192 mm, base bois" loading="lazy"></div>
         <div class="nom">Gradins</div>
+        <div class="cote">102 × Ø192</div>
       </a>
       <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-organiques.png?v=17d70388" alt="Lampe Designer, silhouette Organique, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Organique</div>
-      </a>
-      <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-minimal.png?v=2d829756" alt="Lampe Designer, silhouette Minimaliste, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Minimaliste</div>
-      </a>
-      <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-cubique.png?v=06b32948" alt="Lampe Designer, silhouette Cubique, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Cubique</div>
-      </a>
-      <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-design.png?v=4216856b" alt="Lampe Designer, silhouette Design, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="vignette"><img src="media/gal03.png?v=c0cf5aa7" alt="Lampe Designer, silhouette Design, 104 mm de haut, diamètre 188 mm, base noire" loading="lazy"></div>
         <div class="nom">Design</div>
+        <div class="cote">104 × Ø188</div>
       </a>
       <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-retro.png?v=0fb0b60a" alt="Lampe Designer, silhouette Rétro 70s, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Rétro 70s</div>
+        <div class="vignette"><img src="media/gal04.png?v=f4b6fed7" alt="Lampe Designer, silhouette Ogive, 108 mm de haut, diamètre 193 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Ogive</div>
+        <div class="cote">108 × Ø193</div>
       </a>
       <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-baroque.png?v=4f8b5a81" alt="Lampe Designer, silhouette Baroque, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="vignette"><img src="media/gal07.png?v=acce4b6a" alt="Lampe Designer, silhouette Dune, 118 mm de haut, diamètre 184 mm, base noire" loading="lazy"></div>
+        <div class="nom">Dune</div>
+        <div class="cote">118 × Ø184</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal06.png?v=b09b3733" alt="Lampe Designer, silhouette Baroque, 114 mm de haut, diamètre 176 mm, base bois" loading="lazy"></div>
         <div class="nom">Baroque</div>
+        <div class="cote">114 × Ø176</div>
       </a>
       <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-artnouveau.png?v=d2ec0e25" alt="Lampe Designer, silhouette Art nouveau, rendue en PLA translucide allumé" loading="lazy"></div>
-        <div class="nom">Art nouveau</div>
+        <div class="vignette"><img src="media/gal08.png?v=792ae30c" alt="Lampe Designer, silhouette Organique, 120 mm de haut, diamètre 182 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Organique</div>
+        <div class="cote">120 × Ø182</div>
       </a>
       <a class="case" href="index.html">
-        <div class="vignette"><img src="media/gal-artdeco.png?v=0a59278e" alt="Lampe Designer, silhouette Art déco, rendue en PLA translucide allumé" loading="lazy"></div>
+        <div class="vignette"><img src="media/gal05.png?v=0ebb355b" alt="Lampe Designer, silhouette Écope, 112 mm de haut, diamètre 165 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Écope</div>
+        <div class="cote">112 × Ø165</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal09.png?v=ab9e54c9" alt="Lampe Designer, silhouette Art déco, 124 mm de haut, diamètre 172 mm, base blanche" loading="lazy"></div>
         <div class="nom">Art déco</div>
+        <div class="cote">124 × Ø172</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal10.png?v=2cc25e16" alt="Lampe Designer, silhouette Colonne, 126 mm de haut, diamètre 168 mm, base bois" loading="lazy"></div>
+        <div class="nom">Colonne</div>
+        <div class="cote">126 × Ø168</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal14.png?v=3a72b673" alt="Lampe Designer, silhouette Rétro 70s, 140 mm de haut, diamètre 174 mm, base bois" loading="lazy"></div>
+        <div class="nom">Rétro 70s</div>
+        <div class="cote">140 × Ø174</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal13.png?v=9c8ab21a" alt="Lampe Designer, silhouette Demi-dôme, 136 mm de haut, diamètre 160 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Demi-dôme</div>
+        <div class="cote">136 × Ø160</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal11.png?v=bf98c40d" alt="Lampe Designer, silhouette Cubique, 130 mm de haut, diamètre 148 mm, base noire" loading="lazy"></div>
+        <div class="nom">Cubique</div>
+        <div class="cote">130 × Ø148</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal16.png?v=014f0cd6" alt="Lampe Designer, silhouette Disque, 146 mm de haut, diamètre 157 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Disque</div>
+        <div class="cote">146 × Ø157</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal18.png?v=63f6217c" alt="Lampe Designer, silhouette Galet, 152 mm de haut, diamètre 154 mm, base bois" loading="lazy"></div>
+        <div class="nom">Galet</div>
+        <div class="cote">152 × Ø154</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal12.png?v=31da445f" alt="Lampe Designer, silhouette Cône évasé, 134 mm de haut, diamètre 130 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Cône évasé</div>
+        <div class="cote">134 × Ø130</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal20.png?v=28064e75" alt="Lampe Designer, silhouette Cloche, 158 mm de haut, diamètre 144 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Cloche</div>
+        <div class="cote">158 × Ø144</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal21.png?v=d76ae4bb" alt="Lampe Designer, silhouette Gradins, 162 mm de haut, diamètre 142 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Gradins</div>
+        <div class="cote">162 × Ø142</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal15.png?v=70b42998" alt="Lampe Designer, silhouette Diabolo, 142 mm de haut, diamètre 120 mm, base noire" loading="lazy"></div>
+        <div class="nom">Diabolo</div>
+        <div class="cote">142 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal22.png?v=2e18672c" alt="Lampe Designer, silhouette Design, 164 mm de haut, diamètre 138 mm, base bois" loading="lazy"></div>
+        <div class="nom">Design</div>
+        <div class="cote">164 × Ø138</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal23.png?v=5aeb93fd" alt="Lampe Designer, silhouette Ogive, 168 mm de haut, diamètre 141 mm, base noire" loading="lazy"></div>
+        <div class="nom">Ogive</div>
+        <div class="cote">168 × Ø141</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal17.png?v=7eacbe25" alt="Lampe Designer, silhouette Art nouveau, 150 mm de haut, diamètre 120 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Art nouveau</div>
+        <div class="cote">150 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal19.png?v=c0ae1708" alt="Lampe Designer, silhouette Minimaliste, 156 mm de haut, diamètre 120 mm, base noire" loading="lazy"></div>
+        <div class="nom">Minimaliste</div>
+        <div class="cote">156 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal26.png?v=6754da40" alt="Lampe Designer, silhouette Dune, 178 mm de haut, diamètre 132 mm, base bois" loading="lazy"></div>
+        <div class="nom">Dune</div>
+        <div class="cote">178 × Ø132</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal25.png?v=89e728e9" alt="Lampe Designer, silhouette Baroque, 174 mm de haut, diamètre 127 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Baroque</div>
+        <div class="cote">174 × Ø127</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal27.png?v=0be179ff" alt="Lampe Designer, silhouette Organique, 180 mm de haut, diamètre 130 mm, base noire" loading="lazy"></div>
+        <div class="nom">Organique</div>
+        <div class="cote">180 × Ø130</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal24.png?v=508d5230" alt="Lampe Designer, silhouette Écope, 172 mm de haut, diamètre 121 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Écope</div>
+        <div class="cote">172 × Ø121</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal28.png?v=f40e5ad1" alt="Lampe Designer, silhouette Art déco, 184 mm de haut, diamètre 122 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Art déco</div>
+        <div class="cote">184 × Ø122</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal29.png?v=a40802f2" alt="Lampe Designer, silhouette Colonne, 188 mm de haut, diamètre 120 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Colonne</div>
+        <div class="cote">188 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal30.png?v=77cedc4b" alt="Lampe Designer, silhouette Cubique, 190 mm de haut, diamètre 120 mm, base bois" loading="lazy"></div>
+        <div class="nom">Cubique</div>
+        <div class="cote">190 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal31.png?v=6083e7db" alt="Lampe Designer, silhouette Cône évasé, 194 mm de haut, diamètre 120 mm, base noire" loading="lazy"></div>
+        <div class="nom">Cône évasé</div>
+        <div class="cote">194 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal32.png?v=d416a7a1" alt="Lampe Designer, silhouette Demi-dôme, 196 mm de haut, diamètre 120 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Demi-dôme</div>
+        <div class="cote">196 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal33.png?v=1ee9739c" alt="Lampe Designer, silhouette Rétro 70s, 200 mm de haut, diamètre 120 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Rétro 70s</div>
+        <div class="cote">200 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal34.png?v=c0ade388" alt="Lampe Designer, silhouette Diabolo, 202 mm de haut, diamètre 120 mm, base bois" loading="lazy"></div>
+        <div class="nom">Diabolo</div>
+        <div class="cote">202 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal35.png?v=3b8124ea" alt="Lampe Designer, silhouette Disque, 206 mm de haut, diamètre 120 mm, base noire" loading="lazy"></div>
+        <div class="nom">Disque</div>
+        <div class="cote">206 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal36.png?v=f38833d9" alt="Lampe Designer, silhouette Art nouveau, 210 mm de haut, diamètre 120 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Art nouveau</div>
+        <div class="cote">210 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal37.png?v=3b7ed504" alt="Lampe Designer, silhouette Galet, 212 mm de haut, diamètre 120 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Galet</div>
+        <div class="cote">212 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal38.png?v=921afc32" alt="Lampe Designer, silhouette Minimaliste, 216 mm de haut, diamètre 120 mm, base bois" loading="lazy"></div>
+        <div class="nom">Minimaliste</div>
+        <div class="cote">216 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal39.png?v=8c5bc168" alt="Lampe Designer, silhouette Cloche, 218 mm de haut, diamètre 120 mm, base noire" loading="lazy"></div>
+        <div class="nom">Cloche</div>
+        <div class="cote">218 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal40.png?v=12762ae1" alt="Lampe Designer, silhouette Gradins, 222 mm de haut, diamètre 120 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Gradins</div>
+        <div class="cote">222 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal41.png?v=fc89edd8" alt="Lampe Designer, silhouette Design, 226 mm de haut, diamètre 120 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Design</div>
+        <div class="cote">226 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal42.png?v=fe62ce9d" alt="Lampe Designer, silhouette Ogive, 228 mm de haut, diamètre 120 mm, base bois" loading="lazy"></div>
+        <div class="nom">Ogive</div>
+        <div class="cote">228 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal43.png?v=9440c995" alt="Lampe Designer, silhouette Écope, 232 mm de haut, diamètre 120 mm, base noire" loading="lazy"></div>
+        <div class="nom">Écope</div>
+        <div class="cote">232 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal44.png?v=a368f0be" alt="Lampe Designer, silhouette Baroque, 234 mm de haut, diamètre 120 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Baroque</div>
+        <div class="cote">234 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal45.png?v=1d415578" alt="Lampe Designer, silhouette Dune, 238 mm de haut, diamètre 120 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Dune</div>
+        <div class="cote">238 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal46.png?v=916c1d2a" alt="Lampe Designer, silhouette Organique, 240 mm de haut, diamètre 120 mm, base bois" loading="lazy"></div>
+        <div class="nom">Organique</div>
+        <div class="cote">240 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal47.png?v=0160f330" alt="Lampe Designer, silhouette Art déco, 244 mm de haut, diamètre 120 mm, base noire" loading="lazy"></div>
+        <div class="nom">Art déco</div>
+        <div class="cote">244 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal48.png?v=fdeb86cf" alt="Lampe Designer, silhouette Colonne, 248 mm de haut, diamètre 120 mm, base transparente" loading="lazy"></div>
+        <div class="nom">Colonne</div>
+        <div class="cote">248 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal49.png?v=978feb20" alt="Lampe Designer, silhouette Cubique, 250 mm de haut, diamètre 120 mm, base blanche" loading="lazy"></div>
+        <div class="nom">Cubique</div>
+        <div class="cote">250 × Ø120</div>
+      </a>
+      <a class="case" href="index.html">
+        <div class="vignette"><img src="media/gal50.png?v=cf5d3fec" alt="Lampe Designer, silhouette Cône évasé, 254 mm de haut, diamètre 120 mm, base bois" loading="lazy"></div>
+        <div class="nom">Cône évasé</div>
+        <div class="cote">254 × Ø120</div>
       </a>
   </div>
 
