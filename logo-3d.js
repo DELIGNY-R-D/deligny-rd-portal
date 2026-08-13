@@ -72,7 +72,10 @@
     try { data = wctx.getImageData(0, 0, wSize, wSize).data; }
     catch(e){ data = null; }
     if(!data){ buildFallbackCrown(); return; }
-    var stride = 4;
+    // Stride 6 (et non 4) : moitie moins de particules a l'ecran. La forme
+    // reste lisible mais la boucle par frame a bien moins de points a
+    // deplacer/dessiner — c'est ce qui faisait saccader sur un DPR eleve.
+    var stride = 6;
     for(var y = 0; y < wSize; y += stride){
       for(var x = 0; x < wSize; x += stride){
         var i = (y * wSize + x) * 4;
