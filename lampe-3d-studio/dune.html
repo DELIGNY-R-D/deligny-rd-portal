@@ -1,6 +1,6 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-bZfL1T+0FR9v45k44k5lOD1lTJgQe9LeGiB8m+YUaLo='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-FCxPk4dCKfWx1vnUHazqaGVyjD5I+wSu5nKuXKno+oM='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lampe Designer, la lampe imprimée sur mesure | DELIGNY R&D</title>
 <meta name="description" content="Lampe Designer : lampe à poser dessinée dans le configurateur, nervures fines calculées dans la matière, coque creuse en PLA translucide diffusant. 249 mm, 160 cm³, 5 V USB.">
@@ -66,9 +66,20 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
    recouvrait « tier » et « Métier » se lisait « Méti ». En grille, la lampe a
    sa propre colonne et ne mord sur le mot que d'une valeur choisie. */
 .affiche{display:grid;margin-top:22px;grid-template-columns:1fr;
-  grid-template-areas:"mot" "produit" "texte"}
+  grid-template-areas:"mot" "produit" "citation" "texte"}
 .bloc-mot{grid-area:mot;position:relative;z-index:1}
 .bloc-texte{grid-area:texte;position:relative;z-index:3;margin-top:-11%}
+
+/* --- la citation : c'est le PROPOS, pas de l'habillage --- */
+/* Elle est en italique et en vert, comme le cachet manuscrit : elle se lit
+   comme une voix, pas comme un argument de vente. Le filet vertical la tient
+   a distance de la lampe sans avoir besoin d'un encadre. */
+.citation{grid-area:citation;position:relative;z-index:3;
+  border-left:2px solid var(--vert);padding-left:16px;margin-top:26px;max-width:420px}
+.citation p{font-size:14px;line-height:1.62;color:var(--vert);font-style:italic;
+  letter-spacing:.005em}
+.citation .auteur{margin-top:12px;font-size:11.5px;font-style:normal;
+  color:var(--gris);letter-spacing:.04em;text-transform:uppercase}
 
 .reference{font-size:clamp(19px,3.4vw,30px);font-weight:600;letter-spacing:-.01em}
 /* Le mot doit tenir dans sa colonne SANS être coupé : il est en nowrap, donc
@@ -80,13 +91,13 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 /* Une chaise est un objet AJOURÉ : elle peut se poser au milieu du mot sans
    l'effacer. Une lampe est un volume plein : elle chevauche la FIN du mot
    seulement, les premieres lettres restent nettes. */
-/* Decalage de 10 % vers la DROITE (demande Baptiste 13/08) : il degage les
-   premieres lettres du mot et rattrape le poids visuel du bloc de texte, qui
-   est cale a gauche. Il est porte par translateX pour ne pas toucher a la
-   grille : la place reservee a la lampe ne bouge pas, seule l'image glisse. */
+/* Le decalage de 10 % a droite est RETIRE (13/08, « recentre la lampe ») :
+   il compensait un vide a droite que la citation occupe desormais.
+   ⚠️ Le chevauchement de 17 % ne tenait QUE grace a ce decalage : recentree,
+   la lampe recouvrait 94 % de la hauteur du mot a 820 px de large, mesure a
+   l'appui. En colonne unique elle ne mord donc plus que le bas du mot. */
 .produit{grid-area:produit;display:block;width:clamp(215px,62%,330px);height:auto;
-  justify-self:center;position:relative;z-index:2;margin-top:-17%;
-  transform:translateX(10%);
+  justify-self:center;position:relative;z-index:2;margin-top:-4%;
   /* l'ombre portée remplace le sol : la pièce est détourée, sans elle
      elle flotte sans poids */
   filter:drop-shadow(0 26px 26px rgba(44,74,56,.22))}
@@ -98,14 +109,21 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
    tiree vers la gauche pour mordre sur la fin du mot. La hauteur de la lampe
    est bornee en vh pour que l'affiche entiere tienne dans la fenetre au lieu
    d'obliger a faire defiler. */
-@media (min-width:900px){
-  .affiche{grid-template-columns:minmax(0,57%) minmax(0,43%);
-    grid-template-areas:"mot produit" "texte produit";align-items:start}
-  .geant{font-size:clamp(74px,11.4vw,168px)}
+/* ECRAN LARGE : TROIS colonnes. Le mot et la notice a gauche, la lampe au
+   centre, la citation a droite sur toute la hauteur. La lampe n'est plus
+   poussee a droite : elle est au milieu, entre le propos et la piece. */
+@media (min-width:980px){
+  .affiche{grid-template-columns:minmax(0,42%) minmax(0,32%) minmax(0,26%);
+    grid-template-areas:"mot produit citation" "texte produit citation";
+    align-items:start;column-gap:18px}
+  /* le mot est en nowrap : sa taille est bornee par SA colonne, qui a maigri
+     de 57 % a 42 % pour laisser place a la citation */
+  .geant{font-size:clamp(64px,8.4vw,128px)}
   .produit{width:100%;max-height:min(56vh,540px);object-fit:contain;object-position:center;
-    align-self:center;justify-self:end;margin:0 0 0 -17%}
+    align-self:center;justify-self:center;margin:0}
   .bloc-texte{margin-top:16px}
   .notice{max-width:330px}
+  .citation{align-self:center;margin-top:0}
 }
 .tiret{width:34px;height:7px;background:var(--vert);border-radius:2px;margin-bottom:12px}
 .notice p{font-size:12px;line-height:1.6;color:var(--encre)}
@@ -153,8 +171,13 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
   .bandeau{flex-wrap:wrap}
   .liens{gap:15px}
   .liens a:nth-child(n+3){display:none}
-  .produit{width:70%;margin-top:-12%}
-  .bloc-texte{margin-top:-4%}
+  /* En colonne unique la lampe n'a plus de colonne a elle : recentree ET
+     remontee de 12 %, elle recouvrait « Métier », qui se lisait « Mé ». Elle
+     ne mord plus que le bas du mot, ce qui garde l'effet d'affiche sans manger
+     les lettres. */
+  .produit{width:66%;margin-top:-4%}
+  .citation{margin-top:20px}
+  .bloc-texte{margin-top:16px}
   .notice{max-width:none}
 }
 </style></head><body>
@@ -190,6 +213,18 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
     </div>
 
     <img class="produit" src="media/dune-hero.png?v=c0c6c506" alt="Lampe Designer allumée, coque nervurée en PLA translucide diffusant">
+
+    <!-- Citation de Baptiste. Elle dit POURQUOI le configurateur existe : la
+         lampe n'est qu'un premier objet, l'outil est le sujet. Elle est
+         reproduite mot pour mot, sans retouche. -->
+    <blockquote class="citation">
+      <p>« Quand j'aurai inventé assez de choses, j'aimerais donner aux autres
+         les outils pour créer les leurs. Parce qu'au fond, chacun peut avoir
+         une idée qui mérite d'exister. Et le jour où l'on pourra créer plus
+         librement ce que l'on imagine, on fabriquera simplement des objets
+         qui nous ressemblent. »</p>
+      <div class="auteur">Baptiste Placier, DELIGNY R&amp;D</div>
+    </blockquote>
 
     <div class="bloc-texte">
       <div class="notice">

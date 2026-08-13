@@ -1,0 +1,307 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-zfqJwM3WdG9ADE564iSBPcHjFhEC9eoV7SsQ8E79hgE='; style-src-attr 'unsafe-inline'; script-src 'sha256-J2jb82t82KL9knRYecAySwM18XZlsQKPnKZXFGo8Fzo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Logo 3D interactif — DELIGNY R&D</title>
+<meta name="description" content="La couronne DELIGNY R&D en nuage de particules 3D : elle eclate au survol et fait naitre un arc-en-ciel selon la force du clic. Experience en cours de test.">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<style>
+:root{
+  --bg:#0a0a0f; --bg2:#111018; --ink:#f2f0f6; --dim:#8d8a9c;
+  --accent:#7c5cbf; --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;}
+html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);overscroll-behavior:none;}
+a{color:inherit;}
+header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
+  padding:16px 22px;background:linear-gradient(180deg,rgba(10,10,15,.85),transparent);}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;letter-spacing:-.01em;font-size:14px;}
+.brand svg{display:block;flex:0 0 auto;}
+.brand small{display:block;font-weight:500;color:var(--dim);font-size:11px;letter-spacing:.02em;}
+.tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
+  border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 12px;}
+main{position:relative;height:100%;}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
+.hint{position:fixed;left:0;right:0;bottom:26px;z-index:5;margin:0 auto;text-align:center;
+  color:var(--dim);font-size:13px;letter-spacing:.01em;pointer-events:none;
+  transition:opacity .4s ease;}
+.hint b{color:var(--ink);font-weight:600;}
+.loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  color:var(--dim);font-size:13px;letter-spacing:.04em;text-transform:uppercase;z-index:6;
+  transition:opacity .5s ease;}
+.loading.hide{opacity:0;pointer-events:none;}
+</style>
+</head><body>
+<header>
+  <a class="brand" href="index.html">
+    <svg width="26" height="19" viewBox="0 0 400 291" aria-hidden="true">
+      <path d="M40 130c30-70 55-95 60-95l30 65 30-95 40 95 40-95 30 95 30-65c5 0 30 25 60 95-15 20-25 45-30 75H70c-5-30-15-55-30-75z" fill="none" stroke="#f2f0f6" stroke-width="14" stroke-linejoin="round"/>
+      <rect x="65" y="205" width="270" height="55" rx="10" fill="none" stroke="#f2f0f6" stroke-width="14"/>
+    </svg>
+    <span>DELIGNY R&amp;D<small>Retour au portail</small></span>
+  </a>
+  <span class="tag">Experimental</span>
+</header>
+<main>
+  <canvas id="c"></canvas>
+  <p class="hint" id="hint">Survolez pour <b>disperser</b> la couronne · Cliquez-maintenez pour un <b>arc-en-ciel</b></p>
+  <div class="loading" id="loading">Assemblage des particules…</div>
+</main>
+<script>
+(function(){
+  "use strict";
+  var canvas = document.getElementById('c');
+  var ctx = canvas.getContext('2d');
+  var hint = document.getElementById('hint');
+  var loadingEl = document.getElementById('loading');
+
+  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  var W = 0, H = 0, CX = 0, CY = 0;
+  function resize(){
+    W = canvas.clientWidth; H = canvas.clientHeight;
+    canvas.width = W * DPR; canvas.height = H * DPR;
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    CX = W / 2; CY = H / 2;
+  }
+  window.addEventListener('resize', resize);
+
+  // ── Nuage de particules : echantillonne le logo (couronne) depuis le PNG
+  // deja utilise dans le bandeau du portail. Aucune donnee inventee : la
+  // forme vient du vrai logo, pas d'une silhouette approchee a la main.
+  var particles = [];
+  var FIELD = 210;
+
+  function buildFromImage(img){
+    var work = document.createElement('canvas');
+    var wSize = 260;
+    work.width = wSize; work.height = wSize;
+    var wctx = work.getContext('2d');
+    wctx.drawImage(img, 0, 0, wSize, wSize);
+    var data;
+    try { data = wctx.getImageData(0, 0, wSize, wSize).data; }
+    catch(e){ data = null; }
+    if(!data){ buildFallbackCrown(); return; }
+    var stride = 3;
+    for(var y = 0; y < wSize; y += stride){
+      for(var x = 0; x < wSize; x += stride){
+        var i = (y * wSize + x) * 4;
+        if(data[i+3] < 130) continue;
+        var px = (x - wSize/2) / wSize * FIELD;
+        var py = (y - wSize/2) / wSize * FIELD;
+        // leger relief : les points proches du centre du motif bombent vers
+        // l'avant, ceux en bord de forme reculent — un vrai volume, pas un
+        // nuage plat.
+        var d = Math.sqrt(px*px + py*py) / (FIELD*0.6);
+        var hz = (1 - Math.min(1, d)) * 26 + (Math.random()-0.5) * 14;
+        addParticle(px, py, hz);
+      }
+    }
+    finishBuild();
+  }
+
+  // Filet de securite si l'image ne charge pas (offline, chemin different) :
+  // une couronne stylisee generee au meme gabarit, pour que la page reste
+  // utilisable meme sans le PNG.
+  function buildFallbackCrown(){
+    var pts = [];
+    var peaks = [-70,-35,0,35,70];
+    for(var p = 0; p < peaks.length; p++){
+      var px = peaks[p];
+      for(var t = 0; t < 40; t++){
+        var f = t/39;
+        pts.push([px + (Math.random()-0.5)*8, -60 + f*70]);
+      }
+    }
+    for(var a = 0; a < 220; a++){
+      var ang = (a/220) * Math.PI - Math.PI/2 + Math.PI/2;
+      pts.push([-90 + (a/220)*180, 30 + Math.sin(a/220*Math.PI)*10]);
+    }
+    for(var i=0;i<pts.length;i++){
+      addParticle(pts[i][0], pts[i][1], (Math.random()-0.5)*20);
+    }
+    finishBuild();
+  }
+
+  function addParticle(hx, hy, hz){
+    particles.push({
+      hx: hx, hy: hy, hz: hz,
+      x: CX, y: CY, vx: 0, vy: 0,
+      exX: (Math.random()-0.5) * 2, exY: (Math.random()-0.5) * 2,
+      exDist: 90 + Math.random() * 220,
+      size: 1.1 + Math.random() * 1.6,
+      flash: 0, flashHue: 280,
+      seed: Math.random() * 1000
+    });
+  }
+
+  function finishBuild(){
+    loadingEl.classList.add('hide');
+    // clientWidth n'est fiable qu'apres une passe de mise en page : un
+    // resize() appele trop tot (avant le premier rAF) peut encore lire 0 et
+    // coller tout le nuage dans le coin — on attend un frame reel.
+    requestAnimationFrame(function(){
+      resize();
+      for(var i = 0; i < particles.length; i++){ particles[i].x = CX; particles[i].y = CY; }
+      if(!running) start();
+    });
+  }
+
+  var img = new Image();
+  img.onload = function(){ buildFromImage(img); };
+  img.onerror = function(){ buildFallbackCrown(); };
+  img.src = 'img/logo-mark.png';
+
+  // ── Etat pointeur ────────────────────────────────────────────────────
+  var mouse = { x: -9999, y: -9999, active: false, down: false };
+  var waves = [];
+  var lastMove = { x: 0, y: 0, t: 0 };
+
+  function pointerPos(e){
+    var r = canvas.getBoundingClientRect();
+    var p = (e.touches && e.touches[0]) ? e.touches[0] : e;
+    return { x: p.clientX - r.left, y: p.clientY - r.top };
+  }
+
+  function pushWave(x, y, strength){
+    waves.push({ x: x, y: y, t0: performance.now(), strength: Math.max(0.25, Math.min(1, strength)) });
+    if(waves.length > 6) waves.shift();
+  }
+
+  canvas.addEventListener('pointerenter', function(e){
+    mouse.active = true;
+    hint.style.opacity = '0';
+    var p = pointerPos(e); mouse.x = p.x; mouse.y = p.y;
+    lastMove = { x: p.x, y: p.y, t: performance.now() };
+  });
+  canvas.addEventListener('pointerleave', function(){
+    mouse.active = false; mouse.down = false;
+    mouse.x = -9999; mouse.y = -9999;
+    hint.style.opacity = '1';
+  });
+  canvas.addEventListener('pointermove', function(e){
+    var p = pointerPos(e);
+    mouse.x = p.x; mouse.y = p.y; mouse.active = true;
+    var now = performance.now();
+    var dt = Math.max(8, now - lastMove.t);
+    var dist = Math.hypot(p.x - lastMove.x, p.y - lastMove.y);
+    var speed = dist / dt; // px/ms
+    if(mouse.down && speed > 0.15){
+      pushWave(p.x, p.y, speed * 1.4);
+    }
+    lastMove = { x: p.x, y: p.y, t: now };
+  });
+  function onDown(e){
+    mouse.down = true;
+    var p = pointerPos(e);
+    var force = (typeof e.pressure === 'number' && e.pressure > 0 && e.pressure !== 0.5) ? e.pressure : 0.45;
+    pushWave(p.x, p.y, force);
+    e.preventDefault();
+  }
+  canvas.addEventListener('pointerdown', onDown);
+  canvas.addEventListener('webkitmouseforcechanged', function(e){
+    if(!mouse.down) return;
+    var p = { x: mouse.x, y: mouse.y };
+    pushWave(p.x, p.y, e.webkitForce / 3);
+  });
+  window.addEventListener('pointerup', function(){ mouse.down = false; });
+
+  // ── Boucle d'animation ───────────────────────────────────────────────
+  var rotY = 0.3;
+  var running = false;
+  var FOCAL = 480;
+  var HOVER_R = 150;
+
+  function frame(){
+    requestAnimationFrame(frame);
+    rotY += 0.0016;
+    ctx.fillStyle = 'rgba(10,10,15,0.22)';
+    ctx.fillRect(0, 0, W, H);
+
+    var cosR = Math.cos(rotY), sinR = Math.sin(rotY);
+    var now = performance.now();
+
+    // purge des ondes trop vieilles
+    waves = waves.filter(function(w){ return now - w.t0 < 1800; });
+
+    var drawList = [];
+    for(var i = 0; i < particles.length; i++){
+      var p = particles[i];
+
+      var rx = p.hx * cosR + p.hz * sinR;
+      var rz = -p.hx * sinR + p.hz * cosR;
+      var ry = p.hy;
+
+      var persp = FOCAL / (FOCAL + rz + 220);
+      var tx = CX + rx * persp * 2.1;
+      var ty = CY + ry * persp * 2.1;
+
+      if(mouse.active){
+        tx += p.exX * p.exDist * persp;
+        ty += p.exY * p.exDist * persp;
+      }
+
+      var ax = (tx - p.x) * 0.05;
+      var ay = (ty - p.y) * 0.05;
+      p.vx = (p.vx + ax) * 0.86;
+      p.vy = (p.vy + ay) * 0.86;
+
+      if(mouse.active){
+        var dx = p.x - mouse.x, dy = p.y - mouse.y;
+        var d2 = Math.hypot(dx, dy) || 0.0001;
+        if(d2 < HOVER_R){
+          var f = (1 - d2 / HOVER_R); f = f * f * 6;
+          p.vx += (dx / d2) * f;
+          p.vy += (dy / d2) * f;
+        }
+      }
+
+      p.x += p.vx; p.y += p.vy;
+
+      for(var w = 0; w < waves.length; w++){
+        var wave = waves[w];
+        var age = now - wave.t0;
+        var radius = age * 0.62 * (0.6 + wave.strength);
+        var dd = Math.hypot(p.x - wave.x, p.y - wave.y);
+        var band = 46 * (0.5 + wave.strength);
+        if(Math.abs(dd - radius) < band){
+          var prog = (dd / (radius + 1)) % 1;
+          var hue = (prog * 300 + wave.t0 * 0.02) % 360;
+          var edge = 1 - Math.abs(dd - radius) / band;
+          var life = Math.max(0, 1 - age / (1500 + wave.strength * 500));
+          var amt = edge * life * (0.6 + wave.strength * 0.6);
+          if(amt > p.flash){ p.flash = amt; p.flashHue = hue; }
+        }
+      }
+
+      p.flash *= 0.955;
+      drawList.push({ p: p, rz: rz, persp: persp });
+    }
+
+    drawList.sort(function(a, b){ return b.rz - a.rz; });
+
+    for(var k = 0; k < drawList.length; k++){
+      var it = drawList[k], pt = it.p;
+      var s = pt.size * it.persp * 2.2;
+      var baseL = 78 + Math.sin(pt.seed + rotY * 3) * 6;
+      var alpha = Math.min(1, 0.35 + it.persp * 0.55);
+      if(pt.flash > 0.02){
+        ctx.fillStyle = 'hsla(' + pt.flashHue.toFixed(0) + ',88%,64%,' + Math.min(1, alpha + pt.flash * 0.4).toFixed(2) + ')';
+        ctx.shadowColor = 'hsla(' + pt.flashHue.toFixed(0) + ',95%,60%,0.9)';
+        ctx.shadowBlur = 10 * pt.flash;
+      } else {
+        ctx.fillStyle = 'hsla(258,' + (mouse.active ? 55 : 12) + '%,' + baseL.toFixed(0) + '%,' + alpha.toFixed(2) + ')';
+        ctx.shadowBlur = 0;
+      }
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, Math.max(0.6, s), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.shadowBlur = 0;
+  }
+
+  function start(){ running = true; ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0,0,W,H); requestAnimationFrame(frame); }
+
+  resize();
+})();
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=logo-3d" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

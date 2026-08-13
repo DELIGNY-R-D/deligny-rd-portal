@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-hJH3q9EytH08JhzHfeKHAoGSx4Uy1hb9GUXDwxj3XCo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-VvBMGFfbK5qNChYcqXU2LB3Wz30cZl5CGlMH5J7GHgU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1439,7 +1439,14 @@ let state = {
   poser: { variante: 'monobloc' },
   // couches combinables : une base + des reliefs additifs + un ajourage
   surface: { base:'facette', smoothing:45,
-             stries:false, strieCount:18, strieDepthMm:1.6, cross:false, pitchMm:34,
+             /* ⚠️ DEFAUT ALIGNE SUR LA PIECE PUBLIEE (13/08, arbitrage Baptiste
+              * « ouvre sur la piece nervurée »). Le configurateur ouvrait sur une
+              * lampe a 14 segments SANS nervures (9 706 triangles) alors que
+              * l'affiche et les 50 vignettes de la gamme montrent la meme
+              * silhouette a 708 segments avec 118 nervures fines : deux objets
+              * visuellement differents, le visiteur ne retrouvait pas le produit
+              * qu'on lui vend. Ce sont les valeurs exactes de l'affiche. */
+             stries:true, strieCount:118, strieDepthMm:0.85, cross:false, pitchMm:34,
              organique:false, orgAmpMm:2.4, orgPitchMm:40,
              martele:false, martCount:22, martHMm:12, martDepthMm:1.2,
              congeMm:0,
@@ -5568,8 +5575,14 @@ function renderSurface(){
   addCouche('stries', 'Stries en relief',
     "Cannelures creusées dans la paroi, à l'identique dedans et dehors : l'épaisseur ne change pas.",
     ()=>{
-      addSlider('Nombre de stries sur le tour','strieCount',6,48,1,v=>v);
-      addSlider('Profondeur du relief','strieDepthMm',0.4,4,0.1,v=>v.toFixed(1)+' mm');
+      /* ⚠️ BORNES ELARGIES (13/08). Le defaut est passe a 118 nervures de
+       * 0,85 mm, celles de l'affiche et de la gamme. Avec les anciennes bornes
+       * (6-48 et 0,4-4) le curseur aurait affiche 48 et 0,9 pour un etat a 118
+       * et 0,85 : encore une commande qui ment sur ce qui est chiffre, comme les
+       * quatre desynchronisations trouvees aujourd'hui. Le pas descend a 0,05 mm
+       * pour que 0,85 soit ATTEIGNABLE et pas seulement affichable. */
+      addSlider('Nombre de stries sur le tour','strieCount',6,160,1,v=>v);
+      addSlider('Profondeur du relief','strieDepthMm',0.4,4,0.05,v=>v.toFixed(2)+' mm');
       const f=document.createElement('label'); f.className='socket-opt'+(s.cross?' on':'');
       f.innerHTML = `<input type="checkbox" ${s.cross?'checked':''}>
         <div><div class="t">Croiser deux réseaux → losanges en volume</div>
