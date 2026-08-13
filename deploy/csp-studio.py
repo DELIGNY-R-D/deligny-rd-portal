@@ -37,9 +37,21 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 # empreinte, le `script-src 'self'` de la forteresse nginx tuerait son bouton
 # de partage, et la page aurait l'air cassée sans rien dans la console.
 PAGES = ["lampe-3d-studio/index.html", "lampe-3d-studio/dune.html",
-         "lampe-3d-studio/gamme.html", "logo-3d.html"]
+         "lampe-3d-studio/gamme.html"]
 BEACON_HOST = "https://atlas-studio.pro"
 AI_LOCAL = "http://127.0.0.1:4555 http://localhost:4555"
+
+# TUNNEL DE RENDU (13/08). La page publiee lit moteur.json et, si un moteur y
+# est annonce, appelle sa passerelle pour calculer une vraie photo Blender.
+# Sans cette origine dans connect-src, le navigateur BLOQUE l'appel avant meme
+# de l'emettre et la panne serait muette.
+#
+# ⚠️ On autorise le domaine des tunnels rapides EN ENTIER, parce qu'un tunnel
+# rapide change de sous-domaine a chaque redemarrage. C'est un elargissement
+# assume et TEMPORAIRE : n'importe quel tunnel Cloudflare devient joignable
+# depuis la page. Le jour ou le moteur passe sur moteur.deligny-rd.fr, cette
+# ligne doit etre remplacee par cette seule origine.
+MOTEUR_TUNNEL = "https://*.trycloudflare.com"
 
 BALISE = re.compile(r'\s*<meta http-equiv="Content-Security-Policy"[^>]*>')
 
@@ -67,7 +79,7 @@ def csp_pour(html: str) -> str:
             f"style-src-elem '{style}'; "
             "style-src-attr 'unsafe-inline'; "
             f"script-src '{script}'; "
-            f"connect-src 'self' {AI_LOCAL}")
+            f"connect-src 'self' {AI_LOCAL} {MOTEUR_TUNNEL}")
 
 
 def applique(html: str) -> str:

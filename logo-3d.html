@@ -1,37 +1,25 @@
-<!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-QgYpL5sYyz2pEnOUaKEO5Q6RyNb5Pw29OYs1WHAmyoc='; style-src-attr 'unsafe-inline'; script-src 'sha256-X4YUgw0xH5MTyh0pzLEz/LSSJZK2jNxYTtu62uA/Mg8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Logo interactif — DELIGNY R&D</title>
-<meta name="description" content="La couronne DELIGNY R&D en sable de particules : balayee par la souris, elle retombe au sol puis revient lentement a sa place. La couleur suit la vitesse du geste. Experience en cours de test.">
-<meta name="referrer" content="strict-origin-when-cross-origin">
-<style>
-:root{
-  --bg:#ffffff; --ink:#15131a; --dim:#6b6b76;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
-}
-*,*::before,*::after{box-sizing:border-box;}
-html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);overscroll-behavior:none;}
-a{color:inherit;}
-header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
-  padding:16px 22px;background:linear-gradient(180deg,rgba(255,255,255,.92),transparent);}
-.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;letter-spacing:-.01em;font-size:14px;}
-.brand svg{display:block;flex:0 0 auto;}
-.brand small{display:block;font-weight:500;color:var(--dim);font-size:11px;letter-spacing:.02em;}
-.tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
-  border:1px solid rgba(0,0,0,.14);border-radius:999px;padding:6px 12px;}
-main{position:relative;height:100%;}
-canvas{display:block;width:100%;height:100%;touch-action:none;cursor:default;}
-.hint{position:fixed;left:0;right:0;bottom:26px;z-index:5;margin:0 auto;text-align:center;
-  color:var(--dim);font-size:13px;letter-spacing:.01em;pointer-events:none;
-  transition:opacity .4s ease;}
-.hint b{color:var(--ink);font-weight:600;}
-.loading{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-  color:var(--dim);font-size:13px;letter-spacing:.04em;text-transform:uppercase;z-index:6;
-  transition:opacity .5s ease;}
-.loading.hide{opacity:0;pointer-events:none;}
-body.embed header{display:none;}
-</style>
-</head><body>
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="La couronne DELIGNY R&D en sable de particules : balayee par la souris, elle retombe au sol puis revient lentement a sa place. La couleur suit la vitesse du geste." />
+  <title>Logo interactif — DELIGNY R&D</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="img/favicon.png" sizes="32x32" type="image/png" />
+  <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="DELIGNY R&D" />
+  <meta property="og:title" content="Logo interactif — DELIGNY R&D" />
+  <meta property="og:description" content="La couronne DELIGNY R&D en sable de particules : balayee par la souris, elle retombe au sol puis revient lentement a sa place." />
+  <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
+  <meta property="og:url" content="https://deligny-rd.fr/logo-3d.html" />
+  <meta name="twitter:card" content="summary_large_image" />
+  <link rel="stylesheet" href="logo-3d.css" />
+</head>
+<body>
 <header>
   <a class="brand" href="index.html">
     <svg width="26" height="19" viewBox="0 0 400 291" aria-hidden="true">
@@ -43,265 +31,11 @@ body.embed header{display:none;}
   <span class="tag">Experimental</span>
 </header>
 <main>
-  <canvas id="c"></canvas>
-  <p class="hint" id="hint">Balayez la couronne avec la souris — <b>plus vite</b>, plus la couleur change</p>
-  <div class="loading" id="loading">Assemblage des particules…</div>
+  <canvas id="crown-canvas"></canvas>
+  <p class="hint" id="crown-hint">Balayez la couronne avec la souris — <b>plus vite</b>, plus la couleur change</p>
+  <div class="loading" id="crown-loading">Assemblage des particules…</div>
 </main>
-<script>
-(function(){
-  "use strict";
-  // Integree en iframe sur l'accueil (?embed=1) : masque le bandeau "Retour
-  // au portail" et l'etiquette "Experimental", inutiles une fois nichee
-  // dans la page qu'ils sont censes designer.
-  if(/[?&]embed=1/.test(location.search)) document.body.className = 'embed';
-  var canvas = document.getElementById('c');
-  var ctx = canvas.getContext('2d');
-  var hint = document.getElementById('hint');
-  var loadingEl = document.getElementById('loading');
-
-  // Reste leger malgre la finesse : dessin en rectangles (pas d'arc(), pas
-  // de shadowBlur) — c'est ce budget qui permet un DPR et un echantillonnage
-  // plus fins sans faire ramer un portable modeste.
-  var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
-  var W = 0, H = 0, CX = 0, CY = 0, GROUND = 0;
-  function resize(){
-    W = canvas.clientWidth; H = canvas.clientHeight;
-    canvas.width = W * DPR; canvas.height = H * DPR;
-    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
-    CX = W / 2; CY = H / 2;
-    GROUND = H - 26;
-  }
-  window.addEventListener('resize', resize);
-
-  // Vitesse -> couleur : au repos, vert. Plus le balayage est rapide, plus
-  // la teinte glisse vers le bleu, le violet, le rouge, l'orange puis le
-  // jaune au maximum.
-  var BASE_HUE = 142;
-  var HUE_STOPS = [142, 210, 270, 360, 390, 415];
-  function hueForSpeed(t){
-    t = Math.max(0, Math.min(1, t));
-    var seg = t * (HUE_STOPS.length - 1);
-    var i = Math.min(HUE_STOPS.length - 2, Math.floor(seg));
-    var f = seg - i;
-    return (HUE_STOPS[i] + (HUE_STOPS[i + 1] - HUE_STOPS[i]) * f) % 360;
-  }
-
-  // ── Nuage de particules : echantillonne le logo (couronne) depuis le PNG
-  // deja utilise dans le bandeau du portail. Aucune donnee inventee : la
-  // forme vient du vrai logo, pas d'une silhouette approchee a la main.
-  var particles = [];
-  var FIELD = 210;
-
-  // Relief : calcule une fois, a la construction (cout nul en animation).
-  // Un point entoure d'autres points opaques est "epais" (coeur du trait) —
-  // un point pres d'un bord a peu de voisins opaques, donc "mince". Ce
-  // ratio sert ensuite de fausse profondeur (taille + ombrage), sans
-  // aucune rotation 3D a faire tourner en boucle.
-  function reliefAt(data, wSize, x, y){
-    var hits = 0, total = 0;
-    for(var a = 0; a < 8; a++){
-      var ang = a / 8 * Math.PI * 2;
-      var nx = Math.round(x + Math.cos(ang) * 7);
-      var ny = Math.round(y + Math.sin(ang) * 7);
-      if(nx < 0 || ny < 0 || nx >= wSize || ny >= wSize) continue;
-      total++;
-      if(data[(ny * wSize + nx) * 4 + 3] >= 130) hits++;
-    }
-    return total ? hits / total : 0;
-  }
-
-  function buildFromImage(img){
-    var work = document.createElement('canvas');
-    var wSize = 300;
-    work.width = wSize; work.height = wSize;
-    var wctx = work.getContext('2d');
-    wctx.drawImage(img, 0, 0, wSize, wSize);
-    var data;
-    try { data = wctx.getImageData(0, 0, wSize, wSize).data; }
-    catch(e){ data = null; }
-    if(!data){ buildFallbackCrown(); return; }
-    var stride = 4;
-    for(var y = 0; y < wSize; y += stride){
-      for(var x = 0; x < wSize; x += stride){
-        var i = (y * wSize + x) * 4;
-        if(data[i+3] < 130) continue;
-        var px = (x - wSize/2) / wSize * FIELD;
-        var py = (y - wSize/2) / wSize * FIELD;
-        addParticle(px, py, reliefAt(data, wSize, x, y));
-      }
-    }
-    finishBuild();
-  }
-
-  // Filet de securite si l'image ne charge pas (offline, chemin different) :
-  // une couronne stylisee generee au meme gabarit, pour que la page reste
-  // utilisable meme sans le PNG.
-  function buildFallbackCrown(){
-    var pts = [];
-    var peaks = [-70,-35,0,35,70];
-    for(var p = 0; p < peaks.length; p++){
-      var px = peaks[p];
-      for(var t = 0; t < 40; t++){
-        var f = t/39;
-        pts.push([px + (Math.random()-0.5)*8, -60 + f*70]);
-      }
-    }
-    for(var a = 0; a < 220; a++){
-      pts.push([-90 + (a/220)*180, 30 + Math.sin(a/220*Math.PI)*10]);
-    }
-    for(var i=0;i<pts.length;i++){ addParticle(pts[i][0], pts[i][1], 0.75); }
-    finishBuild();
-  }
-
-  function addParticle(hx, hy, relief){
-    particles.push({
-      hx: hx, hy: hy, relief: relief,
-      x: CX, y: CY, vx: 0, vy: 0,
-      size: (1.3 + relief * 1.1) + Math.random() * 0.9,
-      disturbed: false, settleT: 0,
-      hue: BASE_HUE
-    });
-  }
-
-  function finishBuild(){
-    loadingEl.classList.add('hide');
-    // clientWidth n'est fiable qu'apres une passe de mise en page : un
-    // resize() appele trop tot (avant le premier rAF) peut encore lire 0 et
-    // coller tout le nuage dans le coin — on attend un frame reel.
-    requestAnimationFrame(function(){
-      resize();
-      for(var i = 0; i < particles.length; i++){ particles[i].x = CX; particles[i].y = CY; }
-      if(!running) start();
-    });
-  }
-
-  var img = new Image();
-  img.onload = function(){ buildFromImage(img); };
-  img.onerror = function(){ buildFallbackCrown(); };
-  img.src = 'img/logo-mark.png';
-
-  // ── Balayage : seules les particules a proximite immediate du curseur
-  // sont poussees, dans la direction du geste — le reste de la page ne
-  // declenche rien, la couronne ne bouge pas tant qu'on ne la touche pas.
-  var SWEEP_R = 90;
-  var MAX_SPEED_REF = 2.2; // px/ms pour atteindre la teinte maximale
-  var lastMove = { x: 0, y: 0, t: 0 };
-  var touched = false;
-
-  function pointerPos(e){
-    var r = canvas.getBoundingClientRect();
-    var p = (e.touches && e.touches[0]) ? e.touches[0] : e;
-    return { x: p.clientX - r.left, y: p.clientY - r.top };
-  }
-
-  function sweep(mx, my, dirx, diry, speed){
-    var t = Math.min(1, speed / MAX_SPEED_REF);
-    var hue = hueForSpeed(t);
-    var force = Math.min(9, speed * 5);
-    for(var i = 0; i < particles.length; i++){
-      var p = particles[i];
-      var ddx = p.x - mx, ddy = p.y - my;
-      var d = Math.hypot(ddx, ddy);
-      if(d < SWEEP_R){
-        var influence = 1 - d / SWEEP_R;
-        p.vx += dirx * force * influence;
-        p.vy += diry * force * influence - influence * 1.5;
-        p.disturbed = true;
-        p.settleT = 0;
-        p.hue = hue;
-      }
-    }
-  }
-
-  canvas.addEventListener('pointermove', function(e){
-    var p = pointerPos(e);
-    var now = performance.now();
-    var dt = Math.max(8, now - lastMove.t);
-    var dx = p.x - lastMove.x, dy = p.y - lastMove.y;
-    var dist = Math.hypot(dx, dy);
-    if(dist > 0.4){
-      if(!touched){ touched = true; hint.style.opacity = '0'; }
-      sweep(p.x, p.y, dx / dist, dy / dist, dist / dt);
-    }
-    lastMove = { x: p.x, y: p.y, t: now };
-  });
-  canvas.addEventListener('pointerdown', function(e){
-    var p = pointerPos(e);
-    lastMove = { x: p.x, y: p.y, t: performance.now() };
-  });
-
-  // ── Boucle d'animation ───────────────────────────────────────────────
-  var running = false;
-  var rafId = null;
-  var GRAVITY = 0.34;
-
-  // Coupe totalement la boucle quand l'onglet est en arriere-plan : zero
-  // travail, pas juste un rendu invisible.
-  document.addEventListener('visibilitychange', function(){
-    if(document.hidden){
-      if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
-    } else if(running && !rafId){
-      rafId = requestAnimationFrame(frame);
-    }
-  });
-
-  function frame(){
-    rafId = requestAnimationFrame(frame);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, W, H);
-
-    for(var i = 0; i < particles.length; i++){
-      var p = particles[i];
-      var homeX = CX + p.hx, homeY = CY + p.hy;
-
-      if(p.disturbed){
-        p.settleT++;
-        if(p.y < GROUND){
-          p.vy += GRAVITY;
-        } else {
-          p.y = GROUND;
-          if(p.vy > 0) p.vy *= -0.15;
-        }
-
-        // Rappel vers la position d'origine : quasi nul juste apres le
-        // balayage (le sable finit de se repandre), il croit ensuite au
-        // carre du temps ecoule — lent au debut, puis de plus en plus
-        // rapide ("exponentiellement") jusqu'a revenir pile en place.
-        var ramp = Math.min(1, p.settleT / 45);
-        var k = 0.006 * ramp * ramp;
-        p.vx += (homeX - p.x) * k;
-        p.vy += (homeY - p.y) * k;
-
-        // Friction assez forte pour que l'elan du balayage s'eteigne vite
-        // et laisse la place au rappel, plutot que de deriver longtemps.
-        p.vx *= 0.90; p.vy *= 0.90;
-        p.x += p.vx; p.y += p.vy;
-
-        var dHome = Math.hypot(homeX - p.x, homeY - p.y);
-        if(ramp >= 1 && dHome < 1.2 && Math.hypot(p.vx, p.vy) < 0.3){
-          p.x = homeX; p.y = homeY; p.vx = 0; p.vy = 0;
-          p.disturbed = false; p.settleT = 0;
-        }
-      } else {
-        p.x = homeX; p.y = homeY;
-      }
-
-      // Le relief (calcule une seule fois a la construction) fait office de
-      // profondeur : coeur du trait plus sombre et dense, bord plus clair —
-      // un vrai bas-relief, sans rotation ni calcul par frame.
-      var hue = p.disturbed ? p.hue : BASE_HUE;
-      var edgeLift = (1 - p.relief) * 16;
-      var light = (p.disturbed ? 45 : 37) + edgeLift;
-      ctx.fillStyle = 'hsl(' + hue.toFixed(0) + ',70%,' + light.toFixed(0) + '%)';
-      var s = p.size;
-      ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2);
-    }
-  }
-
-  function start(){ running = true; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); rafId = requestAnimationFrame(frame); }
-
-  resize();
-})();
-</script>
+<script src="logo-3d.js"></script>
 <img src="https://atlas-studio.pro/deligny/api/px?page=logo-3d" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
-</body></html>
+</body>
+</html>

@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-VvBMGFfbK5qNChYcqXU2LB3Wz30cZl5CGlMH5J7GHgU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-hPBdiBZvX+JSLOPhXXs2x/OsoVMbBvtIFyYeKn6W6gA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://*.trycloudflare.com">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -449,7 +449,6 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       <label style="font-size:12.5px;color:var(--dim2)">Base
         <select id="rBase" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
           <option value="blanc">Blanche</option>
-          <option value="transparent">Transparente</option>
           <option value="noir">Noire</option>
           <option value="bois">Bois</option>
         </select>
@@ -3679,9 +3678,39 @@ function segFor(bi, mode){
   if(mode==='draft')   return Math.min(seg, 36);
   /* La PIÈCE a doublé de finesse (07/08), pas l'écran : à 288 segments la
    * passe de qualité montait à 2,6 s, alors qu'un canevas de 640 px ne montre
-   * déjà plus les facettes au-delà de ~180. On plafonne donc l'aperçu — et
+   * déjà plus les facettes au-delà de ~180. On plafonne donc l'aperçu, et
    * l'écart aperçu/export reste affiché sous l'image, jamais caché. */
-  return (mode==='preview') ? Math.min(seg, hasRelief(surf) ? 152 : 110) : seg;
+  if(mode !== 'preview') return seg;
+
+  /* ⚠️ LE PLAFOND DOIT SUIVRE LE MOTIF, PAS ETRE UN NOMBRE EN DUR (13/08).
+   *
+   * Le plafond fixe de 152 etait un garde-fou ANTI-MOIRE. Il a fini par
+   * FABRIQUER le moire qu'il voulait eviter, des que le defaut est passe a 118
+   * nervures : 152 segments pour 118 nervures, c'est 1,29 echantillon par
+   * nervure, tres en dessous du seuil de Shannon qui en exige 2. Le repliement
+   * cree une frequence parasite de |152 - 118| = 34 ondulations sur le tour,
+   * soit ~17 sur la face avant ; l'audit en a compte 12 a l'ecran. Et comme la
+   * densite par pixel depend du rayon, le haut etroit resolvait ses nervures
+   * pendant que le ventre large restait lisse : un chapeau strie sur un tronc
+   * nu, qui ne ressemblait plus au produit vendu.
+   *
+   * On echantillonne donc a 3x le motif, soit une marge de 50 % au-dessus de
+   * Shannon. Le plafond dur reste, mais il devient une limite de PERFORMANCE
+   * assumee, plus une valeur qui decide du rendu a l'insu du motif.
+   *
+   * ⚠️ Cout accepte par Baptiste apres mesure : l'aperçu passe de 152 a 354
+   * segments pour 118 nervures, donc la passe de qualite se rallonge d'autant.
+   * Le vrai poids de la page reste le maillage d'EXPORT (708 segments,
+   * 462k triangles), lui n'a pas bouge. */
+  const PLAFOND_ECRAN = 420;             // limite de performance, pas de rendu
+  let plafond = hasRelief(surf) ? 152 : 110;
+  if(surf.stries && surf.strieCount > 0){
+    plafond = Math.max(plafond, Math.min(PLAFOND_ECRAN, Math.ceil(surf.strieCount * 3)));
+  }
+  if(surf.martele && surf.martCount > 0){
+    plafond = Math.max(plafond, Math.min(PLAFOND_ECRAN, Math.ceil(surf.martCount * 3)));
+  }
+  return Math.min(seg, plafond);
 }
 // Pas vertical effectif : le plus fin des trois besoins (style, torsion, ajourage).
 // En mode aperçu on plafonne la finesse des styles continus — invisible sur un
@@ -4162,7 +4191,15 @@ function smoothNormals(part, seuilDeg){
 }
 
 function drawPreview(hq){
-  const SS = hq ? 2 : 1;
+  /* ⚠️ SUR-ECHANTILLONNAGE RENDU CONDITIONNEL (13/08). Lever le plafond de
+   * l'apercu a 354 segments a resolu le moire des 118 nervures, mais la passe
+   * de qualite est passee a 3 593 ms de fil principal GELE, mesure. Le cout
+   * n'est pas dans la geometrie (la passe rapide reste a 56 ms) : il est dans
+   * le double echantillonnage, qui quadruple le nombre de pixels a couvrir.
+   * Au-dela de ~15 000 faces la piece est deja si finement facettee que le
+   * crenelage ne se voit plus : le SS n'achete plus rien et ne coute que du
+   * gel. On le retire dans ce cas precis, jamais en dessous. */
+  const SS = (hq && (MESH.preview||[]).reduce((n,p)=>n+p.tris.length,0) < 15000) ? 2 : 1;
   const w=vc.width*SS, h=vc.height*SS;
   const off = hq ? document.createElement('canvas') : null;
   if(off){ off.width=w; off.height=h; }
@@ -4405,7 +4442,11 @@ const BACKDROPS = {
 const FINITION_DE_MATIERE = { PLA_T:'translucide', PLA:'mat', PETG:'satine' };
 const RENDER = { finish:'translucide', bg:'papier', lit:false, base:'blanc',
                  choisie:false, lastURL:null, ms:0 };
-const BASE_FINITIONS = ['blanc','transparent','noir','bois'];
+/* La finition TRANSPARENTE est retiree (13/08, Baptiste : « il ne doit pas y
+ * avoir cette base grise brillante »). Mesuree, elle sortait a 188 quand
+ * l'abat-jour est a 222 : une rondelle grise et reflechissante, exactement
+ * ce qu'il ne veut pas. Restent trois finitions assumees. */
+const BASE_FINITIONS = ['blanc','noir','bois'];
 
 /* Pose la finition depuis la matiere. Retourne true si elle a change, pour que
  * l'appelant sache s'il doit relancer un rendu. */
@@ -4682,6 +4723,42 @@ function renderStudio(){
  * ──────────────────────────────────────────────────────────────────────── */
 const AI = { base:'http://127.0.0.1:4555', ok:null, busy:false, note:'', moteur:'fidele' };
 
+/* MOTEUR DE RENDU, DISTINCT DE « AI » (13/08).
+ *
+ * Jusqu'ici tout passait par AI.base : le rendu Blender comme les fonctions
+ * qui appellent un LLM. Or le tunnel n'ouvre QU'UNE route, /api/blender, via
+ * une passerelle qui refuse les 52 autres. Confondre les deux ferait croire
+ * a la page que le concierge et l'analyse d'image sont revenus, alors qu'ils
+ * repondraient 404.
+ *
+ * `distant` retient qu'on parle a la machine de Baptiste A TRAVERS Internet :
+ * on ne lance alors JAMAIS le rendu live, qui se relance a chaque geste et
+ * saturerait le tunnel comme il avait sature le debit local. Seul le bouton
+ * explicite declenche un calcul. */
+const MOTEUR = { base: AI.base, distant:false, ok:null };
+
+/* L'adresse du moteur n'est pas codee en dur : une adresse de tunnel rapide
+ * CHANGE a chaque redemarrage. Elle est publiee dans moteur.json, a cote de la
+ * page, donc la mettre a jour ne demande pas de retoucher ce fichier de
+ * 750 Ko. Absence du fichier = pas de moteur, ce qui est le cas nominal. */
+async function detecterMoteurDistant(){
+  try{
+    const r = await fetch('moteur.json', {cache:'no-store'});
+    if(!r.ok) return false;
+    const j = await r.json();
+    const u = String(j.base || '').trim().replace(/\/+$/,'');
+    // HTTPS strict, hote seul, aucun chemin : on ne se laisse pas rediriger
+    // vers une origine choisie par le contenu du fichier.
+    if(!/^https:\/\/[a-z0-9.-]+$/i.test(u)) return false;
+    const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 5000);
+    const s = await fetch(u + '/sante', {signal:ctl.signal});
+    clearTimeout(to);
+    if(!s.ok) return false;
+    MOTEUR.base = u; MOTEUR.distant = true; MOTEUR.ok = true;
+    return true;
+  }catch(e){ return false; }
+}
+
 function aiPrompt(){
   const b=state.bodies[state.body];
   const surf=bodySurface(state.body);
@@ -4750,7 +4827,9 @@ async function rendreBlender(live, sigAttendue){
       return btoa(bin);
     });
     const t0 = performance.now();
-    const r = await fetch(AI.base+'/api/blender', {method:'POST', headers:{'Content-Type':'application/json'},
+    // MOTEUR.base et non AI.base : en local les deux coincident, mais depuis le
+    // site public c'est le tunnel, qui n'ouvre que cette route.
+    const r = await fetch(MOTEUR.base+'/api/blender', {method:'POST', headers:{'Content-Type':'application/json'},
       body: JSON.stringify({ stls, modules_opaques: modulesOpaques,
         base_finition: BASE_FINITIONS.includes(RENDER.base) ? RENDER.base : 'blanc',
         /* Le mode LIVE rend LA MÊME IMAGE que la photo — même décor, même
@@ -4912,7 +4991,15 @@ async function detectAI(){
   // Une page servie en HTTPS ne peut PAS appeler http://127.0.0.1 : le navigateur
   // bloque le contenu mixte. Inutile d'essayer et de laisser croire à une panne —
   // sur le site public le rendu AI est structurellement indisponible.
-  if(location.protocol === 'https:'){ AI.ok=false; AI.mixed=true; renderAIBlock(); return; }
+  if(location.protocol === 'https:'){
+    AI.ok=false; AI.mixed=true; renderAIBlock();
+    /* Le rendu photo, lui, peut revenir : si un tunnel publie l'adresse d'un
+     * moteur en HTTPS, la passerelle le rend joignable depuis cette page. Les
+     * fonctions LLM restent coupees (AI.ok reste faux) : la passerelle ne les
+     * relaie pas, les proposer serait mentir. */
+    if(await detecterMoteurDistant()) renderBlenderBlock();
+    return;
+  }
   try{
     const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),1200);
     const r=await fetch(AI.base+'/api/status',{signal:ctl.signal});
@@ -4940,7 +5027,10 @@ async function detectAI(){
 
 function renderBlenderBlock(){
   const box=$('blenderBlock'); if(!box) return;
-  if(AI.mixed || AI.ok === false){
+  // Un moteur distant joignable suffit : le rendu photo n'a pas besoin des
+  // fonctions IA, et la passerelle ne relaie que lui.
+  if(MOTEUR.distant && MOTEUR.ok){ /* on tombe dans la branche active */ }
+  else if(AI.mixed || AI.ok === false){
     box.innerHTML = `<div class="disc-small"><b>Rendu photo Blender — moteur local requis.</b><br>
       Ce rendu calcule une vraie photo de TA géométrie, sans aucune IA : mêmes triangles que le STL,
       matériau PLA, éclairage trois points, ombre portée. Il tourne sur ta machine via le moteur
@@ -4949,7 +5039,7 @@ function renderBlenderBlock(){
         : "Lance le moteur (<code>python3 server.py</code>) pour l'activer."}</div>`;
     return;
   }
-  if(AI.ok !== true) return;
+  if(AI.ok !== true && !(MOTEUR.distant && MOTEUR.ok)) return;
   box.innerHTML = `<div class="disc-small"><b>📷 Rendu photo Blender — la géométrie réelle, sans IA.</b>
     Mêmes triangles que le STL exporté, matériau PLA, éclairage trois points, ombre de contact.
     Rien ne sort de ta machine et rien n'est inventé : c'est la pièce qui sera imprimée.</div>
