@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-zfqJwM3WdG9ADE564iSBPcHjFhEC9eoV7SsQ8E79hgE='; style-src-attr 'unsafe-inline'; script-src 'sha256-J2jb82t82KL9knRYecAySwM18XZlsQKPnKZXFGo8Fzo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-zfqJwM3WdG9ADE564iSBPcHjFhEC9eoV7SsQ8E79hgE='; style-src-attr 'unsafe-inline'; script-src 'sha256-fOstb9qAqk7JRyoHLKG/097tPPQmCZrS+alf44bHRNU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Logo 3D interactif — DELIGNY R&D</title>
 <meta name="description" content="La couronne DELIGNY R&D en nuage de particules 3D : elle eclate au survol et fait naitre un arc-en-ciel selon la force du clic. Experience en cours de test.">
@@ -54,7 +54,10 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
   var hint = document.getElementById('hint');
   var loadingEl = document.getElementById('loading');
 
-  var DPR = Math.min(window.devicePixelRatio || 1, 2);
+  // Version allegee : DPR plafonne bas, moins de particules, dessin en
+  // rectangles (pas d'arc()) et zero shadowBlur — de loin le plus cher en
+  // Canvas 2D. Objectif : rester fluide sur un portable pas tres puissant.
+  var DPR = Math.min(window.devicePixelRatio || 1, 1.25);
   var W = 0, H = 0, CX = 0, CY = 0;
   function resize(){
     W = canvas.clientWidth; H = canvas.clientHeight;
@@ -80,7 +83,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
     try { data = wctx.getImageData(0, 0, wSize, wSize).data; }
     catch(e){ data = null; }
     if(!data){ buildFallbackCrown(); return; }
-    var stride = 3;
+    var stride = 5;
     for(var y = 0; y < wSize; y += stride){
       for(var x = 0; x < wSize; x += stride){
         var i = (y * wSize + x) * 4;
@@ -207,11 +210,22 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
   // ── Boucle d'animation ───────────────────────────────────────────────
   var rotY = 0.3;
   var running = false;
+  var rafId = null;
   var FOCAL = 480;
   var HOVER_R = 150;
 
+  // Coupe totalement la boucle quand l'onglet est en arriere-plan : zero
+  // travail, pas juste un rendu invisible.
+  document.addEventListener('visibilitychange', function(){
+    if(document.hidden){
+      if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
+    } else if(running && !rafId){
+      rafId = requestAnimationFrame(frame);
+    }
+  });
+
   function frame(){
-    requestAnimationFrame(frame);
+    rafId = requestAnimationFrame(frame);
     rotY += 0.0016;
     ctx.fillStyle = 'rgba(10,10,15,0.22)';
     ctx.fillRect(0, 0, W, H);
@@ -278,27 +292,28 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
 
     drawList.sort(function(a, b){ return b.rz - a.rz; });
 
+    // Rendu en rectangles pleins : pas de beginPath/arc (bien plus cher que
+    // fillRect a cette taille), pas de shadowBlur (le plus gros cout Canvas
+    // 2D). Le flash rainbow reste visible via une couleur plus saturee et
+    // un leger sur-dimensionnement, sans glow calcule.
     for(var k = 0; k < drawList.length; k++){
       var it = drawList[k], pt = it.p;
       var s = pt.size * it.persp * 2.2;
       var baseL = 78 + Math.sin(pt.seed + rotY * 3) * 6;
       var alpha = Math.min(1, 0.35 + it.persp * 0.55);
+      var half;
       if(pt.flash > 0.02){
         ctx.fillStyle = 'hsla(' + pt.flashHue.toFixed(0) + ',88%,64%,' + Math.min(1, alpha + pt.flash * 0.4).toFixed(2) + ')';
-        ctx.shadowColor = 'hsla(' + pt.flashHue.toFixed(0) + ',95%,60%,0.9)';
-        ctx.shadowBlur = 10 * pt.flash;
+        half = Math.max(0.6, s * (1 + pt.flash * 0.5));
       } else {
         ctx.fillStyle = 'hsla(258,' + (mouse.active ? 55 : 12) + '%,' + baseL.toFixed(0) + '%,' + alpha.toFixed(2) + ')';
-        ctx.shadowBlur = 0;
+        half = Math.max(0.6, s);
       }
-      ctx.beginPath();
-      ctx.arc(pt.x, pt.y, Math.max(0.6, s), 0, Math.PI * 2);
-      ctx.fill();
+      ctx.fillRect(pt.x - half, pt.y - half, half * 2, half * 2);
     }
-    ctx.shadowBlur = 0;
   }
 
-  function start(){ running = true; ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0,0,W,H); requestAnimationFrame(frame); }
+  function start(){ running = true; ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0,0,W,H); rafId = requestAnimationFrame(frame); }
 
   resize();
 })();
