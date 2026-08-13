@@ -434,12 +434,10 @@ h3 {
 
 .logo3d-frame {
   position: relative;
-  border: 1px solid var(--line);
-  border-radius: 20px;
-  background: #fff;
-  box-shadow: var(--shadow);
+  background: var(--paper);
   overflow: hidden;
   height: 420px;
+  margin: 28px 0 0;
 }
 
 .logo3d-frame #crown-canvas {
@@ -465,16 +463,6 @@ h3 {
 .logo3d-frame .loading.hide {
   opacity: 0;
   pointer-events: none;
-}
-
-.logo3d-more {
-  margin: 14px 0 0;
-  font-size: 13px;
-}
-
-.logo3d-more a {
-  color: var(--accent);
-  font-weight: 600;
 }
 
 @media (max-width: 640px) {

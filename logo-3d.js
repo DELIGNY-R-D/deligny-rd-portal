@@ -199,8 +199,10 @@
 
   function frame(){
     rafId = requestAnimationFrame(frame);
-    ctx.fillStyle = '#ffffff';
-    ctx.fillRect(0, 0, W, H);
+    // Efface en transparence : le fond visible est celui du CSS derriere le
+    // canvas (blanc sur la page dediee, beige de l'accueil une fois integre)
+    // — un seul moteur, pas de couleur de fond a synchroniser en JS.
+    ctx.clearRect(0, 0, W, H);
 
     for(var i = 0; i < particles.length; i++){
       var p = particles[i];
@@ -250,7 +252,7 @@
     }
   }
 
-  function start(){ running = true; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); rafId = requestAnimationFrame(frame); }
+  function start(){ running = true; ctx.clearRect(0, 0, W, H); rafId = requestAnimationFrame(frame); }
 
   resize();
 })();
