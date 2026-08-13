@@ -7,10 +7,10 @@
   --paper: #f5f1e8;
   --panel: #ffffff;
   --soft: #efeae0;
-  --accent: #bd4f1c;
-  --accent-2: #a43d2b;
-  --purple: #7c5cbf;
-  --purple-2: #5b3fa0;
+  --accent: #7c5cbf;
+  --accent-2: #5b3fa0;
+  --purple: #bd4f1c;
+  --purple-2: #a43d2b;
   --gold: #b58422;
   --green: #2e7d46;
   --blue: #4a5d7e;
@@ -450,14 +450,14 @@ h3 {
 }
 
 .app-card:hover {
-  border-color: rgba(189, 79, 28, 0.3);
+  border-color: rgba(124, 92, 191, 0.3);
   box-shadow: var(--shadow-lift);
   transform: translateY(-2px);
 }
 
 .app-card-primary {
   grid-column: span 2;
-  border-color: rgba(189, 79, 28, 0.3);
+  border-color: rgba(124, 92, 191, 0.3);
 }
 
 .app-card.private {
@@ -553,6 +553,7 @@ h3 {
 .infra-list {
   display: flex;
   flex-direction: column;
+  margin-top: 30px;
   border: 1px solid var(--line);
   border-radius: 16px;
   background: var(--panel);
