@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-VghQRqjuQmVwC+kvi4TdQyJwBWQRHXqVO6etkTyvz38='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-hJH3q9EytH08JhzHfeKHAoGSx4Uy1hb9GUXDwxj3XCo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4385,8 +4385,30 @@ const BACKDROPS = {
  * plus d'etat : il est SYNCHRONISE depuis ici au demarrage (voir syncLit).
  * Eteinte par defaut, demande de Baptiste : au redemarrage, bouton eteint ET
  * rendu eteint. */
-const RENDER = { finish:'mat', bg:'papier', lit:false, base:'blanc', lastURL:null, ms:0 };
+/* ⚠️ LA FINITION DU RENDU DOIT SUIVRE LA MATIERE (13/08, « le rendu ne
+ * fonctionne pas »). Le defaut etait 'mat', dont la transparence vaut 0, alors
+ * que la matiere par defaut est PLA_T, translucide. Le moteur dessinait donc
+ * une piece OPAQUE : teinte mesuree (183,181,177) sur fond papier (239,237,230),
+ * du gris, pour un produit vendu et CHIFFRE comme translucide diffusant. Rien
+ * ne reliait `state.material` a `RENDER.finish` : deux sources de verite qui se
+ * contredisaient, exactement comme les trois desynchronisations du matin.
+ * `choisie` retient un choix EXPLICITE du client : tant qu'il n'a pas touche au
+ * selecteur, la finition suit la matiere ; des qu'il l'a fait, on ne la lui
+ * reprend plus. */
+const FINITION_DE_MATIERE = { PLA_T:'translucide', PLA:'mat', PETG:'satine' };
+const RENDER = { finish:'translucide', bg:'papier', lit:false, base:'blanc',
+                 choisie:false, lastURL:null, ms:0 };
 const BASE_FINITIONS = ['blanc','transparent','noir','bois'];
+
+/* Pose la finition depuis la matiere. Retourne true si elle a change, pour que
+ * l'appelant sache s'il doit relancer un rendu. */
+function finitionSuitMatiere(){
+  if(RENDER.choisie) return false;
+  const voulue = FINITION_DE_MATIERE[state.material] || 'mat';
+  if(RENDER.finish === voulue) return false;
+  RENDER.finish = voulue;
+  return true;
+}
 
 /* Applique RENDER.lit aux DEUX commandes. Appelee au demarrage et a chaque
  * bascule : deux commandes pour un seul etat ne peuvent plus diverger. */
@@ -4470,7 +4492,27 @@ function shadeFace(n, base, fin, lit){
   const dK=Math.max(0, dot(n,{x:KEY.x*nk,y:KEY.y*nk,z:KEY.z*nk}));
   const dF=Math.max(0, dot(n,{x:FILL.x*nf,y:FILL.y*nf,z:FILL.z*nf}));
   const dR=Math.max(0, dot(n,{x:RIM.x*nr,y:RIM.y*nr,z:RIM.z*nr}));
-  const lum = 0.16 + 1.00*dK + 0.32*dF;
+  /* ⚠️ TRANSLUCIDITE DANS L'ECLAIREMENT, pas seulement dans le halo (13/08,
+   * « le rendu ne fonctionne pas »). `fin.trans` n'entrait que dans `glow`, et
+   * `glow` n'entrait que lampe ALLUMEE : une coque de 1,8 mm que la lumiere
+   * traverse etait donc eclairee comme un bloc opaque des qu'elle etait eteinte.
+   * Mesure : teinte moyenne 183 pour une matiere a 232, soit 21 % trop sombre,
+   * et la piece se lisait GRISE alors qu'elle est blanche sur toutes les photos
+   * Blender du site.
+   *
+   * Correctif physique et non cosmetique : la lumiere ENROULE autour d'un corps
+   * diffusant, elle ne s'arrete pas au terminateur. On remonte donc le plancher
+   * et on adoucit la chute, en baissant d'autant les poids directs pour ne pas
+   * cramer la face eclairee.
+   *
+   * A trans = 0 la formule redonne EXACTEMENT l'ancienne (w = 0, enroule(d) = d) :
+   * le PLA opaque et le PETG ne bougent pas d'un pixel. */
+  const t = fin.trans;                        // 0 = opaque · 0,75 = PLA diffusant
+  const w = 0.85 * t;
+  const enroule = d => (d + w) / (1 + w);
+  const lum = (0.16 + 0.34*t)
+            + (1.00 - 0.42*t) * enroule(dK)
+            + (0.32 - 0.10*t) * enroule(dF);
   // spéculaire Blinn-Phong (vecteur médian entre lumière et caméra)
   const Hv={x:KEY.x*nk+0, y:KEY.y*nk+0, z:KEY.z*nk-1};
   const hl=1/Math.hypot(Hv.x,Hv.y,Hv.z);
@@ -6126,6 +6168,10 @@ function syncEtatUI(){
   if(m && m.value !== state.material) m.value = state.material;
   const bs = document.getElementById('rBase');
   if(bs && bs.value !== RENDER.base) bs.value = RENDER.base;
+  // la finition suit la matiere tant que le client n'a pas tranche lui-meme
+  finitionSuitMatiere();
+  const fs = document.getElementById('rFinish');
+  if(fs && fs.value !== RENDER.finish) fs.value = RENDER.finish;
 }
 
 function renderAll(){
@@ -6470,7 +6516,11 @@ function renderHud(){
   const f=$('rFinish'), b=$('rBg');
   Object.entries(FINISHES).forEach(([k,v])=>{ const o=document.createElement('option'); o.value=k; o.textContent=v.label; if(k===RENDER.finish) o.selected=true; f.appendChild(o); });
   Object.entries(BACKDROPS).forEach(([k,v])=>{ const o=document.createElement('option'); o.value=k; o.textContent=v.label; if(k===RENDER.bg) o.selected=true; b.appendChild(o); });
-  f.onchange=e=>{ RENDER.finish=e.target.value; if(RENDER.lastURL) renderStudio(); };
+  f.onchange=e=>{
+    RENDER.finish=e.target.value;
+    RENDER.choisie=true;          // choix EXPLICITE : la matiere ne le reprend plus
+    if(RENDER.lastURL) renderStudio();
+  };
   b.onchange=e=>{ RENDER.bg=e.target.value; if(RENDER.lastURL) renderStudio(); };
   /* Finition de la base. Le <select> est ECRIT DEPUIS L'ETAT, jamais l'inverse :
    * c'est la lecon des trois desynchronisations trouvees ce matin, ou le markup
@@ -6517,7 +6567,13 @@ document.querySelectorAll('#joint-seg button').forEach(b=>{
 });
 
 /* ── material / wall ──────────────────────────────────────────────────── */
-$('material').onchange = e=>{ state.material=e.target.value; renderAll(); };
+$('material').onchange = e=>{
+  state.material = e.target.value;
+  // changer de matiere change ce que la piece EST : la photo doit suivre,
+  // sinon on chiffre un PLA translucide et on en montre un opaque.
+  if(finitionSuitMatiere() && RENDER.lastURL) renderStudio();
+  renderAll();
+};
 $('wall').onchange = e=>{ state.wall=e.target.value; renderAll(); };
 
 /* ── Dossier de fabrication ───────────────────────────────────────────── */
