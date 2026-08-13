@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-vcytq3KrYY2ncFBX0swGmcXg/s+b+VMQQbiOdULdhoQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-nEzoY+wNeL5pz+1tBQUYUN+JxTvTw4WflCs2zE6y77E='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -5691,11 +5691,21 @@ function renderCompo(){
     tabs.appendChild(lbl);
     for(let i=0;i<c.count;i++){
       const b=document.createElement('button');
-      b.className='btn'+(state.body===i?' pri':'');
+      const sel=state.body===i;
+      b.className='btn'+(sel?' pri':'');
       const nm=(cfg.baseFirst && i===0 && c.layout!=='vertical') ? 'Base' : 'Corps '+(i+1);
       const own=(!state.linkBodies && state.bodies[i] && state.bodies[i].surface) ? ' •' : '';
       b.textContent=nm+own;
       b.title = own ? 'Ce corps a son propre style de surface' : '';
+      // Onglet colore selon la couleur reelle du corps (bodyColor) : d'un
+      // coup d'oeil on retrouve quel onglet correspond a quelle bobine,
+      // surtout utile des 3 corps et plus.
+      const col=bodyColor(i), rgb=hexToRgb(col);
+      const lum=(0.299*rgb.r+0.587*rgb.g+0.114*rgb.b)/255;
+      const txt=lum>0.55 ? '#161616' : '#f6f4ed';
+      b.style.borderColor=col;
+      if(sel){ b.style.background=col; b.style.color=txt; }
+      else { b.style.background=`rgba(${rgb.r},${rgb.g},${rgb.b},.16)`; }
       b.onclick=()=>{ state.body=i; state.selected=-1; renderAll(); };
       tabs.appendChild(b);
     }
