@@ -58,11 +58,9 @@ a {
 
 .brand {
   display: flex;
-  flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: 12px;
   min-width: 220px;
-  text-align: center;
 }
 
 .brand-mark {
