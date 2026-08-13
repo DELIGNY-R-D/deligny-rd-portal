@@ -767,9 +767,27 @@ h3 {
   letter-spacing: -0.005em;
 }
 
-.sovereign-badge .flags {
-  font-size: 15px;
-  letter-spacing: 2px;
+.sovereign-badge .flags,
+.nav-sovereign .flags {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+}
+
+.flag-icon {
+  display: block;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
+}
+
+.nav-sovereign {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--ink-dim);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: -0.005em;
 }
 
 @media (max-width: 640px) {
