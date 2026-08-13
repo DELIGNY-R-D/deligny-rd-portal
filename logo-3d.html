@@ -1,26 +1,26 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-zfqJwM3WdG9ADE564iSBPcHjFhEC9eoV7SsQ8E79hgE='; style-src-attr 'unsafe-inline'; script-src 'sha256-fOstb9qAqk7JRyoHLKG/097tPPQmCZrS+alf44bHRNU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-HZbcOArIXRah3YY9gdJ+pXfCeaT8JxPcLp3Jm5x8qWQ='; style-src-attr 'unsafe-inline'; script-src 'sha256-0otc9/wqP4R+UIRC5Wp6I6SJQ5Ma8t+pitXjMQWuwqs='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Logo 3D interactif — DELIGNY R&D</title>
-<meta name="description" content="La couronne DELIGNY R&D en nuage de particules 3D : elle eclate au survol et fait naitre un arc-en-ciel selon la force du clic. Experience en cours de test.">
+<title>Logo interactif — DELIGNY R&D</title>
+<meta name="description" content="La couronne DELIGNY R&D en sable de particules : balayee par la souris, elle retombe au sol puis revient lentement a sa place. La couleur suit la vitesse du geste. Experience en cours de test.">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <style>
 :root{
-  --bg:#0a0a0f; --bg2:#111018; --ink:#f2f0f6; --dim:#8d8a9c;
-  --accent:#7c5cbf; --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --bg:#ffffff; --ink:#15131a; --dim:#6b6b76;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);overscroll-behavior:none;}
 a{color:inherit;}
 header{position:fixed;top:0;left:0;right:0;z-index:5;display:flex;align-items:center;justify-content:space-between;
-  padding:16px 22px;background:linear-gradient(180deg,rgba(10,10,15,.85),transparent);}
+  padding:16px 22px;background:linear-gradient(180deg,rgba(255,255,255,.92),transparent);}
 .brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-weight:700;letter-spacing:-.01em;font-size:14px;}
 .brand svg{display:block;flex:0 0 auto;}
 .brand small{display:block;font-weight:500;color:var(--dim);font-size:11px;letter-spacing:.02em;}
 .tag{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:var(--dim);
-  border:1px solid rgba(255,255,255,.14);border-radius:999px;padding:6px 12px;}
+  border:1px solid rgba(0,0,0,.14);border-radius:999px;padding:6px 12px;}
 main{position:relative;height:100%;}
-canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
+canvas{display:block;width:100%;height:100%;touch-action:none;cursor:default;}
 .hint{position:fixed;left:0;right:0;bottom:26px;z-index:5;margin:0 auto;text-align:center;
   color:var(--dim);font-size:13px;letter-spacing:.01em;pointer-events:none;
   transition:opacity .4s ease;}
@@ -34,8 +34,8 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
 <header>
   <a class="brand" href="index.html">
     <svg width="26" height="19" viewBox="0 0 400 291" aria-hidden="true">
-      <path d="M40 130c30-70 55-95 60-95l30 65 30-95 40 95 40-95 30 95 30-65c5 0 30 25 60 95-15 20-25 45-30 75H70c-5-30-15-55-30-75z" fill="none" stroke="#f2f0f6" stroke-width="14" stroke-linejoin="round"/>
-      <rect x="65" y="205" width="270" height="55" rx="10" fill="none" stroke="#f2f0f6" stroke-width="14"/>
+      <path d="M40 130c30-70 55-95 60-95l30 65 30-95 40 95 40-95 30 95 30-65c5 0 30 25 60 95-15 20-25 45-30 75H70c-5-30-15-55-30-75z" fill="none" stroke="#15131a" stroke-width="14" stroke-linejoin="round"/>
+      <rect x="65" y="205" width="270" height="55" rx="10" fill="none" stroke="#15131a" stroke-width="14"/>
     </svg>
     <span>DELIGNY R&amp;D<small>Retour au portail</small></span>
   </a>
@@ -43,7 +43,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
 </header>
 <main>
   <canvas id="c"></canvas>
-  <p class="hint" id="hint">Survolez pour <b>disperser</b> la couronne · Cliquez-maintenez pour un <b>arc-en-ciel</b></p>
+  <p class="hint" id="hint">Balayez la couronne avec la souris — <b>plus vite</b>, plus la couleur change</p>
   <div class="loading" id="loading">Assemblage des particules…</div>
 </main>
 <script>
@@ -54,18 +54,32 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
   var hint = document.getElementById('hint');
   var loadingEl = document.getElementById('loading');
 
-  // Version allegee : DPR plafonne bas, moins de particules, dessin en
-  // rectangles (pas d'arc()) et zero shadowBlur — de loin le plus cher en
-  // Canvas 2D. Objectif : rester fluide sur un portable pas tres puissant.
+  // Version allegee : DPR plafonne bas, peu de particules, dessin en
+  // rectangles (pas d'arc(), pas de shadowBlur) — reste fluide sur un
+  // portable pas tres puissant.
   var DPR = Math.min(window.devicePixelRatio || 1, 1.25);
-  var W = 0, H = 0, CX = 0, CY = 0;
+  var W = 0, H = 0, CX = 0, CY = 0, GROUND = 0;
   function resize(){
     W = canvas.clientWidth; H = canvas.clientHeight;
     canvas.width = W * DPR; canvas.height = H * DPR;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     CX = W / 2; CY = H / 2;
+    GROUND = H - 26;
   }
   window.addEventListener('resize', resize);
+
+  // Vitesse -> couleur : au repos, vert. Plus le balayage est rapide, plus
+  // la teinte glisse vers le bleu, le violet, le rouge, l'orange puis le
+  // jaune au maximum.
+  var BASE_HUE = 142;
+  var HUE_STOPS = [142, 210, 270, 360, 390, 415];
+  function hueForSpeed(t){
+    t = Math.max(0, Math.min(1, t));
+    var seg = t * (HUE_STOPS.length - 1);
+    var i = Math.min(HUE_STOPS.length - 2, Math.floor(seg));
+    var f = seg - i;
+    return (HUE_STOPS[i] + (HUE_STOPS[i + 1] - HUE_STOPS[i]) * f) % 360;
+  }
 
   // ── Nuage de particules : echantillonne le logo (couronne) depuis le PNG
   // deja utilise dans le bandeau du portail. Aucune donnee inventee : la
@@ -90,12 +104,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
         if(data[i+3] < 130) continue;
         var px = (x - wSize/2) / wSize * FIELD;
         var py = (y - wSize/2) / wSize * FIELD;
-        // leger relief : les points proches du centre du motif bombent vers
-        // l'avant, ceux en bord de forme reculent — un vrai volume, pas un
-        // nuage plat.
-        var d = Math.sqrt(px*px + py*py) / (FIELD*0.6);
-        var hz = (1 - Math.min(1, d)) * 26 + (Math.random()-0.5) * 14;
-        addParticle(px, py, hz);
+        addParticle(px, py);
       }
     }
     finishBuild();
@@ -115,24 +124,19 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
       }
     }
     for(var a = 0; a < 220; a++){
-      var ang = (a/220) * Math.PI - Math.PI/2 + Math.PI/2;
       pts.push([-90 + (a/220)*180, 30 + Math.sin(a/220*Math.PI)*10]);
     }
-    for(var i=0;i<pts.length;i++){
-      addParticle(pts[i][0], pts[i][1], (Math.random()-0.5)*20);
-    }
+    for(var i=0;i<pts.length;i++){ addParticle(pts[i][0], pts[i][1]); }
     finishBuild();
   }
 
-  function addParticle(hx, hy, hz){
+  function addParticle(hx, hy){
     particles.push({
-      hx: hx, hy: hy, hz: hz,
+      hx: hx, hy: hy,
       x: CX, y: CY, vx: 0, vy: 0,
-      exX: (Math.random()-0.5) * 2, exY: (Math.random()-0.5) * 2,
-      exDist: 90 + Math.random() * 220,
-      size: 1.1 + Math.random() * 1.6,
-      flash: 0, flashHue: 280,
-      seed: Math.random() * 1000
+      size: 1.6 + Math.random() * 1.8,
+      disturbed: false, settleT: 0,
+      hue: BASE_HUE
     });
   }
 
@@ -153,10 +157,13 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
   img.onerror = function(){ buildFallbackCrown(); };
   img.src = 'img/logo-mark.png';
 
-  // ── Etat pointeur ────────────────────────────────────────────────────
-  var mouse = { x: -9999, y: -9999, active: false, down: false };
-  var waves = [];
+  // ── Balayage : seules les particules a proximite immediate du curseur
+  // sont poussees, dans la direction du geste — le reste de la page ne
+  // declenche rien, la couronne ne bouge pas tant qu'on ne la touche pas.
+  var SWEEP_R = 90;
+  var MAX_SPEED_REF = 2.2; // px/ms pour atteindre la teinte maximale
   var lastMove = { x: 0, y: 0, t: 0 };
+  var touched = false;
 
   function pointerPos(e){
     var r = canvas.getBoundingClientRect();
@@ -164,55 +171,46 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
     return { x: p.clientX - r.left, y: p.clientY - r.top };
   }
 
-  function pushWave(x, y, strength){
-    waves.push({ x: x, y: y, t0: performance.now(), strength: Math.max(0.25, Math.min(1, strength)) });
-    if(waves.length > 6) waves.shift();
+  function sweep(mx, my, dirx, diry, speed){
+    var t = Math.min(1, speed / MAX_SPEED_REF);
+    var hue = hueForSpeed(t);
+    var force = Math.min(9, speed * 5);
+    for(var i = 0; i < particles.length; i++){
+      var p = particles[i];
+      var ddx = p.x - mx, ddy = p.y - my;
+      var d = Math.hypot(ddx, ddy);
+      if(d < SWEEP_R){
+        var influence = 1 - d / SWEEP_R;
+        p.vx += dirx * force * influence;
+        p.vy += diry * force * influence - influence * 1.5;
+        p.disturbed = true;
+        p.settleT = 0;
+        p.hue = hue;
+      }
+    }
   }
 
-  canvas.addEventListener('pointerenter', function(e){
-    mouse.active = true;
-    hint.style.opacity = '0';
-    var p = pointerPos(e); mouse.x = p.x; mouse.y = p.y;
-    lastMove = { x: p.x, y: p.y, t: performance.now() };
-  });
-  canvas.addEventListener('pointerleave', function(){
-    mouse.active = false; mouse.down = false;
-    mouse.x = -9999; mouse.y = -9999;
-    hint.style.opacity = '1';
-  });
   canvas.addEventListener('pointermove', function(e){
     var p = pointerPos(e);
-    mouse.x = p.x; mouse.y = p.y; mouse.active = true;
     var now = performance.now();
     var dt = Math.max(8, now - lastMove.t);
-    var dist = Math.hypot(p.x - lastMove.x, p.y - lastMove.y);
-    var speed = dist / dt; // px/ms
-    if(mouse.down && speed > 0.15){
-      pushWave(p.x, p.y, speed * 1.4);
+    var dx = p.x - lastMove.x, dy = p.y - lastMove.y;
+    var dist = Math.hypot(dx, dy);
+    if(dist > 0.4){
+      if(!touched){ touched = true; hint.style.opacity = '0'; }
+      sweep(p.x, p.y, dx / dist, dy / dist, dist / dt);
     }
     lastMove = { x: p.x, y: p.y, t: now };
   });
-  function onDown(e){
-    mouse.down = true;
+  canvas.addEventListener('pointerdown', function(e){
     var p = pointerPos(e);
-    var force = (typeof e.pressure === 'number' && e.pressure > 0 && e.pressure !== 0.5) ? e.pressure : 0.45;
-    pushWave(p.x, p.y, force);
-    e.preventDefault();
-  }
-  canvas.addEventListener('pointerdown', onDown);
-  canvas.addEventListener('webkitmouseforcechanged', function(e){
-    if(!mouse.down) return;
-    var p = { x: mouse.x, y: mouse.y };
-    pushWave(p.x, p.y, e.webkitForce / 3);
+    lastMove = { x: p.x, y: p.y, t: performance.now() };
   });
-  window.addEventListener('pointerup', function(){ mouse.down = false; });
 
   // ── Boucle d'animation ───────────────────────────────────────────────
-  var rotY = 0.3;
   var running = false;
   var rafId = null;
-  var FOCAL = 480;
-  var HOVER_R = 150;
+  var GRAVITY = 0.34;
 
   // Coupe totalement la boucle quand l'onglet est en arriere-plan : zero
   // travail, pas juste un rendu invisible.
@@ -226,94 +224,54 @@ canvas{display:block;width:100%;height:100%;touch-action:none;cursor:pointer;}
 
   function frame(){
     rafId = requestAnimationFrame(frame);
-    rotY += 0.0016;
-    ctx.fillStyle = 'rgba(10,10,15,0.22)';
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, 0, W, H);
 
-    var cosR = Math.cos(rotY), sinR = Math.sin(rotY);
-    var now = performance.now();
-
-    // purge des ondes trop vieilles
-    waves = waves.filter(function(w){ return now - w.t0 < 1800; });
-
-    var drawList = [];
     for(var i = 0; i < particles.length; i++){
       var p = particles[i];
+      var homeX = CX + p.hx, homeY = CY + p.hy;
 
-      var rx = p.hx * cosR + p.hz * sinR;
-      var rz = -p.hx * sinR + p.hz * cosR;
-      var ry = p.hy;
-
-      var persp = FOCAL / (FOCAL + rz + 220);
-      var tx = CX + rx * persp * 2.1;
-      var ty = CY + ry * persp * 2.1;
-
-      if(mouse.active){
-        tx += p.exX * p.exDist * persp;
-        ty += p.exY * p.exDist * persp;
-      }
-
-      var ax = (tx - p.x) * 0.05;
-      var ay = (ty - p.y) * 0.05;
-      p.vx = (p.vx + ax) * 0.86;
-      p.vy = (p.vy + ay) * 0.86;
-
-      if(mouse.active){
-        var dx = p.x - mouse.x, dy = p.y - mouse.y;
-        var d2 = Math.hypot(dx, dy) || 0.0001;
-        if(d2 < HOVER_R){
-          var f = (1 - d2 / HOVER_R); f = f * f * 6;
-          p.vx += (dx / d2) * f;
-          p.vy += (dy / d2) * f;
+      if(p.disturbed){
+        p.settleT++;
+        if(p.y < GROUND){
+          p.vy += GRAVITY;
+        } else {
+          p.y = GROUND;
+          if(p.vy > 0) p.vy *= -0.15;
         }
-      }
 
-      p.x += p.vx; p.y += p.vy;
+        // Rappel vers la position d'origine : quasi nul juste apres le
+        // balayage (le sable finit de se repandre), il croit ensuite au
+        // carre du temps ecoule — lent au debut, puis de plus en plus
+        // rapide ("exponentiellement") jusqu'a revenir pile en place.
+        var ramp = Math.min(1, p.settleT / 45);
+        var k = 0.006 * ramp * ramp;
+        p.vx += (homeX - p.x) * k;
+        p.vy += (homeY - p.y) * k;
 
-      for(var w = 0; w < waves.length; w++){
-        var wave = waves[w];
-        var age = now - wave.t0;
-        var radius = age * 0.62 * (0.6 + wave.strength);
-        var dd = Math.hypot(p.x - wave.x, p.y - wave.y);
-        var band = 46 * (0.5 + wave.strength);
-        if(Math.abs(dd - radius) < band){
-          var prog = (dd / (radius + 1)) % 1;
-          var hue = (prog * 300 + wave.t0 * 0.02) % 360;
-          var edge = 1 - Math.abs(dd - radius) / band;
-          var life = Math.max(0, 1 - age / (1500 + wave.strength * 500));
-          var amt = edge * life * (0.6 + wave.strength * 0.6);
-          if(amt > p.flash){ p.flash = amt; p.flashHue = hue; }
+        // Friction assez forte pour que l'elan du balayage s'eteigne vite
+        // et laisse la place au rappel, plutot que de deriver longtemps.
+        p.vx *= 0.90; p.vy *= 0.90;
+        p.x += p.vx; p.y += p.vy;
+
+        var dHome = Math.hypot(homeX - p.x, homeY - p.y);
+        if(ramp >= 1 && dHome < 1.2 && Math.hypot(p.vx, p.vy) < 0.3){
+          p.x = homeX; p.y = homeY; p.vx = 0; p.vy = 0;
+          p.disturbed = false; p.settleT = 0;
         }
-      }
-
-      p.flash *= 0.955;
-      drawList.push({ p: p, rz: rz, persp: persp });
-    }
-
-    drawList.sort(function(a, b){ return b.rz - a.rz; });
-
-    // Rendu en rectangles pleins : pas de beginPath/arc (bien plus cher que
-    // fillRect a cette taille), pas de shadowBlur (le plus gros cout Canvas
-    // 2D). Le flash rainbow reste visible via une couleur plus saturee et
-    // un leger sur-dimensionnement, sans glow calcule.
-    for(var k = 0; k < drawList.length; k++){
-      var it = drawList[k], pt = it.p;
-      var s = pt.size * it.persp * 2.2;
-      var baseL = 78 + Math.sin(pt.seed + rotY * 3) * 6;
-      var alpha = Math.min(1, 0.35 + it.persp * 0.55);
-      var half;
-      if(pt.flash > 0.02){
-        ctx.fillStyle = 'hsla(' + pt.flashHue.toFixed(0) + ',88%,64%,' + Math.min(1, alpha + pt.flash * 0.4).toFixed(2) + ')';
-        half = Math.max(0.6, s * (1 + pt.flash * 0.5));
       } else {
-        ctx.fillStyle = 'hsla(258,' + (mouse.active ? 55 : 12) + '%,' + baseL.toFixed(0) + '%,' + alpha.toFixed(2) + ')';
-        half = Math.max(0.6, s);
+        p.x = homeX; p.y = homeY;
       }
-      ctx.fillRect(pt.x - half, pt.y - half, half * 2, half * 2);
+
+      var hue = p.disturbed ? p.hue : BASE_HUE;
+      var light = p.disturbed ? 50 : 44;
+      ctx.fillStyle = 'hsl(' + hue.toFixed(0) + ',70%,' + light + '%)';
+      var s = p.size;
+      ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2);
     }
   }
 
-  function start(){ running = true; ctx.fillStyle = '#0a0a0f'; ctx.fillRect(0,0,W,H); rafId = requestAnimationFrame(frame); }
+  function start(){ running = true; ctx.fillStyle = '#ffffff'; ctx.fillRect(0, 0, W, H); rafId = requestAnimationFrame(frame); }
 
   resize();
 })();
