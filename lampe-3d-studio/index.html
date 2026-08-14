@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-OIKNi713tqpMn2bldLMk7biMSGjAu7xH7mVc51dgVb4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-5+UjhYuhs3F+5hOt59d4lVYSeNNw22CjTqGejxCJfqQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -962,7 +962,11 @@ function socleRayonMm(){
  * diamètre extérieur de la base basse mesurée sur ALL.obj), transition sur
  * 15 mm. La zone est densifiée avant le mélange, sinon le smoothstep serait
  * échantillonné sur 2 points et redeviendrait une droite. */
-const PIED = { diaMm: 104.0, transitionMm: 15, pasMm: 1.5 };
+/* transitionMm : longueur sur laquelle la peau rejoint le cercle du pied.
+ * Portee de 15 a 30 mm le 14/08 (demande Baptiste : « un lissage progressif
+ * de l'abat-jour en bas vers cette dimension circulaire »). Mesure : le pied
+ * visuel, hauteur ou la peau franchit O110, passe de 16,3 a 20,3 mm. */
+const PIED = { diaMm: 104.0, transitionMm: 30, pasMm: 1.5 };
 function appliquerPied(prof){
   if(prof.length < 2) return prof;
   const h0 = prof[0].h, H = PIED.transitionMm, rC = PIED.diaMm/2;
