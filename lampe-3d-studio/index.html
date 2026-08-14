@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-8OZkgUmuK7SqReHGduLcCTXq0zKdSKgDsLTmIkc7ZFk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-a0J9yMKyk+UTre4DuiBl3TEPhtrH6SZBYHSVg00yLhY='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -5697,6 +5697,31 @@ function renderPoser(){
   }
   L.push(['ok', `PIED : l'abat-jour se termine par un cercle extérieur Ø${fr(PIED.diaMm,1)} mm — la forme, `
     + `même complexe, fond son relief et rejoint ce cercle sur les ${PIED.transitionMm} derniers mm.`]);
+  /* ⚠️ RÈGLE POSÉE PAR BAPTISTE : rien de l'emmanchement ne dépasse Ø104. On la
+   * MESURE sur le maillage construit, pas sur les constantes qui l'ont produit —
+   * une constante juste ne prouve pas que la pièce livrée l'est, et c'est
+   * exactement ce qui m'a manqué pour lire trois captures d'affilée. */
+  {
+    const LIMITE = 104.0;
+    let rBague = 0, rPied = 0;
+    const P = MESH.parts && MESH.parts[0];
+    if(P && P.tris) for(const t of P.tris) for(const q of t){
+      const v = placeVertex(q, P.xf, 0);
+      const d = Math.hypot(v[0], v[1]);
+      if(v[2] <= BAGUE.assiseMm + 0.01){ if(d > rBague) rBague = d; }
+      else if(v[2] <= BAGUE.assiseMm + 1.0){ if(d > rPied) rPied = d; }
+    }
+    const dB = 2*rBague, dP = 2*rPied;
+    if(dB > 0){
+      const trop = Math.max(dB, dP) - LIMITE;
+      L.push(trop > 0.05
+        ? ['warn', `⚠️ Ø${fr(LIMITE,0)} DÉPASSÉ de ${fr(trop,2)} mm : emmanchement mesuré `
+            + `Ø${fr(dB,2)}, pied de l'abat-jour Ø${fr(dP,2)}. La lampe ne se monterait pas `
+            + `sur la base d'atelier.`]
+        : ['ok', `Emmanchement mesuré sur le maillage : bague Ø${fr(dB,2)}, pied de l'abat-jour `
+            + `Ø${fr(dP,2)} — sous la limite de Ø${fr(LIMITE,0)}.`]);
+    }
+  }
   L.push(['ok', `La BASE d'atelier (Ø${fr(DECO.diaMm||104,1)} × ${fr(DECO.zHautMm||18.2,1)} mm, mesurée) apparaît à l'écran et dans les rendus `
     + `pour montrer la lampe montée. Le STL téléchargé, lui, ne contient QUE l'abat-jour et sa bague : `
     + `la base n'est pas à imprimer, elle vient de l'atelier.`]);
