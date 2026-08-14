@@ -1,0 +1,140 @@
+{
+ "films": [
+  {
+   "num": "01",
+   "cle": "rigid_domino",
+   "titre": "Corps rigides",
+   "texte": "Les huit pieces du logo debout, fauchees par une masse. Reveil d'un corps cinematique : Blender lui transmet la vitesse deduite de son animation.",
+   "video": "video/01.mp4",
+   "affiche": "video/01.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.07
+  },
+  {
+   "num": "02",
+   "cle": "shatter",
+   "titre": "Fracture de Voronoi",
+   "texte": "Fracture 3D calculee ici meme, sans add-on : chaque cellule est l'intersection des demi-espaces entre une graine et ses voisines.",
+   "video": "video/02.mp4",
+   "affiche": "video/02.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.07
+  },
+  {
+   "num": "03",
+   "cle": "cloth_reveal",
+   "titre": "Tissu",
+   "texte": "Un voile tombe librement sur le logo, se drape, puis une rafale l'emporte. Raide dans le plan, mou en flexion : c'est ce couple qui fait un voile et pas un tas.",
+   "video": "video/03.mp4",
+   "affiche": "video/03.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 1.52
+  },
+  {
+   "num": "04",
+   "cle": "cloth_flag",
+   "titre": "Tissu tendu",
+   "texte": "Le logo imprime sur une etoffe, dans le vent. Le masque vient de l'ALPHA du PNG : son noir et son vide ont le meme RGB.",
+   "video": "video/04.mp4",
+   "affiche": "video/04.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 0.63
+  },
+  {
+   "num": "05",
+   "cle": "softbody",
+   "titre": "Corps mou",
+   "texte": "Des billes de gelee s'ecrasent sur le logo. Le solveur veut un maillage regulier et ferme : le logo reste rigide et sert de collision.",
+   "video": "video/05.mp4",
+   "affiche": "video/05.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.82
+  },
+  {
+   "num": "06",
+   "titre": "Liquide FLIP",
+   "texte": "Mantaflow : domaine liquide, entree, effecteur de collision, surface reconstruite apres la cuisson.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "07",
+   "titre": "Fumee",
+   "texte": "Mantaflow gaz : flottabilite, vorticite, bruit de sur-resolution. Rendu en Cycles, EEVEE n'eclairant pas ce volume de facon exploitable.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "08",
+   "titre": "Feu",
+   "texte": "Gaz avec carburant et emission de corps noir. Seule la couronne emet : une piece qui brule, pas un logo derriere un mur de flammes.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "09",
+   "titre": "Particules",
+   "texte": "Emission de surface, instances, turbulence. Un vortex trop fort ramassait la poussiere en une corde : la derive vient du bruit.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "10",
+   "titre": "Boids",
+   "texte": "L'IA de nuee integree a Blender : separation, troupeau, but. La distance de separation vit dans les reglages de l'essaim, pas dans une regle.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "11",
+   "titre": "Chevelure dynamique",
+   "texte": "Le solveur de tissu applique aux meches, peignees par le vent.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "12",
+   "titre": "Ocean",
+   "texte": "Spectre de vagues resolu par FFT, ecume. Sans animation de `time` l'ocean reste fige : ce n'est pas l'image qui le fait avancer.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "13",
+   "titre": "Dynamic Paint",
+   "texte": "Le seul systeme de Blender qui propage une onde SUR une surface plutot que de simuler un volume.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "14",
+   "titre": "Geometry Nodes",
+   "texte": "Zone de simulation : l'etat est reporte d'une image a la suivante, donc les deplacements s'accumulent.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "15",
+   "titre": "Explode",
+   "texte": "Modificateur pilote par un systeme de particules, sur un maillage remailla en blocs pour donner des eclats et non six plaques.",
+   "video": null,
+   "affiche": null
+  },
+  {
+   "num": "16",
+   "cle": "desintegration",
+   "titre": "Desintegration au passage",
+   "texte": "2,3 millions de particules composent le logo. Tant qu'un point n'est pas atteint par le front, son deplacement est exactement nul : le logo tient. La couronne resiste le plus longtemps.",
+   "video": "video/16.mp4",
+   "affiche": "video/16.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 1.35
+  }
+ ]
+}

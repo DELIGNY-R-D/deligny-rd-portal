@@ -1,0 +1,231 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="description" content="Seize simulations physiques du logo DELIGNY, une par systeme de simulation de Blender : corps rigides, fracture de Voronoi, tissu, fluides, particules, boids, Geometry Nodes." />
+  <title>Simulation &amp; animation 3D — DELIGNY R&amp;D</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; media-src 'self'; style-src 'self'; script-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta name="referrer" content="strict-origin-when-cross-origin" />
+  <link rel="icon" href="../img/favicon.svg" type="image/svg+xml" />
+  <link rel="icon" href="../img/favicon.png" sizes="32x32" type="image/png" />
+  <meta property="og:type" content="website" />
+  <meta property="og:site_name" content="DELIGNY R&amp;D" />
+  <meta property="og:title" content="Simulation &amp; animation 3D — DELIGNY R&amp;D" />
+  <meta property="og:description" content="Seize simulations physiques du logo DELIGNY, une par systeme de simulation de Blender." />
+  <meta property="og:url" content="https://deligny-rd.fr/simulation-3d/" />
+  <link rel="stylesheet" href="../styles.css?v=913a388f" />
+  <link rel="stylesheet" href="simulation-3d.css?v=581e7951" />
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="../index.html" aria-label="DELIGNY R&amp;D accueil">
+      <img class="brand-mark" src="../img/logo-mark.png" alt="DELIGNY R&amp;D" width="34" height="34" />
+      <span><strong>DELIGNY R&amp;D</strong><small>Simulation 3D</small></span>
+    </a>
+    <nav class="nav" aria-label="Navigation principale">
+      <a href="../index.html">Accueil</a>
+      <span class="nav-sep" aria-hidden="true"></span>
+      <span class="nav-group-label">Développement produit</span>
+      <a href="../portfolio/index.html">Portfolio</a>
+      <a href="../lampe-3d-studio/index.html">Lampe Designer</a>
+      <a href="index.html" aria-current="page">Simulation 3D</a>
+      <a href="../cube-violet.html">Cube Violet</a>
+      <span class="nav-sep" aria-hidden="true"></span>
+      <span class="nav-group-label">Logiciel</span>
+      <a href="../index.html#logiciels">Logiciels</a>
+      <a href="../index.html#outils">Outils gratuits</a>
+      <span class="nav-sep" aria-hidden="true"></span>
+      <a href="../index.html#offre">Offre</a>
+      <a href="../contact.html">Contact</a>
+    </nav>
+  </header>
+
+  <section class="sim-hero">
+    <p class="eyebrow">Animation &amp; simulation physique</p>
+    <h1>Seize simulations, un logo</h1>
+    <p class="lead">Le logo DELIGNY passe par <strong>chaque systeme de simulation
+    de Blender</strong> : corps rigides, fracture, tissu, corps mou, liquide,
+    fumee, feu, particules, boids, chevelure, ocean, propagation d'onde, zone de
+    simulation et desintegration. Un banc d'essai autant qu'une serie de films.</p>
+    <p class="lead">Tout est construit en Python, sans aucun fichier de scene :
+    la geometrie 3D est <strong>tracee depuis le logo reel</strong> — contours
+    extraits des pixels, lisses, simplifies, extrudes — et non redessinee.
+    573 points suffisent, trous de la couronne compris.</p>
+    <ul class="sim-stats">
+      <li><b>6/16</b><span>films rendus</span></li>
+      <li><b>14</b><span>systemes physiques</span></li>
+      <li><b>2,3 M</b><span>particules au plan 16</span></li>
+      <li><b>573</b><span>points de trace</span></li>
+      <li><b>0</b><span>fichier .blend</span></li>
+    </ul>
+  </section>
+
+  <div class="sim-grid">
+      <article class="sim-card">
+<figure><video src="video/01.mp4" poster="video/01.png" muted loop playsinline preload="none" controls aria-label="Corps rigides"></video></figure>
+        <div class="sim-body">
+          <h2><em>01</em> Corps rigides</h2>
+          <p>Les huit pieces du logo debout, fauchees par une masse. Reveil d'un corps cinematique : Blender lui transmet la vitesse deduite de son animation.</p>
+<p class="sim-meta">6.0 s · 180 images · 1.07 Mo</p>
+        </div>
+      </article>
+      <article class="sim-card">
+<figure><video src="video/02.mp4" poster="video/02.png" muted loop playsinline preload="none" controls aria-label="Fracture de Voronoi"></video></figure>
+        <div class="sim-body">
+          <h2><em>02</em> Fracture de Voronoi</h2>
+          <p>Fracture 3D calculee ici meme, sans add-on : chaque cellule est l'intersection des demi-espaces entre une graine et ses voisines.</p>
+<p class="sim-meta">6.0 s · 180 images · 1.07 Mo</p>
+        </div>
+      </article>
+      <article class="sim-card">
+<figure><video src="video/03.mp4" poster="video/03.png" muted loop playsinline preload="none" controls aria-label="Tissu"></video></figure>
+        <div class="sim-body">
+          <h2><em>03</em> Tissu</h2>
+          <p>Un voile tombe librement sur le logo, se drape, puis une rafale l'emporte. Raide dans le plan, mou en flexion : c'est ce couple qui fait un voile et pas un tas.</p>
+<p class="sim-meta">7.0 s · 210 images · 1.52 Mo</p>
+        </div>
+      </article>
+      <article class="sim-card">
+<figure><video src="video/04.mp4" poster="video/04.png" muted loop playsinline preload="none" controls aria-label="Tissu tendu"></video></figure>
+        <div class="sim-body">
+          <h2><em>04</em> Tissu tendu</h2>
+          <p>Le logo imprime sur une etoffe, dans le vent. Le masque vient de l'ALPHA du PNG : son noir et son vide ont le meme RGB.</p>
+<p class="sim-meta">7.0 s · 210 images · 0.63 Mo</p>
+        </div>
+      </article>
+      <article class="sim-card">
+<figure><video src="video/05.mp4" poster="video/05.png" muted loop playsinline preload="none" controls aria-label="Corps mou"></video></figure>
+        <div class="sim-body">
+          <h2><em>05</em> Corps mou</h2>
+          <p>Des billes de gelee s'ecrasent sur le logo. Le solveur veut un maillage regulier et ferme : le logo reste rigide et sert de collision.</p>
+<p class="sim-meta">6.0 s · 180 images · 0.82 Mo</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>06</em> Liquide FLIP</h2>
+          <p>Mantaflow : domaine liquide, entree, effecteur de collision, surface reconstruite apres la cuisson.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>07</em> Fumee</h2>
+          <p>Mantaflow gaz : flottabilite, vorticite, bruit de sur-resolution. Rendu en Cycles, EEVEE n'eclairant pas ce volume de facon exploitable.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>08</em> Feu</h2>
+          <p>Gaz avec carburant et emission de corps noir. Seule la couronne emet : une piece qui brule, pas un logo derriere un mur de flammes.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>09</em> Particules</h2>
+          <p>Emission de surface, instances, turbulence. Un vortex trop fort ramassait la poussiere en une corde : la derive vient du bruit.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>10</em> Boids</h2>
+          <p>L'IA de nuee integree a Blender : separation, troupeau, but. La distance de separation vit dans les reglages de l'essaim, pas dans une regle.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>11</em> Chevelure dynamique</h2>
+          <p>Le solveur de tissu applique aux meches, peignees par le vent.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>12</em> Ocean</h2>
+          <p>Spectre de vagues resolu par FFT, ecume. Sans animation de `time` l'ocean reste fige : ce n'est pas l'image qui le fait avancer.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>13</em> Dynamic Paint</h2>
+          <p>Le seul systeme de Blender qui propage une onde SUR une surface plutot que de simuler un volume.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>14</em> Geometry Nodes</h2>
+          <p>Zone de simulation : l'etat est reporte d'une image a la suivante, donc les deplacements s'accumulent.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card sim-attente">
+<figure><span>Rendu en cours</span></figure>
+        <div class="sim-body">
+          <h2><em>15</em> Explode</h2>
+          <p>Modificateur pilote par un systeme de particules, sur un maillage remailla en blocs pour donner des eclats et non six plaques.</p>
+<p class="sim-meta">Film en cours de calcul</p>
+        </div>
+      </article>
+      <article class="sim-card">
+<figure><video src="video/16.mp4" poster="video/16.png" muted loop playsinline preload="none" controls aria-label="Desintegration au passage"></video></figure>
+        <div class="sim-body">
+          <h2><em>16</em> Desintegration au passage</h2>
+          <p>2,3 millions de particules composent le logo. Tant qu'un point n'est pas atteint par le front, son deplacement est exactement nul : le logo tient. La couronne resiste le plus longtemps.</p>
+<p class="sim-meta">7.0 s · 210 images · 1.35 Mo</p>
+        </div>
+      </article>
+  </div>
+
+  <section class="sim-notes">
+    <h2>Notes d'atelier</h2>
+    <dl>
+      <dt>Le trace vient de l'image, pas d'un redessin</dt>
+      <dd>Aucun outil de vectorisation n'etant installe, la chaine est ecrite en
+      numpy : le canal alpha donne le masque, les contours sont extraits par
+      arretes de pixels, l'escalier est lisse, la polyligne simplifiee, puis
+      remplie en courbe 2D. Le remplissage pair/impair transforme les 24 boucles
+      internes de la couronne en vrais trous, sans une seule operation booleenne.</dd>
+
+      <dt>La couleur suit une grandeur mesuree, pas une animation posee</dt>
+      <dd>Blender n'expose pas la vitesse d'un corps au nuanceur. Elle est donc
+      mesuree apres la cuisson, image par image, en comparant les matrices monde,
+      puis deposee dans une propriete d'objet que la matiere sait lire. Le degrade
+      montre le mouvement reellement simule.</dd>
+
+      <dt>Format carre, recadrable</dt>
+      <dd>Les plans sont tournes larges en carre, avec une marge calculee pour
+      que le sujet tienne dans la colonne centrale : un 9:16 ou un 16:9 se tire
+      ensuite sans rien perdre.</dd>
+
+      <dt>Une fracture calculee, pas un add-on</dt>
+      <dd>Chaque eclat est une cellule de Voronoi 3D : le cube englobant est
+      coupe par les plans mediateurs entre une graine et ses voisines, puis
+      intersecte avec le maillage. Aucune dependance a une extension.</dd>
+    </dl>
+  </section>
+
+  <footer class="footer">
+    <div class="footer-legal">
+      <a href="../index.html">Portail</a> ·
+      <a href="../contact.html">Contact</a>
+    </div>
+  </footer>
+  <img src="https://atlas-studio.pro/deligny/api/px?page=simulation-3d" alt="" width="1" height="1" loading="eager">
+</body>
+</html>

@@ -51,7 +51,7 @@ AI_LOCAL = "http://127.0.0.1:4555 http://localhost:4555"
 # assume et TEMPORAIRE : n'importe quel tunnel Cloudflare devient joignable
 # depuis la page. Le jour ou le moteur passe sur moteur.deligny-rd.fr, cette
 # ligne doit etre remplacee par cette seule origine.
-MOTEUR_TUNNEL = "https://*.trycloudflare.com"
+MOTEUR_TUNNEL = "https://moteur.deligny-rd.fr"
 
 BALISE = re.compile(r'\s*<meta http-equiv="Content-Security-Policy"[^>]*>')
 
