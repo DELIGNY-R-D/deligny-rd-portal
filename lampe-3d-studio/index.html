@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-k3GdJx5u5iByAtZsg581sJmKJB1cM1KGLdootfGhdZM='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-br0NeyMihMENE9paaCPEFCvp0bCTUu7gRWGHf6jVgbU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -806,7 +806,14 @@ const GEOMETRY_CONFIG = { INTERNAL_STRUCTURE_FACTOR: 1.0 };
  * BORNES D'IMPRESSION — Ender-3 S1 vérifiée dans 3D Objects/ (plateau 220×220×270,
  * buse 0.4, Cura/Marlin). Marge de sécurité sous le plateau réel pour brim/bras.
  * ========================================================================== */
-const PRINT_BOUNDS = { PLATE_XY_MM: 220, PLATE_Z_MM: 270, MAX_HEIGHT_MM: 250, MIN_HEIGHT_MM: 60, MAX_RADIUS_MM: 100, MIN_H_GAP_MM: 8 };
+/* 14/08 (Baptiste) : plage de dessin portee a 252 mm de haut et O230 de
+ * large. MAX_HEIGHT_MM 250 -> 252 (course Z 270, il reste 18 mm de marge)
+ * et MAX_RADIUS_MM 100 -> 115.
+ * ⚠️ PLATE_XY_MM reste a 220 : c'est le plateau REEL. Une piece de O230 n'y
+ * tient pas, et le controle « ne tient pas sur le plateau » doit continuer
+ * de le dire. Elargir la plage de dessin est une chose, masquer la
+ * contrainte machine en serait une autre. */
+const PRINT_BOUNDS = { PLATE_XY_MM: 220, PLATE_Z_MM: 270, MAX_HEIGHT_MM: 252, MIN_HEIGHT_MM: 60, MAX_RADIUS_MM: 115, MIN_H_GAP_MM: 8 };
 
 // Seuils surplomb FDM (buse 0.4 / couche 0.20) — cf. doctrine atelier fab/impression-fdm §2.
 const OVERHANG = { WARN_DEG: 45, HARD_DEG: 55 };
@@ -1375,7 +1382,7 @@ const TYPES = {
   poser: {
     label: 'Lampe à poser',
     hint: "Lampe à poser (précédent atelier « lampe Dune ») : le point du haut loge la douille, la base (h=0) pose sur la table, le câble sort par le côté de la base. L'assise est vérifiée pour de vrai — angle de basculement calculé sur le centre de gravité du maillage exporté.",
-    minHeightMm: 90, maxHeightMm: 250, maxRadiusMm: 100,
+    minHeightMm: 90, maxHeightMm: 252, maxRadiusMm: 115,
     silhouettes: ['dune','galet','colonne','gradins','organiqueS','minimal','cubique','design','retro','baroque','artnouveau','artdeco'],
     rules: { minTipAngleDeg: 25 },
     // le 1er corps sert de BASE en ligne/couronne : les autres se posent dessus
