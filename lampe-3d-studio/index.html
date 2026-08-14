@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-kNFhQGanXD/n3BqQVoS5t6kd/2XHWbSf9KkQKMJw56I='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://*.trycloudflare.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-dMdrBEI8Gnd2hvQFkhcifYAZI2XHSIuUt6no1qlNB9g='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://*.trycloudflare.com">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4956,9 +4956,23 @@ async function rendreBlender(live, sigAttendue){
          * pas à cette taille (les 15 s du premier essai étaient le démarrage à
          * froid de Blender, pas le calcul). On ne montre plus un aperçu qui ne
          * ressemble pas au résultat. */
-        largeur: enLive ? 520 : 1200, hauteur: enLive ? 650 : 1500,
-        samples: enLive ? 16 : parseInt($('blSamples').value,10),
-        moteur: enLive ? 'eevee' : $('blMoteur').value,
+        /* ⚠️ TROIS PROFILS, PAS DEUX (14/08). Le rendu que Baptiste demande est
+         * CELUI DU MODE LIVE : 520 x 650 a 16 echantillons, calcule en 4,1 s.
+         * J'envoyais au moteur DISTANT le profil lourd, 1200 x 1500 a 96 : 5,3
+         * fois plus de pixels et 6 fois plus d'echantillons, une trentaine de
+         * fois plus de travail. D'ou les 287 s de mediane, pour une image qu'il
+         * n'avait pas demandee.
+         * Le profil distant vise donc entre les deux : assez fin pour un ecran
+         * moderne, assez leger pour une attente supportable. Le profil lourd
+         * reste accessible en local, ou l'attente ne coute rien. */
+        largeur: enLive ? 520 : (MOTEUR.distant ? 760 : 1200),
+        hauteur: enLive ? 650 : (MOTEUR.distant ? 950 : 1500),
+        // 24 echantillons a distance : 1,5 fois le mode live, tres loin des 96
+        // du profil lourd. C'est la moitie du cout total, l'autre etant les pixels.
+        samples: enLive ? 16 : (MOTEUR.distant ? 24 : parseInt($('blSamples').value,10)),
+        // EEVEE impose a distance : Cycles trace les rayons un par un et c'est
+        // lui qui faisait exploser la duree.
+        moteur: enLive ? 'eevee' : (MOTEUR.distant ? 'eevee' : $('blMoteur').value),
         /* PLASTIQUE TRANSPARENT INCOLORE (09/08, demande Baptiste) : la couleur
          * du filament ne teinte pas le rendu, la matière est translucide neutre.
          * `diffusion translucide` = transmission diffuse, le bon modèle d'une
