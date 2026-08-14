@@ -136,9 +136,12 @@ a {
 }
 
 /* Sous-menu de la nav : les liens restent dans le HTML (donc dans tous les
-   liens internes / SEO), juste replies par defaut. Uniquement CSS
-   (:hover/:focus-within) — aucune page du site n'autorise de script pour
-   sa nav, pas question d'en ajouter un pour un simple menu. */
+   liens internes / SEO), juste replies par defaut. <details>/<summary>
+   natif — ouverture/fermeture au clic, pas au survol : un survol suivi
+   d'un scroll (souris immobile) ne declenche pas de mousemove, donc le
+   navigateur ne recalcule pas :hover et le menu restait ouvert plusieurs
+   secondes. Aucune page du site n'autorise de script pour sa nav, <details>
+   regle ca sans une ligne de JS. */
 .nav-dropdown {
   position: relative;
 }
@@ -148,14 +151,17 @@ a {
   align-items: center;
   gap: 5px;
   padding: 4px 0;
-  border: none;
-  background: none;
+  list-style: none;
   color: var(--ink-dim);
   font: inherit;
   font-size: 14px;
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
+}
+
+.nav-dropdown-toggle::-webkit-details-marker {
+  display: none;
 }
 
 .nav-dropdown-toggle::after {
@@ -169,7 +175,7 @@ a {
 }
 
 .nav-dropdown:hover .nav-dropdown-toggle,
-.nav-dropdown:focus-within .nav-dropdown-toggle {
+.nav-dropdown[open] .nav-dropdown-toggle {
   color: var(--accent);
 }
 
@@ -178,7 +184,7 @@ a {
   top: 100%;
   left: 0;
   z-index: 20;
-  display: none;
+  display: flex;
   flex-direction: column;
   min-width: 200px;
   margin-top: 12px;
@@ -187,11 +193,6 @@ a {
   border-radius: 12px;
   background: var(--panel);
   box-shadow: var(--shadow-lift);
-}
-
-.nav-dropdown:hover .nav-dropdown-menu,
-.nav-dropdown:focus-within .nav-dropdown-menu {
-  display: flex;
 }
 
 .nav-dropdown-menu a {
