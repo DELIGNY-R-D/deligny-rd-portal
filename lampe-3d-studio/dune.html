@@ -1,6 +1,6 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-FCxPk4dCKfWx1vnUHazqaGVyjD5I+wSu5nKuXKno+oM='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-jGTj9k390SbGnI33W6Y1JQkxGhKxvLXUpXR1f0c5gOs='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lampe Designer, la lampe imprimée sur mesure | DELIGNY R&D</title>
 <meta name="description" content="Lampe Designer : lampe à poser dessinée dans le configurateur, nervures fines calculées dans la matière, coque creuse en PLA translucide diffusant. 249 mm, 160 cm³, 5 V USB.">
@@ -30,7 +30,7 @@
   --gro:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
 }
 html{-webkit-text-size-adjust:100%}
-body{background:var(--page);font-family:var(--gro);color:var(--encre);
+body{background:var(--creme);font-family:var(--gro);color:var(--encre);
      display:flex;flex-direction:column;align-items:center;
      padding:clamp(12px,2.2vh,26px) clamp(10px,1.8vw,22px) clamp(22px,5vh,60px);
      line-height:1.5}
@@ -39,16 +39,18 @@ body{background:var(--page);font-family:var(--gro);color:var(--encre);
    laissait deux bandes noires enormes et l'affiche paraissait perdue au milieu.
    Elle respire maintenant avec la fenetre, jusqu'a 1240 px, et ses marges
    internes suivent la meme echelle. */
+/* Ce n'est plus une carte posee sur du noir : c'est la page. Ni coins
+   arrondis, ni ombre portee, ni fond distinct — le conteneur ne sert plus
+   qu'a centrer le contenu et a lui donner ses marges. */
 .feuille{--pad-x:clamp(22px,3.4vw,52px);
-         width:100%;max-width:min(1240px,95vw);background:var(--creme);border-radius:26px;
-         padding:clamp(24px,3vh,40px) var(--pad-x) 0;position:relative;overflow:hidden;
-         box-shadow:0 30px 90px rgba(0,0,0,.5)}
+         width:100%;max-width:min(1240px,95vw);background:transparent;
+         padding:clamp(24px,3vh,40px) var(--pad-x) 0;position:relative}
 /* grain discret : sans lui l'aplat crème sonne « écran », pas « papier » */
 .feuille::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
   background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
   background-size:3px 3px;mix-blend-mode:multiply}
 
-.signature{font-size:11.5px;line-height:1.45;color:var(--encre);letter-spacing:.01em}
+.signature{font-size:clamp(15px,1.5vw,19px);font-weight:600;line-height:1.45;color:var(--encre);letter-spacing:.01em}
 .signature b{display:block;font-weight:600}
 
 nav{display:flex;align-items:center;justify-content:space-between;margin-top:46px}
@@ -153,21 +155,21 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 .monogramme{font-size:17px;font-weight:700;font-style:italic;color:var(--encre)}
 
 /* --- fiche technique : les cotes réelles, sous l'affiche --- */
-.fiche{max-width:880px;width:100%;margin:26px auto 0;color:var(--creme2)}
+.fiche{max-width:min(1240px,95vw);width:100%;margin:26px auto 0;color:var(--encre)}
 .fiche h2{font-size:12px;letter-spacing:.16em;text-transform:uppercase;
-  color:#8d8d84;font-weight:600;margin-bottom:14px}
+  color:var(--gris);font-weight:600;margin-bottom:14px}
 .cotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
-  gap:1px;background:rgba(255,255,255,.11);border:1px solid rgba(255,255,255,.11);
+  gap:1px;background:rgba(22,22,22,.15);border:1px solid rgba(22,22,22,.15);
   border-radius:12px;overflow:hidden}
-.cote{background:#111;padding:13px 15px}
-.cote span{display:block;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:#8d8d84}
+.cote{background:var(--creme);padding:13px 15px}
+.cote span{display:block;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--gris)}
 .cote b{display:block;font-size:16px;font-weight:600;margin-top:5px;
-  font-variant-numeric:tabular-nums;color:var(--creme)}
-.note{font-size:11.5px;color:#8d8d84;margin-top:12px;line-height:1.6}
-.note a{color:#b9b9ae}
+  font-variant-numeric:tabular-nums;color:var(--encre)}
+.note{font-size:11.5px;color:var(--gris);margin-top:12px;line-height:1.6}
+.note a{color:var(--vert)}
 
 @media (max-width:640px){
-  .feuille{border-radius:20px}          /* le padding suit deja --pad-x */
+  /* plus de coins arrondis : ce n'est plus une carte */
   .bandeau{flex-wrap:wrap}
   .liens{gap:15px}
   .liens a:nth-child(n+3){display:none}
@@ -187,7 +189,7 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
   <!-- « Conçu par vous » : c'est le client qui dessine la silhouette dans le
        configurateur, l'atelier ne fait que fabriquer. La signature doit dire
        ce partage, pas s'attribuer la conception. -->
-  <div class="signature">Conçu par vous, fabriqué par<b>DELIGNY R&amp;D</b></div>
+  <div class="signature">Conçu par vous, fabriqué par</div>
 
   <nav>
     <div class="mot-marque">DELIGNY R&amp;D</div>

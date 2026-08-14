@@ -1,6 +1,6 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-0kRyCN0wt8TFr9V8qVzsWTpCZNTmib99JIq/hUGrfMU='; style-src-attr 'unsafe-inline'; script-src 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-JqU2/ZZ7/jzvkziO63EK8laiyf6hpq+EVOUf1hG+7Dk='; style-src-attr 'unsafe-inline'; script-src 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>La gamme, cinquante silhouettes | Lampe Designer, DELIGNY R&D</title>
 <meta name="description" content="Cinquante silhouettes de la Lampe Designer, rangees de la plus large a la plus elancee, chacune rendue depuis sa geometrie reelle : PLA translucide diffusant, nervures fines, base blanche, bois, noire ou transparente.">
@@ -38,7 +38,7 @@ body{background:var(--page);font-family:var(--gro);color:var(--encre);
 .feuille::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
   background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
   background-size:3px 3px;mix-blend-mode:multiply}
-.signature{font-size:11.5px;line-height:1.45;letter-spacing:.01em}
+.signature{font-size:clamp(15px,1.5vw,19px);font-weight:600;line-height:1.45;letter-spacing:.01em}
 .signature b{display:block;font-weight:600}
 nav{display:flex;align-items:center;justify-content:space-between;margin-top:46px}
 .mot-marque{font-size:16px;font-weight:700;letter-spacing:.02em}
@@ -93,7 +93,7 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 
 <div class="feuille">
   <!-- Meme signature que l'affiche : le client concoit, l'atelier fabrique. -->
-  <div class="signature">Conçu par vous, fabriqué par<b>DELIGNY R&amp;D</b></div>
+  <div class="signature">Conçu par vous, fabriqué par</div>
   <nav>
     <div class="mot-marque">DELIGNY R&amp;D</div>
     <div class="liens">
