@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-a0J9yMKyk+UTre4DuiBl3TEPhtrH6SZBYHSVg00yLhY='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-k3GdJx5u5iByAtZsg581sJmKJB1cM1KGLdootfGhdZM='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -3282,7 +3282,10 @@ function tipAngleDeg(tris, baseRadiusMm, hBottomMm){
 
 /* ── Editeur de profil (coupe 2D cotée) ─────────────────────────────────── */
 const pc = $('profileCanvas'), pctx = pc.getContext('2d');
-const PAD = {l:64, r:16, t:14, b:26};
+/* b = 46 et non 26 : il faut loger la reglette horizontale (trait,
+ * graduations, cotes) SOUS le dessin, sans recouvrir l'etiquette de
+ * l'axe de rotation. */
+const PAD = {l:64, r:16, t:14, b:46};
 // L'échelle de la coupe suit les bornes du TYPE de lampe : une applique (140 mm)
 // n'est pas dessinée à l'échelle d'une lampe à poser (250 mm).
 /* Axe de rotation AU CENTRE (06/08) : l'ancien axe était collé à gauche et le
@@ -3363,6 +3366,38 @@ function drawProfile(){
   pctx.fillStyle=PAL.texte; pctx.font=MONO; pctx.textAlign='right';
   for(let hh=0; hh<=bH; hh+=40){ pctx.fillText(hh+' mm', PAD.l-17, pMapY(hh)+3); }
 
+  /* REGLETTE HORIZONTALE (demande Baptiste) : le zero est SUR l'axe de
+   * rotation, et on lit le RAYON de part et d'autre.
+   * ⚠️ Elle repare une ambiguite reelle, pas un confort : les deux echelles du
+   * dessin NE SONT PAS EGALES — la verticale couvre maxH, l'horizontale maxR,
+   * rapport mesure 1,32. Une cote ne se deduit donc PAS en comparant deux
+   * longueurs a l'ecran d'un axe a l'autre, et un pied a O104 pouvait se lire
+   * O130 sur une capture. Meme convention que la reglette verticale :
+   * mineure 10 mm, majeure 20, cote tous les 40.
+   * Repartition verticale, police 10 px : trait a PAD.b-10 du bas,
+   * graduations sur 6 px, cotes 17 px sous le trait, etiquette de l'axe a 5 px
+   * du bord — sinon cotes et etiquette se chevauchent. */
+  {
+    const maxR = bounds().maxR, yR = h - PAD.b + 10;
+    pctx.strokeStyle = PAL.grilleMaj; pctx.lineWidth = 1;
+    pctx.beginPath(); pctx.moveTo(pMapX(-maxR), yR); pctx.lineTo(pMapX(maxR), yR); pctx.stroke();
+    for(let rr = 0; rr <= maxR; rr += 10){
+      const maj = rr % 20 === 0;
+      for(const s of (rr === 0 ? [0] : [-1, 1])){
+        const x = pMapX(s * rr);
+        pctx.strokeStyle = maj ? PAL.grilleMaj : PAL.grille;
+        pctx.beginPath(); pctx.moveTo(x, yR); pctx.lineTo(x, yR + (maj ? 6 : 3)); pctx.stroke();
+      }
+    }
+    pctx.fillStyle = PAL.texte; pctx.font = MONO; pctx.textAlign = 'center';
+    for(let rr = 0; rr <= maxR; rr += 40){
+      for(const s of (rr === 0 ? [0] : [-1, 1]))
+        pctx.fillText(String(rr), pMapX(s * rr), yR + 17);
+    }
+    pctx.textAlign = 'left';
+    pctx.fillText('mm', pMapX(maxR) + 6, yR + 17);
+  }
+
   const pr = state.profile;
   // LA FORME EN TRANSPARENCE : silhouette de révolution remplie des deux côtés
   // de l'axe, congés compris — c'est le tracé RÉEL, la polyligne éditable reste
@@ -3389,10 +3424,10 @@ function drawProfile(){
 
   // Axe de rotation, au centre
   pctx.strokeStyle=accA(.55); pctx.setLineDash([5,5]); pctx.lineWidth=1;
-  pctx.beginPath(); pctx.moveTo(axisX,PAD.t); pctx.lineTo(axisX,h-PAD.b+6); pctx.stroke();
+  pctx.beginPath(); pctx.moveTo(axisX,PAD.t); pctx.lineTo(axisX,h-PAD.b+10); pctx.stroke();
   pctx.setLineDash([]);
   pctx.fillStyle=accA(.85); pctx.font=MONO; pctx.textAlign='center';
-  pctx.fillText('axe de rotation', axisX, h-8);
+  pctx.fillText('axe de rotation', axisX, h-5);
 
   // Polyligne ÉDITABLE : trait plein à droite, miroir atténué à gauche
   function pathSide(sign){
