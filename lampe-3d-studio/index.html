@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-br0NeyMihMENE9paaCPEFCvp0bCTUu7gRWGHf6jVgbU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-Quu0thsHCEVjLULTRhYRm+4IibuOo6lH2qBokal7TZ4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -7449,7 +7449,11 @@ $('prepEmail').onclick=()=>{
 const ETAPES = [
   // #cvIn en tête : le concierge est la porte d'entrée, il ouvre l'étape Forme.
   // Sans cette ancre il partirait en dernière étape avec les cartes orphelines.
-  { titre:'Forme',       sous:'silhouette, corps',      ancres:['#cvIn','#type-seg','#presetRow','#bodyCount'] },
+  /* #addPoint = carte « Outils tracé », juste sous le type de lampe (demande
+   * Baptiste). #embFichier = carte « Image dans la matière ». Sans ancre
+   * declaree, ces deux cartes tombaient en derniere etape avec les
+   * orphelines, c'est-a-dire dans Commande. */
+  { titre:'Forme',       sous:'silhouette, corps',      ancres:['#cvIn','#type-seg','#addPoint','#presetRow','#bodyCount','#embFichier'] },
   { titre:'Aspect',      sous:'surface, couleur, rendu', ancres:['#surface-seg','#swatches','#rFinish'] },
   { titre:'Fabrication', sous:'matière, paroi', ancres:['#socketList','#splitOn','#material'] },
   { titre:'Commande',    sous:'prix, dossier, envoi',    ancres:['#s-price','#exportStl','#prepEmail'] },
