@@ -17,7 +17,7 @@
     en-tete les rend actifs — non reproductible ici, GitHub Pages
     n'expose aucun en-tete personnalise cote origine).
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="img/favicon.png" sizes="32x32" type="image/png" />
@@ -29,7 +29,8 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=91c7a0f8" />
+  <link rel="stylesheet" href="styles.css?v=b0a88406" />
+  <link rel="stylesheet" href="lampe-embed.css?v=bcba7e5e" />
 <!-- HUB:citable-substrate:start -->
 <script type="application/ld+json">
 {
@@ -133,28 +134,493 @@
             <h3>Lampe Designer</h3>
             <span class="tag tag-live">Vitrine interactive</span>
           </div>
-          <p>Dessine la forme d'une lampe imprimee en 3D directement ici : modifie le profil, observe sa geometrie en temps reel dans l'espace 3D, puis regarde son rendu — sans compte, sans rien installer.</p>
+          <p>Le vrai moteur de Lampe Designer, integre ici tel quel : dessine le profil, observe la coque reelle en 3D, regarde le rendu studio — sans compte, sans rien installer.</p>
         </div>
-        <div class="lampe-widget-row">
-          <div class="lampe-panel">
-            <p class="lampe-panel-head">Coupe 2D cotee</p>
-            <p class="lampe-panel-sub">Clique dans le vide pour ajouter un point &middot; glisse un point pour le deplacer</p>
-            <canvas id="lampeProfileCanvas" width="440" height="360"></canvas>
+        <div id="lampe-embed-root">
+  <div class="app">
+  <div class="viewer">
+    <div class="card">
+      <!-- Les TROIS vues à l'écran en même temps (09/08) : on dessine dans la
+           coupe, on voit la coque tourner, et le rendu studio se refait tout
+           seul dès qu'on lâche la souris. Plus d'onglets : ce qu'on compare,
+           on ne devrait pas avoir à s'en souvenir. -->
+      <div class="vpane" id="pane-geo">
+        <div class="vgrid3">
+          <div class="canvas-col">
+            <div class="lbl">Coupe 2D cotée — axe de symétrie au centre
+              <small>Clique dans le vide pour ajouter un point · glisse un point pour le déplacer</small>
+              <small><span style="color:var(--amber)">■ évasement 45-55°</span> &nbsp;·&nbsp; <span style="color:var(--red)">■ évasement &gt;55° (support)</span></small>
+            </div>
+            <canvas id="profileCanvas" width="480" height="440"></canvas>
           </div>
-          <div class="lampe-panel">
-            <p class="lampe-panel-head">Coque reelle</p>
-            <p class="lampe-panel-sub">Glisse pour tourner</p>
-            <canvas id="lampePreviewCanvas" width="440" height="360"></canvas>
+          <div class="canvas-col">
+            <div class="lbl">Coque réelle — mêmes triangles que le STL
+              <small>Coque creuse d'épaisseur paroi, ouverte en haut et en bas. Glisse pour tourner.</small>
+            </div>
+            <canvas id="previewCanvas" width="480" height="440"></canvas>
+          </div>
+          <div class="canvas-col" id="colRendu">
+            <div class="lbl">Rendu studio <span id="vueRenduSrc" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
+              <small id="vueRenduNote">Point de vue fixe, comme une photo de catalogue. Se refait à chaque modification.</small>
+            </div>
+            <div class="rendu-box">
+              <canvas id="renderCanvas" width="1280" height="960" style="display:none"></canvas>
+              <img id="blLiveImg" alt="Rendu Blender de la lampe" style="display:none">
+              <div id="renduAttente">Rendu Blender en cours…</div>
+            </div>
+            <!-- Éteinte / allumée : ce n'est pas un effet, c'est la même pièce
+                 sous deux éclairages. Sur une paroi translucide, la seconde
+                 montre ce que le client achète vraiment. -->
+            <div class="seg" id="litSeg" style="margin-top:10px">
+              <button data-lit="0">Lampe éteinte</button>
+              <button data-lit="1">Lampe allumée</button>
+            </div>
           </div>
         </div>
-        <div class="lampe-panel lampe-panel-wide">
-          <p class="lampe-panel-head">Rendu studio</p>
-          <p class="lampe-panel-sub">Meme geometrie, calculee dans le navigateur — aucun appel serveur.</p>
-          <canvas id="lampeRenderCanvas" width="960" height="360"></canvas>
+        <div class="viewtools">
+          <span>Orbite : glisse dans l'aperçu (horizontal = tourner, vertical = basculer). Zoom au curseur.</span>
+          <label>Hauteur de vue <input type="range" id="vElev" min="3" max="80" step="1" value="14"></label>
+          <label>Zoom <input type="range" id="vZoom" min="40" max="400" step="1" value="100"></label>
+          <label id="vExplodeWrap" style="display:none">Vue éclatée <input type="range" id="vExplode" min="0" max="100" step="1" value="0"></label>
+          <button class="btn" id="vReset">⟲ Vue par défaut</button>
+          <button class="btn" id="vTurn">▶ Tourner</button>
         </div>
-        <div class="lampe-widget-toggle">
-          <button type="button" id="lampeToggleOff" class="btn btn-small">Lampe eteinte</button>
-          <button type="button" id="lampeToggleOn" class="btn btn-small">Lampe allumee</button>
+      </div>
+
+      <div class="warnbox" id="renderInfo"></div>
+
+      <div id="hud"></div>
+      <!-- Retour vers la page de presentation. Public, contrairement au lien
+           d'atelier ci-dessous : c'est la page de présentation de DUNE No.01. -->
+      <div style="margin-top:12px;font-size:12px;color:var(--dim2)">
+        <a href="lampe-3d-studio/dune.html">Voir l'affiche DUNE No.01</a> · la lampe de
+        référence, ses cotes mesurées et son prix
+      </div>
+      <!-- Lien d'atelier vers le tableau de bord PROPAGATION. ⚠️ Affiché
+           UNIQUEMENT en local (voir `atelierSeulement` plus bas) : ce fichier
+           est miroité vers le portail PUBLIC, et le tableau de bord contient
+           l'état commercial et les trous de conformité. Rien de tout ça ne
+           doit se retrouver en ligne, pas même sous forme de lien mort. -->
+      <div id="lienAtelier" style="display:none;margin-top:12px;font-size:12px;color:var(--dim2)">
+        Atelier · <a href="/propagation/lamp-designer.html">Tableau de bord PROPAGATION</a>
+        — diffusion, conformité, prochaine action
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+
+  <!-- 0. CONCIERGE — dire la lampe en clair.
+       L'IA ne fabrique AUCUNE géométrie : elle propose des réglages dans le
+       vocabulaire du studio, et le studio les écrête. Ce qui est refusé est
+       affiché, jamais avalé en silence. Tout reste modifiable à la main. -->
+  <div class="card" id="conciergeCard" style="margin-top:20px;display:none">
+    <h2><span class="n">✦</span>Concierge — décris ta lampe</h2>
+    <div class="hint">Écris ce que tu veux, même de travers : « une lampe caneton », « plus haute et vrillée », « un gros ventre au milieu ». Le concierge ne dessine rien, il règle le studio, et le studio reste juge de ce qui est imprimable. Tu peux tout reprendre à la main après.</div>
+    <div id="cvFil" class="cv-fil"></div>
+    <div class="cv-saisie">
+      <input type="text" id="cvIn" placeholder="une lampe méduse, translucide…" autocomplete="off" maxlength="600">
+      <button class="btn pri" id="cvGo">Envoyer</button>
+    </div>
+    <div class="row-btn" id="cvEx"></div>
+    <div class="cv-etat" id="cvEtat"></div>
+  </div>
+
+  <!-- 1. TYPE -->
+  <div class="card" style="margin-top:20px">
+    <h2><span class="n">1</span>Type de lampe</h2>
+    <div class="seg" id="type-seg">
+      <button data-v="suspension">Suspension</button>
+      <button data-v="poser">Lampe à poser</button>
+      <button data-v="applique">Applique</button>
+    </div>
+    <div class="hint" id="type-hint"></div>
+  </div>
+
+  <!-- OUTILS TRACÉ (14/08, demande Baptiste) — sortis de la rangée du profil.
+       Les boutons voisins INVENTENT une forme (tirage aléatoire, graine) ;
+       ceux-ci ÉDITENT le tracé point par point. Deux gestes différents, deux
+       endroits différents. Le congé de l'angle sélectionné les suit : il ne
+       s'active que lorsqu'un point est sélectionné, comme eux. -->
+  <div class="card" style="margin-top:16px">
+    <h2>Outils tracé</h2>
+    <div class="hint">Clique un point de la coupe 2D pour le sélectionner, puis insère, supprime ou arrondis.</div>
+    <div class="row-btn">
+        <button class="btn" id="addPoint" disabled>＋ Insérer un point après</button>
+        <button class="btn danger" id="delPoint" disabled>Supprimer le point sélectionné</button>
+    </div>
+  </div>
+
+  <!-- 2. PROFIL -->
+    <div class="card">
+      <h2><span class="n">2</span>Profil de révolution (structure / abat-jour)</h2>
+      <!-- Onglets de corps masques (14/08) : un seul corps depuis que Composition
+           est masquee. Conserves dans le document car le script les peuple par
+           identifiant et planterait si l'un manquait. -->
+      <div class="row-btn" id="bodyTabsTop" style="margin-bottom:10px;display:none"></div>
+      <div class="row-btn" id="presetRow"></div>
+      <div class="row-btn">
+        <button class="btn pri" id="randomLamp" title="Tire une lampe entière : nombre de corps, agencement, silhouettes, style, sculpture — le tout depuis une seule graine">✨ Lampe complète</button>
+        <button class="btn" id="randomShape">🎲 Forme aléatoire</button>
+        <button class="btn" id="randomAll" style="display:none" title="Un tirage différent pour chaque corps, dérivé de la même graine">🎲 Tous les corps</button>
+        <input id="seedInput" class="seed" spellcheck="false" maxlength="8"
+               title="Graine de la forme : même graine = même forme. Reportée dans le dossier de commande.">
+        <button class="btn" id="seedApply">↻ Rejouer cette graine</button>
+      </div>
+      <div class="field" id="pointCongeField" style="display:none">
+        <label>Congé de l'angle sélectionné : <b id="pointCongeVal">aucun</b></label>
+        <input type="range" id="pointConge" min="0" max="25" step="0.5" value="0" style="width:100%;accent-color:var(--blue)">
+        <div class="hint">0 = angle vif. Le congé remplace l'angle par un arc tangent aux deux segments —
+        le rayon est réduit automatiquement là où la place manque. La coupe 2D garde l'angle dessiné
+        (comme une esquisse de CAO) : l'arrondi est dans la pièce.</div>
+      </div>
+      <div class="row-btn">
+        <button class="btn" id="flipShape">⇅ Retourner (tête en bas)</button>
+        <span id="flipInfo" style="font-size:12px;color:var(--dim2);align-self:center"></span>
+      </div>
+      <!-- Table technique retirée de l'affichage le 05/08 (« affiche pas ça ») :
+           elle parlait de culot et d'ouverture, des notions disparues du produit.
+           Le tbody reste alimenté (renderTable) pour ne rien casser, mais caché. -->
+      <table class="pts" id="ptsTable" style="display:none"><thead><tr><th>#</th><th>Hauteur (mm)</th><th>Rayon (mm)</th><th>Surplomb</th></tr></thead><tbody></tbody></table>
+      <div class="warnbox" id="warnbox"></div>
+      <!-- bornes machine retirées de l'affichage (05/08) -->
+    </div>
+
+    <div class="card">
+        <h2><span class="n">3</span>Style de surface &amp; sculpture</h2>
+        <label class="socket-opt" id="linkRow" style="display:none;margin-bottom:12px">
+          <input type="checkbox" id="linkOn" checked>
+          <div><div class="t">Lier les corps</div>
+          <div class="d" id="linkText"></div></div>
+        </label>
+        <div class="seg" id="surface-seg"></div>
+        <div id="surfaceParams"></div>
+        <div class="hint" id="surfaceHint"></div>
+        <div id="sculptParams" style="margin-top:6px"></div>
+      </div>
+
+      <!-- 4. APPARENCE DE L'APERCU — MASQUEE (14/08, « enleve Apparence de
+           l'apercu »). ⚠️ Elle portait aussi trois controles de FABRICATION :
+           maillage exporte, ASSISE (basculement contre le minimum de 25°) et
+           etancheite du maillage. Les calculs et les clamps continuent de
+           tourner, mais leur avertissement ne s'affiche plus. Masquee et non
+           supprimee : #swatches est peuple par identifiant. -->
+      <div class="card" style="display:none">
+        <h2><span class="n">4</span>Apparence de l'aperçu</h2>
+        <div class="row-btn" style="align-items:center">
+          <span style="font-size:12px;color:var(--dim2);margin-right:4px">Couleur (cosmétique — n'affecte pas la géométrie) :</span>
+          <div class="swatches" id="swatches"></div>
+          <span id="colorScope" style="font-size:12px;color:var(--dim2);flex-basis:100%"></span>
+        </div>
+        <div class="warnbox" id="checksbox"></div>
+      </div>
+
+  <!-- 5. RENDU STUDIO — MASQUEE (14/08, « n'affiche pas RENDU STUDIO »).
+       Elle empilait les reglages des deux moteurs de rendu et portait un texte
+       devenu faux sur l'impossibilite d'appeler le moteur depuis le site
+       public. Masquee et NON supprimee : initRenderControls et
+       renderBlenderBlock cherchent rFinish, rBg, rBase, blGo, blSamples... par
+       identifiant et planteraient si ces commandes quittaient le document. -->
+  <div class="card" style="margin-top:16px;display:none">
+    <h2><span class="n">5</span>Rendu studio</h2>
+    <div class="hint">Rendu « photo produit » calculé <b>dans ton navigateur</b> à partir du <b>même maillage</b> que le STL :
+    éclairage 3 points (principale + déboucheuse + contre-jour), spéculaire et Fresnel selon la finition, ombre de contact,
+    reflet au sol. C'est une <b>mise en valeur</b>, pas une simulation photométrique — la géométrie, elle, est exacte.</div>
+    <div class="row-btn" style="align-items:center;gap:14px">
+      <label style="font-size:12.5px;color:var(--dim2)">Finition
+        <select id="rFinish" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)"></select>
+      </label>
+      <label style="font-size:12.5px;color:var(--dim2)">Décor
+        <select id="rBg" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)"></select>
+      </label>
+      <!-- BASE : apparence seulement. La base d'atelier est une piece ACHETEE,
+           aux cotes mesurees (V6 « LQ P2 », Ø104,0 x 18,2) : son aspect change,
+           jamais sa geometrie. Elle ne porte jamais les stries de l'abat-jour. -->
+      <label style="font-size:12.5px;color:var(--dim2)">Base
+        <select id="rBase" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="blanc">Blanche</option>
+          <option value="noir">Noire</option>
+          <option value="bois">Bois</option>
+        </select>
+      </label>
+      <label style="font-size:12.5px;color:var(--dim2);display:flex;align-items:center;gap:6px">
+        <input type="checkbox" id="rLit"> Lampe allumée
+      </label>
+      <button class="btn pri" id="rRender">📸 Calculer le rendu</button>
+      <button class="btn" id="rDownload" disabled>⬇ Télécharger le PNG</button>
+    </div>
+
+    <div id="blenderBlock" style="margin-top:14px"></div>
+    <div id="aiBlock" style="margin-top:14px"></div>
+  </div>
+
+
+  <!-- LITHOPHANIE : une image dans l'epaisseur de la paroi -->
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">✦</span>Image dans la matière</h2>
+    <div class="hint">Une image gravée dans l'ÉPAISSEUR, pas sur la surface : le dehors reste lisse, seule la peau intérieure s'enfonce. Le sombre devient épais, le clair devient mince, donc l'image n'apparaît qu'une fois la lampe allumée. La paroi ne s'amincit jamais : elle ne fait que s'épaissir localement.</div>
+    <div class="field">
+      <label>Image <small>elle est convertie en noir et blanc, et reste dans ton navigateur</small></label>
+      <input type="file" id="embFichier" accept="image/*">
+    </div>
+    <div class="field">
+      <label>Profondeur : <b id="embAmpVal">0,60 mm</b> <span class="dim">0,6 mm au maximum</span></label>
+      <input type="range" id="embAmp" min="0.05" max="0.6" step="0.05" value="0.6" style="width:100%;accent-color:var(--blue)">
+    </div>
+    <label class="socket-opt" id="embInvWrap" style="display:none">
+      <input type="checkbox" id="embInv">
+      <div><div class="t">Inverser</div><div class="d">Si le rendu est en négatif : le clair devient épais.</div></div>
+    </label>
+    <div class="row-btn"><button class="btn" id="embOff" style="display:none">Retirer l'image</button></div>
+    <canvas id="embApercu" width="360" height="180" style="display:none;margin-top:10px;cursor:default"></canvas>
+    <div class="warnbox" id="embInfo"></div>
+  </div>
+  <!-- 6. COMPOSITION MULTI-CORPS — MASQUEE (14/08, « enleve Composition »).
+       ⚠️ Masquee et NON supprimee : #bodyCount est une ANCRE de l'etape
+       « Forme ». Les etapes se composent par identifiants presents dans le
+       document ; retirer cet element deferait le rattachement de l'etape. -->
+  <div class="card" style="margin-top:16px;display:none">
+    <h2><span class="n">6</span>Composition — nombre de corps &amp; agencement</h2>
+    <div class="hint" id="compoHint"></div>
+    <div class="field">
+      <label>Nombre de corps : <b id="bodyCountVal"></b> <span class="dim" id="bodyCountMax"></span></label>
+      <input type="range" id="bodyCount" min="1" max="7" step="1" value="1" style="width:100%;accent-color:var(--blue)">
+    </div>
+    <div class="field" id="layoutField">
+      <label>Agencement</label>
+      <div class="seg" id="layout-seg"></div>
+    </div>
+    <div class="field" id="compoParams"></div>
+    <div class="row-btn" id="bodyTabs" style="display:none"></div>
+    <div class="warnbox" id="compoBox"></div>
+  </div>
+
+  <!-- 6. CULOT — carte masquée (06/08) : une seule connexion possible (module USB 5 V),
+       tout est imposé par l'atelier, rien à choisir. La mécanique JS reste active derrière. -->
+  <div class="card" style="margin-top:16px;display:none">
+    <h2><span class="n">7</span>Connexion électrique — liste fermée, 5 V seulement</h2>
+    <div id="socketList"></div>
+    <div class="warnbox" id="connexionBox"></div>
+
+    <!-- Lampe à poser : les trois montages -->
+    <div id="poserCard" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+      <label class="lbl" style="margin-bottom:6px">Montage de la lampe à poser</label>
+      <div id="poserList"></div>
+      <div class="warnbox" id="poserBox" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Socle kit LED : lampe à poser monobloc -->
+    <div id="socleCard" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+      <label class="socket-opt" style="margin-bottom:8px">
+        <input type="checkbox" id="socleOn" checked>
+        <div><b>Socle kit LED intégré</b>
+        <div class="hint" style="margin:2px 0 0">La peau descend d'un seul trait jusqu'à l'extrémité : pas de
+        ressaut entre abat-jour et base. C'est la pièce d'atelier <b>BASE SIMPLE LED KIT</b> elle-même qui est
+        fusionnée à l'abat-jour — plancher, colonnettes, serre-câble et sortie de câble compris. Le studio ne
+        génère rien à l'intérieur, et ne perce aucun trou dans l'abat-jour.</div></div>
+      </label>
+      <div id="socleParams">
+        <label class="lbl">Diamètre à l'extrémité — <b id="socleDiaTxt">99,5</b> mm</label>
+        <input type="range" id="socleDia" min="76" max="220" step="0.5" value="99.5">
+      </div>
+      <label class="socket-opt" id="socleMontrerRow" style="margin-top:10px;display:none">
+        <input type="checkbox" id="socleMontrer">
+        <div><b>Afficher BASE SIMPLE LED KIT dans l'aperçu</b>
+        <div class="hint" style="margin:2px 0 0">Version allégée de l'atelier : 6 664 triangles, l'aperçu
+        reste fluide. Elle est À L'INTÉRIEUR de l'abat-jour — on l'aperçoit surtout par l'ouverture du bas.
+        Le fichier STL la contient dans tous les cas.</div></div>
+      </label>
+      <div class="warnbox" id="socleBox" style="margin-top:10px"></div>
+    </div>
+
+    <!-- Sortie de câble : n'apparaît que pour un module basse tension -->
+    <div id="cableCard" style="display:none;margin-top:14px;border-top:1px solid var(--line);padding-top:14px">
+      <label class="socket-opt" style="margin-bottom:8px">
+        <input type="checkbox" id="cableOn" checked>
+        <div><b>Percer le passage de câble dans la pièce</b>
+        <div class="hint" style="margin:2px 0 0">Le trou est dans le maillage livré : l'atelier ne perce rien après coup.</div></div>
+      </label>
+      <div id="cableParams">
+        <label class="lbl">Diamètre du passage — <b id="cableDiaTxt">6,0</b> mm</label>
+        <input type="range" id="cableDia" min="4" max="12" step="0.5" value="6">
+        <label class="lbl">Recul depuis l'extrémité qui porte le module — <b id="cableReculTxt">22</b> mm</label>
+        <input type="range" id="cableRecul" min="8" max="120" step="1" value="22">
+        <label class="lbl">Orientation autour de l'axe — <b id="cableAngTxt">180</b>°</label>
+        <input type="range" id="cableAng" min="0" max="359" step="1" value="180">
+        <label class="socket-opt" style="margin-top:10px">
+          <input type="checkbox" id="cablePlatine" checked>
+          <div><b>Générer la platine de raccordement</b>
+          <div class="hint" style="margin:2px 0 0">Pièce plate séparée qui porte les 4 trous d'insert M3 — 2 pour le module, 2 pour le serre-câble.</div></div>
+        </label>
+      </div>
+      <div class="warnbox" id="cableBox" style="margin-top:10px"></div>
+    </div>
+
+    <div class="hint">La géométrie du culot (bore, épaulement, filetage) n'est <b>jamais générée</b> : ces cotes viennent de pièces mesurées
+    à l'atelier ou du standard commercial publié, et servent uniquement à borner le rayon mini du point de fixation du profil.</div>
+  </div>
+
+  <!-- 7/8. EXPERT + DECOUPE EN MODULES — les deux masqués (07/08) : le « mode
+       expert » ne gardait plus que trois curseurs de forme, remontés dans la
+       carte Sculpture où ils sont visibles sans case à cocher.
+       ⚠️ Le display:none va sur la CARTE, pas sur cette grille : le stepper
+       DÉPLACE les cartes dans ses étapes, et un style posé sur le conteneur
+       d'origine ne les suit pas. -->
+  <div class="grid full" style="margin-top:16px">
+    <div class="card" style="display:none">
+      <h2><span class="n">7</span>Option expert — paramètres par corps</h2>
+      <label class="socket-opt" id="expertRow">
+        <input type="checkbox" id="expertOn">
+        <div><div class="t">Mode expert</div>
+        <div class="d">Ouvre les réglages paramétriques <b>corps par corps</b> : hauteur, rayon, échelle, torsion, courbure, rotation et
+        décalage propres à chaque corps, au lieu des réglages communs. Le rayon mini du culot reste imposé ; l'échelle s'appliquant
+        <b>après</b> les bornes du profil, un corps agrandi peut sortir du gabarit du type ou du plateau — c'est alors signalé en clair
+        dans la carte Composition, jamais silencieusement.</div></div>
+      </label>
+      <div id="expertParams"></div>
+    </div>
+
+    <div class="card" style="display:none">
+      <h2><span class="n">9</span>Découpe en modules imprimés (option multi-pièces)</h2>
+      <label class="socket-opt" id="splitToggleRow">
+        <input type="checkbox" id="splitOn">
+        <div><div class="t">Lampe séparable en modules empilables <span class="tag standard">PLUS CHER</span></div>
+        <div class="d">La liaison se fait <b>ENTRE LES CORPS</b> : chaque corps est un module, imprimé à part, et il se
+        visse à son voisin par un <b>manchon</b> logé à leur interface (Ø repris du rayon intérieur le plus étroit des
+        deux corps, jeu 0,3 mm au rayon — cote du précédent atelier). Intérêt : lampe plus haute que le plateau,
+        transport, remplacement d'un seul module abîmé, mélange de couleurs. Coût : <b>un lancement machine par
+        module</b> + la visserie de liaison.
+        <br><span style="opacity:.75">Si la lampe n'a qu'UN corps, il n'y a pas d'interface : le corps est alors tranché
+        horizontalement, faute d'autre moyen de dépasser la hauteur du plateau.</span></div></div>
+      </label>
+      <div class="field" id="splitCountField" style="display:none">
+        <label>Nombre de modules (bas = base, haut = abat-jour) : <b id="splitCountVal"></b></label>
+        <input type="range" id="splitCount" min="2" max="4" step="1" value="2" style="width:100%;accent-color:var(--blue)">
+        <label style="margin-top:12px">Liaison entre modules</label>
+        <div class="seg" id="joint-seg">
+          <button data-mode="visse" class="on">🔩 Vissé (filetage imprimé)</button>
+          <button data-mode="emboite">Emboîté (friction)</button>
+        </div>
+      </div>
+      <div class="warnbox" id="splitBox"></div>
+    </div>
+  </div>
+
+  <!-- 9. MATIERE -->
+  <div class="grid" style="margin-top:16px">
+    <div class="card">
+      <h2><span class="n">7</span>Matière &amp; paroi</h2>
+      <div class="field">
+        <label>Matériau</label>
+        <select id="material">
+          <option value="PLA">PLA — défaut, structurel froid, déco (ramollit ~55-60°C : LED uniquement)</option>
+          <option value="PLA_T">PLA translucide — paroi diffusante lumière</option>
+          <option value="PETG">PETG — pièces tièdes / usage prolongé, un peu de flex</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Épaisseur de paroi (buse 0.4 mm)</label>
+        <select id="wall">
+          <option value="0.8">0.8 mm — 2 périmètres, fin, non recommandé structurel</option>
+          <option value="1.2">1.2 mm — 3 périmètres, très diffusant</option>
+          <option value="1.6">1.6 mm — 4 périmètres</option>
+          <option value="1.8" selected>1.8 mm — défaut atelier (4 périmètres élargis)</option>
+          <option value="2.0">2.0 mm — 5 périmètres, structurel</option>
+        </select>
+        <div class="hint">1,8 mm n'est pas un multiple de 0,4 : le trancheur ne pose pas 4,5 périmètres, il
+        <b>élargit</b> les 4 périmètres. Vérifié au tranchage — voir la note d'atelier.</div>
+      </div>
+      <div class="disc-small">Sécurité lampe (non négociable, cf. doctrine atelier FIRST_PRINT_TEST) : LED ≤ 7 W réels, jamais halogène ni
+      incandescent dans du PLA ; paroi ≥ 12 mm de l'ampoule ; ouverture haute + sortie câble pour tirage d'air ; douille du commerce
+      marquée CE, connexions démontables donc inspectables par le professionnel qui assemble.</div>
+    </div>
+
+    <div class="card">
+      <h2><span class="n">8</span>Prix estimé</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">Volume matière</div><div class="v" id="s-vol">—</div></div>
+        <div class="stat"><div class="k">Temps impr. estimé</div><div class="v" id="s-time">—</div></div>
+        <div class="stat"><div class="k">Masse</div><div class="v" id="s-mass">—</div></div>
+      </div>
+      <div class="price-big">
+        <div class="amt" id="s-price">—</div>
+        <div class="note">Estimation automatique — grossière, pas un devis ferme. Base = temps d'impression × tarif horaire + matière + culot.</div>
+      </div>
+      <div class="breakdown" id="s-breakdown"></div>
+    </div>
+  </div>
+
+  <!-- 11. DOSSIER -->
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">9</span>Dossier de fabrication</h2>
+    <div class="hint">Génère un dossier <b>texte + JSON</b> qui résume la configuration (dimensions, matière, culot, couleur, prix estimé).
+    C'est un dossier de commande/specs à transmettre à l'atelier pour fabrication.</div>
+    <div class="row-btn">
+      <button class="btn pri" id="exportJson">⬇ Export JSON</button>
+      <button class="btn" id="exportTxt">⬇ Export TXT lisible</button>
+    </div>
+    <div class="hint" style="margin-top:16px">Génère un <b>vrai maillage 3D (fichier STL binaire)</b> : une <b>coque creuse</b> d'épaisseur
+    égale à la paroi choisie, obtenue par révolution du profil ci-dessus (2) <b>et</b> de son décalé intérieur, fermée par deux couronnes
+    plates. Elle est <b>ouverte en bas</b> (sortie de lumière) et <b>ouverte en haut</b> (passage du culot) : c'est un abat-jour, pas un
+    bloc plein. C'est ce maillage exact qui est affiché dans l'aperçu (3) et dont le volume sert au prix (6) — l'étanchéité (chaque arête
+    portant exactement deux faces) est vérifiée et affichée sous l'aperçu.
+    <b>Ce qu'il ne modélise jamais</b> (cf. gate de sécurité) : le culot électrique, l'alésage, le filetage ou toute cavité de logement de
+    la douille — ces géométries restent la liste fermée de références standards de l'atelier, jamais générées ici. Le rayon mini du point
+    du haut est déjà borné par le culot choisi, mais le perçage/évidement réel du logement est fait par le professionnel qui assemble.
+    En <b>option multi-pièces</b> (4d), un fichier est exporté <b>par module</b>, collier d'emboîtement compris.</div>
+    <div class="row-btn" style="align-items:center">
+      <!-- Le nombre de facettes est un choix ESTHÉTIQUE et ne concerne que le
+           style Facetté : sur une surface lisse il ne pilotait rien, alors qu'il
+           trônait à côté du bouton d'export et se lisait comme LE réglage de
+           qualité. Il est donc masqué hors du style Facetté, et la finesse du
+           maillage a son propre sélecteur, actif quel que soit le style. -->
+      <label id="facetteRow" style="font-size:12.5px;color:var(--dim2);display:flex;align-items:center;gap:6px">Facettes du style « Facetté »
+        <select id="stlSegments" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="5">5 — très anguleux</option>
+          <option value="6">6 — hexagonal</option>
+          <option value="8">8 — octogonal</option>
+          <option value="10">10</option>
+          <option value="14" selected>14 (défaut)</option>
+          <option value="20">20</option>
+          <option value="28">28 — facettes fines</option>
+          <option value="40">40 — presque lisse</option>
+        </select>
+      </label>
+      <label style="font-size:12.5px;color:var(--dim2);display:flex;align-items:center;gap:6px">Finesse du maillage exporté
+        <select id="stlQualite" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="0.5">÷2 — fichier léger</option>
+          <option value="1" selected>standard</option>
+          <option value="1.5">×1,5 — fin</option>
+          <option value="2">×2 — très fin</option>
+        </select>
+      </label>
+      <button class="btn pri" id="exportStl">⬇ Export STL (maillage 3D imprimable)</button>
+    </div>
+    <!-- ce que pèsera le fichier, AVANT de cliquer : à ×2 on passe de 9 à 35 Mo -->
+    <div class="hint" id="stlPrevu" style="margin-top:8px"></div>
+    <div class="hint" id="stlInfo" style="margin-top:8px"></div>
+  </div>
+
+  <!-- 12. COMMANDE -->
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">10</span>Commande</h2>
+    <div class="hint">Prépare un email récapitulatif vers <b><a href="/cdn-cgi/l/email-protection" class="__cf_email__" data-cfemail="90f3fffee4f1f3e4d0f4f5fcf9f7fee9bde2f4bef6e2">[email&#160;protected]</a></b>. <b>Aucun paiement n'est effectué ici</b> — c'est ton
+    client mail qui s'ouvre avec le message pré-rempli, à toi de l'envoyer. Joins manuellement le dossier JSON téléchargé ci-dessus si besoin
+    (un lien mailto ne peut pas joindre de fichier automatiquement).</div>
+    <div class="grid full" style="margin-top:4px">
+      <div>
+        <div class="field"><label>Nom</label><input type="text" id="cName" placeholder="Ton nom"></div>
+        <div class="field"><label>Email</label><input type="email" id="cEmail" placeholder="ton@email.fr"></div>
+        <div class="field"><label>Notes (couleur souhaitée, délai, contexte...)</label><textarea id="cNotes" placeholder="Notes libres"></textarea></div>
+      </div>
+    </div>
+    <div class="row-btn">
+      <button class="btn pri" id="prepEmail">✉ Préparer l'email de commande</button>
+    </div>
+  </div>
+
+  </div>
+  </div>
         </div>
         <div class="lampe-widget-actions">
           <a class="btn btn-primary" href="lampe-3d-studio/index.html">Continuer sur Lampe Designer &rarr;</a>
@@ -1055,6 +1521,6 @@
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
 <script src="logo-3d.js?v=53990441"></script>
 <script src="tagline.js?v=38c0e5d1"></script>
-<script src="lampe-widget.js?v=343f2752"></script>
+<script src="lampe-embed.js?v=1a459ada"></script>
 </body>
 </html>

@@ -1,0 +1,7113 @@
+(function(){
+'use strict';
+const $=id=>document.getElementById(id);
+
+/* ============================================================================
+ * PARAMÈTRES ATELIER — À AJUSTER PAR BAPTISTE avant toute mise en prod réelle.
+ * Toutes les valeurs ci-dessous sont des variables de configuration, pas des
+ * constantes gravées : elles pilotent uniquement le calcul de prix indicatif.
+ * ========================================================================== */
+const PRICE_CONFIG = {
+  MATERIAL_COST_EUR_PER_KG: { PLA: 22, PLA_T: 26, PETG: 24 },  // prix bobine ramené au kg, par matière
+  MATERIAL_DENSITY_G_CM3:   { PLA: 1.24, PLA_T: 1.24, PETG: 1.27 },
+  // MESURÉ le 30/07 sur PrusaSlicer 2.9.6 (buse 0.4, couche 0.20, 3 périmètres,
+  // remplissage 15 %) : 119,3 cm³ de filament en 11 h 22 sur les deux modules
+  // d'une lampe Dune coupée en deux → 10,5 cm³/h. La valeur précédente (16)
+  // sous-estimait le temps d'impression de 36 %.
+  PRINT_CM3_PER_HOUR: 10.5,
+  HOURLY_RATE_EUR: 9,              // machine + temps atelier (élec, usure, supervision) — à ajuster par Baptiste
+  // E14/E27 retirés du catalogue le 05/08 (tarifs conservés pour mémoire) ;
+  // pour le module USB c'est le module + 2 vis M3 et leurs inserts, sans intervention secteur
+  SOCKET_KIT_EUR: { E14: 4, E27: 5, USB_BAMBU: 14 },
+  BASE_HARDWARE_EUR: 3,            // visserie, câble, passe-câble, gaine
+  PART_SETUP_EUR: 6,               // lancement machine supplémentaire par module imprimé en plus
+  JOINT_HARDWARE_EUR: 2.5,         // visserie de liaison par plan de coupe (option multi-pièces)
+  MARGIN_MULTIPLIER: 1.35,         // marge DELIGNY R&D sur le coût atelier — à ajuster par Baptiste
+  MIN_PRICE_EUR: 25,               // prix plancher (temps de setup mini, même sur une petite pièce)
+};
+
+/* Marge de matière pour ce que le maillage ne décrirait pas. Elle valait 1,15 du
+ * temps où le STL n'était qu'une coque nue : le cône porte-douille, les manchons
+ * et les nervures n'existaient pas dans le fichier. Ils y sont désormais tous.
+ * MESURÉ le 30/07 : le maillage annonce 123,4 cm³, PrusaSlicer consomme 119,3 cm³
+ * — le maillage est déjà 3,4 % AU-DESSUS du filament réellement extrudé. Garder
+ * 1,15 gonflait donc le devis de 19 %. On laisse 1,0 : le léger excédent du
+ * maillage couvre la jupe et la purge. */
+const GEOMETRY_CONFIG = { INTERNAL_STRUCTURE_FACTOR: 1.0 };
+
+/* ============================================================================
+ * BORNES D'IMPRESSION — Ender-3 S1 vérifiée dans 3D Objects/ (plateau 220×220×270,
+ * buse 0.4, Cura/Marlin). Marge de sécurité sous le plateau réel pour brim/bras.
+ * ========================================================================== */
+/* 14/08 (Baptiste) : plage de dessin portee a 252 mm de haut et O230 de
+ * large. MAX_HEIGHT_MM 250 -> 252 (course Z 270, il reste 18 mm de marge)
+ * et MAX_RADIUS_MM 100 -> 115.
+ * ⚠️ PLATE_XY_MM reste a 220 : c'est le plateau REEL. Une piece de O230 n'y
+ * tient pas, et le controle « ne tient pas sur le plateau » doit continuer
+ * de le dire. Elargir la plage de dessin est une chose, masquer la
+ * contrainte machine en serait une autre. */
+const PRINT_BOUNDS = { PLATE_XY_MM: 220, PLATE_Z_MM: 270, MAX_HEIGHT_MM: 252, MIN_HEIGHT_MM: 60, MAX_RADIUS_MM: 115, MIN_H_GAP_MM: 8 };
+
+// Seuils surplomb FDM (buse 0.4 / couche 0.20) — cf. doctrine atelier fab/impression-fdm §2.
+const OVERHANG = { WARN_DEG: 45, HARD_DEG: 55 };
+
+/* ============================================================================
+ * CULOTS ÉLECTRIQUES — LISTE FERMÉE. Ne JAMAIS permettre de générer/éditer ces
+ * géométries : ce sont des références standards du commerce, l'atelier ou le
+ * professionnel qui assemble s'appuie dessus, pas une pièce sortie du navigateur.
+ * ========================================================================== */
+/* ── Connexions ───────────────────────────────────────────────────────────
+ * `dispo:false` = la référence n'est PLUS PROPOSÉE au client, mais ses cotes
+ * restent ici. Elles ont été mesurées à l'atelier ; les effacer perdrait un
+ * relevé qu'il faudrait refaire si l'offre secteur revenait un jour.
+ * Depuis le 05/08 le studio ne vend que du 5 V : plus aucune lampe reliée au
+ * secteur, donc plus d'intervention électrique obligatoire.
+ */
+const SOCKETS = {
+  E14: {
+    dispo: false,
+    label: 'E14 — petit culot (bougie)',
+    boreDiaMm: 28.8,       // 27.8 nominal + 0.3 compensation FDM alésage vertical 10-40 (cf. atelier)
+    shoulderDiaMm: 32,     // mesuré atelier
+    housingMinRadiusMm: 20,// épaulement/2 (16) + paroi mini 2mm + jeu
+    maxWattageW: 7,
+    measured: true,
+    source: "Mesuré atelier : «Douille et ampoule frigo E14.ipt» (déc. 2022) — corps Ø27.5, épaulement Ø32, section basse Ø26. Corroboré par harvest_parts.py (parts_library).",
+  },
+  USB_BAMBU: {
+    label: 'Module lampe USB Bambu Lab — 5 V, sans culot',
+    type: 'module',
+    // Cotes RELEVÉES SUR LES MAILLAGES FOURNIS (AUTRES/, 30/07), pas estimées :
+    // perçages détectés par analyse des parois verticales du modèle.
+    visM3: 2,
+    entraxeVisMm: 28.00,      // 2 perçages Ø4,00 aux points (0,+14) et (0,−14)
+    trouInsertMm: 4.00,       // Ø4,00 = trou d'insert M3 à chaud
+    platineDiaMm: 59.50,      // disque du module
+    epaisseurMm: 8.20,
+    debordMm: 14.50,          // languette qui dépasse du disque (connecteur)
+    // Serre-câble « Bloque Cable VF 2 » : 17 × 6,06 × 7 mm, 2 perçages Ø3,50
+    // à 11,00 mm d'entraxe, gorge de câble 5,22 × 1,33 mm.
+    serreCable: { entraxeMm: 11.00, trouMm: 3.50, emprise: '17 × 6 × 7 mm' },
+    cableLargeurMm: 5.22, cableEpaisseurMm: 1.33,   // câble PLAT, pas rond
+    cableDiaMm: 6.0,          // passage circulaire qui laisse passer ce plat
+    dechargeTraction: true,
+    // rayon mini = demi-entraxe + distance au bord de l'insert + paroi
+    housingMinRadiusMm: 22,
+    maxWattageW: 5,
+    tensionV: 5,
+    measured: true,
+    source: "Mesuré le 30/07 sur les maillages fournis (AUTRES/KIT LAMPE BAMBULAB.obj et "
+          + "Bloque Cable VF 2.obj) : module 74,00 × 8,20 × 59,50 mm, 2 perçages Ø4,00 à "
+          + "28,00 mm d'entraxe ; serre-câble 17 × 6,06 × 7,00 mm, 2 perçages Ø3,50 à "
+          + "11,00 mm d'entraxe, gorge 5,22 × 1,33 mm.",
+  },
+  E27: {
+    dispo: false,
+    label: 'E27 — gros culot (standard)',
+    boreDiaMm: 34.0,       // standard IEC 60061, corps plastique lampholder courant — NON mesuré atelier
+    shoulderDiaMm: 40,     // estimation à partir du standard commercial — NON mesuré atelier
+    housingMinRadiusMm: 24,
+    maxWattageW: 7,
+    measured: false,
+    source: "Valeurs indicatives du standard commercial (IEC 60061, culot E27) — non mesurées à l'atelier. À vérifier au pied à coulisse sur la pièce réelle avant série.",
+  },
+};
+
+const MATERIALS = { PLA: 'PLA', PLA_T: 'PLA translucide', PETG: 'PETG' };
+const COLORS = ['#e8e2d5','#f5f5f7','#2c2c2e','#c88a52','#8fa6b2','#b23a3a'];
+
+/* ============================================================================
+ * TYPES DE LAMPE — le type n'est PAS qu'un texte d'aide : il borne le profil
+ * (hauteur mini/maxi propres au type, sous le plafond machine), choisit la
+ * famille de silhouettes proposées, et déclenche ses propres vérifications
+ * (ouverture de sortie de lumière, assise réelle, saillie murale).
+ * ========================================================================== */
+/* ── SOCLE KIT LED (lampe à poser monobloc) ───────────────────────────────
+ * Cotes RELEVÉES sur « AUTRES/3D/BASE SIMPLE LED KIT.obj » (Ø99,50 × 36,20 mm,
+ * axe Y, un seul corps). Hauteurs converties en h depuis le dessous (h = Y+20).
+ *
+ * Le socle n'est PAS une pièce rapportée : il devient le bas du profil dessiné.
+ * La peau extérieure descend d'un seul trait jusqu'à l'extrémité — pas de
+ * ressaut entre un abat-jour et une base. Ce qu'on génère en plus, c'est ce
+ * qu'il y a DEDANS : le plancher, les colonnettes du kit LED, les perçages du
+ * serre-câble et la sortie de câble.
+ */
+const SOCLE = {
+  diaRefMm: 99.50,        // Ø relevé — sert de référence, pas de valeur imposée
+  hautRefMm: 36.20,
+  /* JUPE : sur l'assemblage de référence (« assemblage monobloc test.obj »),
+   * l'abat-jour démarre à Y=-12 au rayon 47,750 → 49,750 (paroi 2,0 mm), c'est-
+   * à-dire posé sur le PLAT à Y=-12 (anneau r 45,75→49,75), juste au-dessus de
+   * la sortie de câble à Y=-15,7. Sous lui, la base garde une jupe DROITE au
+   * Ø nominal sur 8 mm. C'est cette jupe qui fait la continuité : le dessin du
+   * client reprend exactement là où elle s'arrête, au même rayon. */
+  jupeHMm: 8.0,           // Y = -20 → -12
+  paroiRefMm: 2.0,        // paroi de l'abat-jour sur la pièce de référence
+  /* TRANCHE D'APPUI — relevée à Y=-12 (h=8) : un anneau plat de 4 mm de large,
+   * r 45,750 → 49,750. C'est SUR ELLE que l'abat-jour se pose ; sur l'assemblage
+   * de référence il y démarre au rayon 47,750 → 49,750 (paroi 2,0), à fleur du
+   * bord extérieur. ⚠️ Quand la vraie pièce est là, on ne génère AUCUNE jupe :
+   * elle porterait la sienne au même Ø99,5, deux surfaces confondues — et le tri
+   * en profondeur de l'aperçu, ne sachant plus laquelle est devant, laissait voir
+   * l'intérieur par transparence. */
+  trancheHMm: 8.0, trancheRIntMm: 45.750, trancheRExtMm: 49.750,
+  /* ⚠️ RECOUVREMENT, pas contact. Poser l'abat-jour EXACTEMENT sur la tranche
+   * met sa couronne de fond et le plat de la base dans le MÊME plan. Deux
+   * conséquences, et la seconde est la vraie :
+   *  · à l'écran, l'aperçu trie les triangles par profondeur et ne peut pas
+   *    départager deux faces coplanaires → les moucherons noirs sur le bord ;
+   *  · au tranchage, un contact face-à-face sans recouvrement donne une
+   *    soudure d'épaisseur nulle — deux pièces qui se touchent, pas une seule.
+   * On fait donc DESCENDRE l'abat-jour de 0,6 mm dans la tranche : elle fait
+   * 4 mm de large et la base est pleine en dessous, il n'y a rien à percer.
+   * C'est la doctrine appliquée partout ailleurs dans ce moteur — des solides
+   * qui s'interpénètrent, jamais des solides qui s'effleurent. */
+  recouvrementMm: 0.6,
+  solHMm: 3.0,            // plancher intérieur (Y = -17)
+  epauleHMm: 15.5,        // épaulement au-dessus des trous de câble (Y = -4,5)
+  epauleR1Mm: 28.0, epauleR2Mm: 33.5,
+  ledEntraxeMm: 28.00,    // kit LED Bambu — mêmes cotes que SOCKETS.USB_BAMBU
+  ledTrouMm: 4.00,
+  ledHautMm: 20.0,        // sommet des colonnettes (Y = 0)
+  serreEntraxeMm: 11.00,  // serre-câble « Bloque Cable VF 2 »
+  serreTrouMm: 4.00,
+  sortieDiaMm: 8.40,      // sortie de câble latérale (Y = -15,7)
+  sortieHMm: 4.30,
+  colonneDiaMm: 9.0,      // matière autour du perçage Ø4
+  planchierEpMm: 3.0,
+  source: "AUTRES/3D/BASE SIMPLE LED KIT.obj — 178 310 sommets, mesuré le 04/08",
+};
+// Le socle est-il actif ? Lampe à poser + module basse tension + option cochée.
+/* PLUS DE LOGIQUE MONOBLOC (05/08, consigne Baptiste). Le seul montage est la
+ * BAGUE V2 fusionnée sous chaque abat-jour : « toujours vissable avec cette
+ * bague ». socleActif est conservé comme fonction pour ne pas réécrire tout le
+ * fichier, mais il répond toujours non. */
+function socleActif(){ return false; }
+function bagueActive(){
+  return state.type === 'poser' && SOCKETS[state.socket]
+      && SOCKETS[state.socket].type === 'module';
+}
+// Rayon d'extrémité imposé au bas du profil : c'est LUI le « Ø de la base ».
+function socleRayonMm(){
+  // borné par le type de lampe ET le plateau d'impression — un Ø réglé au
+  // curseur ne doit pas pouvoir sortir de ce qui est imprimable.
+  const b = bounds();
+  const r = (state.socle ? state.socle.diaMm : SOCLE.diaRefMm) / 2;
+  return Math.min(r, b.maxR, (PRINT_BOUNDS.PLATE_XY_MM - 10) / 2);
+}
+/* Profil RÉELLEMENT maillé quand le socle est actif : la jupe droite au Ø
+ * nominal, puis le dessin du client repris au même rayon. Le dessin n'est pas
+ * déformé, il est POSÉ 8 mm plus haut — c'est la hauteur de la jupe. */
+/* Pied circulaire de la lampe à poser : Ø fixé (120,0 depuis la V3 — le
+ * diamètre extérieur de la base basse mesurée sur ALL.obj), transition sur
+ * 15 mm. La zone est densifiée avant le mélange, sinon le smoothstep serait
+ * échantillonné sur 2 points et redeviendrait une droite. */
+/* transitionMm : longueur sur laquelle la peau rejoint le cercle du pied.
+ * Portee de 15 a 30 mm le 14/08 (demande Baptiste : « un lissage progressif
+ * de l'abat-jour en bas vers cette dimension circulaire »). Mesure : le pied
+ * visuel, hauteur ou la peau franchit O110, passe de 16,3 a 20,3 mm. */
+const PIED = { diaMm: 104.0, transitionMm: 30, pasMm: 1.5 };
+function appliquerPied(prof){
+  if(prof.length < 2) return prof;
+  const h0 = prof[0].h, H = PIED.transitionMm, rC = PIED.diaMm/2;
+  const rAt = (h)=>{
+    for(let k=0;k<prof.length-1;k++){
+      if(h <= prof[k+1].h){
+        const d = prof[k+1].h - prof[k].h, u = d>1e-9 ? (h-prof[k].h)/d : 0;
+        return prof[k].r + u*(prof[k+1].r - prof[k].r);
+      }
+    }
+    return prof[prof.length-1].r;
+  };
+  const out=[];
+  for(let h=h0; h<h0+H && h<prof[prof.length-1].h; h+=PIED.pasMm){
+    const t=(h-h0)/H, sm=t*t*(3-2*t);
+    out.push({ h, r: rC + (rAt(h)-rC)*sm });
+  }
+  for(const p of prof) if(p.h >= h0+H) out.push({h:p.h, r:p.r, conge:p.conge});
+  if(!out.length || out[out.length-1].h < prof[prof.length-1].h - 1e-9)
+    out.push({...prof[prof.length-1]});
+  return out;
+}
+
+function profilAvecJupe(prof, bi){
+  /* Vraie pièce d'atelier : elle APPORTE la jupe. L'abat-jour est simplement
+   * posé sur sa tranche, au même rayon extérieur — rien n'est dupliqué. */
+  if(socleActif() && BASE_KIT.etat === 'ok' && prof.length >= 2){
+    const J = SOCLE.trancheHMm - SOCLE.recouvrementMm, R = SOCLE.trancheRExtMm;
+    const haut = prof.map(p=>({ h:p.h + J, r:p.r, conge:p.conge }));
+    haut[0] = { h:J, r:R };
+    return haut;                       // pas de point à h=0 : la base l'occupe
+  }
+  if(bagueActive() && prof.length >= 2){
+    /* L'abat-jour se pose sur l'ASSISE (z = 9,000 sur la BAGUE V2), et démarre 0,5 mm
+     * EN DESSOUS : posé pile dessus, sa couronne de fond et le plat de la bague
+     * seraient coplanaires — transparence à l'écran et soudure d'épaisseur
+     * nulle au tranchage. Sous l'assise la matière est pleine jusqu'à r 52, le
+     * pied y mord donc dans du solide. Des solides qui s'interpénètrent,
+     * jamais qui s'effleurent.
+     * ⚠️ C'est l'assise, PAS le sommet de la pièce : la BAGUE V2 continue 16,7 mm
+     * plus haut (le col fileté qui reçoit le module), à l'intérieur de la peau. */
+    const J = BAGUE.assiseMm - 0.5;
+    // le congé posé sur un point doit SURVIVRE au décalage — sans lui, l'outil
+    // de la coupe 2D semblait ne rien faire (perdu ici même)
+    return prof.map(p=>({ h:p.h + J, r:p.r, conge:p.conge }));
+  }
+  if(!socleActif() || prof.length < 2) return prof;
+  const R = socleRayonMm(), J = SOCLE.jupeHMm;
+  const haut = prof.map(p=>({ h:p.h + J, r:p.r }));
+  haut[0] = { h:J, r:R };
+  return [{ h:0, r:R }, ...haut];
+}
+
+/* Variante de lampe à poser. Les trois sortent du même dessin ; ce qui change,
+ * c'est ce qu'il y a SOUS l'abat-jour et comment ça se fixe. */
+const POSER_VARIANTES = {
+  monobloc:    { label:'Monobloc — socle kit LED intégré',
+                 detail:"Une seule pièce : la peau descend jusqu'à l'extrémité, le kit LED se monte dedans." },
+  bague:       { label:'Base simple basse — bague à visser',
+                 detail:"L'abat-jour porte une bague filetée fusionnée ; il se visse sur le col Ø99,5 du support LED." },
+  multimodule: { label:'Multimodule personnalisé — socle kit LED',
+                 detail:"Le monobloc, découpé en modules vissés : chaque module s'imprime à part." },
+};
+function poserVariante(){
+  return (state.type === 'poser' && state.poser) ? state.poser.variante : null;
+}
+
+
+/* ── BASE SIMPLE LED KIT — la VRAIE pièce, non modifiée ───────────────────
+ * Baptiste : « utilise ça, sans modifier, et fusionne avec l'abat-jour ».
+ * Le maillage d'atelier fait 178 310 sommets et 356 632 triangles — on ne peut
+ * pas l'écrire dans un fichier HTML, et on ne veut pas le simplifier (ce serait
+ * le modifier). Il est donc chargé à part, en binaire indexé compressé.
+ *
+ * Format « LKIT » : entête 4 o + 2 × uint32 (nb sommets, nb triangles), puis
+ * les sommets en float32 et les faces en uint32. Conversion depuis l'OBJ :
+ * axe Y→Z (le studio travaille en Z vertical) et pièce remontée de 20 mm pour
+ * poser son dessous à h=0. **Aucune autre transformation.** Erreur maximale de
+ * la conversion float32 mesurée sur les 534 930 coordonnées : 1,9 × 10⁻⁶ mm,
+ * soit 50 000 fois moins que la tolérance d'impression.
+ *
+ * ⚠️ CONSÉQUENCE ASSUMÉE : utiliser la pièce telle quelle FIGE son Ø à 99,50.
+ * Le réglage « diamètre à l'extrémité » ne peut donc plus la faire varier —
+ * c'est l'abat-jour qui s'aligne sur elle, et non l'inverse.
+ */
+const BASE_KIT = {
+  etat: 'absent',          // absent · ok · echec
+  note: '',
+  verts: null, faces: null,
+  nTri: 0, volMm3: 0, hautMm: 0, diaMm: 0,   // mesures au chargement
+};
+
+/* Le maillage est EMBARQUÉ dans la page, en base64 (156 Ko sur 423 Ko de
+ * fichier). Il tenait dans un fichier à part tant qu'il pesait 6,4 Mo ; la
+ * version allégée fournie par Baptiste fait 117 Ko, donc le studio redevient
+ * ce qu'il doit être : UN SEUL FICHIER, qui marche sans requête, sans serveur
+ * et hors ligne. Plus de fetch, plus de CSP à ouvrir, plus d'extension à
+ * autoriser côté serveur — et plus de 12 s d'attente au premier affichage. */
+/* Depuis le 05/08 au soir, ce bloc contient la BAGUE V2 — la pièce d'atelier
+ * utilisée PARTOUT. Depuis le 14/08 c'est la BAGUE V2 du V6 : Ø104,000 ×
+ * 20,700, 2 529 sommets, 5 058 triangles, 31,5 cm³. « Plus de logique monobloc,
+ * toujours vissable avec cette bague » (consigne Baptiste). Le nom BASE_KIT
+ * est conservé pour ne pas réécrire tout le fichier — les commentaires font foi. */
+const BASE_KIT_B64 = "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AAAAAJVgDsKamclBJA9/wGd7DcKamclBlXT9wL7OCsKamclB0Bg8wTZjBsKamclByhl3wQpHAMKamclBoX+Xwcsb8cGamclBpIqxwUyh3sGamclBFFrJwRRaycGamclBTKHewaSKscGamclByxvxwaF/l8GamclBCkcAwsoZd8GamclBNmMGwtAYPMGamclBvs4KwpV0/cCamclBZ3sNwiQPf8CamclBlWAOwgAAAICamclBZ3sNwiQPf0CamclBvs4KwpV0/UCamclBNmMGwtAYPEGamclBCkcAwsoZd0GamclByxvxwaF/l0GamclBTKHewaSKsUGamclBFFrJwRRayUGamclBpIqxwUyh3kGamclBoX+Xwcsb8UGamclByhl3wQpHAEKamclB0Bg8wTZjBkKamclBlXT9wL7OCkKamclBJA9/wGd7DUKamclBAAAAAJVgD0JpEM1BAAAAAC2lDkKamctBy3kOQt9sgEBpEM1Bkb8NQgWKf0CamctBLaUOQgAAAICamctBlWAPQgAAAIBpEM1BUsgLQk08/0BpEM1BnhELQrHu/UCamctB2FQHQgVrPUFpEM1B9aMGQnBzPEGamctBsC0BQhbWeEFpEM1B14QAQteQd0GamctBUc3yQQiQmEFpEM1B9Y/xQZ/Il0GamctBmTHgQd3JskFpEM1BjwzfQS3gsUGamctBHsTKQR7EykFpEM1BF7vJQRe7yUGamctB3cmyQZkx4EFpEM1BLeCxQY8M30GamctBCJCYQVHN8kFpEM1Bn8iXQfWP8UGamctBFtZ4QbAtAUJpEM1B15B3QdeEAEKamctBBWs9QdhUB0JpEM1BcHM8QfWjBkKamctBTTz/QFLIC0JpEM1Bse79QJ4RC0KamctB32yAQMt5DkJpEM1BBYp/QJG/DUKamctB32yAwMt5DkJpEM1BBYp/wJG/DUKamctBTTz/wFLIC0JpEM1Bse79wJ4RC0KamctBBWs9wdhUB0JpEM1BcHM8wfWjBkKamctBFtZ4wbAtAUJpEM1B15B3wdeEAEKamctBCJCYwVHN8kFpEM1Bn8iXwfWP8UGamctB3cmywZkx4EFpEM1BLeCxwY8M30GamctBHsTKwR7EykFpEM1BF7vJwRe7yUGamctBmTHgwd3JskFpEM1BjwzfwS3gsUGamctBUc3ywQiQmEFpEM1B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qwAAAD8AAABAAAAAqwAAAEAAAACqAAAAqgAAAEAAAABBAAAAqgAAAEEAAACpAAAAqQAAAEEAAABCAAAAqQAAAEIAAAB2AAAAdgAAAEIAAAB1AAAAQgAAAEMAAAB1AAAAdQAAAEMAAACoAAAAQwAAAEQAAACoAAAAqAAAAEQAAACnAAAARAAAAEUAAACnAAAApwAAAEUAAACmAAAARQAAAEYAAACmAAAApgAAAEYAAAClAAAARgAAAEcAAAClAAAApQAAAEcAAACkAAAARwAAAEgAAACkAAAApAAAAEgAAACjAAAASAAAAEkAAACjAAAAowAAAEkAAACiAAAASQAAAEoAAACiAAAAogAAAEoAAAChAAAASgAAAEsAAAChAAAAoQAAAEsAAACgAAAASwAAAEwAAACgAAAAoAAAAEwAAACfAAAATAAAAE0AAACfAAAAnwAAAE0AAACeAAAATQAAAE4AAACeAAAAngAAAE4AAACdAAAATgAAAE8AAACdAAAAnQAAAE8AAACcAAAATwAAAFAAAACcAAAAnAAAAFAAAACbAAAAUAAAAFEAAACbAAAAmwAAAFEAAACaAAAAUQAAAFIAAACaAAAAmgAAAFIAAACZAAAAUgAAAFMAAACZAAAAmQAAAFMAAACYAAAAUwAAAFQAAACYAAAAmAAAAFQAAACXAAAAVAAAAFUAAACXAAAAlwAAAFUAAACWAAAAVQAAAFYAAACWAAAAlgAAAFYAAACVAAAAVgAAAFcAAACVAAAAlQAAAFcAAACUAAAAVwAAAFgAAACUAAAAlAAAAFgAAACTAAAAWAAAAFkAAACTAAAAkwAAAFkAAACSAAAAWQAAAFoAAACSAAAAkgAAAFoAAACRAAAAWgAAAFsAAACRAAAAkQAAAFsAAACQAAAAWwAAAFwAAACQAAAAkAAAAFwAAACPAAAAXAAAAF0AAACPAAAAjwAAAF0AAACOAAAAXQAAAF4AAACOAAAAjgAAAF4AAAB0AAAAXgAAAF8AAAB0AAAAsAAAADwAAACvAAAArwAAADwAAAA7AAAArwAAADsAAABzAAAAPAAAALAAAAA9AAAAPQAAALAAAACxAAAAPQAAALEAAAA+AAAAPgAAALEAAACyAAAAPgAAALIAAAA/AAAAPwAAALIAAACzAAAAPwAAALMAAABAAAAAQAAAALMAAAC0AAAAQAAAALQAAABBAAAAQQAAALQAAAC1AAAAQQAAALUAAABCAAAAQgAAALUAAAC2AAAAQgAAALYAAABDAAAAQwAAALYAAAC3AAAAQwAAALcAAABEAAAARAAAALcAAAC4AAAARAAAALgAAABFAAAARQAAALgAAAC5AAAARQAAALkAAABGAAAARgAAALkAAAC6AAAARgAAALoAAABHAAAARwAAALoAAAC7AAAARwAAALsAAABIAAAASAAAALsAAAC8AAAASAAAALwAAABJAAAASQAAALwAAAC9AAAASQAAAL0AAABKAAAASgAAAL0AAAC+AAAASgAAAL4AAABLAAAASwAAAL4AAAC/AAAASwAAAL8AAABMAAAATAAAAL8AAADAAAAATAAAAMAAAABNAAAATQAAAMAAAADBAAAATQAAAMEAAABOAAAATgAAAMEAAADCAAAATgAAAMIAAABPAAAATwAAAMIAAADDAAAATwAAAMMAAABQAAAAUAAAAMMAAADEAAAAUAAAAMQAAABRAAAAUQAAAMQAAADFAAAAUQAAAMUAAABSAAAAUgAAAMUAAADGAAAAUgAAAMYAAABTAAAAUwAAAMYAAADHAAAAUwAAAMcAAABUAAAAVAAAAMcAAADIAAAAVAAAAMgAAABVAAAAVQAAAMgAAADJAAAAVQAAAMkAAABWAAAAVgAAAMkAAADKAAAAVgAAAMoAAABXAAAAVwAAAMoAAADLAAAAVwAAAMsAAABYAAAAWAAAAMsAAADMAAAAWAAAAMwAAABZAAAAWQAAAMwAAADNAAAAWQAAAM0AAABaAAAAWgAAAM0AAADOAAAAWgAAAM4AAABbAAAAWwAAAM4AAADPAAAAWwAAAM8AAABcAAAAXAAAAM8AAADQAAAAXAAAANAAAABdAAAAXQAAANAAAADRAAAAXQAAANEAAABeAAAAXgAAANEAAADSAAAAXgAAANIAAABfAAAAXwAAANIAAADTAAAAXwAAANMAAABgAAAAYAAAANMAAADUAAAAYAAAANQAAABhAAAAYQAAANQAAADVAAAAYQAAANUAAABiAAAAYgAAANUAAADWAAAAYgAAANYAAABjAAAAYwAAANYAAADXAAAAYwAAANcAAABkAAAAZAAAANcAAADYAAAAZAAAANgAAABlAAAAZQAAANgAAADZAAAAZQAAANkAAABmAAAA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1gAAAEoBAADXAAAA1wAAAEoBAABLAQAA1wAAAEsBAADYAAAA2AAAAEsBAABMAQAA2AAAAEwBAADZAAAA2QAAAEwBAABNAQAA2QAAAE0BAADaAAAA2gAAAE0BAABOAQAA2gAAAE4BAADbAAAA2wAAAE4BAABPAQAA2wAAAE8BAADcAAAA3AAAAE8BAABQAQAA3AAAAFABAADdAAAA3QAAAFABAABRAQAA3QAAAFEBAADeAAAA3gAAAFEBAABSAQAA3gAAAFIBAADfAAAA3wAAAFIBAABTAQAA3wAAAFMBAADgAAAA4AAAAFMBAABUAQAA4AAAAFQBAADhAAAA4QAAAFQBAABVAQAA4QAAAFUBAADiAAAA4gAAAFUBAABWAQAA4gAAAFYBAADjAAAA4wAAAFYBAABXAQAA4wAAAFcBAADkAAAA5AAAAFcBAABYAQAA5AAAAFgBAADlAAAA5QAAAFgBAABZAQAA5QAAAFkBAADmAAAA5gAAAFkBAAAjAQAAewEAAFoBAAB/AQAAfwEAAFoBAABbAQAAfwEAAFsBAAB+AQAAfgEAAFsBAAB9AQAAfgEAAH0BAACCAQAAggEAAH0BAACBAQAAggEAAIEBAACGAQAAhgEAAIEBAACFAQAAhgEAAIUBAACKAQAAigEAAIUBAACJAQAAigEAAIkBAACOAQAAjgEAAIkBAACNAQAAjgEAAI0BAACSAQAAkgEAAI0BAACRAQAAkgEAAJEBAACWAQAAlgEAAJEBAACVAQAAlgEAAJUBAACaAQAAmgEAAJUBAACZAQAAmgEAAJkBAACeAQAAngEAAJkBAACdAQAAngEAAJ0BAACiAQAAogEAAJ0BAAChAQAAogEAAKEBAACmAQAApgEAAKEBAAClAQAApgEAAKUBAACqAQAAqgEAAKUBAACpAQAAqgEAAKkBAACuAQAArgEAAKkBAACtAQAArgEAAK0BAACyAQAAsgEAAK0BAACxAQAAsgEAALEBAAC2AQAAtgEAALEBAAC1AQAAtgEAALUBAAC6AQAAugEAALUBAAC5AQAAugEAALkBAABbAQAAWwEAALkBAABcAQAAXAEAALkBAAC4AQAAXAEAALgBAABdAQAAXQEAALgBAABsAQAAbAEAALgBAAC0AQAAbAEAALQBAABrAQAAawEAALQBAACwAQAAawEAALABAABqAQAAagEAALABAACsAQAAagEAAKwBAABpAQAAaQEAAKwBAACoAQAAaQEAAKgBAABoAQAAaAEAAKgBAACkAQAAaAEAAKQBAABnAQAAZwEAAKQBAACgAQAAZwEAAKABAABmAQAAZgEAAKABAACcAQAAZgEAAJwBAABlAQAAZQEAAJwBAACYAQAAZQEAAJgBAABkAQAAZAEAAJgBAACUAQAAZAEAAJQBAABjAQAAYwEAAJQBAACQAQAAYwEAAJABAABiAQAAYgEAAJABAACMAQAAYgEAAIwBAABhAQAAYQEAAIwBAACIAQAAYQEAAIgBAABgAQAAYAEAAIgBAACEAQAAYAEAAIQBAABfAQAAXwEAAIQBAACAAQAAXwEAAIABAABeAQAAXgEAAIABAAB8AQAAXgEAAHwBAABdAQAAXQEAAHwBAABcAQAAXAEAAHwBAAB9AQAAXAEAAH0BAABbAQAAugEAAFsBAAC7AQAAuwEAAFsBAABaAQAAuwEAAFoBAABtAQAAuwEAAG0BAAC3AQAAtwEAAG0BAABuAQAAtwEAAG4BAACzAQAAswEAAG4BAABvAQAAswEAAG8BAACvAQAArwEAAG8BAABwAQAArwEAAHABAACrAQAAqwEAAHABAABxAQAAqwEAAHEBAACnAQAApwEAAHEBAAByAQAApwEAAHIBAACjAQAAowEAAHIBAABzAQAAowEAAHMBAACfAQAAnwEAAHMBAAB0AQAAnwEAAHQBAACbAQAAmwEAAHQBAAB1AQAAmwEAAHUBAACXAQAAlwEAAHUBAAB2AQAAlwEAAHYBAACTAQAAkwEAAHYBAAB3AQAAkwEAAHcBAACPAQAAjwEAAHcBAAB4AQAAjwEAAHgBAACLAQAAiwEAAHgBAAB5AQAAiwEAAHkBAACHAQAAhwEAAHkBAAB6AQAAhwEAAHoBAACDAQAAgwEAAHoBAAB7AQAAgwEAAHsBAAB/AQAAgQEAAH0BAAB8AQAAgQEAAHwBAACAAQAAgwEAAH8BAAB+AQAAgwEAAH4BAACCAQAAhQEAAIEBAACAAQAAhwEAAIMBAACCAQAAhwEAAIIBAACGAQAAiQEAAIUBAACEAQAAhAEAAIUBAACAAQAAiwEAAIcBAACGAQAAiwEAAIYBAACKAQAAjQEAAIkBAACIAQAAiAEAAIkBAACEAQAAjwEAAIsBAACKAQAAjwEAAIoBAACOAQAAkQEAAI0BAACMAQAAjAEAAI0BAACIAQAAkwEAAI8BAACOAQAAkwEAAI4BAACSAQAAlQEAAJEBAACQAQAAkAEAAJEBAACMAQAAlwEAAJMBAACSAQAAlwEAAJIBAACWAQAAmQEAAJUBAACUAQAAlAEAAJUBAACQAQAAmwEAAJcBAACWAQAAmwEAAJYBAACaAQAAnQEAAJkBAACYAQAAmAEAAJkBAACUAQAAnwEAAJsBAACaAQAAnwEAAJoBAACeAQAAoQEAAJ0BAACcAQAAnAEAAJ0BAACYAQAAowEAAJ8BAACeAQAAowEAAJ4BAACiAQAApQEAAKEBAACgAQAAoAEAAKEBAACcAQAApwEAAKMBAACiAQAApwEAAKIBAACmAQAAqQEAAKUBAACkAQAApAEAAKUBAACgAQAAqwEAAKcBAACmAQAAqwEAAKYBAACqAQAArQEAAKkBAACoAQAAqAEAAKkBAACkAQAArwEAAKsBAACqAQAArwEAAKoBAACuAQAAsQEAAK0BAACsAQAArAEAAK0BAACoAQAAswEAAK8BAACuAQAAswEAAK4BAACyAQAAtQEAALEBAACwAQAAsAEAALEBAACsAQAAtwEAALMBAACyAQAAtwEAALIBAAC2AQAAuQEAALUBAAC0AQAAtAEAALUBAACwAQAAuAEAALkBAAC0AQAAuwEAALcBAAC2AQAAuwEAALYBAAC6AQAAXQEAAGwBAABeAQAAXgEAAGwBAABfAQAAXwEAAGwBAABgAQAAYAEAAGwBAABhAQAAYQEAAGwBAABrAQAAYQEAAGsBAABqAQAAagEAAGkBAABhAQAAYQEAAGkBAABoAQAAYQEAAGgBAABnAQAAZwEAAGYBAABhAQAAYQEAAGYBAABlAQAAYQEAAGUBAABkAQAAZAEAAGMBAABhAQAAYQEAAGMBAABiAQAAewEAANQBAABaAQAAWgEAANQBAADXAQAAWgEAANcBAABtAQAAbQEAANcBAADyAQAAbQEAAPIBAADTAQAA0wEAAPIBAADxAQAA0wEAAPEBAADwAQAA8AEAAPEBAAC+AQAA8AEAAL4BAADSAQAA0gEAAL4BAAC/AQAA0gEAAL8BAADuAQAA7gEAAL8BAADAAQAA7gEAAMABAADsAQAA7AEAAMABAADBAQAA7AEAAMEBAADpAQAA6QEAAMEBAADCAQAA6QEAAMIBAADqAQAA6gEAAMIBAADDAQAA6gEAAMMBAADnAQAA5wEAAMMBAADEAQAA5wEAAMQBAADlAQAA5QEAAMQBAADFAQAA5QEAAMUBAADjAQAA4wEAAMUBAADGAQAA4wEAAMYBAADQAQAA0AEAAMYBAADHAQAA0AEAAMcBAADgAQAA4AEAAMcBAADeAQAA4AEAAN4BAADPAQAAzwEAAN4BAADNAQAAzwEAAM0BAAB4AQAAeAEAAM0BAADcAQAAeAEAANwBAAB5AQAAeQEAANwBAADaAQAAeQEAANoBAAB6AQAAegEAANoBAADYAQAAegEAANgBAAB7AQAAewEAANgBAADUAQAAeAEAAHcBAADPAQAAzwEAAHcBAADfAQAAzwEAAN8BAADgAQAA4AEAAN8BAADQAQAAdwEAAHYBAADfAQAA3wEAAHYBAADhAQAA3wEAAOEBAADQAQAA0AEAAOEBAADjAQAAdgEAAHUBAADhAQAA4QEAAHUBAADiAQAA4QEAAOIBAADjAQAA4wEAAOIBAADlAQAAdQEAAHQBAADiAQAA4gEAAHQBAADkAQAA4gEAAOQBAADlAQAA5QEAAOQBAADnAQAAdAEAAHMBAADkAQAA5AEAAHMBAADmAQAA5AEAAOYBAADnAQAA5wEAAOYBAADqAQAA5gEAAHMBAADRAQAA0QEAAHMBAAByAQAA0QEAAHIBAADoAQAA6AEAAHIBAABxAQAA6AEAAHEBAADrAQAA6wEAAHEBAABwAQAA6wEAAHABAADtAQAA7QEAAHABAABvAQAA7QEAAG8BAADvAQAA7wEAAG8BAABuAQAA7wEAAG4BAADTAQAA0wEAAG4BAABtAQAAvQEAANYBAAC8AQAAvAEAANYBAADVAQAAvAEAANUBAADMAQAAzAEAANUBAADZAQAAzAEAANkBAADLAQAAywEAANkBAADbAQAAywEAANsBAADKAQAAygEAANsBAADdAQAAygEAAN0BAADJAQAAyQEAAN0BAADOAQAAyQEAAM4BAADIAQAAyAEAAM4BAADeAQAAyAEAAN4BAADHAQAA1gEAAL0BAADxAQAA8QEAAL0BAAC+AQAAzQEAAM4BAADcAQAA3AEAAM4BAADdAQAA3AEAAN0BAADaAQAA2gEAAN0BAADbAQAA2gEAANsBAADYAQAA2AEAANsBAADZAQAA2AEAANkBAADUAQAA1AEAANkBAADVAQAA1AEAANUBAADXAQAA1wEAANUBAADWAQAA1wEAANYBAADyAQAA8gEAANYBAADxAQAAzgEAAM0BAADeAQAA6AEAAOkBAADRAQAA0QEAAOkBAADqAQAA0QEAAOoBAADmAQAA6QEAAOgBAADsAQAA7AEAAOgBAADrAQAA7AEAAOsBAADuAQAA7gEAAOsBAADtAQAA7gEAAO0BAADSAQAA0gEAAO0BAADvAQAA0gEAAO8BAADwAQAA8AEAAO8BAADTAQAANAIAAPMBAAA1AgAANQIAAPMBAAD0AQAANQIAAPQBAABuAgAAbgIAAPQBAAD1AQAAbgIAAPUBAABtAgAAbQIAAPUBAAD2AQAAbQIAAPYBAABsAgAAbAIAAPYBAAD3AQAAbAIAAPcBAABrAgAAawIAAPcBAAD4AQAAawIAAPgBAABqAgAAagIAAPgBAAD5AQAAagIAAPkBAABpAgAAaQIAAPkBAAD6AQAAaQIAAPoBAABoAgAAaAIAAPoBAAD7AQAAaAIAAPsBAAD8AQAAaAIAAPwBAABnAgAAZwIAAPwBAAD9AQAAZwIAAP0BAABmAgAAZgIAAP0BAAD+AQAAZgIAAP4BAABlAgAAZQIAAP4BAAD/AQAAZQIAAP8BAABkAgAAZAIAAP8BAAAAAgAAZAIAAAACAABjAgAAYwIAAAACAAABAgAAYwIAAAECAABiAgAAYgIAAAECAAACAgAAYgIAAAICAABhAgAAYQIAAAICAAADAgAAYQIAAAMCAAAEAgAAYQIAAAQCAABgAgAAYAIAAAQCAAAFAgAAYAIAAAUCAABfAgAAXwIAAAUCAAAGAgAAXwIAAAYCAABeAgAAXgIAAAYCAAAHAgAAXgIAAAcCAABdAgAAXQIAAAcCAAAIAgAAXQIAAAgCAABcAgAAXAIAAAgCAAAJAgAAXAIAAAkCAABbAgAAWwIAAAkCAAAKAgAAWwIAAAoCAABaAgAAWgIAAAoCAAALAgAAWgIAAAsCAABZAgAAWQIAAAsCAAAMAgAAWQIAAAwCAAANAgAAWQIAAA0CAABYAgAAWAIAAA0CAAAOAgAAWAIAAA4CAABXAgAAVwIAAA4CAAAPAgAAVwIAAA8CAABWAgAAVgIAAA8CAAAQAgAAVgIAABACAABVAgAAVQIAABACAAARAgAAVQIAABECAABUAgAAVAIAABECAAASAgAAVAIAABICAABTAgAAUwIAABICAAATAgAAUwIAABMCAABSAgAAUgIAABMCAAAUAgAAUgIAABQCAAAVAgAAUgIAABUCAABRAgAAUQIAABUCAAAWAgAAUQIAABYCAABQAgAAUAIAABYCAAAXAgAAUAIAABcCAABPAgAATwIAABcCAAAYAgAATwIAABgCAABOAgAATgIAABgCAAAZAgAATgIAABkCAABNAgAATQIAABkCAAAaAgAATQIAABoCAABMAgAATAIAABoCAAAbAgAATAIAABsCAABLAgAASwIAABsCAAAcAgAASwIAABwCAAAdAgAASwIAAB0CAABKAgAASgIAAB0CAAAeAgAASgIAAB4CAABJAgAASQIAAB4CAAAfAgAASQIAAB8CAABIAgAASAIAAB8CAAAgAgAASAIAACACAADHAQAAxwEAACACAADIAQAAyAEAACACAADJAQAAyQEAACACAAAhAgAAyQEAACECAADKAQAAygEAACECAADLAQAAywEAACECAADMAQAAzAEAACECAAAiAgAAzAEAACICAAC8AQAAvAEAACICAAC9AQAAvQEAACICAAAjAgAAvQEAACMCAAC+AQAAvgEAACMCAAC/AQAAvwEAACMCAADAAQAAwAEAACMCAAAkAgAAwAEAACQCAABEAgAARAIAACQCAAAlAgAARAIAACUCAABDAgAAQwIAACUCAAAmAgAAQwIAACYCAABCAgAAQgIAACYCAAAnAgAAQgIAACcCAABBAgAAQQIAACcCAAAoAgAAQQIAACgCAABAAgAAQAIAACgCAAApAgAAQAIAACkCAAA/AgAAPwIAACkCAAAqAgAAPwIAACoCAAA+AgAAPgIAACoCAAArAgAAPgIAACsCAAA9AgAAPQIAACsCAAAsAgAAPQIAACwCAAA8AgAAPAIAACwCAAAtAgAAPAIAAC0CAAAuAgAAPAIAAC4CAAA7AgAAOwIAAC4CAAAvAgAAOwIAAC8CAAA6AgAAOgIAAC8CAAAwAgAAOgIAADACAAA5AgAAOQIAADACAAAxAgAAOQIAADECAAA4AgAAOAIAADECAAAyAgAAOAIAADICAAA3AgAANwIAADICAAAzAgAANwIAADMCAAA2AgAANgIAADMCAAA0AgAANgIAADQCAAA1AgAAwAEAAEQCAADBAQAAwQEAAEQCAABFAgAAwQEAAEUCAADCAQAAwgEAAEUCAADDAQAAwwEAAEUCAABGAgAAwwEAAEYCAADEAQAAxAEAAEYCAADFAQAAxQEAAEYCAABHAgAAxQEAAEcCAADGAQAAxgEAAEcCAADHAQAAxwEAAEcCAABIAgAAcAIAAOwCAABvAgAAbwIAAOwCAADxAgAAbwIAAPECAACmAwAApgMAAPECAADwAgAApgMAAPACAACnAwAApwMAAPACAADvAgAApwMAAO8CAACoAwAAqAMAAO8CAACtAgAAqAMAAK0CAACuAgAA7AIAAHACAADyAgAA8gIAAHACAABxAgAA8gIAAHECAAD1AgAA9QIAAHECAAByAgAA9QIAAHICAAD4AgAA+AIAAHICAABzAgAA+AIAAHMCAAD7AgAA+wIAAHMCAAB0AgAA+wIAAHQCAAD+AgAA/gIAAHQCAAB1AgAA/gIAAHUCAAABAwAAAQMAAHUCAAB2AgAAAQMAAHYCAAAEAwAABAMAAHYCAAB3AgAABAMAAHcCAAAHAwAABwMAAHcCAAB4AgAABwMAAHgCAAAKAwAACgMAAHgCAAB5AgAACgMAAHkCAAANAwAADQMAAHkCAAB6AgAADQMAAHoCAAAQAwAAEAMAAHoCAAB7AgAAEAMAAHsCAAATAwAAEwMAAHsCAAB8AgAAEwMAAHwCAAAWAwAAFgMAAHwCAAB9AgAAFgMAAH0CAAAZAwAAGQMAAH0CAAB+AgAAGQMAAH4CAAAcAwAAHAMAAH4CAAB/AgAAHAMAAH8CAAAfAwAAHwMAAH8CAACAAgAAHwMAAIACAAAiAwAAIgMAAIACAACBAgAAIgMAAIECAAAlAwAAJQMAAIECAACCAgAAJQMAAIICAAAoAwAAKAMAAIICAACDAgAAKAMAAIMCAAArAwAAKwMAAIMCAACEAgAAKwMAAIQCAAAuAwAALgMAAIQCAACFAgAALgMAAIUCAAAxAwAAMQMAAIUCAACGAgAAMQMAAIYCAAA0AwAANAMAAIYCAACHAgAANAMAAIcCAAA3AwAANwMAAIcCAACIAgAANwMAAIgCAAA6AwAAOgMAAIgCAACJAgAAOgMAAIkCAAA9AwAAPQMAAIkCAACKAgAAPQMAAIoCAABAAwAAQAMAAIoCAACLAgAAQAMAAIsCAABDAwAAQwMAAIsCAACMAgAAQwMAAIwCAABGAwAARgMAAIwCAACNAgAARgMAAI0CAABJAwAASQMAAI0CAACOAgAASQMAAI4CAADpAgAA6QIAAI4CAABMAwAA6QIAAEwDAABNAwAATQMAAEwDAABQAwAATQMAAFADAABRAwAAUQMAAFADAABUAwAAUQMAAFQDAADJAgAAyQIAAFQDAADIAgAAyAIAAFQDAABXAwAAyAIAAFcDAADHAgAAxwIAAFcDAABaAwAAxwIAAFoDAADGAgAAxgIAAFoDAABdAwAAxgIAAF0DAADFAgAAxQIAAF0DAABgAwAAxQIAAGADAADEAgAAxAIAAGADAABjAwAAxAIAAGMDAADDAgAAwwIAAGMDAABmAwAAwwIAAGYDAADCAgAAwgIAAGYDAABpAwAAwgIAAGkDAADBAgAAwQIAAGkDAABsAwAAwQIAAGwDAADAAgAAwAIAAGwDAABvAwAAwAIAAG8DAAC/AgAAvwIAAG8DAAByAwAAvwIAAHIDAAC+AgAAvgIAAHIDAAB1AwAAvgIAAHUDAAC9AgAAvQIAAHUDAAB4AwAAvQIAAHgDAAC8AgAAvAIAAHgDAAB7AwAAvAIAAHsDAAB+AwAAfgMAAHsDAAB6AwAAfgMAAHoDAAB9AwAAfQMAAHoDAAB5AwAAfQMAAHkDAAB8AwAAfAMAAHkDAACeAgAAfAMAAJ4CAACfAgAAjgIAAI8CAABMAwAATAMAAI8CAABPAwAATAMAAE8DAABQAwAAUAMAAE8DAABTAwAAUAMAAFMDAABUAwAAVAMAAFMDAABXAwAAjwIAAJACAABPAwAATwMAAJACAABSAwAATwMAAFIDAABTAwAAUwMAAFIDAABWAwAAUwMAAFYDAABXAwAAVwMAAFYDAABaAwAAkAIAAJECAABSAwAAUgMAAJECAABVAwAAUgMAAFUDAABWAwAAVgMAAFUDAABZAwAAVgMAAFkDAABaAwAAWgMAAFkDAABdAwAAkQIAAJICAABVAwAAVQMAAJICAABYAwAAVQMAAFgDAABZAwAAWQMAAFgDAABcAwAAWQMAAFwDAABdAwAAXQMAAFwDAABgAwAAkgIAAJMCAABYAwAAWAMAAJMCAABbAwAAWAMAAFsDAABcAwAAXAMAAFsDAABfAwAAXAMAAF8DAABgAwAAYAMAAF8DAABjAwAAkwIAAJQCAABbAwAAWwMAAJQCAABeAwAAWwMAAF4DAABfAwAAXwMAAF4DAABiAwAAXwMAAGIDAABjAwAAYwMAAGIDAABmAwAAlAIAAJUCAABeAwAAXgMAAJUCAABhAwAAXgMAAGEDAABiAwAAYgMAAGEDAABlAwAAYgMAAGUDAABmAwAAZgMAAGUDAABpAwAAlQIAAJYCAABhAwAAYQMAAJYCAABkAwAAYQMAAGQDAABlAwAAZQMAAGQDAABoAwAAZQMAAGgDAABpAwAAaQMAAGgDAABsAwAAlgIAAJcCAABkAwAAZAMAAJcCAABnAwAAZAMAAGcDAABoAwAAaAMAAGcDAABrAwAAaAMAAGsDAABsAwAAbAMAAGsDAABvAwAAlwIAAJgCAABnAwAAZwMAAJgCAABqAwAAZwMAAGoDAABrAwAAawMAAGoDAABuAwAAawMAAG4DAABvAwAAbwMAAG4DAAByAwAAmAIAAJkCAABqAwAAagMAAJkCAABtAwAAagMAAG0DAABuAwAAbgMAAG0DAABxAwAAbgMAAHEDAAByAwAAcgMAAHEDAAB1AwAAmQIAAJoCAABtAwAAbQMAAJoCAABwAwAAbQMAAHADAABxAwAAcQMAAHADAAB0AwAAcQMAAHQDAAB1AwAAdQMAAHQDAAB4AwAAmgIAAJsCAABwAwAAcAMAAJsCAABzAwAAcAMAAHMDAAB0AwAAdAMAAHMDAAB3AwAAdAMAAHcDAAB4AwAAeAMAAHcDAAB7AwAAmwIAAJwCAABzAwAAcwMAAJwCAAB2AwAAcwMAAHYDAAB3AwAAdwMAAHYDAAB6AwAAdwMAAHoDAAB7AwAAnAIAAJ0CAAB2AwAAdgMAAJ0CAAB5AwAAdgMAAHkDAAB6AwAAnQIAAJ4CAAB5AwAAfAMAAJ8CAAB/AwAAfwMAAJ8CAACgAgAAfwMAAKACAACCAwAAggMAAKACAAChAgAAggMAAKECAACFAwAAhQMAAKECAACiAgAAhQMAAKICAACIAwAAiAMAAKICAACjAgAAiAMAAKMCAACLAwAAiwMAAKMCAACkAgAAiwMAAKQCAACOAwAAjgMAAKQCAAClAgAAjgMAAKUCAACRAwAAkQMAAKUCAACmAgAAkQMAAKYCAACUAwAAlAMAAKYCAACnAgAAlAMAAKcCAACXAwAAlwMAAKcCAACoAgAAlwMAAKgCAACaAwAAmgMAAKgCAACpAgAAmgMAAKkCAACdAwAAnQMAAKkCAACqAgAAnQMAAKoCAACgAwAAoAMAAKoCAACrAgAAoAMAAKsCAACjAwAAowMAAKsCAACsAgAAowMAAKwCAACmAwAApgMAAKwCAABvAgAAqAMAAK4CAAClAwAApQMAAK4CAACvAgAApQMAAK8CAACiAwAAogMAAK8CAACwAgAAogMAALACAACfAwAAnwMAALACAACxAgAAnwMAALECAACcAwAAnAMAALECAACyAgAAnAMAALICAACZAwAAmQMAALICAACzAgAAmQMAALMCAACWAwAAlgMAALMCAAC0AgAAlgMAALQCAACTAwAAkwMAALQCAAC1AgAAkwMAALUCAACQAwAAkAMAALUCAAC2AgAAkAMAALYCAACNAwAAjQMAALYCAAC3AgAAjQMAALcCAACKAwAAigMAALcCAAC4AgAAigMAALgCAACHAwAAhwMAALgCAAC5AgAAhwMAALkCAACEAwAAhAMAALkCAAC6AgAAhAMAALoCAACBAwAAgQMAALoCAAC7AgAAgQMAALsCAAB+AwAAfgMAALsCAAC8AgAAyQIAAMoCAABRAwAAUQMAAMoCAABOAwAAUQMAAE4DAABNAwAATQMAAE4DAADqAgAATQMAAOoCAADpAgAA6QIAAOoCAABJAwAAygIAAMsCAABOAwAATgMAAMsCAADrAgAATgMAAOsCAADqAgAA6gIAAOsCAABKAwAA6gIAAEoDAABJAwAASQMAAEoDAABGAwAA6wIAAMsCAABLAwAASwMAAMsCAADMAgAASwMAAMwCAABIAwAASAMAAMwCAADNAgAASAMAAM0CAABFAwAARQMAAM0CAADOAgAARQMAAM4CAABCAwAAQgMAAM4CAADPAgAAQgMAAM8CAAA/AwAAPwMAAM8CAADQAgAAPwMAANACAAA8AwAAPAMAANACAADRAgAAPAMAANECAAA5AwAAOQMAANECAADSAgAAOQMAANICAAA2AwAANgMAANICAADTAgAANgMAANMCAAAzAwAAMwMAANMCAADUAgAAMwMAANQCAAAwAwAAMAMAANQCAADVAgAAMAMAANUCAAAtAwAALQMAANUCAADWAgAALQMAANYCAAAqAwAAKgMAANYCAADXAgAAKgMAANcCAAAnAwAAJwMAANcCAADYAgAAJwMAANgCAAAkAwAAJAMAANgCAADZAgAAJAMAANkCAAAhAwAAIQMAANkCAADaAgAAIQMAANoCAAAeAwAAHgMAANoCAAAbAwAAHgMAABsDAAAaAwAAGgMAABsDAAAXAwAAGgMAABcDAAAWAwAAFgMAABcDAAATAwAA2gIAANsCAAAbAwAAGwMAANsCAAAYAwAAGwMAABgDAAAXAwAAFwMAABgDAAAUAwAAFwMAABQDAAATAwAAEwMAABQDAAAQAwAA2wIAANwCAAAYAwAAGAMAANwCAAAVAwAAGAMAABUDAAAUAwAAFAMAABUDAAARAwAAFAMAABEDAAAQAwAAEAMAABEDAAANAwAA3AIAAN0CAAAVAwAAFQMAAN0CAAASAwAAFQMAABIDAAARAwAAEQMAABIDAAAOAwAAEQMAAA4DAAANAwAADQMAAA4DAAAKAwAA3QIAAN4CAAASAwAAEgMAAN4CAAAPAwAAEgMAAA8DAAAOAwAADgMAAA8DAAALAwAADgMAAAsDAAAKAwAACgMAAAsDAAAHAwAA3gIAAN8CAAAPAwAADwMAAN8CAAAMAwAADwMAAAwDAAALAwAACwMAAAwDAAAIAwAACwMAAAgDAAAHAwAABwMAAAgDAAAEAwAA3wIAAOACAAAMAwAADAMAAOACAAAJAwAADAMAAAkDAAAIAwAACAMAAAkDAAAFAwAACAMAAAUDAAAEAwAABAMAAAUDAAABAwAA4AIAAOECAAAJAwAACQMAAOECAAAGAwAACQMAAAYDAAAFAwAABQMAAAYDAAACAwAABQMAAAIDAAABAwAAAQMAAAIDAAD+AgAA4QIAAOICAAAGAwAABgMAAOICAAADAwAABgMAAAMDAAACAwAAAgMAAAMDAAD/AgAAAgMAAP8CAAD+AgAA/gIAAP8CAAD7AgAA4gIAAOMCAAADAwAAAwMAAOMCAAAAAwAAAwMAAAADAAD/AgAA/wIAAAADAAD8AgAA/wIAAPwCAAD7AgAA+wIAAPwCAAD4AgAA4wIAAOQCAAAAAwAAAAMAAOQCAAD9AgAAAAMAAP0CAAD8AgAA/AIAAP0CAAD5AgAA/AIAAPkCAAD4AgAA+AIAAPkCAAD1AgAA5AIAAOUCAAD9AgAA/QIAAOUCAAD6AgAA/QIAAPoCAAD5AgAA+QIAAPoCAAD2AgAA+QIAAPYCAAD1AgAA9QIAAPYCAADyAgAA5QIAAOYCAAD6AgAA+gIAAOYCAAD3AgAA+gIAAPcCAAD2AgAA9gIAAPcCAADzAgAA9gIAAPMCAADyAgAA8gIAAPMCAADsAgAA5gIAAOcCAAD3AgAA9wIAAOcCAAD0AgAA9wIAAPQCAADzAgAA8wIAAPQCAADtAgAA8wIAAO0CAADsAgAA7AIAAO0CAADxAgAA5wIAAOgCAAD0AgAA9AIAAOgCAADuAgAA9AIAAO4CAADtAgAA7QIAAO4CAADwAgAA7QIAAPACAADxAgAA6AIAAK0CAADuAgAA7gIAAK0CAADvAgAA7gIAAO8CAADwAgAASgMAAOsCAABLAwAAFgMAABkDAAAaAwAAGgMAABkDAAAdAwAAGgMAAB0DAAAeAwAAHgMAAB0DAAAhAwAAGQMAABwDAAAdAwAAHQMAABwDAAAgAwAAHQMAACADAAAhAwAAIQMAACADAAAkAwAAHAMAAB8DAAAgAwAAIAMAAB8DAAAjAwAAIAMAACMDAAAkAwAAJAMAACMDAAAnAwAAHwMAACIDAAAjAwAAIwMAACIDAAAmAwAAIwMAACYDAAAnAwAAJwMAACYDAAAqAwAAIgMAACUDAAAmAwAAJgMAACUDAAApAwAAJgMAACkDAAAqAwAAKgMAACkDAAAtAwAAJQMAACgDAAApAwAAKQMAACgDAAAsAwAAKQMAACwDAAAtAwAALQMAACwDAAAwAwAAKAMAACsDAAAsAwAALAMAACsDAAAvAwAALAMAAC8DAAAwAwAAMAMAAC8DAAAzAwAAKwMAAC4DAAAvAwAALwMAAC4DAAAyAwAALwMAADIDAAAzAwAAMwMAADIDAAA2AwAALgMAADEDAAAyAwAAMgMAADEDAAA1AwAAMgMAADUDAAA2AwAANgMAADUDAAA5AwAAMQMAADQDAAA1AwAANQMAADQDAAA4AwAANQMAADgDAAA5AwAAOQMAADgDAAA8AwAANAMAADcDAAA4AwAAOAMAADcDAAA7AwAAOAMAADsDAAA8AwAAPAMAADsDAAA/AwAANwMAADoDAAA7AwAAOwMAADoDAAA+AwAAOwMAAD4DAAA/AwAAPwMAAD4DAABCAwAAOgMAAD0DAAA+AwAAPgMAAD0DAABBAwAAPgMAAEEDAABCAwAAQgMAAEEDAABFAwAAPQMAAEADAABBAwAAQQMAAEADAABEAwAAQQMAAEQDAABFAwAARQMAAEQDAABIAwAAQAMAAEMDAABEAwAARAMAAEMDAABHAwAARAMAAEcDAABIAwAASAMAAEcDAABLAwAAQwMAAEYDAABHAwAARwMAAEYDAABKAwAARwMAAEoDAABLAwAAgQMAAH4DAAB9AwAAfQMAAHwDAACAAwAAgAMAAHwDAAB/AwAAgAMAAH8DAACDAwAAgwMAAH8DAACCAwAAgwMAAIIDAACGAwAAhgMAAIIDAACFAwAAhgMAAIUDAACJAwAAiQMAAIUDAACIAwAAiQMAAIgDAACMAwAAjAMAAIgDAACLAwAAjAMAAIsDAACPAwAAjwMAAIsDAACOAwAAjwMAAI4DAACSAwAAkgMAAI4DAACRAwAAkgMAAJEDAACVAwAAlQMAAJEDAACUAwAAlQMAAJQDAACYAwAAmAMAAJQDAACXAwAAmAMAAJcDAACbAwAAmwMAAJcDAACaAwAAmwMAAJoDAACeAwAAngMAAJoDAACdAwAAngMAAJ0DAAChAwAAoQMAAJ0DAACgAwAAoQMAAKADAACkAwAApAMAAKADAACjAwAApAMAAKMDAACnAwAApwMAAKMDAACmAwAAhAMAAIEDAACAAwAAgAMAAIEDAAB9AwAAhAMAAIADAACDAwAAhwMAAIQDAACDAwAAhwMAAIMDAACGAwAAigMAAIcDAACGAwAAigMAAIYDAACJAwAAjQMAAIoDAACJAwAAjQMAAIkDAACMAwAAkAMAAI0DAACMAwAAkAMAAIwDAACPAwAAkwMAAJADAACPAwAAkwMAAI8DAACSAwAAlgMAAJMDAACSAwAAlgMAAJIDAACVAwAAmQMAAJYDAACVAwAAmQMAAJUDAACYAwAAnAMAAJkDAACYAwAAnAMAAJgDAACbAwAAnwMAAJwDAACbAwAAnwMAAJsDAACeAwAAogMAAJ8DAACeAwAAogMAAJ4DAAChAwAApQMAAKIDAAChAwAApQMAAKEDAACkAwAAqAMAAKUDAACkAwAAqAMAAKQDAACnAwAAqgMAANsCAACpAwAAqQMAANsCAADaAgAAqQMAANoCAADkAwAA5AMAANoCAADZAgAA5AMAANkCAADjAwAA4wMAANkCAADYAgAA4wMAANgCAADiAwAA4gMAANgCAADXAgAA4gMAANcCAADhAwAA4QMAANcCAADWAgAA4QMAANYCAADgAwAA4AMAANYCAADVAgAA4AMAANUCAADfAwAA3wMAANUCAADUAgAA3wMAANQCAADeAwAA3gMAANQCAADTAgAA3gMAANMCAADdAwAA3QMAANMCAADSAgAA3QMAANICAADcAwAA3AMAANICAADRAgAA3AMAANECAADbAwAA2wMAANECAADQAgAA2wMAANACAADaAwAA2gMAANACAADPAgAA2gMAAM8CAADZAwAA2QMAAM8CAADOAgAA2QMAAM4CAADYAwAA2AMAAM4CAADNAgAA2AMAAM0CAADXAwAA1wMAAM0CAADMAgAA1wMAAMwCAADWAwAA1gMAAMwCAADLAgAA1gMAAMsCAADVAwAA1QMAAMsCAADKAgAA1QMAAMoCAADUAwAA1AMAAMoCAADJAgAA1AMAAMkCAADTAwAA0wMAAMkCAADIAgAA0wMAAMgCAADSAwAA0gMAAMgCAADHAgAA0gMAAMcCAADRAwAA0QMAAMcCAADGAgAA0QMAAMYCAADQAwAA0AMAAMYCAADFAgAA0AMAAMUCAADPAwAAzwMAAMUCAADEAgAAzwMAAMQCAADOAwAAzgMAAMQCAADDAgAAzgMAAMMCAADNAwAAzQMAAMMCAADCAgAAzQMAAMICAADMAwAAzAMAAMICAADBAgAAzAMAAMECAADLAwAAywMAAMECAADAAgAAywMAAMACAADKAwAAygMAAMACAAC/AgAAygMAAL8CAADJAwAAyQMAAL8CAAC+AgAAyQMAAL4CAADIAwAAyAMAAL4CAAC9AgAAyAMAAL0CAADHAwAAxwMAAL0CAAC8AgAAxwMAALwCAADGAwAAxgMAALwCAAC7AgAAxgMAALsCAADFAwAAxQMAALsCAAC6AgAAxQMAALoCAADEAwAAxAMAALoCAAC5AgAAxAMAALkCAADDAwAAwwMAALkCAAC4AgAAwwMAALgCAADCAwAAwgMAALgCAAC3AgAAwgMAALcCAADBAwAAwQMAALcCAAC2AgAAwQMAALYCAADAAwAAwAMAALYCAAC1AgAAwAMAALUCAAC/AwAAvwMAALUCAAC0AgAAvwMAALQCAAC+AwAAvgMAALQCAACzAgAAvgMAALMCAAC9AwAAvQMAALMCAACyAgAAvQMAALICAAC8AwAAvAMAALICAACxAgAAvAMAALECAAC7AwAAuwMAALECAACwAgAAuwMAALACAAC6AwAAugMAALACAACvAgAAugMAAK8CAAC5AwAAuQMAAK8CAACuAgAAuQMAAK4CAAC4AwAAuAMAAK4CAACtAgAAuAMAAK0CAAC3AwAAtwMAAK0CAADoAgAAtwMAAOgCAAC2AwAAtgMAAOgCAADnAgAAtgMAAOcCAAC1AwAAtQMAAOcCAADmAgAAtQMAAOYCAAC0AwAAtAMAAOYCAADlAgAAtAMAAOUCAACzAwAAswMAAOUCAADkAgAAswMAAOQCAACyAwAAsgMAAOQCAADjAgAAsgMAAOMCAACxAwAAsQMAAOMCAADiAgAAsQMAAOICAACwAwAAsAMAAOICAADhAgAAsAMAAOECAACvAwAArwMAAOECAADgAgAArwMAAOACAACuAwAArgMAAOACAADfAgAArgMAAN8CAACtAwAArQMAAN8CAADeAgAArQMAAN4CAACsAwAArAMAAN4CAADdAgAArAMAAN0CAACrAwAAqwMAAN0CAADcAgAAqwMAANwCAACqAwAAqgMAANwCAADbAgAAJQQAAOUDAABvAgAAbwIAAOUDAADmAwAAbwIAAOYDAABwAgAAcAIAAOYDAADnAwAAcAIAAOcDAABxAgAAcQIAAOcDAADoAwAAcQIAAOgDAAByAgAAcgIAAOgDAADpAwAAcgIAAOkDAABzAgAAcwIAAOkDAADqAwAAcwIAAOoDAAB0AgAAdAIAAOoDAADrAwAAdAIAAOsDAAB1AgAAdQIAAOsDAADsAwAAdQIAAOwDAAB2AgAAdgIAAOwDAADtAwAAdgIAAO0DAAB3AgAAdwIAAO0DAADuAwAAdwIAAO4DAAB4AgAAeAIAAO4DAADvAwAAeAIAAO8DAAB5AgAAeQIAAO8DAADwAwAAeQIAAPADAAB6AgAAegIAAPADAADxAwAAegIAAPEDAAB7AgAAewIAAPEDAADyAwAAewIAAPIDAAB8AgAAfAIAAPIDAADzAwAAfAIAAPMDAAB9AgAAfQIAAPMDAAD0AwAAfQIAAPQDAAB+AgAAfgIAAPQDAAD1AwAAfgIAAPUDAAB/AgAAfwIAAPUDAAD2AwAAfwIAAPYDAACAAgAAgAIAAPYDAAD3AwAAgAIAAPcDAACBAgAAgQIAAPcDAAD4AwAAgQIAAPgDAACCAgAAggIAAPgDAAD5AwAAggIAAPkDAACDAgAAgwIAAPkDAAD6AwAAgwIAAPoDAACEAgAAhAIAAPoDAAD7AwAAhAIAAPsDAAD8AwAAhAIAAPwDAACFAgAAhQIAAPwDAAD9AwAAhQIAAP0DAACGAgAAhgIAAP0DAAD+AwAAhgIAAP4DAACHAgAAhwIAAP4DAAD/AwAAhwIAAP8DAACIAgAAiAIAAP8DAAAABAAAiAIAAAAEAACJAgAAiQIAAAAEAAABBAAAiQIAAAEEAACKAgAAigIAAAEEAAACBAAAigIAAAIEAACLAgAAiwIAAAIEAAADBAAAiwIAAAMEAACMAgAAjAIAAAMEAAAEBAAAjAIAAAQEAACNAgAAjQIAAAQEAAAFBAAAjQIAAAUEAACOAgAAjgIAAAUEAAAGBAAAjgIAAAYEAACPAgAAjwIAAAYEAAAHBAAAjwIAAAcEAACQAgAAkAIAAAcEAAAIBAAAkAIAAAgEAACRAgAAkQIAAAgEAAAJBAAAkQIAAAkEAACSAgAAkgIAAAkEAAAKBAAAkgIAAAoEAACTAgAAkwIAAAoEAAALBAAAkwIAAAsEAACUAgAAlAIAAAsEAAAMBAAAlAIAAAwEAACVAgAAlQIAAAwEAAANBAAAlQIAAA0EAACWAgAAlgIAAA0EAAAOBAAAlgIAAA4EAACXAgAAlwIAAA4EAAAPBAAAlwIAAA8EAACYAgAAmAIAAA8EAAAQBAAAmAIAABAEAAARBAAAmAIAABEEAACZAgAAmQIAABEEAAASBAAAmQIAABIEAACaAgAAmgIAABIEAAATBAAAmgIAABMEAACbAgAAmwIAABMEAAAUBAAAmwIAABQEAACcAgAAnAIAABQEAAAVBAAAnAIAABUEAACdAgAAnQIAABUEAAAWBAAAnQIAABYEAACeAgAAngIAABYEAAAXBAAAngIAABcEAACfAgAAnwIAABcEAAAYBAAAnwIAABgEAACgAgAAoAIAABgEAAAZBAAAoAIAABkEAAChAgAAoQIAABkEAAAaBAAAoQIAABoEAACiAgAAogIAABoEAAAbBAAAogIAABsEAACjAgAAowIAABsEAAAcBAAAowIAABwEAACkAgAApAIAABwEAAAdBAAApAIAAB0EAAClAgAApQIAAB0EAAAeBAAApQIAAB4EAACmAgAApgIAAB4EAAAfBAAApgIAAB8EAACnAgAApwIAAB8EAAAgBAAApwIAACAEAACoAgAAqAIAACAEAAAhBAAAqAIAACEEAACpAgAAqQIAACEEAAAiBAAAqQIAACIEAACqAgAAqgIAACIEAAAjBAAAqgIAACMEAACrAgAAqwIAACMEAAAkBAAAqwIAACQEAACsAgAArAIAACQEAAAlBAAArAIAACUEAABvAgAAIgEAACcEAADnAAAA5wAAACcEAAAoBAAA5wAAACgEAADoAAAA6AAAACgEAABhBAAA6AAAAGEEAADpAAAA6QAAAGEEAABgBAAA6QAAAGAEAADqAAAA6gAAAGAEAABfBAAA6gAAAF8EAADrAAAA6wAAAF8EAABeBAAA6wAAAF4EAADsAAAA7AAAAF4EAABdBAAA7AAAAF0EAADtAAAA7QAAAF0EAABcBAAA7QAAAFwEAADuAAAA7gAAAFwEAABbBAAA7gAAAFsEAADvAAAA7wAAAFsEAABaBAAA7wAAAFoEAADwAAAA8AAAAFoEAABZBAAA8AAAAFkEAADxAAAA8QAAAFkEAABYBAAA8QAAAFgEAADyAAAA8gAAAFgEAABXBAAA8gAAAFcEAADzAAAA8wAAAFcEAABWBAAA8wAAAFYEAAD0AAAA9AAAAFYEAABVBAAA9AAAAFUEAAD1AAAA9QAAAFUEAABUBAAA9QAAAFQEAAD2AAAA9gAAAFQEAABTBAAA9gAAAFMEAAD3AAAA9wAAAFMEAABSBAAA9wAAAFIEAAD4AAAA+AAAAFIEAABRBAAA+AAAAFEEAAD5AAAA+QAAAFEEAABQBAAA+QAAAFAEAAD6AAAA+gAAAFAEAABPBAAA+gAAAE8EAAD7AAAA+wAAAE8EAABOBAAA+wAAAE4EAAD8AAAA/AAAAE4EAABNBAAA/AAAAE0EAAD9AAAA/QAAAE0EAABMBAAA/QAAAEwEAAD+AAAA/gAAAEwEAABLBAAA/gAAAEsEAAD/AAAA/wAAAEsEAABKBAAA/wAAAEoEAAAAAQAAAAEAAEoEAABJBAAAAAEAAEkEAAABAQAAAQEAAEkEAABIBAAAAQEAAEgEAAACAQAAAgEAAEgEAABHBAAAAgEAAEcEAAADAQAAAwEAAEcEAABGBAAAAwEAAEYEAAAEAQAABAEAAEYEAABFBAAABAEAAEUEAAAFAQAABQEAAEUEAABEBAAABQEAAEQEAAAGAQAABgEAAEQEAABDBAAABgEAAEMEAAAHAQAABwEAAEMEAABCBAAABwEAAEIEAAAIAQAACAEAAEIEAABBBAAACAEAAEEEAAAJAQAACQEAAEEEAABABAAACQEAAEAEAAAKAQAACgEAAEAEAAA/BAAACgEAAD8EAAALAQAACwEAAD8EAAA+BAAACwEAAD4EAAAMAQAADAEAAD4EAAA9BAAADAEAAD0EAAANAQAADQEAAD0EAAA8BAAADQEAADwEAAAOAQAADgEAADwEAAA7BAAADgEAADsEAAAPAQAADwEAADsEAAA6BAAADwEAADoEAAAQAQAAEAEAADoEAAA5BAAAEAEAADkEAAARAQAAEQEAADkEAAA4BAAAEQEAADgEAAASAQAAEgEAADgEAAA3BAAAEgEAADcEAAATAQAAEwEAADcEAAA2BAAAEwEAADYEAAAUAQAAFAEAADYEAAAmBAAAFAEAACYEAAAVAQAAFQEAACYEAAA1BAAAFQEAADUEAAAWAQAAFgEAADUEAAA0BAAAFgEAADQEAAAXAQAAFwEAADQEAAAzBAAAFwEAADMEAAAYAQAAGAEAADMEAAAyBAAAGAEAADIEAAAZAQAAGQEAADIEAAAxBAAAGQEAADEEAAAaAQAAGgEAADEEAAAwBAAAGgEAADAEAAAbAQAAGwEAADAEAAAvBAAAGwEAAC8EAAAcAQAAHAEAAC8EAAAuBAAAHAEAAC4EAAAdAQAAHQEAAC4EAAAtBAAAHQEAAC0EAAAeAQAAHgEAAC0EAAAsBAAAHgEAACwEAAAfAQAAHwEAACwEAAArBAAAHwEAACsEAAAgAQAAIAEAACsEAAAqBAAAIAEAACoEAAAhAQAAIQEAACoEAAApBAAAIQEAACkEAAAiAQAAIgEAACkEAAAnBAAA5AMAAGEEAACpAwAAqQMAAGEEAAAoBAAAqQMAACgEAACqAwAAqgMAACgEAAAnBAAAqgMAACcEAACrAwAAqwMAACcEAAApBAAAqwMAACkEAACsAwAArAMAACkEAAAqBAAArAMAACoEAACtAwAArQMAACoEAAArBAAArQMAACsEAACuAwAArgMAACsEAAAsBAAArgMAACwEAACvAwAArwMAACwEAAAtBAAArwMAAC0EAACwAwAAsAMAAC0EAAAuBAAAsAMAAC4EAACxAwAAsQMAAC4EAAAvBAAAsQMAAC8EAACyAwAAsgMAAC8EAAAwBAAAsgMAADAEAACzAwAAswMAADAEAAAxBAAAswMAADEEAAC0AwAAtAMAADEEAAAyBAAAtAMAADIEAAC1AwAAtQMAADIEAAAzBAAAtQMAADMEAAC2AwAAtgMAADMEAAA0BAAAtgMAADQEAAC3AwAAtwMAADQEAAA1BAAAtwMAADUEAAC4AwAAuAMAADUEAAAmBAAAuAMAACYEAAC5AwAAuQMAACYEAAA2BAAAuQMAADYEAAC6AwAAugMAADYEAAA3BAAAugMAADcEAAC7AwAAuwMAADcEAAA4BAAAuwMAADgEAAC8AwAAvAMAADgEAAA5BAAAvAMAADkEAAC9AwAAvQMAADkEAAA6BAAAvQMAADoEAAC+AwAAvgMAADoEAAA7BAAAvgMAADsEAAC/AwAAvwMAADsEAAA8BAAAvwMAADwEAADAAwAAwAMAADwEAAA9BAAAwAMAAD0EAADBAwAAwQMAAD0EAAA+BAAAwQMAAD4EAADCAwAAwgMAAD4EAAA/BAAAwgMAAD8EAADDAwAAwwMAAD8EAABABAAAwwMAAEAEAADEAwAAxAMAAEAEAABBBAAAxAMAAEEEAADFAwAAxQMAAEEEAABCBAAAxQMAAEIEAADGAwAAxgMAAEIEAABDBAAAxgMAAEMEAADHAwAAxwMAAEMEAABEBAAAxwMAAEQEAADIAwAAyAMAAEQEAABFBAAAyAMAAEUEAADJAwAAyQMAAEUEAABGBAAAyQMAAEYEAADKAwAAygMAAEYEAABHBAAAygMAAEcEAADLAwAAywMAAEcEAABIBAAAywMAAEgEAADMAwAAzAMAAEgEAABJBAAAzAMAAEkEAADNAwAAzQMAAEkEAABKBAAAzQMAAEoEAADOAwAAzgMAAEoEAABLBAAAzgMAAEsEAADPAwAAzwMAAEsEAABMBAAAzwMAAEwEAADQAwAA0AMAAEwEAABNBAAA0AMAAE0EAADRAwAA0QMAAE0EAABOBAAA0QMAAE4EAADSAwAA0gMAAE4EAABPBAAA0gMAAE8EAADTAwAA0wMAAE8EAABQBAAA0wMAAFAEAADUAwAA1AMAAFAEAABRBAAA1AMAAFEEAADVAwAA1QMAAFEEAABSBAAA1QMAAFIEAADWAwAA1gMAAFIEAABTBAAA1gMAAFMEAADXAwAA1wMAAFMEAABUBAAA1wMAAFQEAADYAwAA2AMAAFQEAABVBAAA2AMAAFUEAADZAwAA2QMAAFUEAABWBAAA2QMAAFYEAADaAwAA2gMAAFYEAABXBAAA2gMAAFcEAADbAwAA2wMAAFcEAABYBAAA2wMAAFgEAADcAwAA3AMAAFgEAABZBAAA3AMAAFkEAADdAwAA3QMAAFkEAABaBAAA3QMAAFoEAADeAwAA3gMAAFoEAABbBAAA3gMAAFsEAADfAwAA3wMAAFsEAABcBAAA3wMAAFwEAADgAwAA4AMAAFwEAABdBAAA4AMAAF0EAADhAwAA4QMAAF0EAABeBAAA4QMAAF4EAADiAwAA4gMAAF4EAABfBAAA4gMAAF8EAADjAwAA4wMAAF8EAABgBAAA4wMAAGAEAADkAwAA5AMAAGAEAABhBAAAYwQAAOcEAABiBAAAYgQAAOcEAADmBAAAYgQAAOYEAACjBAAAowQAAOYEAAAnBQAAowQAACcFAACiBAAAogQAACcFAAAmBQAAogQAACYFAAChBAAAoQQAACYFAAAlBQAAoQQAACUFAACgBAAAoAQAACUFAAAkBQAAoAQAACQFAACfBAAAnwQAACQFAAAjBQAAnwQAACMFAACeBAAAngQAACMFAAAiBQAAngQAACIFAACdBAAAnQQAACIFAAAhBQAAnQQAACEFAACcBAAAnAQAACEFAAAgBQAAnAQAACAFAACbBAAAmwQAACAFAAAfBQAAmwQAAB8FAACaBAAAmgQAAB8FAAAeBQAAmgQAAB4FAACZBAAAmQQAAB4FAAAdBQAAmQQAAB0FAACYBAAAmAQAAB0FAAAcBQAAmAQAABwFAACXBAAAlwQAABwFAAAbBQAAlwQAABsFAACWBAAAlgQAABsFAAAaBQAAlgQAABoFAACVBAAAlQQAABoFAAAZBQAAlQQAABkFAACUBAAAlAQAABkFAAAYBQAAlAQAABgFAACTBAAAkwQAABgFAAAXBQAAkwQAABcFAACSBAAAkgQAABcFAAAWBQAAkgQAABYFAACRBAAAkQQAABYFAAAVBQAAkQQAABUFAACQBAAAkAQAABUFAAAUBQAAkAQAABQFAACPBAAAjwQAABQFAAATBQAAjwQAABMFAACOBAAAjgQAABMFAAASBQAAjgQAABIFAACNBAAAjQQAABIFAAARBQAAjQQAABEFAACMBAAAjAQAABEFAAAQBQAAjAQAABAFAACLBAAAiwQAABAFAAAPBQAAiwQAAA8FAACKBAAAigQAAA8FAAAOBQAAigQAAA4FAACJBAAAiQQAAA4FAAANBQAAiQQAAA0FAACIBAAAiAQAAA0FAAAMBQAAiAQAAAwFAACHBAAAhwQAAAwFAAALBQAAhwQAAAsFAACGBAAAhgQAAAsFAAAKBQAAhgQAAAoFAACFBAAAhQQAAAoFAAAJBQAAhQQAAAkFAACEBAAAhAQAAAkFAAAIBQAAhAQAAAgFAACDBAAAgwQAAAgFAAAHBQAAgwQAAAcFAACCBAAAggQAAAcFAAAGBQAAggQAAAYFAACBBAAAgQQAAAYFAAAFBQAAgQQAAAUFAACABAAAgAQAAAUFAAAEBQAAgAQAAAQFAAB/BAAAfwQAAAQFAAADBQAAfwQAAAMFAAB+BAAAfgQAAAMFAAACBQAAfgQAAAIFAAB9BAAAfQQAAAIFAAABBQAAfQQAAAEFAAB8BAAAfAQAAAEFAAAABQAAfAQAAAAFAAB7BAAAewQAAAAFAAD/BAAAewQAAP8EAAB6BAAAegQAAP8EAAD+BAAAegQAAP4EAAB5BAAAeQQAAP4EAAD9BAAAeQQAAP0EAAB4BAAAeAQAAP0EAAD8BAAAeAQAAPwEAAB3BAAAdwQAAPwEAAD7BAAAdwQAAPsEAAB2BAAAdgQAAPsEAAD6BAAAdgQAAPoEAAB1BAAAdQQAAPoEAAD5BAAAdQQAAPkEAAB0BAAAdAQAAPkEAAD4BAAAdAQAAPgEAABzBAAAcwQAAPgEAAD3BAAAcwQAAPcEAAByBAAAcgQAAPcEAAD2BAAAcgQAAPYEAABxBAAAcQQAAPYEAAD1BAAAcQQAAPUEAABwBAAAcAQAAPUEAAD0BAAAcAQAAPQEAABvBAAAbwQAAPQEAADzBAAAbwQAAPMEAABuBAAAbgQAAPMEAADyBAAAbgQAAPIEAABtBAAAbQQAAPIEAADxBAAAbQQAAPEEAABsBAAAbAQAAPEEAADwBAAAbAQAAPAEAABrBAAAawQAAPAEAADvBAAAawQAAO8EAABqBAAAagQAAO8EAADuBAAAagQAAO4EAABpBAAAaQQAAO4EAADtBAAAaQQAAO0EAABoBAAAaAQAAO0EAADsBAAAaAQAAOwEAABnBAAAZwQAAOwEAADrBAAAZwQAAOsEAABmBAAAZgQAAOsEAADqBAAAZgQAAOoEAABlBAAAZQQAAOoEAADpBAAAZQQAAOkEAABkBAAAZAQAAOkEAADoBAAAZAQAAOgEAABjBAAAYwQAAOgEAADnBAAApQQAACcFAACkBAAApAQAACcFAADmBAAApAQAAOYEAADlBAAA5QQAAOYEAADnBAAA5QQAAOcEAADkBAAA5AQAAOcEAADoBAAA5AQAAOgEAADjBAAA4wQAAOgEAADpBAAA4wQAAOkEAADiBAAA4gQAAOkEAADqBAAA4gQAAOoEAADhBAAA4QQAAOoEAADrBAAA4QQAAOsEAADgBAAA4AQAAOsEAADsBAAA4AQAAOwEAADfBAAA3wQAAOwEAADtBAAA3wQAAO0EAADeBAAA3gQAAO0EAADuBAAA3gQAAO4EAADdBAAA3QQAAO4EAADvBAAA3QQAAO8EAADcBAAA3AQAAO8EAADwBAAA3AQAAPAEAADbBAAA2wQAAPAEAADxBAAA2wQAAPEEAADaBAAA2gQAAPEEAADyBAAA2gQAAPIEAADZBAAA2QQAAPIEAADzBAAA2QQAAPMEAADYBAAA2AQAAPMEAAD0BAAA2AQAAPQEAADXBAAA1wQAAPQEAAD1BAAA1wQAAPUEAADWBAAA1gQAAPUEAAD2BAAA1gQAAPYEAADVBAAA1QQAAPYEAAD3BAAA1QQAAPcEAADUBAAA1AQAAPcEAAD4BAAA1AQAAPgEAADTBAAA0wQAAPgEAAD5BAAA0wQAAPkEAADSBAAA0gQAAPkEAAD6BAAA0gQAAPoEAADRBAAA0QQAAPoEAAD7BAAA0QQAAPsEAADQBAAA0AQAAPsEAAD8BAAA0AQAAPwEAADPBAAAzwQAAPwEAAD9BAAAzwQAAP0EAADOBAAAzgQAAP0EAAD+BAAAzgQAAP4EAADNBAAAzQQAAP4EAAD/BAAAzQQAAP8EAADMBAAAzAQAAP8EAAAABQAAzAQAAAAFAADLBAAAywQAAAAFAAABBQAAywQAAAEFAADKBAAAygQAAAEFAAACBQAAygQAAAIFAADJBAAAyQQAAAIFAAADBQAAyQQAAAMFAADIBAAAyAQAAAMFAAAEBQAAyAQAAAQFAADHBAAAxwQAAAQFAAAFBQAAxwQAAAUFAADGBAAAxgQAAAUFAAAGBQAAxgQAAAYFAADFBAAAxQQAAAYFAAAHBQAAxQQAAAcFAADEBAAAxAQAAAcFAAAIBQAAxAQAAAgFAADDBAAAwwQAAAgFAAAJBQAAwwQAAAkFAADCBAAAwgQAAAkFAAAKBQAAwgQAAAoFAADBBAAAwQQAAAoFAAALBQAAwQQAAAsFAADABAAAwAQAAAsFAAAMBQAAwAQAAAwFAAC/BAAAvwQAAAwFAAANBQAAvwQAAA0FAAC+BAAAvgQAAA0FAAAOBQAAvgQAAA4FAAC9BAAAvQQAAA4FAAAPBQAAvQQAAA8FAAC8BAAAvAQAAA8FAAAQBQAAvAQAABAFAAC7BAAAuwQAABAFAAARBQAAuwQAABEFAAC6BAAAugQAABEFAAASBQAAugQAABIFAAC5BAAAuQQAABIFAAATBQAAuQQAABMFAAC4BAAAuAQAABMFAAAUBQAAuAQAABQFAAC3BAAAtwQAABQFAAAVBQAAtwQAABUFAAC2BAAAtgQAABUFAAAWBQAAtgQAABYFAAC1BAAAtQQAABYFAAAXBQAAtQQAABcFAAC0BAAAtAQAABcFAAAYBQAAtAQAABgFAACzBAAAswQAABgFAAAZBQAAswQAABkFAACyBAAAsgQAABkFAAAaBQAAsgQAABoFAACxBAAAsQQAABoFAAAbBQAAsQQAABsFAACwBAAAsAQAABsFAAAcBQAAsAQAABwFAACvBAAArwQAABwFAAAdBQAArwQAAB0FAACuBAAArgQAAB0FAAAeBQAArgQAAB4FAACtBAAArQQAAB4FAAAfBQAArQQAAB8FAACsBAAArAQAAB8FAAAgBQAArAQAACAFAACrBAAAqwQAACAFAAAhBQAAqwQAACEFAACqBAAAqgQAACEFAAAiBQAAqgQAACIFAACpBAAAqQQAACIFAAAjBQAAqQQAACMFAACoBAAAqAQAACMFAAAkBQAAqAQAACQFAACnBAAApwQAACQFAAAlBQAApwQAACUFAACmBAAApgQAACUFAAAmBQAApgQAACYFAAClBAAApQQAACYFAAAnBQAANAIAAKQEAADzAQAA8wEAAKQEAADlBAAA8wEAAOUEAAD0AQAA9AEAAOUEAADkBAAA9AEAAOQEAAD1AQAA9QEAAOQEAADjBAAA9QEAAOMEAAD2AQAA9gEAAOMEAADiBAAA9gEAAOIEAAD3AQAA9wEAAOIEAADhBAAA9wEAAOEEAAD4AQAA+AEAAOEEAADgBAAA+AEAAOAEAAD5AQAA+QEAAOAEAADfBAAA+QEAAN8EAAD6AQAA+gEAAN8EAADeBAAA+gEAAN4EAAD7AQAA+wEAAN4EAADdBAAA+wEAAN0EAAD8AQAA/AEAAN0EAADcBAAA/AEAANwEAAD9AQAA/QEAANwEAADbBAAA/QEAANsEAAD+AQAA/gEAANsEAADaBAAA/gEAANoEAAD/AQAA/wEAANoEAADZBAAA/wEAANkEAAAAAgAAAAIAANkEAADYBAAAAAIAANgEAAABAgAAAQIAANgEAADXBAAAAQIAANcEAAACAgAAAgIAANcEAADWBAAAAgIAANYEAAADAgAAAwIAANYEAADVBAAAAwIAANUEAAAEAgAABAIAANUEAADUBAAABAIAANQEAAAFAgAABQIAANQEAADTBAAABQIAANMEAAAGAgAABgIAANMEAADSBAAABgIAANIEAAAHAgAABwIAANIEAADRBAAABwIAANEEAAAIAgAACAIAANEEAADQBAAACAIAANAEAAAJAgAACQIAANAEAADPBAAACQIAAM8EAAAKAgAACgIAAM8EAADOBAAACgIAAM4EAAALAgAACwIAAM4EAADNBAAACwIAAM0EAAAMAgAADAIAAM0EAADMBAAADAIAAMwEAAANAgAADQIAAMwEAADLBAAADQIAAMsEAAAOAgAADgIAAMsEAADKBAAADgIAAMoEAAAPAgAADwIAAMoEAADJBAAADwIAAMkEAAAQAgAAEAIAAMkEAADIBAAAEAIAAMgEAAARAgAAEQIAAMgEAADHBAAAEQIAAMcEAAASAgAAEgIAAMcEAADGBAAAEgIAAMYEAAATAgAAEwIAAMYEAADFBAAAEwIAAMUEAAAUAgAAFAIAAMUEAADEBAAAFAIAAMQEAAAVAgAAFQIAAMQEAADDBAAAFQIAAMMEAAAWAgAAFgIAAMMEAADCBAAAFgIAAMIEAAAXAgAAFwIAAMIEAADBBAAAFwIAAMEEAAAYAgAAGAIAAMEEAADABAAAGAIAAMAEAAAZAgAAGQIAAMAEAAC/BAAAGQIAAL8EAAAaAgAAGgIAAL8EAAC+BAAAGgIAAL4EAAAbAgAAGwIAAL4EAAC9BAAAGwIAAL0EAAAcAgAAHAIAAL0EAAC8BAAAHAIAALwEAAAdAgAAHQIAALwEAAC7BAAAHQIAALsEAAAeAgAAHgIAALsEAAC6BAAAHgIAALoEAAAfAgAAHwIAALoEAAC5BAAAHwIAALkEAAAgAgAAIAIAALkEAAC4BAAAIAIAALgEAAAhAgAAIQIAALgEAAC3BAAAIQIAALcEAAAiAgAAIgIAALcEAAC2BAAAIgIAALYEAAAjAgAAIwIAALYEAAC1BAAAIwIAALUEAAAkAgAAJAIAALUEAAC0BAAAJAIAALQEAAAlAgAAJQIAALQEAACzBAAAJQIAALMEAAAmAgAAJgIAALMEAACyBAAAJgIAALIEAAAnAgAAJwIAALIEAACxBAAAJwIAALEEAAAoAgAAKAIAALEEAACwBAAAKAIAALAEAAApAgAAKQIAALAEAACvBAAAKQIAAK8EAAAqAgAAKgIAAK8EAACuBAAAKgIAAK4EAAArAgAAKwIAAK4EAACtBAAAKwIAAK0EAAAsAgAALAIAAK0EAACsBAAALAIAAKwEAAAtAgAALQIAAKwEAACrBAAALQIAAKsEAAAuAgAALgIAAKsEAACqBAAALgIAAKoEAAAvAgAALwIAAKoEAACpBAAALwIAAKkEAAAwAgAAMAIAAKkEAACoBAAAMAIAAKgEAAAxAgAAMQIAAKgEAACnBAAAMQIAAKcEAAAyAgAAMgIAAKcEAACmBAAAMgIAAKYEAAAzAgAAMwIAAKYEAAClBAAAMwIAAKUEAAA0AgAANAIAAKUEAACkBAAAKQUAAGMEAAAoBQAAKAUAAGMEAABiBAAAKAUAAGIEAABpBQAAaQUAAGIEAACjBAAAaQUAAKMEAABoBQAAaAUAAKMEAACiBAAAaAUAAKIEAABnBQAAZwUAAKIEAAChBAAAZwUAAKEEAABmBQAAZgUAAKEEAACgBAAAZgUAAKAEAABlBQAAZQUAAKAEAACfBAAAZQUAAJ8EAABkBQAAZAUAAJ8EAACeBAAAZAUAAJ4EAABjBQAAYwUAAJ4EAACdBAAAYwUAAJ0EAABiBQAAYgUAAJ0EAACcBAAAYgUAAJwEAABhBQAAYQUAAJwEAACbBAAAYQUAAJsEAABgBQAAYAUAAJsEAACaBAAAYAUAAJoEAABfBQAAXwUAAJoEAACZBAAAXwUAAJkEAABeBQAAXgUAAJkEAACYBAAAXgUAAJgEAABdBQAAXQUAAJgEAACXBAAAXQUAAJcEAABcBQAAXAUAAJcEAACWBAAAXAUAAJYEAABbBQAAWwUAAJYEAACVBAAAWwUAAJUEAABaBQAAWgUAAJUEAACUBAAAWgUAAJQEAABZBQAAWQUAAJQEAACTBAAAWQUAAJMEAABYBQAAWAUAAJMEAACSBAAAWAUAAJIEAABXBQAAVwUAAJIEAACRBAAAVwUAAJEEAABWBQAAVgUAAJEEAACQBAAAVgUAAJAEAABVBQAAVQUAAJAEAACPBAAAVQUAAI8EAABUBQAAVAUAAI8EAACOBAAAVAUAAI4EAABTBQAAUwUAAI4EAACNBAAAUwUAAI0EAABSBQAAUgUAAI0EAACMBAAAUgUAAIwEAABRBQAAUQUAAIwEAACLBAAAUQUAAIsEAABQBQAAUAUAAIsEAACKBAAAUAUAAIoEAABPBQAATwUAAIoEAACJBAAATwUAAIkEAABOBQAATgUAAIkEAACIBAAATgUAAIgEAABNBQAATQUAAIgEAACHBAAATQUAAIcEAABMBQAATAUAAIcEAACGBAAATAUAAIYEAABLBQAASwUAAIYEAACFBAAASwUAAIUEAABKBQAASgUAAIUEAACEBAAASgUAAIQEAABJBQAASQUAAIQEAACDBAAASQUAAIMEAABIBQAASAUAAIMEAACCBAAASAUAAIIEAABHBQAARwUAAIIEAACBBAAARwUAAIEEAABGBQAARgUAAIEEAACABAAARgUAAIAEAABFBQAARQUAAIAEAAB/BAAARQUAAH8EAABEBQAARAUAAH8EAAB+BAAARAUAAH4EAABDBQAAQwUAAH4EAAB9BAAAQwUAAH0EAABCBQAAQgUAAH0EAAB8BAAAQgUAAHwEAABBBQAAQQUAAHwEAAB7BAAAQQUAAHsEAABABQAAQAUAAHsEAAB6BAAAQAUAAHoEAAA/BQAAPwUAAHoEAAB5BAAAPwUAAHkEAAA+BQAAPgUAAHkEAAB4BAAAPgUAAHgEAAA9BQAAPQUAAHgEAAB3BAAAPQUAAHcEAAA8BQAAPAUAAHcEAAB2BAAAPAUAAHYEAAA7BQAAOwUAAHYEAAB1BAAAOwUAAHUEAAA6BQAAOgUAAHUEAAB0BAAAOgUAAHQEAAA5BQAAOQUAAHQEAABzBAAAOQUAAHMEAAA4BQAAOAUAAHMEAAByBAAAOAUAAHIEAAA3BQAANwUAAHIEAABxBAAANwUAAHEEAAA2BQAANgUAAHEEAABwBAAANgUAAHAEAAA1BQAANQUAAHAEAABvBAAANQUAAG8EAAA0BQAANAUAAG8EAABuBAAANAUAAG4EAAAzBQAAMwUAAG4EAABtBAAAMwUAAG0EAAAyBQAAMgUAAG0EAABsBAAAMgUAAGwEAAAxBQAAMQUAAGwEAABrBAAAMQUAAGsEAAAwBQAAMAUAAGsEAABqBAAAMAUAAGoEAAAvBQAALwUAAGoEAABpBAAALwUAAGkEAAAuBQAALgUAAGkEAABoBAAALgUAAGgEAAAtBQAALQUAAGgEAABnBAAALQUAAGcEAAAsBQAALAUAAGcEAABmBAAALAUAAGYEAAArBQAAKwUAAGYEAABlBAAAKwUAAGUEAAAqBQAAKgUAAGUEAABkBAAAKgUAAGQEAAApBQAAKQUAAGQEAABjBAAAawUAAFAGAABqBQAAagUAAFAGAABRBgAAagUAAFEGAABqBwAAagcAAFEGAABSBgAAagcAAFIGAABpBwAAaQcAAFIGAABTBgAAaQcAAFMGAABoBwAAaAcAAFMGAABUBgAAaAcAAFQGAABnBwAAZwcAAFQGAABVBgAAZwcAAFUGAABWBgAAUAYAAGsFAABPBgAATwYAAGsFAABsBQAATwYAAGwFAABOBgAATgYAAGwFAABtBQAATgYAAG0FAABNBgAATQYAAG0FAABuBQAATQYAAG4FAABvBQAATQYAAG8FAABMBgAATAYAAG8FAABwBQAATAYAAHAFAABLBgAASwYAAHAFAABxBQAASwYAAHEFAABKBgAASgYAAHEFAAByBQAASgYAAHIFAABzBQAASgYAAHMFAABJBgAASQYAAHMFAAB0BQAASQYAAHQFAABIBgAASAYAAHQFAAB1BQAASAYAAHUFAABHBgAARwYAAHUFAAB2BQAARwYAAHYFAABGBgAARgYAAHYFAAB3BQAARgYAAHcFAAB4BQAARgYAAHgFAABFBgAARQYAAHgFAAB5BQAARQYAAHkFAABEBgAARAYAAHkFAAB6BQAARAYAAHoFAABDBgAAQwYAAHoFAAB7BQAAQwYAAHsFAAB8BQAAQwYAAHwFAABCBgAAQgYAAHwFAAB9BQAAQgYAAH0FAABBBgAAQQYAAH0FAAB+BQAAQQYAAH4FAABABgAAQAYAAH4FAAB/BQAAQAYAAH8FAAA/BgAAPwYAAH8FAACABQAAPwYAAIAFAACBBQAAPwYAAIEFAAA+BgAAPgYAAIEFAACCBQAAPgYAAIIFAAA9BgAAPQYAAIIFAACDBQAAPQYAAIMFAAA8BgAAPAYAAIMFAACEBQAAPAYAAIQFAACFBQAAPAYAAIUFAAA7BgAAOwYAAIUFAACGBQAAOwYAAIYFAAA6BgAAOgYAAIYFAACHBQAAOgYAAIcFAAA5BgAAOQYAAIcFAACIBQAAOQYAAIgFAAA4BgAAOAYAAIgFAACJBQAAOAYAAIkFAACKBQAAOAYAAIoFAAA3BgAANwYAAIoFAACLBQAANwYAAIsFAAA2BgAANgYAAIsFAACMBQAANgYAAIwFAAA1BgAANQYAAIwFAACNBQAANQYAAI0FAAA0BgAANAYAAI0FAACOBQAANAYAAI4FAACPBQAANAYAAI8FAAAzBgAAMwYAAI8FAACQBQAAMwYAAJAFAAAyBgAAMgYAAJAFAACRBQAAMgYAAJEFAAAxBgAAMQYAAJEFAACSBQAAMQYAAJIFAACTBQAAMQYAAJMFAAAwBgAAMAYAAJMFAACUBQAAMAYAAJQFAAAvBgAALwYAAJQFAACVBQAALwYAAJUFAAAuBgAALgYAAJUFAACWBQAALgYAAJYFAAAtBgAALQYAAJYFAACXBQAALQYAAJcFAACYBQAALQYAAJgFAAAsBgAALAYAAJgFAACZBQAALAYAAJkFAAArBgAAKwYAAJkFAACaBQAAKwYAAJoFAAAqBgAAKgYAAJoFAACbBQAAKgYAAJsFAAApBgAAKQYAAJsFAACcBQAAKQYAAJwFAACdBQAAKQYAAJ0FAAAoBgAAKAYAAJ0FAACeBQAAKAYAAJ4FAAAnBgAAJwYAAJ4FAACfBQAAJwYAAJ8FAAAmBgAAJgYAAJ8FAACgBQAAJgYAAKAFAAAlBgAAJQYAAKAFAAChBQAAJQYAAKEFAACiBQAAJQYAAKIFAAAkBgAAJAYAAKIFAACjBQAAJAYAAKMFAAAjBgAAIwYAAKMFAACkBQAAIwYAAKQFAAAiBgAAIgYAAKQFAAClBQAAIgYAAKUFAACmBQAAIgYAAKYFAAAhBgAAIQYAAKYFAACnBQAAIQYAAKcFAAAgBgAAIAYAAKcFAACoBQAAIAYAAKgFAAAfBgAAHwYAAKgFAACpBQAAHwYAAKkFAAAeBgAAHgYAAKkFAACqBQAAHgYAAKoFAACrBQAAHgYAAKsFAAAdBgAAHQYAAKsFAACsBQAAHQYAAKwFAAAcBgAAHAYAAKwFAACtBQAAHAYAAK0FAAAbBgAAGwYAAK0FAACuBQAAGwYAAK4FAAAaBgAAGgYAAK4FAACvBQAAGgYAAK8FAACwBQAAGgYAALAFAAAZBgAAGQYAALAFAACxBQAAGQYAALEFAAAYBgAAGAYAALEFAACyBQAAGAYAALIFAAAXBgAAFwYAALIFAACzBQAAFwYAALMFAAAWBgAAFgYAALMFAAC0BQAAFgYAALQFAAC1BQAAFgYAALUFAAAVBgAAFQYAALUFAAC2BQAAFQYAALYFAAAUBgAAFAYAALYFAAC3BQAAFAYAALcFAAATBgAAEwYAALcFAAC4BQAAEwYAALgFAAASBgAAEgYAALgFAAC5BQAAEgYAALkFAAC6BQAAEgYAALoFAAARBgAAEQYAALoFAAC7BQAAEQYAALsFAAAQBgAAEAYAALsFAAC8BQAAEAYAALwFAAAPBgAADwYAALwFAAC9BQAADwYAAL0FAAAOBgAADgYAAL0FAAC+BQAADgYAAL4FAAC/BQAADgYAAL8FAAANBgAADQYAAL8FAADABQAADQYAAMAFAAAMBgAADAYAAMAFAADBBQAADAYAAMEFAAALBgAACwYAAMEFAADCBQAACwYAAMIFAAAKBgAACgYAAMIFAADDBQAACgYAAMMFAAAJBgAACQYAAMMFAADEBQAACQYAAMQFAADFBQAACQYAAMUFAAAIBgAACAYAAMUFAADGBQAACAYAAMYFAAAHBgAABwYAAMYFAADHBQAABwYAAMcFAAAGBgAABgYAAMcFAADIBQAABgYAAMgFAAAFBgAABQYAAMgFAADJBQAABQYAAMkFAADKBQAABQYAAMoFAAAEBgAABAYAAMoFAADLBQAABAYAAMsFAAADBgAAAwYAAMsFAADMBQAAAwYAAMwFAAACBgAAAgYAAMwFAADNBQAAAgYAAM0FAAABBgAAAQYAAM0FAADOBQAAAQYAAM4FAADPBQAAAQYAAM8FAAAABgAAAAYAAM8FAADQBQAAAAYAANAFAAD/BQAA/wUAANAFAADRBQAA/wUAANEFAAD+BQAA/gUAANEFAADSBQAA/gUAANIFAAD9BQAA/QUAANIFAADTBQAA/QUAANMFAAD8BQAA/AUAANMFAADUBQAA/AUAANQFAADVBQAA/AUAANUFAAD7BQAA+wUAANUFAADWBQAA+wUAANYFAAD6BQAA+gUAANYFAADXBQAA+gUAANcFAAD5BQAA+QUAANcFAADYBQAA+QUAANgFAAD4BQAA+AUAANgFAADZBQAA+AUAANkFAADaBQAA+AUAANoFAAD3BQAA9wUAANoFAADbBQAA9wUAANsFAAD2BQAA9gUAANsFAADcBQAA9gUAANwFAAD1BQAA9QUAANwFAADdBQAA9QUAAN0FAAD0BQAA9AUAAN0FAADeBQAA9AUAAN4FAADzBQAA8wUAAN4FAADfBQAA8wUAAN8FAADgBQAA8wUAAOAFAADyBQAA8gUAAOAFAADhBQAA8gUAAOEFAADxBQAA8QUAAOEFAADiBQAA8QUAAOIFAADwBQAA8AUAAOIFAADjBQAA8AUAAOMFAADvBQAA7wUAAOMFAADkBQAA7wUAAOQFAADlBQAA7wUAAOUFAADuBQAA7gUAAOUFAADmBQAA7gUAAOYFAADtBQAA7QUAAOYFAADnBQAA7QUAAOcFAADsBQAA7AUAAOcFAADoBQAA7AUAAOgFAADrBQAA6wUAAOgFAADpBQAA6wUAAOkFAADqBQAAZwcAAFYGAABmBwAAZgcAAFYGAABXBgAAZgcAAFcGAABlBwAAZQcAAFcGAABYBgAAZQcAAFgGAABkBwAAZAcAAFgGAABZBgAAZAcAAFkGAABjBwAAYwcAAFkGAABaBgAAYwcAAFoGAABiBwAAYgcAAFoGAABbBgAAYgcAAFsGAABcBgAAYgcAAFwGAABhBwAAYQcAAFwGAABdBgAAYQcAAF0GAABgBwAAYAcAAF0GAABeBgAAYAcAAF4GAABfBwAAXwcAAF4GAABfBgAAXwcAAF8GAABeBwAAXgcAAF8GAABgBgAAXgcAAGAGAABdBwAAXQcAAGAGAABhBgAAXQcAAGEGAABiBgAAXQcAAGIGAABcBwAAXAcAAGIGAABjBgAAXAcAAGMGAABbBwAAWwcAAGMGAABkBgAAWwcAAGQGAABaBwAAWgcAAGQGAABlBgAAWgcAAGUGAABZBwAAWQcAAGUGAABmBgAAWQcAAGYGAABYBwAAWAcAAGYGAABnBgAAWAcAAGcGAABoBgAAWAcAAGgGAABXBwAAVwcAAGgGAABpBgAAVwcAAGkGAABWBwAAVgcAAGkGAABqBgAAVgcAAGoGAABVBwAAVQcAAGoGAABrBgAAVQcAAGsGAABUBwAAVAcAAGsGAABsBgAAVAcAAGwGAABTBwAAUwcAAGwGAABtBgAAUwcAAG0GAABuBgAAUwcAAG4GAABSBwAAUgcAAG4GAABvBgAAUgcAAG8GAABRBwAAUQcAAG8GAABwBgAAUQcAAHAGAABQBwAAUAcAAHAGAABxBgAAUAcAAHEGAABPBwAATwcAAHEGAAByBgAATwcAAHIGAABOBwAATgcAAHIGAABzBgAATgcAAHMGAAB0BgAATgcAAHQGAABNBwAATQcAAHQGAAB1BgAATQcAAHUGAABMBwAATAcAAHUGAAB2BgAATAcAAHYGAABLBwAASwcAAHYGAAB3BgAASwcAAHcGAABKBwAASgcAAHcGAAB4BgAASgcAAHgGAABJBwAASQcAAHgGAAB5BgAASQcAAHkGAAB6BgAASQcAAHoGAABIBwAASAcAAHoGAAB7BgAASAcAAHsGAABHBwAARwcAAHsGAAB8BgAARwcAAHwGAABGBwAARgcAAHwGAAB9BgAARgcAAH0GAABFBwAARQcAAH0GAAB+BgAARQcAAH4GAABEBwAARAcAAH4GAAB/BgAARAcAAH8GAACABgAARAcAAIAGAABDBwAAQwcAAIAGAACBBgAAQwcAAIEGAABCBwAAQgcAAIEGAACCBgAAQgcAAIIGAABBBwAAQQcAAIIGAACDBgAAQQcAAIMGAABABwAAQAcAAIMGAACEBgAAQAcAAIQGAAA/BwAAPwcAAIQGAACFBgAAPwcAAIUGAACGBgAAPwcAAIYGAAA+BwAAPgcAAIYGAACHBgAAPgcAAIcGAAA9BwAAPQcAAIcGAACIBgAAPQcAAIgGAAA8BwAAPAcAAIgGAACJBgAAPAcAAIkGAAA7BwAAOwcAAIkGAACKBgAAOwcAAIoGAAA6BwAAOgcAAIoGAACLBgAAOgcAAIsGAACMBgAAOgcAAIwGAAA5BwAAOQcAAIwGAACNBgAAOQcAAI0GAAA4BwAAOAcAAI0GAACOBgAAOAcAAI4GAAA3BwAANwcAAI4GAACPBgAANwcAAI8GAAA2BwAANgcAAI8GAACQBgAANgcAAJAGAAA1BwAANQcAAJAGAACRBgAANQcAAJEGAACSBgAANQcAAJIGAAA0BwAANAcAAJIGAACTBgAANAcAAJMGAAAzBwAAMwcAAJMGAACUBgAAMwcAAJQGAAAyBwAAMgcAAJQGAACVBgAAMgcAAJUGAAAxBwAAMQcAAJUGAACWBgAAMQcAAJYGAAAwBwAAMAcAAJYGAACXBgAAMAcAAJcGAACYBgAAMAcAAJgGAAAvBwAALwcAAJgGAACZBgAALwcAAJkGAAAuBwAALgcAAJkGAACaBgAALgcAAJoGAAAtBwAALQcAAJoGAACbBgAALQcAAJsGAAAsBwAALAcAAJsGAACcBgAALAcAAJwGAAArBwAAKwcAAJwGAACdBgAAKwcAAJ0GAACeBgAAKwcAAJ4GAAAqBwAAKgcAAJ4GAACfBgAAKgcAAJ8GAAApBwAAKQcAAJ8GAACgBgAAKQcAAKAGAAAoBwAAKAcAAKAGAAChBgAAKAcAAKEGAAAnBwAAJwcAAKEGAACiBgAAJwcAAKIGAACjBgAAJwcAAKMGAAAmBwAAJgcAAKMGAACkBgAAJgcAAKQGAAAlBwAAJQcAAKQGAAClBgAAJQcAAKUGAAAkBwAAJAcAAKUGAACmBgAAJAcAAKYGAAAjBwAAIwcAAKYGAACnBgAAIwcAAKcGAAAiBwAAIgcAAKcGAACoBgAAIgcAAKgGAACpBgAAIgcAAKkGAAAhBwAAIQcAAKkGAACqBgAAIQcAAKoGAAAgBwAAIAcAAKoGAACrBgAAIAcAAKsGAAAfBwAAHwcAAKsGAACsBgAAHwcAAKwGAAAeBwAAHgcAAKwGAACtBgAAHgcAAK0GAAAdBwAAHQcAAK0GAACuBgAAHQcAAK4GAACvBgAAHQcAAK8GAAAcBwAAHAcAAK8GAACwBgAAHAcAALAGAAAbBwAAGwcAALAGAACxBgAAGwcAALEGAAAaBwAAGgcAALEGAACyBgAAGgcAALIGAAAZBwAAGQcAALIGAACzBgAAGQcAALMGAAAYBwAAGAcAALMGAAC0BgAAGAcAALQGAAC1BgAAGAcAALUGAAAXBwAAFwcAALUGAAC2BgAAFwcAALYGAAAWBwAAFgcAALYGAAC3BgAAFgcAALcGAAAVBwAAFQcAALcGAAC4BgAAFQcAALgGAAAUBwAAFAcAALgGAAC5BgAAFAcAALkGAAATBwAAEwcAALkGAAC6BgAAEwcAALoGAAC7BgAAEwcAALsGAAASBwAAEgcAALsGAAC8BgAAEgcAALwGAAARBwAAEQcAALwGAAC9BgAAEQcAAL0GAAAQBwAAEAcAAL0GAAC+BgAAEAcAAL4GAAAPBwAADwcAAL4GAAC/BgAADwcAAL8GAAAOBwAADgcAAL8GAADABgAADgcAAMAGAADBBgAADgcAAMEGAAANBwAADQcAAMEGAADCBgAADQcAAMIGAAAMBwAADAcAAMIGAADDBgAADAcAAMMGAAALBwAACwcAAMMGAADEBgAACwcAAMQGAAAKBwAACgcAAMQGAADFBgAACgcAAMUGAAAJBwAACQcAAMUGAADGBgAACQcAAMYGAADHBgAACQcAAMcGAAAIBwAACAcAAMcGAADIBgAACAcAAMgGAAAHBwAABwcAAMgGAADJBgAABwcAAMkGAAAGBwAABgcAAMkGAADKBgAABgcAAMoGAAAFBwAABQcAAMoGAADLBgAABQcAAMsGAAAEBwAABAcAAMsGAADMBgAABAcAAMwGAADNBgAABAcAAM0GAAADBwAAAwcAAM0GAADOBgAAAwcAAM4GAAACBwAAAgcAAM4GAADPBgAAAgcAAM8GAAABBwAAAQcAAM8GAADQBgAAAQcAANAGAAAABwAAAAcAANAGAADRBgAAAAcAANEGAAD/BgAA/wYAANEGAADSBgAA/wYAANIGAADTBgAA/wYAANMGAAD+BgAA/gYAANMGAADUBgAA/gYAANQGAAD9BgAA/QYAANQGAADVBgAA/QYAANUGAAD8BgAA/AYAANUGAADWBgAA/AYAANYGAAD7BgAA+wYAANYGAADXBgAA+wYAANcGAAD6BgAA+gYAANcGAADYBgAA+gYAANgGAADZBgAA+gYAANkGAAD5BgAA+QYAANkGAADaBgAA+QYAANoGAAD4BgAA+AYAANoGAADbBgAA+AYAANsGAAD3BgAA9wYAANsGAADcBgAA9wYAANwGAAD2BgAA9gYAANwGAADdBgAA9gYAAN0GAAD1BgAA9QYAAN0GAADeBgAA9QYAAN4GAADfBgAA9QYAAN8GAAD0BgAA9AYAAN8GAADgBgAA9AYAAOAGAADzBgAA8wYAAOAGAADhBgAA8wYAAOEGAADyBgAA8gYAAOEGAADiBgAA8gYAAOIGAADxBgAA8QYAAOIGAADjBgAA8QYAAOMGAADwBgAA8AYAAOMGAADkBgAA8AYAAOQGAADlBgAA8AYAAOUGAADvBgAA7wYAAOUGAADmBgAA7wYAAOYGAADuBgAA7gYAAOYGAADnBgAA7gYAAOcGAADtBgAA7QYAAOcGAADoBgAA7QYAAOgGAADsBgAA7AYAAOgGAADpBgAA7AYAAOkGAADrBgAA6wYAAOkGAADqBgAA6gUAAGsHAADrBQAA6wUAAGsHAABsBwAA6wUAAGwHAADsBQAA7AUAAGwHAABtBwAA7AUAAG0HAADtBQAA7QUAAG0HAABuBwAA7QUAAG4HAADuBQAA7gUAAG4HAABvBwAA7gUAAG8HAADvBQAA7wUAAG8HAABwBwAA7wUAAHAHAADwBQAA8AUAAHAHAABxBwAA8AUAAHEHAADxBQAA8QUAAHEHAAByBwAA8QUAAHIHAABzBwAA8QUAAHMHAADyBQAA8gUAAHMHAAB0BwAA8gUAAHQHAADzBQAA8wUAAHQHAAB1BwAA8wUAAHUHAAD0BQAA9AUAAHUHAAB2BwAA9AUAAHYHAAD1BQAA9QUAAHYHAAB3BwAA9QUAAHcHAAD2BQAA9gUAAHcHAAB4BwAA9gUAAHgHAAD3BQAA9wUAAHgHAAB5BwAA9wUAAHkHAAB6BwAA9wUAAHoHAAD4BQAA+AUAAHoHAAB7BwAA+AUAAHsHAAD5BQAA+QUAAHsHAAB8BwAA+QUAAHwHAAD6BQAA+gUAAHwHAAB9BwAA+gUAAH0HAAD7BQAA+wUAAH0HAAB+BwAA+wUAAH4HAAD8BQAA/AUAAH4HAAB/BwAA/AUAAH8HAAD9BQAA/QUAAH8HAACABwAA/QUAAIAHAACBBwAA/QUAAIEHAAD+BQAA/gUAAIEHAACCBwAA/gUAAIIHAAD/BQAA/wUAAIIHAACDBwAA/wUAAIMHAAAABgAAAAYAAIMHAACEBwAAAAYAAIQHAAABBgAAAQYAAIQHAACFBwAAAQYAAIUHAAACBgAAAgYAAIUHAACGBwAAAgYAAIYHAAADBgAAAwYAAIYHAACHBwAAAwYAAIcHAACIBwAAAwYAAIgHAAAEBgAABAYAAIgHAACJBwAABAYAAIkHAAAFBgAABQYAAIkHAACKBwAABQYAAIoHAAAGBgAABgYAAIoHAACLBwAABgYAAIsHAAAHBgAABwYAAIsHAACMBwAABwYAAIwHAAAIBgAACAYAAIwHAACNBwAACAYAAI0HAACOBwAACAYAAI4HAAAJBgAACQYAAI4HAACPBwAACQYAAI8HAAAKBgAACgYAAI8HAACQBwAACgYAAJAHAAALBgAACwYAAJAHAACRBwAACwYAAJEHAAAMBgAADAYAAJEHAACSBwAADAYAAJIHAAANBgAADQYAAJIHAACTBwAADQYAAJMHAAAOBgAADgYAAJMHAACUBwAADgYAAJQHAACVBwAADgYAAJUHAAAPBgAADwYAAJUHAACWBwAADwYAAJYHAAAQBgAAEAYAAJYHAACXBwAAEAYAAJcHAAARBgAAEQYAAJcHAACYBwAAEQYAAJgHAAASBgAAEgYAAJgHAACZBwAAEgYAAJkHAAATBgAAEwYAAJkHAACaBwAAEwYAAJoHAACbBwAAEwYAAJsHAAAUBgAAFAYAAJsHAACcBwAAFAYAAJwHAAAVBgAAFQYAAJwHAACdBwAAFQYAAJ0HAAAWBgAAFgYAAJ0HAACeBwAAFgYAAJ4HAAAXBgAAFwYAAJ4HAACfBwAAFwYAAJ8HAACgBwAAFwYAAKAHAAAYBgAAGAYAAKAHAAChBwAAGAYAAKEHAAAZBgAAGQYAAKEHAACiBwAAGQYAAKIHAAAaBgAAGgYAAKIHAACjBwAAGgYAAKMHAAAbBgAAGwYAAKMHAACkBwAAGwYAAKQHAAAcBgAAHAYAAKQHAAClBwAAHAYAAKUHAACmBwAAHAYAAKYHAAAdBgAAHQYAAKYHAACnBwAAHQYAAKcHAAAeBgAAHgYAAKcHAACoBwAAHgYAAKgHAAAfBgAAHwYAAKgHAACpBwAAHwYAAKkHAAAgBgAAIAYAAKkHAACqBwAAIAYAAKoHAAAhBgAAIQYAAKoHAACrBwAAIQYAAKsHAACsBwAAIQYAAKwHAAAiBgAAIgYAAKwHAACtBwAAIgYAAK0HAAAjBgAAIwYAAK0HAACuBwAAIwYAAK4HAAAkBgAAJAYAAK4HAACvBwAAJAYAAK8HAACwBwAAJAYAALAHAAAlBgAAJQYAALAHAACxBwAAJQYAALEHAAAmBgAAJgYAALEHAACyBwAAJgYAALIHAAAnBgAAJwYAALIHAACzBwAAJwYAALMHAAAoBgAAKAYAALMHAAC0BwAAKAYAALQHAAC1BwAAKAYAALUHAAApBgAAKQYAALUHAAC2BwAAKQYAALYHAAAqBgAAKgYAALYHAAC3BwAAKgYAALcHAAArBgAAKwYAALcHAAC4BwAAKwYAALgHAAAsBgAALAYAALgHAAC5BwAALAYAALkHAAC6BwAALAYAALoHAAAtBgAALQYAALoHAAC7BwAALQYAALsHAAAuBgAALgYAALsHAAC8BwAALgYAALwHAAAvBgAALwYAALwHAAC9BwAALwYAAL0HAAAwBgAAMAYAAL0HAAC+BwAAMAYAAL4HAAC/BwAAMAYAAL8HAAAxBgAAMQYAAL8HAADABwAAMQYAAMAHAAAyBgAAMgYAAMAHAADBBwAAMgYAAMEHAAAzBgAAMwYAAMEHAADCBwAAMwYAAMIHAADDBwAAMwYAAMMHAAA0BgAANAYAAMMHAADEBwAANAYAAMQHAAA1BgAANQYAAMQHAADFBwAANQYAAMUHAAA2BgAANgYAAMUHAADGBwAANgYAAMYHAAA3BgAANwYAAMYHAADHBwAANwYAAMcHAADIBwAANwYAAMgHAAA4BgAAOAYAAMgHAADJBwAAOAYAAMkHAAA5BgAAOQYAAMkHAADKBwAAOQYAAMoHAAA6BgAAOgYAAMoHAADLBwAAOgYAAMsHAAA7BgAAOwYAAMsHAADMBwAAOwYAAMwHAADNBwAAOwYAAM0HAAA8BgAAPAYAAM0HAADOBwAAPAYAAM4HAAA9BgAAPQYAAM4HAADPBwAAPQYAAM8HAAA+BgAAPgYAAM8HAADQBwAAPgYAANAHAADRBwAAPgYAANEHAAA/BgAAPwYAANEHAADSBwAAPwYAANIHAABABgAAQAYAANIHAADTBwAAQAYAANMHAABBBgAAQQYAANMHAADUBwAAQQYAANQHAABCBgAAQgYAANQHAADVBwAAQgYAANUHAADWBwAAQgYAANYHAABDBgAAQwYAANYHAADXBwAAQwYAANcHAABEBgAARAYAANcHAADYBwAARAYAANgHAABFBgAARQYAANgHAADZBwAARQYAANkHAABGBgAARgYAANkHAADaBwAARgYAANoHAADbBwAARgYAANsHAABHBgAARwYAANsHAADcBwAARwYAANwHAABIBgAASAYAANwHAADdBwAASAYAAN0HAABJBgAASQYAAN0HAADeBwAASQYAAN4HAABKBgAASgYAAN4HAADfBwAASgYAAN8HAADgBwAASgYAAOAHAABLBgAASwYAAOAHAADhBwAASwYAAOEHAABMBgAATAYAAOEHAADiBwAATAYAAOIHAABNBgAATQYAAOIHAADjBwAATQYAAOMHAADkBwAATQYAAOQHAABOBgAATgYAAOQHAADlBwAATgYAAOUHAABPBgAATwYAAOUHAADmBwAATwYAAOYHAABQBgAAUAYAAOYHAADnBwAAUAYAAOcHAABRBgAAUQYAAOcHAADoBwAAUQYAAOgHAADpBwAAUQYAAOkHAABSBgAAUgYAAOkHAADqBwAAUgYAAOoHAABTBgAAUwYAAOoHAADrBwAAUwYAAOsHAABUBgAAVAYAAOsHAADsBwAAVAYAAOwHAABVBgAAVQYAAOwHAADtBwAAVQYAAO0HAADuBwAAVQYAAO4HAABWBgAAVgYAAO4HAADvBwAAVgYAAO8HAABXBgAAVwYAAO8HAADwBwAAVwYAAPAHAABYBgAAWAYAAPAHAADxBwAAWAYAAPEHAABZBgAAWQYAAPEHAADyBwAAWQYAAPIHAADzBwAAWQYAAPMHAABaBgAAWgYAAPMHAAD0BwAAWgYAAPQHAABbBgAAWwYAAPQHAAD1BwAAWwYAAPUHAABcBgAAXAYAAPUHAAD2BwAAXAYAAPYHAAD3BwAAXAYAAPcHAABdBgAAXQYAAPcHAAD4BwAAXQYAAPgHAABeBgAAXgYAAPgHAAD5BwAAXgYAAPkHAABfBgAAXwYAAPkHAAD6BwAAXwYAAPoHAABgBgAAYAYAAPoHAAD7BwAAYAYAAPsHAAD8BwAAYAYAAPwHAABhBgAAYQYAAPwHAAD9BwAAYQYAAP0HAABiBgAAYgYAAP0HAAD+BwAAYgYAAP4HAABjBgAAYwYAAP4HAAD/BwAAYwYAAP8HAABkBgAAZAYAAP8HAAAACAAAZAYAAAAIAAABCAAAZAYAAAEIAABlBgAAZQYAAAEIAAACCAAAZQYAAAIIAABmBgAAZgYAAAIIAAADCAAAZgYAAAMIAABnBgAAZwYAAAMIAAAECAAAZwYAAAQIAAAFCAAAZwYAAAUIAABoBgAAaAYAAAUIAAAGCAAAaAYAAAYIAABpBgAAaQYAAAYIAAAHCAAAaQYAAAcIAABqBgAAagYAAAcIAAAICAAAagYAAAgIAABrBgAAawYAAAgIAAAJCAAAawYAAAkIAAAKCAAAawYAAAoIAABsBgAAbAYAAAoIAAALCAAAbAYAAAsIAABtBgAAbQYAAAsIAAAMCAAAbQYAAAwIAABuBgAAbgYAAAwIAAANCAAAbgYAAA0IAABvBgAAbwYAAA0IAAAOCAAAbwYAAA4IAAAPCAAAbwYAAA8IAABwBgAAcAYAAA8IAAAQCAAAcAYAABAIAABxBgAAcQYAABAIAAARCAAAcQYAABEIAAByBgAAcgYAABEIAAASCAAAcgYAABIIAABzBgAAcwYAABIIAAATCAAAcwYAABMIAAAUCAAAcwYAABQIAAB0BgAAdAYAABQIAAAVCAAAdAYAABUIAAB1BgAAdQYAABUIAAAWCAAAdQYAABYIAAB2BgAAdgYAABYIAAAXCAAAdgYAABcIAAAYCAAAdgYAABgIAAB3BgAAdwYAABgIAAAZCAAAdwYAABkIAAB4BgAAeAYAABkIAAAaCAAAeAYAABoIAAB5BgAAeQYAABoIAAAbCAAAeQYAABsIAAB6BgAAegYAABsIAAAcCAAAegYAABwIAAAdCAAAegYAAB0IAAB7BgAAewYAAB0IAAAeCAAAewYAAB4IAAB8BgAAfAYAAB4IAAAfCAAAfAYAAB8IAAB9BgAAfQYAAB8IAAAgCAAAfQYAACAIAAB+BgAAfgYAACAIAAAhCAAAfgYAACEIAAAiCAAAfgYAACIIAAB/BgAAfwYAACIIAAAjCAAAfwYAACMIAACABgAAgAYAACMIAAAkCAAAgAYAACQIAACBBgAAgQYAACQIAAAlCAAAgQYAACUIAAAmCAAAgQYAACYIAACCBgAAggYAACYIAAAnCAAAggYAACcIAACDBgAAgwYAACcIAAAoCAAAgwYAACgIAACEBgAAhAYAACgIAAApCAAAhAYAACkIAACFBgAAhQYAACkIAAAqCAAAhQYAACoIAAArCAAAhQYAACsIAACGBgAAhgYAACsIAAAsCAAAhgYAACwIAACHBgAAhwYAACwIAAAtCAAAhwYAAC0IAACIBgAAiAYAAC0IAAAuCAAAiAYAAC4IAACJBgAAiQYAAC4IAAAvCAAAiQYAAC8IAAAwCAAAiQYAADAIAACKBgAAigYAADAIAAAxCAAAigYAADEIAACLBgAAiwYAADEIAAAyCAAAiwYAADIIAACMBgAAjAYAADIIAAAzCAAAjAYAADMIAACNBgAAjQYAADMIAAA0CAAAjQYAADQIAAA1CAAAjQYAADUIAACOBgAAjgYAADUIAAA2CAAAjgYAADYIAACPBgAAjwYAADYIAAA3CAAAjwYAADcIAACQBgAAkAYAADcIAAA4CAAAkAYAADgIAAA5CAAAkAYAADkIAACRBgAAkQYAADkIAAA6CAAAkQYAADoIAACSBgAAkgYAADoIAAA7CAAAkgYAADsIAACTBgAAkwYAADsIAAA8CAAAkwYAADwIAACUBgAAlAYAADwIAAA9CAAAlAYAAD0IAAA+CAAAlAYAAD4IAACVBgAAlQYAAD4IAAA/CAAAlQYAAD8IAACWBgAAlgYAAD8IAABACAAAlgYAAEAIAACXBgAAlwYAAEAIAABBCAAAlwYAAEEIAACYBgAAmAYAAEEIAABCCAAAmAYAAEIIAABDCAAAmAYAAEMIAACZBgAAmQYAAEMIAABECAAAmQYAAEQIAACaBgAAmgYAAEQIAABFCAAAmgYAAEUIAACbBgAAmwYAAEUIAABGCAAAmwYAAEYIAACcBgAAnAYAAEYIAABHCAAAnAYAAEcIAABICAAAnAYAAEgIAACdBgAAnQYAAEgIAABJCAAAnQYAAEkIAACeBgAAngYAAEkIAABKCAAAngYAAEoIAACfBgAAnwYAAEoIAABLCAAAnwYAAEsIAABMCAAAnwYAAEwIAACgBgAAoAYAAEwIAABNCAAAoAYAAE0IAAChBgAAoQYAAE0IAABOCAAAoQYAAE4IAACiBgAAogYAAE4IAABPCAAAogYAAE8IAACjBgAAowYAAE8IAABQCAAAowYAAFAIAABRCAAAowYAAFEIAACkBgAApAYAAFEIAABSCAAApAYAAFIIAAClBgAApQYAAFIIAABTCAAApQYAAFMIAACmBgAApgYAAFMIAABUCAAApgYAAFQIAACnBgAApwYAAFQIAABVCAAApwYAAFUIAABWCAAApwYAAFYIAACoBgAAqAYAAFYIAABXCAAAqAYAAFcIAACpBgAAqQYAAFcIAABYCAAAqQYAAFgIAACqBgAAqgYAAFgIAABZCAAAqgYAAFkIAACrBgAAqwYAAFkIAABaCAAAqwYAAFoIAABbCAAAqwYAAFsIAACsBgAArAYAAFsIAABcCAAArAYAAFwIAACtBgAArQYAAFwIAABdCAAArQYAAF0IAACuBgAArgYAAF0IAABeCAAArgYAAF4IAABfCAAArgYAAF8IAACvBgAArwYAAF8IAABgCAAArwYAAGAIAACwBgAAsAYAAGAIAABhCAAAsAYAAGEIAACxBgAAsQYAAGEIAABiCAAAsQYAAGIIAACyBgAAsgYAAGIIAABjCAAAsgYAAGMIAABkCAAAsgYAAGQIAACzBgAAswYAAGQIAABlCAAAswYAAGUIAAC0BgAAtAYAAGUIAABmCAAAtAYAAGYIAAC1BgAAtQYAAGYIAABnCAAAtQYAAGcIAAC2BgAAtgYAAGcIAABoCAAAtgYAAGgIAABpCAAAtgYAAGkIAAC3BgAAtwYAAGkIAABqCAAAtwYAAGoIAAC4BgAAuAYAAGoIAABrCAAAuAYAAGsIAAC5BgAAuQYAAGsIAABsCAAAuQYAAGwIAABtCAAAuQYAAG0IAAC6BgAAugYAAG0IAABuCAAAugYAAG4IAAC7BgAAuwYAAG4IAABvCAAAuwYAAG8IAAC8BgAAvAYAAG8IAABwCAAAvAYAAHAIAAC9BgAAvQYAAHAIAABxCAAAvQYAAHEIAAByCAAAvQYAAHIIAAC+BgAAvgYAAHIIAABzCAAAvgYAAHMIAAC/BgAAvwYAAHMIAAB0CAAAvwYAAHQIAADABgAAwAYAAHQIAAB1CAAAwAYAAHUIAADBBgAAwQYAAHUIAAB2CAAAwQYAAHYIAAB3CAAAwQYAAHcIAADCBgAAwgYAAHcIAAB4CAAAwgYAAHgIAADDBgAAwwYAAHgIAAB5CAAAwwYAAHkIAADEBgAAxAYAAHkIAAB6CAAAxAYAAHoIAADFBgAAxQYAAHoIAAB7CAAAxQYAAHsIAAB8CAAAxQYAAHwIAADGBgAAxgYAAHwIAAB9CAAAxgYAAH0IAADHBgAAxwYAAH0IAAB+CAAAxwYAAH4IAADIBgAAyAYAAH4IAAB/CAAAyAYAAH8IAACACAAAyAYAAIAIAADJBgAAyQYAAIAIAACBCAAAyQYAAIEIAADKBgAAygYAAIEIAACCCAAAygYAAIIIAADLBgAAywYAAIIIAACDCAAAywYAAIMIAADMBgAAzAYAAIMIAACECAAAzAYAAIQIAACFCAAAzAYAAIUIAADNBgAAzQYAAIUIAACGCAAAzQYAAIYIAADOBgAAzgYAAIYIAACHCAAAzgYAAIcIAADPBgAAzwYAAIcIAACICAAAzwYAAIgIAADQBgAA0AYAAIgIAACJCAAA0AYAAIkIAACKCAAA0AYAAIoIAADRBgAA0QYAAIoIAACLCAAA0QYAAIsIAADSBgAA0gYAAIsIAACMCAAA0gYAAIwIAADTBgAA0wYAAIwIAACNCAAA0wYAAI0IAADUBgAA1AYAAI0IAACOCAAA1AYAAI4IAACPCAAA1AYAAI8IAADVBgAA1QYAAI8IAACQCAAA1QYAAJAIAADWBgAA1gYAAJAIAACRCAAA1gYAAJEIAADXBgAA1wYAAJEIAACSCAAA1wYAAJIIAACTCAAA1wYAAJMIAADYBgAA2AYAAJMIAACUCAAA2AYAAJQIAADZBgAA2QYAAJQIAACVCAAA2QYAAJUIAADaBgAA2gYAAJUIAACWCAAA2gYAAJYIAADbBgAA2wYAAJYIAACXCAAA2wYAAJcIAACYCAAA2wYAAJgIAADcBgAA3AYAAJgIAACZCAAA3AYAAJkIAADdBgAA3QYAAJkIAACaCAAA3QYAAJoIAADeBgAA3gYAAJoIAACbCAAA3gYAAJsIAADfBgAA3wYAAJsIAACcCAAA3wYAAJwIAACdCAAA3wYAAJ0IAADgBgAA4AYAAJ0IAACeCAAA4AYAAJ4IAADhBgAA4QYAAJ4IAACfCAAA4QYAAJ8IAADiBgAA4gYAAJ8IAACgCAAA4gYAAKAIAADjBgAA4wYAAKAIAAChCAAA4wYAAKEIAACiCAAA4wYAAKIIAADkBgAA5AYAAKIIAACjCAAA5AYAAKMIAADlBgAA5QYAAKMIAACkCAAA5QYAAKQIAADmBgAA5gYAAKQIAAClCAAA5gYAAKUIAACmCAAA5gYAAKYIAADnBgAA5wYAAKYIAACnCAAA5wYAAKcIAADoBgAA6AYAAKcIAACoCAAA6AYAAKgIAADpBgAA6QYAAKgIAACpCAAA6QYAAKkIAADqBgAA6gYAAKkIAACqCAAA6wYAAOoGAACqCAAArAgAANYFAACrCAAAqwgAANYFAADVBQAAqwgAANUFAADUBQAArQgAANgFAACsCAAArAgAANgFAADXBQAArAgAANcFAADWBQAArggAANoFAACtCAAArQgAANoFAADZBQAArQgAANkFAADYBQAArwgAANwFAACuCAAArggAANwFAADbBQAArggAANsFAADaBQAA3AUAAK8IAADdBQAA3QUAAK8IAACwCAAA3QUAALAIAADeBQAA3gUAALAIAADfBQAA3wUAALAIAACxCAAA3wUAALEIAADgBQAA4AUAALEIAADhBQAA4QUAALEIAACyCAAA4QUAALIIAADiBQAA4gUAALIIAADjBQAA4wUAALIIAACzCAAA4wUAALMIAADkBQAA5AUAALMIAAC0CAAA5AUAALQIAADlBQAA5QUAALQIAADmBQAA5gUAALQIAAC1CAAA5gUAALUIAADnBQAA5wUAALUIAADoBQAA6AUAALUIAAC2CAAA6AUAALYIAADpBQAA6QUAALYIAADqBQAA6gUAALYIAAC3CAAA6gUAALcIAACHBQAAhwUAALcIAACIBQAAiAUAALcIAAC4CAAAiAUAALgIAACJBQAAiQUAALgIAACKBQAAigUAALgIAAC5CAAAigUAALkIAACLBQAAiwUAALkIAACMBQAAjAUAALkIAAC6CAAAjAUAALoIAACNBQAAjQUAALoIAACOBQAAjgUAALoIAAC7CAAAjgUAALsIAACPBQAAjwUAALsIAACQBQAAkAUAALsIAAC8CAAAkAUAALwIAACRBQAAkQUAALwIAACSBQAAkgUAALwIAAC9CAAAkgUAAL0IAACTBQAAkwUAAL0IAAC+CAAAkwUAAL4IAACUBQAAlAUAAL4IAACVBQAAlQUAAL4IAAC/CAAAlQUAAL8IAACWBQAAlgUAAL8IAACXBQAAlwUAAL8IAADACAAAlwUAAMAIAACYBQAAmAUAAMAIAACZBQAAmQUAAMAIAADBCAAAmQUAAMEIAACaBQAAmgUAAMEIAACbBQAAmwUAAMEIAADCCAAAmwUAAMIIAACcBQAAnAUAAMIIAACdBQAAnQUAAMIIAADDCAAAnQUAAMMIAACeBQAAngUAAMMIAADECAAAngUAAMQIAACfBQAAnwUAAMQIAACgBQAAoAUAAMQIAADFCAAAoAUAAMUIAAChBQAAoQUAAMUIAACiBQAAogUAAMUIAADGCAAAogUAAMYIAACjBQAAowUAAMYIAACkBQAApAUAAMYIAADHCAAApAUAAMcIAAClBQAApQUAAMcIAACmBQAApgUAAMcIAADICAAApgUAAMgIAACnBQAApwUAAMgIAADJCAAApwUAAMkIAACoBQAAqAUAAMkIAACpBQAAqQUAAMkIAADKCAAAqQUAAMoIAACqBQAAqgUAAMoIAACrBQAAqwUAAMoIAADLCAAAqwUAAMsIAACsBQAArAUAAMsIAACtBQAArQUAAMsIAADMCAAArQUAAMwIAACuBQAArgUAAMwIAACvBQAArwUAAMwIAADNCAAArwUAAM0IAACwBQAAsAUAAM0IAACxBQAAsQUAAM0IAADOCAAAsQUAAM4IAACyBQAAsgUAAM4IAADPCAAAsgUAAM8IAACzBQAAswUAAM8IAAC0BQAAtAUAAM8IAADQCAAAtAUAANAIAAC1BQAAtQUAANAIAAC2BQAAtgUAANAIAADRCAAAtgUAANEIAAC3BQAAtwUAANEIAAC4BQAAuAUAANEIAADSCAAAuAUAANIIAAC5BQAAuQUAANIIAAC6BQAAugUAANIIAADTCAAAugUAANMIAAC7BQAAuwUAANMIAADUCAAAuwUAANQIAAC8BQAAvAUAANQIAAC9BQAAvQUAANQIAADVCAAAvQUAANUIAAC+BQAAvgUAANUIAAC/BQAAvwUAANUIAADWCAAAvwUAANYIAADABQAAwAUAANYIAADBBQAAwQUAANYIAADXCAAAwQUAANcIAADCBQAAwgUAANcIAADDBQAAwwUAANcIAADYCAAAwwUAANgIAADEBQAAxAUAANgIAADZCAAAxAUAANkIAADFBQAAxQUAANkIAADGBQAAxgUAANkIAADaCAAAxgUAANoIAADHBQAAxwUAANoIAADIBQAAyAUAANoIAADbCAAAyAUAANsIAADJBQAAyQUAANsIAADKBQAAygUAANsIAADcCAAAygUAANwIAADLBQAAywUAANwIAADMBQAAzAUAANwIAADdCAAAzAUAAN0IAADNBQAAzQUAAN0IAADeCAAAzQUAAN4IAADOBQAAzgUAAN4IAADPBQAAzwUAAN4IAADfCAAAzwUAAN8IAADQBQAA0AUAAN8IAADRBQAA0QUAAN8IAADgCAAA0QUAAOAIAADSBQAA0gUAAOAIAADTBQAA0wUAAOAIAADhCAAA0wUAAOEIAADUBQAA1AUAAOEIAACrCAAAqgcAAKkHAAD3CAAA9wgAAKkHAACoBwAA9wgAAKgHAACnBwAA9wgAAKcHAAD2CAAA9ggAAKcHAACmBwAA9ggAAKYHAAD1CAAA9QgAAKYHAAClBwAA9QgAAKUHAACkBwAA9QgAAKQHAAD0CAAA9AgAAKQHAACjBwAA9AgAAKMHAACiBwAA9AgAAKIHAADzCAAA8wgAAKIHAAChBwAA8wgAAKEHAADyCAAA8ggAAKEHAACgBwAA8ggAAKAHAACfBwAA8ggAAJ8HAADxCAAA8QgAAJ8HAACeBwAA8QgAAJ4HAACdBwAA8QgAAJ0HAADwCAAA8AgAAJ0HAACcBwAA8AgAAJwHAADvCAAA7wgAAJwHAACbBwAA7wgAAJsHAACaBwAA7wgAAJoHAADuCAAA7ggAAJoHAACZBwAA7ggAAJkHAACYBwAA7ggAAJgHAADtCAAA7QgAAJgHAACXBwAA7QgAAJcHAADsCAAA7AgAAJcHAACWBwAA7AgAAJYHAACVBwAA7AgAAJUHAADrCAAA6wgAAJUHAACUBwAA6wgAAJQHAADqCAAA6ggAAJQHAACTBwAA6ggAAJMHAACSBwAA6ggAAJIHAADpCAAA6QgAAJIHAACRBwAA6QgAAJEHAACQBwAA6QgAAJAHAADoCAAA6AgAAJAHAACPBwAA6AgAAI8HAADnCAAA5wgAAI8HAACOBwAA5wgAAI4HAACNBwAA5wgAAI0HAADmCAAA5ggAAI0HAACMBwAA5ggAAIwHAACLBwAA5ggAAIsHAADlCAAA5QgAAIsHAACKBwAA5QgAAIoHAADkCAAA5AgAAIoHAACJBwAA5AgAAIkHAACIBwAA5AgAAIgHAADjCAAA4wgAAIgHAACHBwAA4wgAAIcHAACGBwAA4wgAAIYHAADiCAAA4ggAAIYHAACFBwAA4ggAAIUHAABqBQAAagUAAIUHAACEBwAAagUAAIQHAABrBQAAawUAAIQHAACDBwAAawUAAIMHAABsBQAAbAUAAIMHAACCBwAAbAUAAIIHAABtBQAAbQUAAIIHAACBBwAAbQUAAIEHAABuBQAAbgUAAIEHAACABwAAbgUAAIAHAABvBQAAbwUAAIAHAAB/BwAAbwUAAH8HAABwBQAAcAUAAH8HAAB+BwAAcAUAAH4HAABxBQAAcQUAAH4HAAB9BwAAcQUAAH0HAAByBQAAcgUAAH0HAAB8BwAAcgUAAHwHAABzBQAAcwUAAHwHAAB7BwAAcwUAAHsHAAB0BQAAdAUAAHsHAAB1BQAAdQUAAHsHAAB6BwAAdQUAAHoHAAB2BQAAdgUAAHoHAAB5BwAAdgUAAHkHAAB3BQAAdwUAAHkHAAB4BwAAdwUAAHgHAAB4BQAAeAUAAHgHAAB3BwAAeAUAAHcHAAB5BQAAeQUAAHcHAAB2BwAAeQUAAHYHAAB6BQAAegUAAHYHAAB1BwAAegUAAHUHAAB7BQAAewUAAHUHAAB0BwAAewUAAHQHAAB8BQAAfAUAAHQHAABzBwAAfAUAAHMHAAB9BQAAfQUAAHMHAAByBwAAfQUAAHIHAAB+BQAAfgUAAHIHAAB/BQAAfwUAAHIHAABxBwAAfwUAAHEHAACABQAAgAUAAHEHAABwBwAAgAUAAHAHAACBBQAAgQUAAHAHAABvBwAAgQUAAG8HAACCBQAAggUAAG8HAABuBwAAggUAAG4HAACDBQAAgwUAAG4HAABtBwAAgwUAAG0HAACEBQAAhAUAAG0HAABsBwAAhAUAAGwHAACFBQAAhQUAAGwHAABrBwAAhQUAAGsHAACGBQAAhgUAAGsHAADqBQAAhgUAAOoFAACHBQAAWQEAADIJAAAjAQAAIwEAADIJAAA1CQAAIwEAADUJAACeCQAAngkAADUJAAA0CQAAngkAADQJAACfCQAAnwkAADQJAAAGCQAAnwkAAAYJAAAHCQAABwkAAAYJAACrCAAABwkAAKsIAADhCAAAMgkAAFkBAAA2CQAANgkAAFkBAABYAQAANgkAAFgBAAA4CQAAOAkAAFgBAABXAQAAOAkAAFcBAAA6CQAAOgkAAFcBAABWAQAAOgkAAFYBAAA8CQAAPAkAAFYBAABVAQAAPAkAAFUBAAA+CQAAPgkAAFUBAABUAQAAPgkAAFQBAABACQAAQAkAAFQBAABTAQAAQAkAAFMBAABCCQAAQgkAAFMBAABSAQAAQgkAAFIBAABECQAARAkAAFIBAABRAQAARAkAAFEBAABGCQAARgkAAFEBAABQAQAARgkAAFABAABICQAASAkAAFABAABPAQAASAkAAE8BAABKCQAASgkAAE8BAABOAQAASgkAAE4BAABMCQAATAkAAE4BAABNAQAATAkAAE0BAAAwCQAAMAkAAE0BAABMAQAAMAkAAEwBAABOCQAATgkAAEwBAABLAQAATgkAAEsBAABQCQAAUAkAAEsBAABKAQAAUAkAAEoBAABSCQAAUgkAAEoBAABJAQAAUgkAAEkBAABUCQAAVAkAAEkBAABIAQAAVAkAAEgBAABWCQAAVgkAAEgBAABHAQAAVgkAAEcBAABYCQAAWAkAAEcBAABGAQAAWAkAAEYBAABaCQAAWgkAAEYBAABFAQAAWgkAAEUBAABcCQAAXAkAAEUBAABEAQAAXAkAAEQBAABeCQAAXgkAAEQBAABDAQAAXgkAAEMBAABgCQAAYAkAAEMBAABCAQAAYAkAAEIBAABiCQAAYgkAAEIBAABBAQAAYgkAAEEBAABkCQAAZAkAAEEBAABAAQAAZAkAAEABAABmCQAAZgkAAEABAAA/AQAAZgkAAD8BAABoCQAAaAkAAD8BAAA+AQAAaAkAAD4BAABqCQAAagkAAD4BAAA9AQAAagkAAD0BAABsCQAAbAkAAD0BAAA8AQAAbAkAADwBAABuCQAAbgkAADwBAAA7AQAAbgkAADsBAABwCQAAcAkAADsBAAA6AQAAcAkAADoBAAByCQAAcgkAADoBAAA5AQAAcgkAADkBAAB0CQAAdAkAADkBAAA4AQAAdAkAADgBAAB2CQAAdgkAADgBAAA3AQAAdgkAADcBAAB4CQAAeAkAADcBAAA2AQAAeAkAADYBAAB6CQAAegkAADYBAAA1AQAAegkAADUBAAB8CQAAfAkAADUBAAA0AQAAfAkAADQBAAB+CQAAfgkAADQBAAAzAQAAfgkAADMBAACACQAAgAkAADMBAAAyAQAAgAkAADIBAACCCQAAggkAADIBAAAxAQAAggkAADEBAACECQAAhAkAADEBAAAwAQAAhAkAADABAACGCQAAhgkAADABAAAvAQAAhgkAAC8BAACICQAAiAkAAC8BAAAuAQAAiAkAAC4BAACKCQAAigkAAC4BAAAtAQAAigkAAC0BAACMCQAAjAkAAC0BAAAsAQAAjAkAACwBAACOCQAAjgkAACwBAAArAQAAjgkAACsBAACQCQAAkAkAACsBAAAqAQAAkAkAACoBAACSCQAAkgkAACoBAAApAQAAkgkAACkBAACUCQAAlAkAACkBAAAoAQAAlAkAACgBAACWCQAAlgkAACgBAAAnAQAAlgkAACcBAACYCQAAmAkAACcBAAAmAQAAmAkAACYBAACaCQAAmgkAACYBAAAlAQAAmgkAACUBAACcCQAAnAkAACUBAAAkAQAAnAkAACQBAACeCQAAngkAACQBAAAjAQAABwkAAOEIAAAICQAACAkAAOEIAADgCAAACAkAAOAIAAAJCQAACQkAAOAIAADfCAAACQkAAN8IAAAKCQAACgkAAN8IAADeCAAACgkAAN4IAAALCQAACwkAAN4IAADdCAAACwkAAN0IAAAMCQAADAkAAN0IAADcCAAADAkAANwIAAANCQAADQkAANwIAADbCAAADQkAANsIAAAOCQAADgkAANsIAADaCAAADgkAANoIAAAPCQAADwkAANoIAADZCAAADwkAANkIAAAQCQAAEAkAANkIAADYCAAAEAkAANgIAAARCQAAEQkAANgIAADXCAAAEQkAANcIAAASCQAAEgkAANcIAADWCAAAEgkAANYIAAATCQAAEwkAANYIAADVCAAAEwkAANUIAAAUCQAAFAkAANUIAADUCAAAFAkAANQIAAAVCQAAFQkAANQIAADTCAAAFQkAANMIAAAWCQAAFgkAANMIAADSCAAAFgkAANIIAAAXCQAAFwkAANIIAADRCAAAFwkAANEIAAAYCQAAGAkAANEIAADQCAAAGAkAANAIAAAZCQAAGQkAANAIAADPCAAAGQkAAM8IAAAaCQAAGgkAAM8IAADOCAAAGgkAAM4IAAAbCQAAGwkAAM4IAADNCAAAGwkAAM0IAAAcCQAAHAkAAM0IAADMCAAAHAkAAMwIAAAdCQAAHQkAAMwIAADLCAAAHQkAAMsIAAAeCQAAHgkAAMsIAADKCAAAHgkAAMoIAAAfCQAAHwkAAMoIAADJCAAAHwkAAMkIAAAgCQAAIAkAAMkIAADICAAAIAkAAMgIAAAhCQAAIQkAAMgIAADHCAAAIQkAAMcIAAAiCQAAIgkAAMcIAADGCAAAIgkAAMYIAAAjCQAAIwkAAMYIAADFCAAAIwkAAMUIAAAkCQAAJAkAAMUIAADECAAAJAkAAMQIAAAlCQAAJQkAAMQIAADDCAAAJQkAAMMIAAAmCQAAJgkAAMMIAADCCAAAJgkAAMIIAAAnCQAAJwkAAMIIAADBCAAAJwkAAMEIAAAoCQAAKAkAAMEIAADACAAAKAkAAMAIAAApCQAAKQkAAMAIAAC/CAAAKQkAAL8IAAAqCQAAKgkAAL8IAAC+CAAAKgkAAL4IAAArCQAAKwkAAL4IAAC9CAAAKwkAAL0IAAAsCQAALAkAAL0IAAC8CAAALAkAALwIAAAtCQAALQkAALwIAAC7CAAALQkAALsIAAAuCQAALgkAALsIAAC6CAAALgkAALoIAAAvCQAALwkAALoIAAC5CAAALwkAALkIAAD4CAAA+AgAALkIAAC4CAAA+AgAALgIAAD5CAAA+QgAALgIAAC3CAAA+QgAALcIAAD6CAAA+ggAALcIAAC2CAAA+ggAALYIAAD7CAAA+wgAALYIAAC1CAAA+wgAALUIAAD8CAAA/AgAALUIAAC0CAAA/AgAALQIAAD9CAAA/QgAALQIAACzCAAA/QgAALMIAAD+CAAA/ggAALMIAACyCAAA/ggAALIIAAD/CAAA/wgAALIIAACxCAAA/wgAALEIAAAACQAAAAkAALEIAACwCAAAAAkAALAIAAABCQAAAQkAALAIAACvCAAAAQkAAK8IAAACCQAAAgkAAK8IAACuCAAAAgkAAK4IAAADCQAAAwkAAK4IAACtCAAAAwkAAK0IAAAECQAABAkAAK0IAACsCAAABAkAAKwIAAAFCQAABQkAAKwIAACrCAAABQkAAKsIAAAGCQAA+AgAADEJAAAvCQAALwkAADEJAABPCQAALwkAAE8JAAAuCQAALgkAAE8JAABRCQAALgkAAFEJAAAtCQAALQkAAFEJAABTCQAALQkAAFMJAAAsCQAALAkAAFMJAABVCQAALAkAAFUJAAArCQAAKwkAAFUJAABXCQAAKwkAAFcJAAAqCQAAKgkAAFcJAABZCQAAKgkAAFkJAAApCQAAKQkAAFkJAABbCQAAKQkAAFsJAAAoCQAAKAkAAFsJAABdCQAAKAkAAF0JAAAnCQAAJwkAAF0JAABfCQAAJwkAAF8JAAAmCQAAJgkAAF8JAABhCQAAJgkAAGEJAAAlCQAAJQkAAGEJAABjCQAAJQkAAGMJAAAkCQAAJAkAAGMJAABlCQAAJAkAAGUJAAAjCQAAIwkAAGUJAABnCQAAIwkAAGcJAAAiCQAAIgkAAGcJAABpCQAAIgkAAGkJAAAhCQAAIQkAAGkJAABrCQAAIQkAAGsJAAAgCQAAIAkAAGsJAABtCQAAIAkAAG0JAAAfCQAAHwkAAG0JAABvCQAAHwkAAG8JAAAeCQAAHgkAAG8JAABxCQAAHgkAAHEJAAAdCQAAHQkAAHEJAABzCQAAHQkAAHMJAAAcCQAAHAkAAHMJAAB1CQAAHAkAAHUJAAAbCQAAGwkAAHUJAAB3CQAAGwkAAHcJAAAaCQAAGgkAAHcJAAB5CQAAGgkAAHkJAAAZCQAAGQkAAHkJAAB7CQAAGQkAAHsJAAAYCQAAGAkAAHsJAAB9CQAAGAkAAH0JAAAXCQAAFwkAAH0JAAB/CQAAFwkAAH8JAAAWCQAAFgkAAH8JAACBCQAAFgkAAIEJAAAVCQAAFQkAAIEJAACDCQAAFQkAAIMJAAAUCQAAFAkAAIMJAACFCQAAFAkAAIUJAAATCQAAEwkAAIUJAACHCQAAEwkAAIcJAAASCQAAEgkAAIcJAACJCQAAEgkAAIkJAAARCQAAEQkAAIkJAACLCQAAEQkAAIsJAAAQCQAAEAkAAIsJAACNCQAAEAkAAI0JAAAPCQAADwkAAI0JAACPCQAADwkAAI8JAAAOCQAADgkAAI8JAACRCQAADgkAAJEJAAANCQAADQkAAJEJAACTCQAADQkAAJMJAAAMCQAADAkAAJMJAACVCQAADAkAAJUJAAALCQAACwkAAJUJAACXCQAACwkAAJcJAAAKCQAACgkAAJcJAACZCQAACgkAAJkJAAAJCQAACQkAAJkJAACbCQAACQkAAJsJAAAICQAACAkAAJsJAACdCQAACAkAAJ0JAAAHCQAABwkAAJ0JAACfCQAA+AgAAPkIAABNCQAATQkAAPkIAABLCQAATQkAAEsJAABKCQAASgkAAEsJAABICQAA+QgAAPoIAABLCQAASwkAAPoIAABJCQAASwkAAEkJAABICQAASAkAAEkJAABGCQAA+ggAAPsIAABJCQAASQkAAPsIAABHCQAASQkAAEcJAABGCQAARgkAAEcJAABECQAA+wgAAPwIAABHCQAARwkAAPwIAABFCQAARwkAAEUJAABECQAARAkAAEUJAABCCQAA/AgAAP0IAABFCQAARQkAAP0IAABDCQAARQkAAEMJAABCCQAAQgkAAEMJAABACQAA/QgAAP4IAABDCQAAQwkAAP4IAABBCQAAQwkAAEEJAABACQAAQAkAAEEJAAA+CQAA/ggAAP8IAABBCQAAQQkAAP8IAAA/CQAAQQkAAD8JAAA+CQAAPgkAAD8JAAA8CQAA/wgAAAAJAAA/CQAAPwkAAAAJAAA9CQAAPwkAAD0JAAA8CQAAPAkAAD0JAAA6CQAAAAkAAAEJAAA9CQAAPQkAAAEJAAA7CQAAPQkAADsJAAA6CQAAOgkAADsJAAA4CQAAAQkAAAIJAAA7CQAAOwkAAAIJAAA5CQAAOwkAADkJAAA4CQAAOAkAADkJAAA2CQAAAgkAAAMJAAA5CQAAOQkAAAMJAAA3CQAAOQkAADcJAAA2CQAANgkAADcJAAAyCQAAAwkAAAQJAAA3CQAANwkAAAQJAAAzCQAANwkAADMJAAAyCQAAMgkAADMJAAA1CQAABAkAAAUJAAAzCQAAMwkAAAUJAAA0CQAAMwkAADQJAAA1CQAABQkAAAYJAAA0CQAAMAkAADEJAABMCQAATAkAADEJAABNCQAATAkAAE0JAABKCQAAMQkAAPgIAABNCQAAMQkAADAJAABPCQAATwkAADAJAABOCQAATwkAAE4JAABRCQAAUQkAAE4JAABQCQAAUQkAAFAJAABTCQAAUwkAAFAJAABSCQAAUwkAAFIJAABVCQAAVQkAAFIJAABUCQAAVQkAAFQJAABXCQAAVwkAAFQJAABWCQAAVwkAAFYJAABZCQAAWQkAAFYJAABYCQAAWQkAAFgJAABbCQAAWwkAAFgJAABaCQAAWwkAAFoJAABdCQAAXQkAAFoJAABcCQAAXQkAAFwJAABfCQAAXwkAAFwJAABeCQAAXwkAAF4JAABhCQAAYQkAAF4JAABgCQAAYQkAAGAJAABjCQAAYwkAAGAJAABiCQAAYwkAAGIJAABlCQAAZQkAAGIJAABkCQAAZQkAAGQJAABnCQAAZwkAAGQJAABmCQAAZwkAAGYJAABpCQAAaQkAAGYJAABoCQAAaQkAAGgJAABrCQAAawkAAGgJAABqCQAAawkAAGoJAABtCQAAbQkAAGoJAABsCQAAbQkAAGwJAABvCQAAbwkAAGwJAABuCQAAbwkAAG4JAABxCQAAcQkAAG4JAABwCQAAcQkAAHAJAABzCQAAcwkAAHAJAAByCQAAcwkAAHIJAAB1CQAAdQkAAHIJAAB0CQAAdQkAAHQJAAB3CQAAdwkAAHQJAAB2CQAAdwkAAHYJAAB5CQAAeQkAAHYJAAB4CQAAeQkAAHgJAAB7CQAAewkAAHgJAAB6CQAAewkAAHoJAAB9CQAAfQkAAHoJAAB8CQAAfQkAAHwJAAB/CQAAfwkAAHwJAAB+CQAAfwkAAH4JAACBCQAAgQkAAH4JAACACQAAgQkAAIAJAACDCQAAgwkAAIAJAACCCQAAgwkAAIIJAACFCQAAhQkAAIIJAACECQAAhQkAAIQJAACHCQAAhwkAAIQJAACGCQAAhwkAAIYJAACJCQAAiQkAAIYJAACICQAAiQkAAIgJAACLCQAAiwkAAIgJAACKCQAAiwkAAIoJAACNCQAAjQkAAIoJAACMCQAAjQkAAIwJAACPCQAAjwkAAIwJAACOCQAAjwkAAI4JAACRCQAAkQkAAI4JAACQCQAAkQkAAJAJAACTCQAAkwkAAJAJAACSCQAAkwkAAJIJAACVCQAAlQkAAJIJAACUCQAAlQkAAJQJAACXCQAAlwkAAJQJAACWCQAAlwkAAJYJAACZCQAAmQkAAJYJAACYCQAAmQkAAJgJAACbCQAAmwkAAJgJAACaCQAAmwkAAJoJAACdCQAAnQkAAJoJAACcCQAAnQkAAJwJAACfCQAAnwkAAJwJAACeCQAAqQgAAEQCAACqCAAAqggAAEQCAABDAgAAqggAAEMCAABFCAAARQgAAEMCAABGCAAARggAAEMCAABHCAAARwgAAEMCAABCAgAARwgAAEICAABICAAASAgAAEICAABBAgAASAgAAEECAABJCAAASQgAAEECAABKCAAASggAAEECAABAAgAASggAAEACAABLCAAASwgAAEACAABMCAAATAgAAEACAAA/AgAATAgAAD8CAABNCAAATQgAAD8CAABOCAAATggAAD8CAAA+AgAATggAAD4CAABPCAAATwgAAD4CAAA9AgAATwgAAD0CAABQCAAAUAgAAD0CAABRCAAAUQgAAD0CAAA8AgAAUQgAADwCAABSCAAAUggAADwCAABTCAAAUwgAADwCAAA7AgAAUwgAADsCAABUCAAAVAgAADsCAABVCAAAVQgAADsCAAA6AgAAVQgAADoCAABWCAAAVggAADoCAAA5AgAAVggAADkCAABXCAAAVwgAADkCAABYCAAAWAgAADkCAAA4AgAAWAgAADgCAABZCAAAWQgAADgCAABaCAAAWggAADgCAAA3AgAAWggAADcCAABbCAAAWwgAADcCAABcCAAAXAgAADcCAAA2AgAAXAgAADYCAABdCAAAXQgAADYCAAA1AgAAXQgAADUCAABeCAAAXggAADUCAABfCAAAXwgAADUCAABuAgAAXwgAAG4CAABgCAAAYAgAAG4CAABhCAAAYQgAAG4CAABtAgAAYQgAAG0CAABiCAAAYggAAG0CAABjCAAAYwgAAG0CAABsAgAAYwgAAGwCAABkCAAAZAgAAGwCAABrAgAAZAgAAGsCAABlCAAAZQgAAGsCAABmCAAAZggAAGsCAABqAgAAZggAAGoCAABnCAAAZwgAAGoCAABoCAAAaAgAAGoCAABpAgAAaAgAAGkCAABpCAAAaQgAAGkCAABqCAAAaggAAGkCAABoAgAAaggAAGgCAABrCAAAawgAAGgCAABnAgAAawgAAGcCAABsCAAAbAgAAGcCAABtCAAAbQgAAGcCAABmAgAAbQgAAGYCAABuCAAAbggAAGYCAABvCAAAbwgAAGYCAABlAgAAbwgAAGUCAABwCAAAcAgAAGUCAABxCAAAcQgAAGUCAABkAgAAcQgAAGQCAAByCAAAcggAAGQCAABjAgAAcggAAGMCAABzCAAAcwgAAGMCAAB0CAAAdAgAAGMCAABiAgAAdAgAAGICAAB1CAAAdQgAAGICAAB2CAAAdggAAGICAABhAgAAdggAAGECAAB3CAAAdwgAAGECAABgAgAAdwgAAGACAAB4CAAAeAgAAGACAAB5CAAAeQgAAGACAABfAgAAeQgAAF8CAAB6CAAAeggAAF8CAAB7CAAAewgAAF8CAABeAgAAewgAAF4CAAB8CAAAfAgAAF4CAAB9CAAAfQgAAF4CAABdAgAAfQgAAF0CAAB+CAAAfggAAF0CAABcAgAAfggAAFwCAAB/CAAAfwgAAFwCAACACAAAgAgAAFwCAABbAgAAgAgAAFsCAACBCAAAgQgAAFsCAACCCAAAgggAAFsCAABaAgAAgggAAFoCAACDCAAAgwgAAFoCAACECAAAhAgAAFoCAABZAgAAhAgAAFkCAACFCAAAhQgAAFkCAABYAgAAhQgAAFgCAACGCAAAhggAAFgCAACHCAAAhwgAAFgCAABXAgAAhwgAAFcCAACICAAAiAgAAFcCAACJCAAAiQgAAFcCAABWAgAAiQgAAFYCAACKCAAAiggAAFYCAACLCAAAiwgAAFYCAABVAgAAiwgAAFUCAACMCAAAjAgAAFUCAABUAgAAjAgAAFQCAACNCAAAjQgAAFQCAACOCAAAjggAAFQCAABTAgAAjggAAFMCAACPCAAAjwgAAFMCAACQCAAAkAgAAFMCAABSAgAAkAgAAFICAACRCAAAkQgAAFICAACSCAAAkggAAFICAABRAgAAkggAAFECAACTCAAAkwgAAFECAABQAgAAkwgAAFACAACUCAAAlAgAAFACAACVCAAAlQgAAFACAABPAgAAlQgAAE8CAACWCAAAlggAAE8CAACXCAAAlwgAAE8CAABOAgAAlwgAAE4CAACYCAAAmAgAAE4CAACZCAAAmQgAAE4CAABNAgAAmQgAAE0CAACaCAAAmggAAE0CAABMAgAAmggAAEwCAACbCAAAmwgAAEwCAACcCAAAnAgAAEwCAABLAgAAnAgAAEsCAACdCAAAnQgAAEsCAACeCAAAnggAAEsCAABKAgAAnggAAEoCAACfCAAAnwgAAEoCAACgCAAAoAgAAEoCAABJAgAAoAgAAEkCAAChCAAAoQgAAEkCAABIAgAAoQgAAEgCAACiCAAAoggAAEgCAACjCAAAowgAAEgCAABHAgAAowgAAEcCAACkCAAApAgAAEcCAAClCAAApQgAAEcCAABGAgAApQgAAEYCAACmCAAApggAAEYCAACnCAAApwgAAEYCAABFAgAApwgAAEUCAACoCAAAqAgAAEUCAABEAgAAqAgAAEQCAACpCAAAqggAAEUIAADrBgAA6wYAAEUIAABECAAA6wYAAEQIAADsBgAA7AYAAEQIAABDCAAA7AYAAEMIAADtBgAA7QYAAEMIAABCCAAA7QYAAEIIAABBCAAA7QYAAEEIAADuBgAA7gYAAEEIAABACAAA7gYAAEAIAADvBgAA7wYAAEAIAAA/CAAA7wYAAD8IAAA+CAAA7wYAAD4IAADwBgAA8AYAAD4IAAA9CAAA8AYAAD0IAADxBgAA8QYAAD0IAAA8CAAA8QYAADwIAAA7CAAA8QYAADsIAADyBgAA8gYAADsIAAA6CAAA8gYAADoIAADzBgAA8wYAADoIAAA5CAAA8wYAADkIAAA4CAAA8wYAADgIAAD0BgAA9AYAADgIAAA3CAAA9AYAADcIAAA2CAAA9AYAADYIAAD1BgAA9QYAADYIAAA1CAAA9QYAADUIAAD2BgAA9gYAADUIAAA0CAAA9gYAADQIAAAzCAAA9gYAADMIAAD3BgAA9wYAADMIAAAyCAAA9wYAADIIAAD4BgAA+AYAADIIAAAxCAAA+AYAADEIAAAwCAAA+AYAADAIAAD5BgAA+QYAADAIAAAvCAAA+QYAAC8IAAD6BgAA+gYAAC8IAAAuCAAA+gYAAC4IAAAtCAAA+gYAAC0IAAD7BgAA+wYAAC0IAAAsCAAA+wYAACwIAAD8BgAA/AYAACwIAAArCAAA/AYAACsIAAAqCAAA/AYAACoIAAD9BgAA/QYAACoIAAApCAAA/QYAACkIAAD+BgAA/gYAACkIAAAoCAAA/gYAACgIAAAnCAAA/gYAACcIAAD/BgAA/wYAACcIAAAmCAAA/wYAACYIAAAABwAAAAcAACYIAAAlCAAAAAcAACUIAAAkCAAAAAcAACQIAAABBwAAAQcAACQIAAAjCAAAAQcAACMIAAACBwAAAgcAACMIAAAiCAAAAgcAACIIAAAhCAAAAgcAACEIAAADBwAAAwcAACEIAAAgCAAAAwcAACAIAAAEBwAABAcAACAIAAAfCAAABAcAAB8IAAAeCAAABAcAAB4IAAAFBwAABQcAAB4IAAAdCAAABQcAAB0IAAAGBwAABgcAAB0IAAAcCAAABgcAABwIAAAbCAAABgcAABsIAAAHBwAABwcAABsIAAAaCAAABwcAABoIAAAIBwAACAcAABoIAAAZCAAACAcAABkIAAAYCAAACAcAABgIAAAJBwAACQcAABgIAAAXCAAACQcAABcIAAAWCAAACQcAABYIAAAKBwAACgcAABYIAAAVCAAACgcAABUIAAALBwAACwcAABUIAAAUCAAACwcAABQIAAATCAAACwcAABMIAAAMBwAADAcAABMIAAASCAAADAcAABIIAAANBwAADQcAABIIAAARCAAADQcAABEIAAAQCAAADQcAABAIAAAOBwAADgcAABAIAAAPCAAADgcAAA8IAAAPBwAADwcAAA8IAAAOCAAADwcAAA4IAAANCAAADwcAAA0IAAAQBwAAEAcAAA0IAAAMCAAAEAcAAAwIAAARBwAAEQcAAAwIAAALCAAAEQcAAAsIAAAKCAAAEQcAAAoIAAASBwAAEgcAAAoIAAAJCAAAEgcAAAkIAAATBwAAEwcAAAkIAAAICAAAEwcAAAgIAAAHCAAAEwcAAAcIAAAUBwAAFAcAAAcIAAAGCAAAFAcAAAYIAAAVBwAAFQcAAAYIAAAFCAAAFQcAAAUIAAAECAAAFQcAAAQIAAAWBwAAFgcAAAQIAAADCAAAFgcAAAMIAAAXBwAAFwcAAAMIAAACCAAAFwcAAAIIAAABCAAAFwcAAAEIAAAYBwAAGAcAAAEIAAAACAAAGAcAAAAIAAAZBwAAGQcAAAAIAAD/BwAAGQcAAP8HAAD+BwAAGQcAAP4HAAAaBwAAGgcAAP4HAAD9BwAAGgcAAP0HAAAbBwAAGwcAAP0HAAD8BwAAGwcAAPwHAAD7BwAAGwcAAPsHAAAcBwAAHAcAAPsHAAD6BwAAHAcAAPoHAAD5BwAAHAcAAPkHAAAdBwAAHQcAAPkHAAD4BwAAHQcAAPgHAAAeBwAAHgcAAPgHAAD3BwAAHgcAAPcHAAD2BwAAHgcAAPYHAAAfBwAAHwcAAPYHAAD1BwAAHwcAAPUHAAAgBwAAIAcAAPUHAAD0BwAAIAcAAPQHAADzBwAAIAcAAPMHAAAhBwAAIQcAAPMHAADyBwAAIQcAAPIHAAAiBwAAIgcAAPIHAADxBwAAIgcAAPEHAADwBwAAIgcAAPAHAAAjBwAAIwcAAPAHAADvBwAAIwcAAO8HAAAkBwAAJAcAAO8HAADuBwAAJAcAAO4HAADtBwAAJAcAAO0HAAAlBwAAJQcAAO0HAADsBwAAJQcAAOwHAAAmBwAAJgcAAOwHAADrBwAAJgcAAOsHAADqBwAAJgcAAOoHAAAnBwAAJwcAAOoHAADpBwAAJwcAAOkHAAAoBwAAKAcAAOkHAADoBwAAKAcAAOgHAADnBwAAKAcAAOcHAAApBwAAKQcAAOcHAADmBwAAKQcAAOYHAAAqBwAAKgcAAOYHAADlBwAAKgcAAOUHAADkBwAAKgcAAOQHAAArBwAAKwcAAOQHAADjBwAAKwcAAOMHAAAsBwAALAcAAOMHAADiBwAALAcAAOIHAADhBwAALAcAAOEHAAAtBwAALQcAAOEHAADgBwAALQcAAOAHAAAuBwAALgcAAOAHAADfBwAALgcAAN8HAADeBwAALgcAAN4HAAAvBwAALwcAAN4HAADdBwAALwcAAN0HAAAwBwAAMAcAAN0HAADcBwAAMAcAANwHAADbBwAAMAcAANsHAAAxBwAAMQcAANsHAADaBwAAMQcAANoHAADZBwAAMQcAANkHAAAyBwAAMgcAANkHAADYBwAAMgcAANgHAAAzBwAAMwcAANgHAADXBwAAMwcAANcHAADWBwAAMwcAANYHAAA0BwAANAcAANYHAADVBwAANAcAANUHAAA1BwAANQcAANUHAADUBwAANQcAANQHAADTBwAANQcAANMHAAA2BwAANgcAANMHAADSBwAANgcAANIHAAA3BwAANwcAANIHAADRBwAANwcAANEHAADQBwAANwcAANAHAAA4BwAAOAcAANAHAADPBwAAOAcAAM8HAAA5BwAAOQcAAM8HAADOBwAAOQcAAM4HAADNBwAAOQcAAM0HAAA6BwAAOgcAAM0HAADMBwAAOgcAAMwHAAA7BwAAOwcAAMwHAADLBwAAOwcAAMsHAADKBwAAOwcAAMoHAAA8BwAAPAcAAMoHAADJBwAAPAcAAMkHAAA9BwAAPQcAAMkHAADIBwAAPQcAAMgHAADHBwAAPQcAAMcHAAA+BwAAPgcAAMcHAADGBwAAPgcAAMYHAAA/BwAAPwcAAMYHAADFBwAAPwcAAMUHAADEBwAAPwcAAMQHAABABwAAQAcAAMQHAADDBwAAQAcAAMMHAABBBwAAQQcAAMMHAADCBwAAQQcAAMIHAADBBwAAQQcAAMEHAABCBwAAQgcAAMEHAADABwAAQgcAAMAHAABDBwAAQwcAAMAHAAC/BwAAQwcAAL8HAAC+BwAAQwcAAL4HAABEBwAARAcAAL4HAAC9BwAARAcAAL0HAAC8BwAARAcAALwHAABFBwAARQcAALwHAAC7BwAARQcAALsHAABGBwAARgcAALsHAAC6BwAARgcAALoHAAC5BwAARgcAALkHAABHBwAARwcAALkHAAC4BwAARwcAALgHAABIBwAASAcAALgHAAC3BwAASAcAALcHAAC2BwAASAcAALYHAABJBwAASQcAALYHAAC1BwAASQcAALUHAABKBwAASgcAALUHAAC0BwAASgcAALQHAACzBwAASgcAALMHAABLBwAASwcAALMHAACyBwAASwcAALIHAABMBwAATAcAALIHAACxBwAATAcAALEHAACwBwAATAcAALAHAABNBwAATQcAALAHAACvBwAATQcAAK8HAABOBwAATgcAAK8HAACuBwAATgcAAK4HAACtBwAATgcAAK0HAABPBwAATwcAAK0HAACsBwAATwcAAKwHAABQBwAAUAcAAKwHAACrBwAAUAcAAKsHAACqBwAAUAcAAKoHAABRBwAAUQcAAKoHAAD3CAAAUQcAAPcIAABSBwAAUgcAAPcIAAD2CAAAUgcAAPYIAABTBwAAUwcAAPYIAAD1CAAAUwcAAPUIAABUBwAAVAcAAPUIAABVBwAAVQcAAPUIAAD0CAAAVQcAAPQIAABWBwAAVgcAAPQIAADzCAAAVgcAAPMIAABXBwAAVwcAAPMIAADyCAAAVwcAAPIIAABYBwAAWAcAAPIIAADxCAAAWAcAAPEIAABZBwAAWQcAAPEIAADwCAAAWQcAAPAIAABaBwAAWgcAAPAIAADvCAAAWgcAAO8IAABbBwAAWwcAAO8IAABcBwAAXAcAAO8IAADuCAAAXAcAAO4IAABdBwAAXQcAAO4IAADtCAAAXQcAAO0IAABeBwAAXgcAAO0IAADsCAAAXgcAAOwIAABfBwAAXwcAAOwIAADrCAAAXwcAAOsIAABgBwAAYAcAAOsIAADqCAAAYAcAAOoIAABhBwAAYQcAAOoIAADpCAAAYQcAAOkIAABiBwAAYgcAAOkIAADoCAAAYgcAAOgIAABjBwAAYwcAAOgIAABkBwAAZAcAAOgIAADnCAAAZAcAAOcIAABlBwAAZQcAAOcIAADmCAAAZQcAAOYIAABmBwAAZgcAAOYIAADlCAAAZgcAAOUIAABnBwAAZwcAAOUIAADkCAAAZwcAAOQIAABoBwAAaAcAAOQIAADjCAAAaAcAAOMIAABpBwAAaQcAAOMIAADiCAAAaQcAAOIIAABqBwAAagcAAOIIAABqBQAAKQUAACgFAACgCQAAoAkAACgFAABpBQAAoAkAAGkFAADgCQAA4AkAAGkFAABoBQAA4AkAAGgFAADfCQAA3wkAAGgFAABnBQAA3wkAAGcFAADeCQAA3gkAAGcFAABmBQAA3gkAAGYFAADdCQAA3QkAAGYFAABlBQAA3QkAAGUFAADcCQAA3AkAAGUFAABkBQAA3AkAAGQFAADbCQAA2wkAAGQFAABjBQAA2wkAAGMFAADaCQAA2gkAAGMFAABiBQAA2gkAAGIFAADZCQAA2QkAAGIFAABhBQAA2QkAAGEFAADYCQAA2AkAAGEFAABgBQAA2AkAAGAFAADXCQAA1wkAAGAFAABfBQAA1wkAAF8FAADWCQAA1gkAAF8FAABeBQAA1gkAAF4FAADVCQAA1QkAAF4FAABdBQAA1QkAAF0FAADUCQAA1AkAAF0FAABcBQAA1AkAAFwFAADTCQAA0wkAAFwFAABbBQAA0wkAAFsFAADSCQAA0gkAAFsFAABaBQAA0gkAAFoFAADRCQAA0QkAAFoFAABZBQAA0QkAAFkFAADQCQAA0AkAAFkFAABYBQAA0AkAAFgFAADPCQAAzwkAAFgFAABXBQAAzwkAAFcFAADOCQAAzgkAAFcFAABWBQAAzgkAAFYFAADNCQAAzQkAAFYFAABVBQAAzQkAAFUFAADMCQAAzAkAAFUFAABUBQAAzAkAAFQFAADLCQAAywkAAFQFAABTBQAAywkAAFMFAADKCQAAygkAAFMFAABSBQAAygkAAFIFAADJCQAAyQkAAFIFAABRBQAAyQkAAFEFAADICQAAyAkAAFEFAABQBQAAyAkAAFAFAADHCQAAxwkAAFAFAABPBQAAxwkAAE8FAADGCQAAxgkAAE8FAABOBQAAxgkAAE4FAADFCQAAxQkAAE4FAABNBQAAxQkAAE0FAADECQAAxAkAAE0FAABMBQAAxAkAAEwFAADDCQAAwwkAAEwFAABLBQAAwwkAAEsFAADCCQAAwgkAAEsFAABKBQAAwgkAAEoFAADBCQAAwQkAAEoFAABJBQAAwQkAAEkFAADACQAAwAkAAEkFAABIBQAAwAkAAEgFAAC/CQAAvwkAAEgFAABHBQAAvwkAAEcFAAC+CQAAvgkAAEcFAABGBQAAvgkAAEYFAAC9CQAAvQkAAEYFAABFBQAAvQkAAEUFAAC8CQAAvAkAAEUFAABEBQAAvAkAAEQFAAC7CQAAuwkAAEQFAABDBQAAuwkAAEMFAAC6CQAAugkAAEMFAABCBQAAugkAAEIFAAC5CQAAuQkAAEIFAABBBQAAuQkAAEEFAAC4CQAAuAkAAEEFAABABQAAuAkAAEAFAAC3CQAAtwkAAEAFAAA/BQAAtwkAAD8FAAC2CQAAtgkAAD8FAAA+BQAAtgkAAD4FAAC1CQAAtQkAAD4FAAA9BQAAtQkAAD0FAAC0CQAAtAkAAD0FAAA8BQAAtAkAADwFAACzCQAAswkAADwFAAA7BQAAswkAADsFAACyCQAAsgkAADsFAAA6BQAAsgkAADoFAACxCQAAsQkAADoFAAA5BQAAsQkAADkFAACwCQAAsAkAADkFAAA4BQAAsAkAADgFAACvCQAArwkAADgFAAA3BQAArwkAADcFAACuCQAArgkAADcFAAA2BQAArgkAADYFAACtCQAArQkAADYFAAA1BQAArQkAADUFAACsCQAArAkAADUFAAA0BQAArAkAADQFAACrCQAAqwkAADQFAAAzBQAAqwkAADMFAACqCQAAqgkAADMFAAAyBQAAqgkAADIFAACpCQAAqQkAADIFAAAxBQAAqQkAADEFAACoCQAAqAkAADEFAAAwBQAAqAkAADAFAACnCQAApwkAADAFAAAvBQAApwkAAC8FAACmCQAApgkAAC8FAAAuBQAApgkAAC4FAAClCQAApQkAAC4FAAAtBQAApQkAAC0FAACkCQAApAkAAC0FAAAsBQAApAkAACwFAACjCQAAowkAACwFAAArBQAAowkAACsFAACiCQAAogkAACsFAAAqBQAAogkAACoFAAChCQAAoQkAACoFAAApBQAAoQkAACkFAACgCQAA4AkAAOUDAACgCQAAoAkAAOUDAAAlBAAAoAkAACUEAAChCQAAoQkAACUEAAAkBAAAoQkAACQEAACiCQAAogkAACQEAAAjBAAAogkAACMEAACjCQAAowkAACMEAAAiBAAAowkAACIEAACkCQAApAkAACIEAAAhBAAApAkAACEEAAClCQAApQkAACEEAAAgBAAApQkAACAEAACmCQAApgkAACAEAAAfBAAApgkAAB8EAACnCQAApwkAAB8EAAAeBAAApwkAAB4EAACoCQAAqAkAAB4EAAAdBAAAqAkAAB0EAACpCQAAqQkAAB0EAAAcBAAAqQkAABwEAACqCQAAqgkAABwEAAAbBAAAqgkAABsEAACrCQAAqwkAABsEAAAaBAAAqwkAABoEAACsCQAArAkAABoEAAAZBAAArAkAABkEAACtCQAArQkAABkEAAAYBAAArQkAABgEAACuCQAArgkAABgEAAAXBAAArgkAABcEAACvCQAArwkAABcEAAAWBAAArwkAABYEAACwCQAAsAkAABYEAAAVBAAAsAkAABUEAACxCQAAsQkAABUEAAAUBAAAsQkAABQEAACyCQAAsgkAABQEAAATBAAAsgkAABMEAACzCQAAswkAABMEAAASBAAAswkAABIEAAC0CQAAtAkAABIEAAARBAAAtAkAABEEAAC1CQAAtQkAABEEAAAQBAAAtQkAABAEAAC2CQAAtgkAABAEAAAPBAAAtgkAAA8EAAC3CQAAtwkAAA8EAAAOBAAAtwkAAA4EAAC4CQAAuAkAAA4EAAANBAAAuAkAAA0EAAC5CQAAuQkAAA0EAAAMBAAAuQkAAAwEAAC6CQAAugkAAAwEAAALBAAAugkAAAsEAAC7CQAAuwkAAAsEAAAKBAAAuwkAAAoEAAC8CQAAvAkAAAoEAAAJBAAAvAkAAAkEAAC9CQAAvQkAAAkEAAAIBAAAvQkAAAgEAAC+CQAAvgkAAAgEAAAHBAAAvgkAAAcEAAC/CQAAvwkAAAcEAAAGBAAAvwkAAAYEAADACQAAwAkAAAYEAAAFBAAAwAkAAAUEAADBCQAAwQkAAAUEAAAEBAAAwQkAAAQEAADCCQAAwgkAAAQEAAADBAAAwgkAAAMEAADDCQAAwwkAAAMEAAACBAAAwwkAAAIEAADECQAAxAkAAAIEAAABBAAAxAkAAAEEAADFCQAAxQkAAAEEAAAABAAAxQkAAAAEAADGCQAAxgkAAAAEAAD/AwAAxgkAAP8DAADHCQAAxwkAAP8DAAD+AwAAxwkAAP4DAADICQAAyAkAAP4DAAD9AwAAyAkAAP0DAADJCQAAyQkAAP0DAAD8AwAAyQkAAPwDAADKCQAAygkAAPwDAAD7AwAAygkAAPsDAADLCQAAywkAAPsDAAD6AwAAywkAAPoDAADMCQAAzAkAAPoDAAD5AwAAzAkAAPkDAADNCQAAzQkAAPkDAAD4AwAAzQkAAPgDAADOCQAAzgkAAPgDAAD3AwAAzgkAAPcDAADPCQAAzwkAAPcDAAD2AwAAzwkAAPYDAADQCQAA0AkAAPYDAAD1AwAA0AkAAPUDAADRCQAA0QkAAPUDAAD0AwAA0QkAAPQDAADSCQAA0gkAAPQDAADzAwAA0gkAAPMDAADTCQAA0wkAAPMDAADyAwAA0wkAAPIDAADUCQAA1AkAAPIDAADxAwAA1AkAAPEDAADVCQAA1QkAAPEDAADwAwAA1QkAAPADAADWCQAA1gkAAPADAADvAwAA1gkAAO8DAADXCQAA1wkAAO8DAADuAwAA1wkAAO4DAADYCQAA2AkAAO4DAADtAwAA2AkAAO0DAADZCQAA2QkAAO0DAADsAwAA2QkAAOwDAADaCQAA2gkAAOwDAADrAwAA2gkAAOsDAADbCQAA2wkAAOsDAADqAwAA2wkAAOoDAADcCQAA3AkAAOoDAADpAwAA3AkAAOkDAADdCQAA3QkAAOkDAADoAwAA3QkAAOgDAADeCQAA3gkAAOgDAADnAwAA3gkAAOcDAADfCQAA3wkAAOcDAADmAwAA3wkAAOYDAADgCQAA4AkAAOYDAADlAwAA";
+
+function baseKitUtile(){ return socleActif(); }
+
+/* « Lampe personnalisable base » (05/08) : la base d'ATELIER, pour l'ÉCRAN
+ * seulement — V6 « LQ P2 », Ø104,0 × 18,2, z 0 → 18,2, 15 918 triangles. Elle apparaît dans
+ * l'aperçu, le rendu studio et le rendu Blender pour montrer la lampe montée,
+ * mais N'ENTRE JAMAIS dans le STL téléchargé : le client n'imprime que
+ * l'abat-jour et sa bague, la base vient de l'atelier. */
+const BASE_DECO_B64 = "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sQAAAHkAAACwAAAAsAAAAHkAAAB6AAAAsAAAAHoAAACvAAAArwAAAHoAAAB7AAAArwAAAHsAAACuAAAArgAAAHsAAAB8AAAArgAAAHwAAACtAAAArQAAAHwAAAB9AAAArQAAAH0AAACsAAAArAAAAH0AAAB+AAAArAAAAH4AAACrAAAAqwAAAH4AAAB/AAAAqwAAAH8AAACqAAAAqgAAAH8AAACAAAAAqgAAAIAAAACpAAAAqQAAAIAAAACBAAAAqQAAAIEAAACoAAAAqAAAAIEAAACCAAAAqAAAAIIAAACnAAAApwAAAIIAAACDAAAApwAAAIMAAACmAAAApgAAAIMAAACEAAAApgAAAIQAAAClAAAApQAAAIQAAACFAAAApQAAAIUAAACkAAAApAAAAIUAAACGAAAApAAAAIYAAACjAAAAowAAAIYAAACHAAAAowAAAIcAAACiAAAAogAAAIcAAACIAAAAogAAAIgAAAChAAAAoQAAAIgAAACJAAAAoQAAAIkAAACgAAAAoAAAAIkAAACKAAAAoAAAAIoAAACfAAAAnwAAAIoAAACLAAAAnwAAAIsAAACeAAAAngAAAIsAAACMAAAAngAAAIwAAACdAAAAnQAAAIwAAACcAAAAnAAAAIwAAACbAAAAmwAAAIwAAACNAAAAmwAAAI0AAACaAAAAmgAAAI0AAACZAAAAmQAAAI0AAACYAAAAmAAAAI0AAACOAAAAmAAAAI4AAACXAAAAlwAAAI4AAACWAAAAlgAAAI4AAACVAAAAlQAAAI4AAACPAAAAlQAAAI8AAACUAAAAlAAAAI8AAACQAAAAlAAAAJAAAACTAAAAkwAAAJAAAACRAAAAkwAAAJEAAACSAAAAlgAAAJUAAADZAAAA2QAAAJUAAADJAAAA2QAAAMkAAADYAAAA2AAAAMkAAADKAAAA2AAAAMoAAADXAAAA1wAAAMoAAADWAAAA1wAAANYAAADcAAAA3AAAANYAAADbAAAA3AAAANsAAADhAAAA4QAAANsAAADgAAAA4QAAAOAAAADrAAAA6wAAAOAAAADsAAAA6wAAAOwAAADmAAAA5gAAAOwAAADlAAAA5gAAAOUAAADvAAAA7wAAAOUAAADuAAAA7wAAAO4AAAD0AAAA9AAAAO4AAADzAAAA9AAAAPMAAAD5AAAA+QAAAPMAAAD4AAAA+QAAAPgAAACdAAAAygAAAMsAAADWAAAA1gAAAMsAAADVAAAA1gAAANUAAADbAAAA2wAAANUAAADaAAAA2wAAANoAAADgAAAA4AAAANoAAADfAAAA4AAAAN8AAADsAAAA7AAAAN8AAADUAAAA7AAAANQAAADlAAAA5QAAANQAAADkAAAA5QAAAOQAAADuAAAA7gAAAOQAAADtAAAA7gAAAO0AAADzAAAA8wAAAO0AAADyAAAA8wAAAPIAAAD4AAAA+AAAAPIAAAD3AAAA+AAAAPcAAACdAAAAywAAAMwAAADVAAAA1QAAAMwAAADNAAAA1QAAAM0AAADaAAAA2gAAAM0AAADOAAAA2gAAAM4AAADfAAAA3wAAAM4AAADUAAAAzgAAAM8AAADUAAAA1AAAAM8AAADkAAAAzwAAANAAAADkAAAA5AAAANAAAADtAAAA0AAAANEAAADtAAAA7QAAANEAAADyAAAA0QAAANIAAADyAAAA8gAAANIAAAD3AAAA0gAAAJ0AAAD3AAAAnQAAAJwAAADTAAAA0wAAAJwAAACbAAAA0wAAAJsAAAD2AAAA9gAAAJsAAADxAAAA9gAAAPEAAADwAAAA8AAAAPEAAADnAAAA8AAAAOcAAADmAAAA5gAAAOcAAADrAAAAmwAAAJoAAADxAAAA8QAAAJoAAADoAAAA8QAAAOgAAADnAAAA5wAAAOgAAADqAAAA5wAAAOoAAADrAAAA6wAAAOoAAADhAAAAmgAAAJkAAADoAAAA6AAAAJkAAADpAAAA6AAAAOkAAADqAAAA6gAAAOkAAADiAAAA6gAAAOIAAADhAAAA4QAAAOIAAADcAAAAmQAAAJgAAADpAAAA6QAAAJgAAADjAAAA6QAAAOMAAADiAAAA4gAAAOMAAADdAAAA4gAAAN0AAADcAAAA3AAAAN0AAADXAAAAmAAAAJcAAADjAAAA4wAAAJcAAADeAAAA4wAAAN4AAADdAAAA3QAAAN4AAADYAAAA3QAAANgAAADXAAAAlwAAAJYAAADeAAAA3gAAAJYAAADZAAAA3gAAANkAAADYAAAA+QAAAJ0AAAD6AAAA8AAAAOYAAADvAAAA8AAAAO8AAAD1AAAA9QAAAO8AAAD0AAAA9QAAAPQAAAD6AAAA+gAAAPQAAAD5AAAA0wAAAPYAAAD1AAAA9QAAAPYAAADwAAAA0wAAAPUAAAD6AAAAnQAAANMAAAD6AAAA/AAAAAMBAAD7AAAA+wAAAAMBAAAEAQAA+wAAAAQBAAABAQAAAQEAAAQBAACTAAAAAQEAAJMAAACSAAAAAwEAAPwAAAACAQAAAgEAAPwAAAD9AAAAAgEAAP0AAAD+AAAA/gAAAP8AAAACAQAAAgEAAP8AAAAFAQAAAgEAAAUBAAAGAQAABgEAAAUBAADKAAAABgEAAMoAAADJAAAA/wAAAAABAAAFAQAABQEAAAABAADLAAAABQEAAMsAAADKAAAAAAEAAMwAAADLAAAAlQAAAJQAAADJAAAAyQAAAJQAAAAHAQAAyQAAAAcBAAAGAQAABgEAAAcBAAADAQAABgEAAAMBAAACAQAAlAAAAJMAAAAHAQAABwEAAJMAAAAEAQAABwEAAAQBAAADAQAAnQAAANIAAAAUAQAAFAEAANIAAADRAAAAFAEAANEAAAAXAQAAFwEAANEAAADQAAAAFwEAANAAAAAWAQAAFgEAANAAAADPAAAAFgEAAM8AAAAVAQAAFQEAAM8AAAAYAQAAFQEAABgBAAAbAQAAGwEAABgBAAAaAQAAGwEAABoBAAAeAQAAHgEAABoBAAAdAQAAHgEAAB0BAAAhAQAAIQEAAB0BAAAgAQAAIQEAACABAAANAQAADQEAACABAAAMAQAADAEAACABAAAfAQAADAEAAB8BAAALAQAACwEAAB8BAAAJAQAACwEAAAkBAAAKAQAAzwAAAM4AAAAYAQAAGAEAAM4AAAAaAQAAGgEAAM4AAAAZAQAAGQEAAM4AAADNAAAAGQEAAM0AAAAcAQAAHAEAAM0AAADMAAAAHAEAAMwAAAAIAQAAHAEAAAgBAAAfAQAAHwEAAAgBAAAJAQAADQEAAA4BAAAhAQAAIQEAAA4BAAAPAQAAIQEAAA8BAAAeAQAAHgEAAA8BAAAQAQAAHgEAABABAAAbAQAAGwEAABABAAARAQAAGwEAABEBAAAVAQAAFQEAABEBAAASAQAAFQEAABIBAAAWAQAAFgEAABIBAAAXAQAAEgEAABMBAAAXAQAAFwEAABMBAAAUAQAAHQEAABoBAAAZAQAAIAEAAB0BAAAcAQAAHAEAAB0BAAAZAQAAHwEAACABAAAcAQAAIgEAACMBAAAlAQAAJQEAACMBAAAkAQAAIwEAACYBAAAkAQAAJAEAACYBAAAnAQAAJgEAACgBAAAnAQAAJwEAACgBAAApAQAAKAEAACIBAAApAQAAKQEAACIBAAAlAQAAKQEAACUBAAAnAQAAJwEAACUBAAAkAQAAKgEAACsBAAAtAQAALQEAACsBAAAsAQAAKwEAAC4BAAAsAQAALAEAAC4BAAAvAQAALgEAADABAAAvAQAALwEAADABAAAxAQAAMAEAADIBAAAxAQAAMQEAADIBAAAzAQAAMgEAADQBAAAzAQAAMwEAADQBAAA1AQAANAEAADYBAAA1AQAANQEAADYBAAA3AQAANgEAADgBAAA3AQAANwEAADgBAABDAQAAQwEAADgBAAA5AQAAQwEAADkBAABCAQAAQgEAADkBAAA6AQAAQgEAADoBAABBAQAAQQEAADoBAAA7AQAAQQEAADsBAABAAQAAQAEAADsBAAA8AQAAQAEAADwBAAA/AQAAPwEAADwBAAA9AQAAPwEAAD0BAAA+AQAAPQEAAEQBAAA+AQAAPgEAAEQBAABFAQAARAEAAEYBAABFAQAARQEAAEYBAABHAQAARgEAAEgBAABHAQAARwEAAEgBAABJAQAASAEAAEoBAABJAQAASQEAAEoBAABPAQAATwEAAEoBAABLAQAATwEAAEsBAABOAQAATgEAAEsBAABMAQAATgEAAEwBAABNAQAATAEAAFABAABNAQAATQEAAFABAABRAQAAUAEAAFIBAABRAQAAUQEAAFIBAABTAQAAUgEAAFQBAABTAQAAUwEAAFQBAABVAQAAVAEAAFYBAABVAQAAVQEAAFYBAABXAQAAVgEAAFgBAABXAQAAVwEAAFgBAABZAQAAWAEAACoBAABZAQAAWQEAACoBAAAtAQAALQEAACwBAABZAQAAWQEAACwBAAAvAQAAWQEAAC8BAAA1AQAANQEAAC8BAAAzAQAAMwEAAC8BAAAxAQAAWQEAADUBAABTAQAAUwEAADUBAAA3AQAAUwEAADcBAABRAQAAUQEAADcBAABDAQAAUQEAAEMBAABNAQAATQEAAEMBAABCAQAATQEAAEIBAABBAQAAQQEAAEABAABNAQAATQEAAEABAAA/AQAATQEAAD8BAABOAQAATgEAAD8BAAA+AQAATgEAAD4BAABPAQAATwEAAD4BAABJAQAASQEAAD4BAABFAQAASQEAAEUBAABHAQAAVQEAAFcBAABTAQAAUwEAAFcBAABZAQAAWgEAAFsBAABdAQAAXQEAAFsBAABcAQAAWwEAAF4BAABcAQAAXAEAAF4BAABfAQAAXgEAAGABAABfAQAAXwEAAGABAABhAQAAYAEAAFoBAABhAQAAYQEAAFoBAABdAQAAXQEAAFwBAABhAQAAYQEAAFwBAABfAQAAYgEAAGMBAABlAQAAZQEAAGMBAABkAQAAYwEAAGYBAABkAQAAZAEAAGYBAABnAQAAZgEAAGgBAABnAQAAZwEAAGgBAABpAQAAaAEAAGIBAABpAQAAaQEAAGIBAABlAQAAaQEAAGUBAABnAQAAZwEAAGUBAABkAQAAagEAAGsBAABtAQAAbQEAAGsBAABsAQAAawEAAG4BAABsAQAAbAEAAG4BAABvAQAAbgEAAHABAABvAQAAbwEAAHABAABxAQAAcAEAAGoBAABxAQAAcQEAAGoBAABtAQAAbQEAAGwBAABxAQAAcQEAAGwBAABvAQAAcgEAAHMBAAB7AQAAewEAAHMBAAB6AQAAegEAAHMBAAB0AQAAegEAAHQBAAB5AQAAeQEAAHQBAAB1AQAAeQEAAHUBAAB4AQAAeAEAAHUBAAB2AQAAeAEAAHYBAAB3AQAAfAEAAH0BAACDAQAAgwEAAH0BAACCAQAAggEAAH0BAAB+AQAAggEAAH4BAACBAQAAgQEAAH4BAAB/AQAAgQEAAH8BAACAAQAAgAEAAH8BAAByAQAAgAEAAHIBAAB7AQAAhAEAAIUBAACLAQAAiwEAAIUBAACKAQAAigEAAIUBAACGAQAAigEAAIYBAACJAQAAiQEAAIYBAACHAQAAiQEAAIcBAACIAQAAiAEAAIcBAAB8AQAAiAEAAHwBAACDAQAAdgEAAIwBAAB3AQAAdwEAAIwBAACRAQAAkQEAAIwBAACNAQAAkQEAAI0BAACQAQAAkAEAAI0BAACOAQAAkAEAAI4BAACPAQAAjwEAAI4BAACEAQAAjwEAAIQBAACLAQAAkgEAAJMBAACVAQAAlQEAAJMBAACUAQAAkwEAAJYBAACUAQAAlAEAAJYBAACXAQAAlgEAAJgBAACXAQAAlwEAAJgBAACbAQAAmwEAAJgBAACZAQAAmwEAAJkBAACaAQAAmQEAAJwBAACaAQAAmgEAAJwBAACjAQAAowEAAJwBAACdAQAAowEAAJ0BAACiAQAAogEAAJ0BAACeAQAAogEAAJ4BAAChAQAAoQEAAJ4BAACfAQAAoQEAAJ8BAACgAQAAnwEAAKQBAACgAQAAoAEAAKQBAACrAQAAqwEAAKQBAAClAQAAqwEAAKUBAACqAQAAqgEAAKUBAACmAQAAqgEAAKYBAACpAQAAqQEAAKYBAACnAQAAqQEAAKcBAACoAQAApwEAAKwBAACoAQAAqAEAAKwBAACtAQAArAEAAK4BAACtAQAArQEAAK4BAACvAQAArgEAALABAACvAQAArwEAALABAACxAQAAsAEAALIBAACxAQAAsQEAALIBAACzAQAAsgEAAJIBAACzAQAAswEAAJIBAACVAQAAegEAAKABAAB7AQAAewEAAKABAACrAQAAewEAAKsBAACAAQAAgAEAAKsBAACqAQAAgAEAAKoBAACBAQAAgQEAAKoBAACpAQAAgQEAAKkBAACCAQAAggEAAKkBAACoAQAAggEAAKgBAACDAQAAgwEAAKgBAACtAQAAgwEAAK0BAACIAQAAiAEAAK0BAACvAQAAiAEAAK8BAACJAQAAiQEAAK8BAACKAQAAigEAAK8BAACzAQAAigEAALMBAACLAQAAiwEAALMBAACVAQAAiwEAAJUBAACPAQAAjwEAAJUBAACXAQAAjwEAAJcBAACQAQAAkAEAAJcBAACRAQAAkQEAAJcBAAB3AQAAdwEAAJcBAACbAQAAdwEAAJsBAAB4AQAAeAEAAJsBAACaAQAAeAEAAJoBAAB5AQAAeQEAAJoBAACjAQAAeQEAAKMBAACiAQAAoAEAAHoBAAChAQAAoQEAAHoBAAB5AQAAoQEAAHkBAACiAQAAlQEAAJQBAACXAQAArwEAALEBAACzAQAAtAEAALUBAAC3AQAAtwEAALUBAAC2AQAAtQEAALgBAAC2AQAAtgEAALgBAAC5AQAAuAEAALoBAAC5AQAAuQEAALoBAAC7AQAAugEAALQBAAC7AQAAuwEAALQBAAC3AQAAtwEAALYBAAC7AQAAuwEAALYBAAC5AQAAvAEAAL0BAADFAQAAxQEAAL0BAADEAQAAxAEAAL0BAAC+AQAAxAEAAL4BAADDAQAAwwEAAL4BAAC/AQAAwwEAAL8BAADCAQAAwgEAAL8BAADAAQAAwgEAAMABAADBAQAAwAEAAMYBAADBAQAA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GgIAAOYBAAAbAgAAGwIAAOYBAAAKAgAACgIAAOYBAADlAQAACgIAAOUBAAALAgAACwIAAOUBAAAMAgAADAIAAOUBAADvAQAADAIAAO8BAAANAgAADQIAAO8BAAAOAgAADgIAAO8BAADuAQAADgIAAO4BAAAPAgAADwIAAO4BAADtAQAADwIAAO0BAAD/AQAA/wEAAO0BAADsAQAA/wEAAOwBAADzAQAA/wEAAPMBAAAAAgAAAAIAAPMBAADyAQAAAAIAAPIBAAABAgAAAQIAAPIBAAD3AQAAAQIAAPcBAAACAgAAAgIAAPcBAAD2AQAAAgIAAPYBAAADAgAAAwIAAPYBAAD5AQAANgIAADcCAAA5AgAAOQIAADcCAAA4AgAANwIAADoCAAA4AgAAOAIAADoCAAA7AgAAOgIAADwCAAA7AgAAOwIAADwCAAA9AgAAPAIAAD4CAAA9AgAAPQIAAD4CAAA/AgAAPgIAAEACAAA/AgAAPwIAAEACAABBAgAAQAIAAEICAABBAgAAQQIAAEICAABDAgAAQgIAADYCAABDAgAAQwIAADYCAAA5AgAAQwIAADkCAABBAgAAQQIAADkCAAA4AgAAQQIAADgCAAA7AgAAOwIAAD0CAABBAgAAQQIAAD0CAAA/AgAARAIAAEUCAABJAgAASQIAAEUCAABIAgAASAIAAEUCAABGAgAASAIAAEYCAABHAgAASgIAAEsCAABNAgAATQIAAEsCAABMAgAATAIAAEsCAABEAgAATAIAAEQCAABJAgAATgIAAE8CAABVAgAAVQIAAE8CAABUAgAAVAIAAE8CAABQAgAAVAIAAFACAABTAgAAUwIAAFACAABRAgAAUwIAAFECAABSAgAAUgIAAFECAABKAgAAUgIAAEoCAABNAgAAVgIAAFcCAABfAgAAXwIAAFcCAABeAgAAXgIAAFcCAABYAgAAXgIAAFgCAABdAgAAXQIAAFgCAABZAgAAXQIAAFkCAABcAgAAXAIAAFkCAABaAgAAXAIAAFoCAABbAgAAWwIAAFoCAABOAgAAWwIAAE4CAABVAgAAYAIAAFYCAABhAgAAYQIAAFYCAABfAgAARgIAAGACAABHAgAARwIAAGACAABhAgAAYgIAAGMCAABnAgAAZwIAAGMCAABmAgAAZgIAAGMCAABkAgAAZgIAAGQCAABlAgAAZAIAAGgCAABlAgAAZQIAAGgCAABrAgAAawIAAGgCAABpAgAAawIAAGkCAABqAgAAaQIAAGwCAABqAgAAagIAAGwCAABzAgAAcwIAAGwCAABtAgAAcwIAAG0CAAByAgAAcgIAAG0CAABuAgAAcgIAAG4CAABxAgAAcQIAAG4CAABvAgAAcQIAAG8CAABwAgAAbwIAAHQCAABwAgAAcAIAAHQCAAB7AgAAewIAAHQCAAB1AgAAewIAAHUCAAB6AgAAegIAAHUCAAB2AgAAegIAAHYCAAB5AgAAeQIAAHYCAAB3AgAAeQIAAHcCAAB4AgAAdwIAAHwCAAB4AgAAeAIAAHwCAAB/AgAAfwIAAHwCAAB9AgAAfwIAAH0CAAB+AgAAfQIAAIACAAB+AgAAfgIAAIACAACDAgAAgwIAAIACAACBAgAAgwIAAIECAACCAgAAgQIAAIQCAACCAgAAggIAAIQCAACLAgAAiwIAAIQCAACFAgAAiwIAAIUCAACKAgAAigIAAIUCAACGAgAAigIAAIYCAACJAgAAiQIAAIYCAACHAgAAiQIAAIcCAACIAgAAhwIAAIwCAACIAgAAiAIAAIwCAACNAgAAjAIAAI4CAACNAgAAjQIAAI4CAACPAgAAjgIAAJACAACPAgAAjwIAAJACAACXAgAAlwIAAJACAACRAgAAlwIAAJECAACWAgAAlgIAAJECAACSAgAAlgIAAJICAACVAgAAlQIAAJICAACTAgAAlQIAAJMCAACUAgAAkwIAAJgCAACUAgAAlAIAAJgCAACZAgAAmAIAAJoCAACZAgAAmQIAAJoCAAChAgAAoQIAAJoCAACbAgAAoQIAAJsCAACgAgAAoAIAAJsCAACcAgAAoAIAAJwCAACfAgAAnwIAAJwCAACdAgAAnwIAAJ0CAACeAgAAnQIAAKICAACeAgAAngIAAKICAACjAgAAogIAAKQCAACjAgAAowIAAKQCAACrAgAAqwIAAKQCAAClAgAAqwIAAKUCAACqAgAAqgIAAKUCAACmAgAAqgIAAKYCAACpAgAAqQIAAKYCAACnAgAAqQIAAKcCAACoAgAApwIAAKwCAACoAgAAqAIAAKwCAACzAgAAswIAAKwCAACtAgAAswIAAK0CAACyAgAAsgIAAK0CAACuAgAAsgIAAK4CAACxAgAAsQIAAK4CAACvAgAAsQIAAK8CAACwAgAArwIAALQCAACwAgAAsAIAALQCAAC7AgAAuwIAALQCAAC1AgAAuwIAALUCAAC6AgAAugIAALUCAAC2AgAAugIAALYCAAC5AgAAuQIAALYCAAC3AgAAuQIAALcCAAC4AgAAtwIAALwCAAC4AgAAuAIAALwCAADDAgAAwwIAALwCAAC9AgAAwwIAAL0CAADCAgAAwgIAAL0CAAC+AgAAwgIAAL4CAADBAgAAwQIAAL4CAAC/AgAAwQIAAL8CAADAAgAAvwIAAGICAADAAgAAwAIAAGICAABnAgAATAIAAEkCAAB4AgAAeAIAAEkCAABIAgAAeAIAAEgCAAB5AgAAeQIAAEgCAABHAgAAeQIAAEcCAAB6AgAAegIAAEcCAABhAgAAegIAAGECAAB7AgAAewIAAGECAABwAgAAcAIAAGECAACjAgAAcAIAAKMCAACrAgAAYQIAAF8CAACjAgAAowIAAF8CAACeAgAAngIAAF8CAABeAgAAngIAAF4CAABdAgAAngIAAF0CAACPAgAAjwIAAF0CAABcAgAAjwIAAFwCAABbAgAAjwIAAFsCAACNAgAAjQIAAFsCAABVAgAAjQIAAFUCAACIAgAAiAIAAFUCAABUAgAAiAIAAFQCAABTAgAAiAIAAFMCAACJAgAAiQIAAFMCAABSAgAAiQIAAFICAACKAgAAigIAAFICAACLAgAAiwIAAFICAABNAgAAiwIAAE0CAACCAgAAggIAAE0CAACDAgAAgwIAAE0CAAB+AgAAfgIAAE0CAABMAgAAfgIAAEwCAAB/AgAAfwIAAEwCAAB4AgAAwAIAAGcCAADBAgAAwQIAAGcCAADCAgAAwgIAAGcCAABmAgAAwgIAAGYCAADDAgAAwwIAAGYCAAC4AgAAuAIAAGYCAAC5AgAAuQIAAGYCAABlAgAAuQIAAGUCAAC6AgAAugIAAGUCAAC7AgAAuwIAAGUCAABrAgAAuwIAAGsCAACwAgAAsAIAAGsCAABqAgAAsAIAAGoCAACxAgAAsQIAAGoCAABzAgAAsQIAAHMCAACyAgAAsgIAAHMCAAByAgAAsgIAAHICAACzAgAAswIAAHICAABxAgAAswIAAHECAACoAgAAqAIAAHECAACpAgAAqQIAAHECAACqAgAAqgIAAHECAACrAgAAqwIAAHECAABwAgAAngIAAI8CAACfAgAAnwIAAI8CAACXAgAAnwIAAJcCAACWAgAAlgIAAJUCAACfAgAAnwIAAJUCAACgAgAAoAIAAJUCAACUAgAAoAIAAJQCAAChAgAAoQIAAJQCAACZAgAAxAIAAMUCAADHAgAAxwIAAMUCAADGAgAAxQIAAMgCAADGAgAAxgIAAMgCAADJAgAAyAIAAMoCAADJAgAAyQIAAMoCAADLAgAAygIAAMQCAADLAgAAywIAAMQCAADHAgAAywIAAMcCAADJAgAAyQIAAMcCAADGAgAAzAIAAM0CAADPAgAAzwIAAM0CAADOAgAAzQIAANACAADOAgAAzgIAANACAADRAgAA0AIAANICAADRAgAA0QIAANICAADTAgAA0gIAAMwCAADTAgAA0wIAAMwCAADPAgAAzwIAAM4CAADTAgAA0wIAAM4CAADRAgAA1AIAANUCAADdAgAA3QIAANUCAADcAgAA3AIAANUCAADWAgAA3AIAANYCAADbAgAA2wIAANYCAADXAgAA2wIAANcCAADaAgAA2gIAANcCAADYAgAA2gIAANgCAADZAgAA3gIAAN8CAADlAgAA5QIAAN8CAADkAgAA5AIAAN8CAADgAgAA5AIAAOACAADjAgAA4wIAAOACAADhAgAA4wIAAOECAADiAgAA4gIAAOECAADUAgAA4gIAANQCAADdAgAA5gIAAOcCAADtAgAA7QIAAOcCAADsAgAA7AIAAOcCAADoAgAA7AIAAOgCAADrAgAA6wIAAOgCAADpAgAA6wIAAOkCAADqAgAA6gIAAOkCAADeAgAA6gIAAN4CAADlAgAA2AIAAO4CAADZAgAA2QIAAO4CAADzAgAA8wIAAO4CAADvAgAA8wIAAO8CAADyAgAA8gIAAO8CAADwAgAA8gIAAPACAADxAgAA8QIAAPACAADmAgAA8QIAAOYCAADtAgAA9AIAAPUCAAD3AgAA9wIAAPUCAAD2AgAA9QIAAPgCAAD2AgAA9gIAAPgCAAD5AgAA+AIAAPoCAAD5AgAA+QIAAPoCAAD9AgAA/QIAAPoCAAD7AgAA/QIAAPsCAAD8AgAA+wIAAP4CAAD8AgAA/AIAAP4CAAAFAwAABQMAAP4CAAD/AgAABQMAAP8CAAAEAwAABAMAAP8CAAAAAwAABAMAAAADAAADAwAAAwMAAAADAAABAwAAAwMAAAEDAAACAwAAAQMAAAYDAAACAwAAAgMAAAYDAAANAwAADQMAAAYDAAAHAwAADQMAAAcDAAAMAwAADAMAAAcDAAAIAwAADAMAAAgDAAALAwAACwMAAAgDAAAJAwAACwMAAAkDAAAKAwAACQMAAA4DAAAKAwAACgMAAA4DAAAPAwAADgMAABADAAAPAwAADwMAABADAAARAwAAEAMAABIDAAARAwAAEQMAABIDAAATAwAAEgMAABQDAAATAwAAEwMAABQDAAAVAwAAFAMAAPQCAAAVAwAAFQMAAPQCAAD3AgAA3AIAAAIDAADdAgAA3QIAAAIDAAANAwAA3QIAAA0DAADiAgAA4gIAAA0DAAAMAwAA4gIAAAwDAADjAgAA4wIAAAwDAAALAwAA4wIAAAsDAAAKAwAA2wIAAAQDAADcAgAA3AIAAAQDAAADAwAA3AIAAAMDAAACAwAA2gIAAPwCAADbAgAA2wIAAPwCAAAFAwAA2wIAAAUDAAAEAwAA/AIAANoCAAD9AgAA/QIAANoCAADZAgAA/QIAANkCAADzAgAA/QIAAPMCAAD5AgAA+QIAAPMCAADyAgAA+QIAAPICAADxAgAA+QIAAPECAAD3AgAA9wIAAPECAADtAgAA9wIAAO0CAAAVAwAAFQMAAO0CAADsAgAAFQMAAOwCAAARAwAAEQMAAOwCAADrAgAAEQMAAOsCAADqAgAAEQMAAOoCAAAPAwAADwMAAOoCAADlAgAADwMAAOUCAAAKAwAACgMAAOUCAADkAgAACgMAAOQCAADjAgAA9wIAAPYCAAD5AgAAEQMAABMDAAAVAwAAFgMAABcDAAAfAwAAHwMAABcDAAAeAwAAHgMAABcDAAAYAwAAHgMAABgDAAAdAwAAHQMAABgDAAAZAwAAHQMAABkDAAAcAwAAHAMAABkDAAAaAwAAHAMAABoDAAAbAwAAGgMAACADAAAbAwAAGwMAACADAAAnAwAAJwMAACADAAAhAwAAJwMAACEDAAAmAwAAJgMAACEDAAAiAwAAJgMAACIDAAAlAwAAJQMAACIDAAAjAwAAJQMAACMDAAAkAwAAIwMAACgDAAAkAwAAJAMAACgDAAAvAwAALwMAACgDAAApAwAALwMAACkDAAAuAwAALgMAACkDAAAqAwAALgMAACoDAAAtAwAALQMAACoDAAArAwAALQMAACsDAAAsAwAAKwMAADADAAAsAwAALAMAADADAAA3AwAANwMAADADAAAxAwAANwMAADEDAAA2AwAANgMAADEDAAAyAwAANgMAADIDAAA1AwAANQMAADIDAAAzAwAANQMAADMDAAA0AwAAMwMAADgDAAA0AwAANAMAADgDAAA5AwAAOAMAADoDAAA5AwAAOQMAADoDAABBAwAAQQMAADoDAAA7AwAAQQMAADsDAABAAwAAQAMAADsDAAA8AwAAQAMAADwDAAA/AwAAPwMAADwDAAA9AwAAPwMAAD0DAAA+AwAAPQMAAEIDAAA+AwAAPgMAAEIDAABFAwAARQMAAEIDAABDAwAARQMAAEMDAABEAwAAQwMAAEYDAABEAwAARAMAAEYDAABNAwAATQMAAEYDAABHAwAATQMAAEcDAABMAwAATAMAAEcDAABIAwAATAMAAEgDAABLAwAASwMAAEgDAABJAwAASwMAAEkDAABKAwAASQMAAE4DAABKAwAASgMAAE4DAABPAwAATgMAAFADAABPAwAATwMAAFADAABXAwAAVwMAAFADAABRAwAAVwMAAFEDAABWAwAAVgMAAFEDAABSAwAAVgMAAFIDAABVAwAAVQMAAFIDAABTAwAAVQMAAFMDAABUAwAAUwMAAFgDAABUAwAAVAMAAFgDAABfAwAAXwMAAFgDAABZAwAAXwMAAFkDAABeAwAAXgMAAFkDAABaAwAAXgMAAFoDAABdAwAAXQMAAFoDAABbAwAAXQMAAFsDAABcAwAAWwMAABYDAABcAwAAXAMAABYDAAAfAwAAXAMAAB8DAABdAwAAXQMAAB8DAAAeAwAAXQMAAB4DAABeAwAAXgMAAB4DAAAdAwAAXgMAAB0DAABfAwAAXwMAAB0DAAAcAwAAXwMAABwDAABUAwAAVAMAABwDAAAbAwAAVAMAABsDAAAnAwAAVAMAACcDAABVAwAAVQMAACcDAAAmAwAAVQMAACYDAABWAwAAVgMAACYDAAAlAwAAVgMAACUDAABXAwAAVwMAACUDAABPAwAATwMAACUDAAAkAwAATwMAACQDAAAvAwAALgMAAEwDAAAvAwAALwMAAEwDAABLAwAALwMAAEsDAABKAwAALQMAAEQDAAAuAwAALgMAAEQDAABNAwAALgMAAE0DAABMAwAARAMAAC0DAABFAwAARQMAAC0DAAAsAwAARQMAACwDAAA+AwAAPgMAACwDAAA3AwAAPgMAADcDAAA/AwAAPwMAADcDAAA2AwAAPwMAADYDAABAAwAAQAMAADYDAAA1AwAAQAMAADUDAABBAwAAQQMAADUDAAA0AwAAQQMAADQDAAA5AwAASgMAAE8DAAAvAwAAYAMAAGEDAABjAwAAYwMAAGEDAABiAwAAYQMAAGQDAABiAwAAYgMAAGQDAABlAwAAZAMAAGYDAABlAwAAZQMAAGYDAABnAwAAZgMAAGgDAABnAwAAZwMAAGgDAABrAwAAawMAAGgDAABpAwAAawMAAGkDAABqAwAAaQMAAGwDAABqAwAAagMAAGwDAABvAwAAbwMAAGwDAABtAwAAbwMAAG0DAABuAwAAbQMAAHADAABuAwAAbgMAAHADAABxAwAAcAMAAHIDAABxAwAAcQMAAHIDAABzAwAAcgMAAHQDAABzAwAAcwMAAHQDAAB1AwAAdAMAAHYDAAB1AwAAdQMAAHYDAAB9AwAAfQMAAHYDAAB3AwAAfQMAAHcDAAB8AwAAfAMAAHcDAAB4AwAAfAMAAHgDAAB7AwAAewMAAHgDAAB5AwAAewMAAHkDAAB6AwAAeQMAAH4DAAB6AwAAegMAAH4DAAB/AwAAfgMAAGADAAB/AwAAfwMAAGADAABjAwAAfwMAAGMDAAB6AwAAegMAAGMDAABrAwAAegMAAGsDAABqAwAAYwMAAGIDAABrAwAAawMAAGIDAABnAwAAZwMAAGIDAABlAwAAagMAAG8DAAB6AwAAegMAAG8DAAB7AwAAewMAAG8DAABuAwAAewMAAG4DAAB8AwAAfAMAAG4DAAB9AwAAfQMAAG4DAAB1AwAAdQMAAG4DAABzAwAAcwMAAG4DAABxAwAAgAMAAIEDAACDAwAAgwMAAIEDAACCAwAAgQMAAIQDAACCAwAAggMAAIQDAACFAwAAhAMAAIYDAACFAwAAhQMAAIYDAACHAwAAhgMAAIgDAACHAwAAhwMAAIgDAACJAwAAiAMAAIoDAACJAwAAiQMAAIoDAACLAwAAigMAAIwDAACLAwAAiwMAAIwDAACNAwAAjAMAAI4DAACNAwAAjQMAAI4DAACZAwAAmQMAAI4DAACPAwAAmQMAAI8DAACYAwAAmAMAAI8DAACQAwAAmAMAAJADAACXAwAAlwMAAJADAACRAwAAlwMAAJEDAACWAwAAlgMAAJEDAACSAwAAlgMAAJIDAACVAwAAlQMAAJIDAACTAwAAlQMAAJMDAACUAwAAkwMAAJoDAACUAwAAlAMAAJoDAACbAwAAmgMAAJwDAACbAwAAmwMAAJwDAACdAwAAnAMAAJ4DAACdAwAAnQMAAJ4DAACfAwAAngMAAKADAACfAwAAnwMAAKADAAClAwAApQMAAKADAAChAwAApQMAAKEDAACkAwAApAMAAKEDAACiAwAApAMAAKIDAACjAwAAogMAAKYDAACjAwAAowMAAKYDAACnAwAApgMAAKgDAACnAwAApwMAAKgDAACpAwAAqAMAAKoDAACpAwAAqQMAAKoDAACrAwAAqgMAAKwDAACrAwAAqwMAAKwDAACtAwAArAMAAK4DAACtAwAArQMAAK4DAACvAwAArgMAAIADAACvAwAArwMAAIADAACDAwAAgwMAAIIDAACvAwAArwMAAIIDAACFAwAArwMAAIUDAACpAwAAqQMAAIUDAACLAwAAqQMAAIsDAACnAwAApwMAAIsDAACNAwAApwMAAI0DAACjAwAAowMAAI0DAACZAwAAowMAAJkDAACVAwAAlQMAAJkDAACWAwAAlgMAAJkDAACYAwAAlgMAAJgDAACXAwAAhQMAAIcDAACLAwAAiwMAAIcDAACJAwAAlQMAAJQDAACjAwAAowMAAJQDAACkAwAApAMAAJQDAAClAwAApQMAAJQDAACbAwAApQMAAJsDAACfAwAAnwMAAJsDAACdAwAAqQMAAKsDAACvAwAArwMAAKsDAACtAwAAsAMAALEDAAC1AwAAtQMAALEDAAC0AwAAtAMAALEDAACyAwAAtAMAALIDAACzAwAAtgMAALcDAAC5AwAAuQMAALcDAAC4AwAAuAMAALcDAACwAwAAuAMAALADAAC1AwAAugMAALsDAADBAwAAwQMAALsDAADAAwAAwAMAALsDAAC8AwAAwAMAALwDAAC/AwAAvwMAALwDAAC9AwAAvwMAAL0DAAC+AwAAvgMAAL0DAAC2AwAAvgMAALYDAAC5AwAAwgMAAMMDAADLAwAAywMAAMMDAADKAwAAygMAAMMDAADEAwAAygMAAMQDAADJAwAAyQMAAMQDAADFAwAAyQMAAMUDAADIAwAAyAMAAMUDAADGAwAA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KwUAACUFAAAqBQAAKgUAACUFAAAmBQAAKgUAACYFAAApBQAAKQUAACYFAAAnBQAAKQUAACcFAAAoBQAAKAUAACcFAAAaBQAAKAUAABoFAAAjBQAALAUAAC0FAAAzBQAAMwUAAC0FAAAyBQAAMgUAAC0FAAAuBQAAMgUAAC4FAAAxBQAAMQUAAC4FAAAvBQAAMQUAAC8FAAAwBQAAMAUAAC8FAAAkBQAAMAUAACQFAAArBQAAHgUAADQFAAAfBQAAHwUAADQFAAA5BQAAOQUAADQFAAA1BQAAOQUAADUFAAA4BQAAOAUAADUFAAA2BQAAOAUAADYFAAA3BQAANwUAADYFAAAsBQAANwUAACwFAAAzBQAAOgUAADsFAAA9BQAAPQUAADsFAAA8BQAAOwUAAD4FAAA8BQAAPAUAAD4FAAA/BQAAPgUAAEAFAAA/BQAAPwUAAEAFAABHBQAARwUAAEAFAABBBQAARwUAAEEFAABGBQAARgUAAEEFAABCBQAARgUAAEIFAABFBQAARQUAAEIFAABDBQAARQUAAEMFAABEBQAAQwUAAEgFAABEBQAARAUAAEgFAABPBQAATwUAAEgFAABJBQAATwUAAEkFAABOBQAATgUAAEkFAABKBQAATgUAAEoFAABNBQAATQUAAEoFAABLBQAATQUAAEsFAABMBQAASwUAAFAFAABMBQAATAUAAFAFAABXBQAAVwUAAFAFAABRBQAAVwUAAFEFAABWBQAAVgUAAFEFAABSBQAAVgUAAFIFAABVBQAAVQUAAFIFAABTBQAAVQUAAFMFAABUBQAAUwUAAFgFAABUBQAAVAUAAFgFAABZBQAAWAUAAFoFAABZBQAAWQUAAFoFAABbBQAAWgUAAFwFAABbBQAAWwUAAFwFAABdBQAAXAUAAF4FAABdBQAAXQUAAF4FAABfBQAAXgUAADoFAABfBQAAXwUAADoFAAA9BQAAIgUAAEwFAAAjBQAAIwUAAEwFAABXBQAAIwUAAFcFAAAoBQAAKAUAAFcFAABWBQAAKAUAAFYFAAApBQAAKQUAAFYFAABVBQAAKQUAAFUFAAAqBQAAKgUAAFUFAABUBQAAKgUAAFQFAAArBQAAKwUAAFQFAABZBQAAKwUAAFkFAAAwBQAAMAUAAFkFAABbBQAAMAUAAFsFAAAxBQAAMQUAAFsFAAAyBQAAMgUAAFsFAABfBQAAMgUAAF8FAAAzBQAAMwUAAF8FAAA9BQAAMwUAAD0FAAA3BQAANwUAAD0FAAA/BQAANwUAAD8FAAA4BQAAOAUAAD8FAAA5BQAAOQUAAD8FAAAfBQAAHwUAAD8FAABHBQAAHwUAAEcFAABGBQAATAUAACIFAABNBQAATQUAACIFAAAhBQAATQUAACEFAABOBQAATgUAACEFAABPBQAATwUAACEFAABEBQAARAUAACEFAAAgBQAARAUAACAFAABFBQAARQUAACAFAABGBQAARgUAACAFAAAfBQAAPQUAADwFAAA/BQAAWwUAAF0FAABfBQAAYAUAAGEFAABlBQAAZQUAAGEFAABkBQAAZAUAAGEFAABiBQAAZAUAAGIFAABjBQAAZgUAAGcFAABpBQAAaQUAAGcFAABoBQAAaAUAAGcFAABgBQAAaAUAAGAFAABlBQAAagUAAGYFAABrBQAAawUAAGYFAABpBQAAYgUAAGwFAABjBQAAYwUAAGwFAABxBQAAcQUAAGwFAABtBQAAcQUAAG0FAABwBQAAcAUAAG0FAABuBQAAcAUAAG4FAABvBQAAbwUAAG4FAABqBQAAbwUAAGoFAABrBQAAcgUAAHMFAAB1BQAAdQUAAHMFAAB0BQAAcwUAAHYFAAB0BQAAdAUAAHYFAACBBQAAgQUAAHYFAAB3BQAAgQUAAHcFAACABQAAgAUAAHcFAAB4BQAAgAUAAHgFAAB/BQAAfwUAAHgFAAB5BQAAfwUAAHkFAAB+BQAAfgUAAHkFAAB6BQAAfgUAAHoFAAB9BQAAfQUAAHoFAAB7BQAAfQUAAHsFAAB8BQAAewUAAIIFAAB8BQAAfAUAAIIFAACJBQAAiQUAAIIFAACDBQAAiQUAAIMFAACIBQAAiAUAAIMFAACEBQAAiAUAAIQFAACHBQAAhwUAAIQFAACFBQAAhwUAAIUFAACGBQAAhQUAAIoFAACGBQAAhgUAAIoFAACVBQAAlQUAAIoFAACLBQAAlQUAAIsFAACUBQAAlAUAAIsFAACMBQAAlAUAAIwFAACTBQAAkwUAAIwFAACNBQAAkwUAAI0FAACSBQAAkgUAAI0FAACOBQAAkgUAAI4FAACRBQAAkQUAAI4FAACPBQAAkQUAAI8FAACQBQAAjwUAAJYFAACQBQAAkAUAAJYFAACdBQAAnQUAAJYFAACXBQAAnQUAAJcFAACcBQAAnAUAAJcFAACYBQAAnAUAAJgFAACbBQAAmwUAAJgFAACZBQAAmwUAAJkFAACaBQAAmQUAAJ4FAACaBQAAmgUAAJ4FAACfBQAAngUAAKAFAACfBQAAnwUAAKAFAAChBQAAoAUAAKIFAAChBQAAoQUAAKIFAACjBQAAogUAAKQFAACjBQAAowUAAKQFAACnBQAApwUAAKQFAAClBQAApwUAAKUFAACmBQAApQUAAKgFAACmBQAApgUAAKgFAACrBQAAqwUAAKgFAACpBQAAqwUAAKkFAACqBQAAqQUAAHIFAACqBQAAqgUAAHIFAAB1BQAAZAUAAIkFAABlBQAAZQUAAIkFAACIBQAAZQUAAIgFAABoBQAAaAUAAIgFAACHBQAAaAUAAIcFAABpBQAAaQUAAIcFAACGBQAAaQUAAIYFAACqBQAAqgUAAIYFAACVBQAAqgUAAJUFAACUBQAAiQUAAGQFAAB8BQAAfAUAAGQFAABjBQAAfAUAAGMFAABxBQAAfAUAAHEFAAB9BQAAfQUAAHEFAABwBQAAfQUAAHAFAAB+BQAAfgUAAHAFAABvBQAAfgUAAG8FAAB/BQAAfwUAAG8FAACABQAAgAUAAG8FAABrBQAAgAUAAGsFAACBBQAAgQUAAGsFAAB0BQAAdAUAAGsFAAB1BQAAdQUAAGsFAACqBQAAqgUAAGsFAABpBQAAqgUAAJQFAACrBQAAqwUAAJQFAACTBQAAqwUAAJMFAACmBQAApgUAAJMFAACSBQAApgUAAJIFAACRBQAApgUAAJEFAACnBQAApwUAAJEFAACQBQAApwUAAJAFAACjBQAAowUAAJAFAACdBQAAowUAAJ0FAAChBQAAoQUAAJ0FAACcBQAAoQUAAJwFAACfBQAAnwUAAJwFAACbBQAAnwUAAJsFAACaBQAArAUAAK0FAAC1BQAAtQUAAK0FAAC0BQAAtAUAAK0FAACuBQAAtAUAAK4FAACzBQAAswUAAK4FAACvBQAAswUAAK8FAACyBQAAsgUAAK8FAACwBQAAsgUAALAFAACxBQAAsAUAALYFAACxBQAAsQUAALYFAAC9BQAAvQUAALYFAAC3BQAAvQUAALcFAAC8BQAAvAUAALcFAAC4BQAAvAUAALgFAAC7BQAAuwUAALgFAAC5BQAAuwUAALkFAAC6BQAAuQUAAL4FAAC6BQAAugUAAL4FAADFBQAAxQUAAL4FAAC/BQAAxQUAAL8FAADEBQAAxAUAAL8FAADABQAAxAUAAMAFAADDBQAAwwUAAMAFAADBBQAAwwUAAMEFAADCBQAAwQUAAMYFAADCBQAAwgUAAMYFAADNBQAAzQUAAMYFAADHBQAAzQUAAMcFAADMBQAAzAUAAMcFAADIBQAAzAUAAMgFAADLBQAAywUAAMgFAADJBQAAywUAAMkFAADKBQAAyQUAAM4FAADKBQAAygUAAM4FAADPBQAAzgUAANAFAADPBQAAzwUAANAFAADXBQAA1wUAANAFAADRBQAA1wUAANEFAADWBQAA1gUAANEFAADSBQAA1gUAANIFAADVBQAA1QUAANIFAADTBQAA1QUAANMFAADUBQAA0wUAANgFAADUBQAA1AUAANgFAADbBQAA2wUAANgFAADZBQAA2wUAANkFAADaBQAA2QUAANwFAADaBQAA2gUAANwFAADjBQAA4wUAANwFAADdBQAA4wUAAN0FAADiBQAA4gUAAN0FAADeBQAA4gUAAN4FAADhBQAA4QUAAN4FAADfBQAA4QUAAN8FAADgBQAA3wUAAOQFAADgBQAA4AUAAOQFAADlBQAA5AUAAOYFAADlBQAA5QUAAOYFAADtBQAA7QUAAOYFAADnBQAA7QUAAOcFAADsBQAA7AUAAOcFAADoBQAA7AUAAOgFAADrBQAA6wUAAOgFAADpBQAA6wUAAOkFAADqBQAA6QUAAO4FAADqBQAA6gUAAO4FAAD1BQAA9QUAAO4FAADvBQAA9QUAAO8FAAD0BQAA9AUAAO8FAADwBQAA9AUAAPAFAADzBQAA8wUAAPAFAADxBQAA8wUAAPEFAADyBQAA8QUAAKwFAADyBQAA8gUAAKwFAAC1BQAA8gUAALUFAADzBQAA8wUAALUFAAC0BQAA8wUAALQFAAD0BQAA9AUAALQFAACzBQAA9AUAALMFAAD1BQAA9QUAALMFAACyBQAA9QUAALIFAADqBQAA6gUAALIFAACxBQAA6gUAALEFAAC9BQAA6gUAAL0FAADrBQAA6wUAAL0FAAC8BQAA6wUAALwFAADsBQAA7AUAALwFAAC7BQAA7AUAALsFAADtBQAA7QUAALsFAAC6BQAA7QUAALoFAADlBQAA5QUAALoFAADFBQAA5QUAAMUFAADgBQAA4AUAAMUFAADhBQAA4QUAAMUFAADEBQAA4QUAAMQFAADiBQAA4gUAAMQFAADjBQAA4wUAAMQFAADaBQAA2gUAAMQFAADDBQAA2gUAAMMFAADbBQAA2wUAAMMFAADUBQAA1AUAAMMFAADCBQAA1AUAAMIFAADNBQAA1AUAAM0FAADVBQAA1QUAAM0FAADMBQAA1QUAAMwFAADWBQAA1gUAAMwFAADLBQAA1gUAAMsFAADXBQAA1wUAAMsFAADKBQAA1wUAAMoFAADPBQAA9gUAAPcFAAD/BQAA/wUAAPcFAAD+BQAA/gUAAPcFAAD4BQAA/gUAAPgFAAD9BQAA/QUAAPgFAAD5BQAA/QUAAPkFAAD8BQAA/AUAAPkFAAD6BQAA/AUAAPoFAAD7BQAAAAYAAAEGAAAHBgAABwYAAAEGAAAGBgAABgYAAAEGAAACBgAABgYAAAIGAAAFBgAABQYAAAIGAAADBgAABQYAAAMGAAAEBgAABAYAAAMGAAD2BQAABAYAAPYFAAD/BQAACAYAAAkGAAAPBgAADwYAAAkGAAAOBgAADgYAAAkGAAAKBgAADgYAAAoGAAANBgAADQYAAAoGAAALBgAADQYAAAsGAAAMBgAADAYAAAsGAAAABgAADAYAAAAGAAAHBgAA+gUAABAGAAD7BQAA+wUAABAGAAAVBgAAFQYAABAGAAARBgAAFQYAABEGAAAUBgAAFAYAABEGAAASBgAAFAYAABIGAAATBgAAEwYAABIGAAAIBgAAEwYAAAgGAAAPBgAAFgYAABcGAAAbBgAAGwYAABcGAAAaBgAAGgYAABcGAAAYBgAAGgYAABgGAAAZBgAAGAYAABwGAAAZBgAAGQYAABwGAAAfBgAAHwYAABwGAAAdBgAAHwYAAB0GAAAeBgAAHQYAACAGAAAeBgAAHgYAACAGAAAnBgAAJwYAACAGAAAhBgAAJwYAACEGAAAmBgAAJgYAACEGAAAiBgAAJgYAACIGAAAlBgAAJQYAACIGAAAjBgAAJQYAACMGAAAkBgAAIwYAACgGAAAkBgAAJAYAACgGAAArBgAAKwYAACgGAAApBgAAKwYAACkGAAAqBgAAKQYAACwGAAAqBgAAKgYAACwGAAAvBgAALwYAACwGAAAtBgAALwYAAC0GAAAuBgAALQYAADAGAAAuBgAALgYAADAGAAA1BgAANQYAADAGAAAxBgAANQYAADEGAAA0BgAANAYAADEGAAAyBgAANAYAADIGAAAzBgAAMwYAADIGAAAWBgAAMwYAABYGAAAbBgAA/gUAACQGAAD/BQAA/wUAACQGAAArBgAA/wUAACsGAAAEBgAABAYAACsGAAAqBgAABAYAACoGAAAFBgAABQYAACoGAAAvBgAABQYAAC8GAAAGBgAABgYAAC8GAAAuBgAABgYAAC4GAAAHBgAABwYAAC4GAAAMBgAADAYAAC4GAAA1BgAADAYAADUGAAANBgAADQYAADUGAAA0BgAADQYAADQGAAAOBgAADgYAADQGAAAzBgAADgYAADMGAAAbBgAA/QUAACYGAAD+BQAA/gUAACYGAAAlBgAA/gUAACUGAAAkBgAAJgYAAP0FAAAnBgAAJwYAAP0FAAD8BQAAJwYAAPwFAAAeBgAAHgYAAPwFAAD7BQAAHgYAAPsFAAAVBgAAHgYAABUGAAAfBgAAHwYAABUGAAAUBgAAHwYAABQGAAAZBgAAGQYAABQGAAATBgAAGQYAABMGAAAaBgAAGgYAABMGAAAPBgAAGgYAAA8GAAAbBgAAGwYAAA8GAAAOBgAANgYAADcGAAA5BgAAOQYAADcGAAA4BgAANwYAADoGAAA4BgAAOAYAADoGAAA7BgAAOgYAADwGAAA7BgAAOwYAADwGAAA9BgAAPAYAAD4GAAA9BgAAPQYAAD4GAABBBgAAQQYAAD4GAAA/BgAAQQYAAD8GAABABgAAPwYAAEIGAABABgAAQAYAAEIGAABFBgAARQYAAEIGAABDBgAARQYAAEMGAABEBgAAQwYAAEYGAABEBgAARAYAAEYGAABHBgAARgYAAEgGAABHBgAARwYAAEgGAABJBgAASAYAAEoGAABJBgAASQYAAEoGAABLBgAASgYAAEwGAABLBgAASwYAAEwGAABTBgAAUwYAAEwGAABNBgAAUwYAAE0GAABSBgAAUgYAAE0GAABOBgAAUgYAAE4GAABRBgAAUQYAAE4GAABPBgAAUQYAAE8GAABQBgAATwYAAFQGAABQBgAAUAYAAFQGAABVBgAAVAYAADYGAABVBgAAVQYAADYGAAA5BgAAVQYAADkGAABQBgAAUAYAADkGAABBBgAAUAYAAEEGAABABgAAOQYAADgGAABBBgAAQQYAADgGAAA9BgAAPQYAADgGAAA7BgAAQAYAAEUGAABQBgAAUAYAAEUGAABRBgAAUQYAAEUGAABEBgAAUQYAAEQGAABSBgAAUgYAAEQGAABTBgAAUwYAAEQGAABLBgAASwYAAEQGAABHBgAASwYAAEcGAABJBgAAVgYAAFcGAABZBgAAWQYAAFcGAABYBgAAVwYAAFoGAABYBgAAWAYAAFoGAABbBgAAWgYAAFwGAABbBgAAWwYAAFwGAABdBgAAXAYAAF4GAABdBgAAXQYAAF4GAABlBgAAZQYAAF4GAABfBgAAZQYAAF8GAABkBgAAZAYAAF8GAABgBgAAZAYAAGAGAABjBgAAYwYAAGAGAABhBgAAYwYAAGEGAABiBgAAYQYAAGYGAABiBgAAYgYAAGYGAABtBgAAbQYAAGYGAABnBgAAbQYAAGcGAABsBgAAbAYAAGcGAABoBgAAbAYAAGgGAABrBgAAawYAAGgGAABpBgAAawYAAGkGAABqBgAAaQYAAG4GAABqBgAAagYAAG4GAABvBgAAbgYAAHAGAABvBgAAbwYAAHAGAABxBgAAcAYAAHIGAABxBgAAcQYAAHIGAABzBgAAcgYAAHQGAABzBgAAcwYAAHQGAAB7BgAAewYAAHQGAAB1BgAAewYAAHUGAAB6BgAAegYAAHUGAAB2BgAAegYAAHYGAAB5BgAAeQYAAHYGAAB3BgAAeQYAAHcGAAB4BgAAdwYAAHwGAAB4BgAAeAYAAHwGAACDBgAAgwYAAHwGAAB9BgAAgwYAAH0GAACCBgAAggYAAH0GAAB+BgAAggYAAH4GAACBBgAAgQYAAH4GAAB/BgAAgQYAAH8GAACABgAAfwYAAIQGAACABgAAgAYAAIQGAACFBgAAhAYAAFYGAACFBgAAhQYAAFYGAABZBgAAhQYAAFkGAACABgAAgAYAAFkGAABlBgAAgAYAAGUGAABkBgAAZQYAAFkGAABdBgAAXQYAAFkGAABYBgAAXQYAAFgGAABbBgAAZAYAAGMGAACABgAAgAYAAGMGAACBBgAAgQYAAGMGAABiBgAAgQYAAGIGAACCBgAAggYAAGIGAABtBgAAggYAAG0GAACDBgAAgwYAAG0GAAB4BgAAeAYAAG0GAABsBgAAeAYAAGwGAAB5BgAAeQYAAGwGAAB6BgAAegYAAGwGAAB7BgAAewYAAGwGAABrBgAAewYAAGsGAABzBgAAcwYAAGsGAABqBgAAcwYAAGoGAABxBgAAcQYAAGoGAABvBgAAhgYAAIcGAACPBgAAjwYAAIcGAACOBgAAjgYAAIcGAACIBgAAjgYAAIgGAACNBgAAjQYAAIgGAACJBgAAjQYAAIkGAACMBgAAjAYAAIkGAACKBgAAjAYAAIoGAACLBgAAkAYAAJEGAACXBgAAlwYAAJEGAACWBgAAlgYAAJEGAACSBgAAlgYAAJIGAACVBgAAlQYAAJIGAACTBgAAlQYAAJMGAACUBgAAlAYAAJMGAACGBgAAlAYAAIYGAACPBgAAmAYAAJkGAACfBgAAnwYAAJkGAACeBgAAngYAAJkGAACaBgAAngYAAJoGAACdBgAAnQYAAJoGAACbBgAAnQYAAJsGAACcBgAAnAYAAJsGAACQBgAAnAYAAJAGAACXBgAAigYAAKAGAACLBgAAiwYAAKAGAAClBgAApQYAAKAGAAChBgAApQYAAKEGAACkBgAApAYAAKEGAACiBgAApAYAAKIGAACjBgAAowYAAKIGAACYBgAAowYAAJgGAACfBgAApgYAAKcGAACrBgAAqwYAAKcGAACqBgAAqgYAAKcGAACoBgAAqgYAAKgGAACpBgAAqAYAAKwGAACpBgAAqQYAAKwGAACvBgAArwYAAKwGAACtBgAArwYAAK0GAACuBgAArQYAALAGAACuBgAArgYAALAGAAC3BgAAtwYAALAGAACxBgAAtwYAALEGAAC2BgAAtgYAALEGAACyBgAAtgYAALIGAAC1BgAAtQYAALIGAACzBgAAtQYAALMGAAC0BgAAswYAALgGAAC0BgAAtAYAALgGAAC7BgAAuwYAALgGAAC5BgAAuwYAALkGAAC6BgAAuQYAALwGAAC6BgAAugYAALwGAAC/BgAAvwYAALwGAAC9BgAAvwYAAL0GAAC+BgAAvQYAAMAGAAC+BgAAvgYAAMAGAADFBgAAxQYAAMAGAADBBgAAxQYAAMEGAADEBgAAxAYAAMEGAADCBgAAxAYAAMIGAADDBgAAwwYAAMIGAACmBgAAwwYAAKYGAACrBgAAjgYAALUGAACPBgAAjwYAALUGAAC0BgAAjwYAALQGAACUBgAAlAYAALQGAAC7BgAAlAYAALsGAAC6BgAAtQYAAI4GAAC2BgAAtgYAAI4GAACNBgAAtgYAAI0GAAC3BgAAtwYAAI0GAACMBgAAtwYAAIwGAACuBgAArgYAAIwGAACLBgAArgYAAIsGAAClBgAArgYAAKUGAACvBgAArwYAAKUGAACkBgAArwYAAKQGAACpBgAAqQYAAKQGAACjBgAAqQYAAKMGAACqBgAAqgYAAKMGAACrBgAAqwYAAKMGAACfBgAAqwYAAJ8GAADDBgAAwwYAAJ8GAACeBgAAwwYAAJ4GAADEBgAAxAYAAJ4GAACdBgAAxAYAAJ0GAADFBgAAxQYAAJ0GAACcBgAAxQYAAJwGAAC+BgAAvgYAAJwGAACXBgAAvgYAAJcGAACWBgAAvgYAAJYGAAC/BgAAvwYAAJYGAACVBgAAvwYAAJUGAAC6BgAAugYAAJUGAACUBgAAxgYAAMcGAADLBgAAywYAAMcGAADKBgAAygYAAMcGAADIBgAAygYAAMgGAADJBgAAzAYAAM0GAADPBgAAzwYAAM0GAADOBgAAzgYAAM0GAADGBgAAzgYAAMYGAADLBgAA0AYAAMwGAADRBgAA0QYAAMwGAADPBgAAyAYAANIGAADJBgAAyQYAANIGAADXBgAA1wYAANIGAADTBgAA1wYAANMGAADWBgAA1gYAANMGAADUBgAA1gYAANQGAADVBgAA1QYAANQGAADQBgAA1QYAANAGAADRBgAA2AYAANkGAADbBgAA2wYAANkGAADaBgAA2QYAANwGAADaBgAA2gYAANwGAADnBgAA5wYAANwGAADdBgAA5wYAAN0GAADmBgAA5gYAAN0GAADeBgAA5gYAAN4GAADlBgAA5QYAAN4GAADfBgAA5QYAAN8GAADkBgAA5AYAAN8GAADgBgAA5AYAAOAGAADjBgAA4wYAAOAGAADhBgAA4wYAAOEGAADiBgAA4QYAAOgGAADiBgAA4gYAAOgGAADvBgAA7wYAAOgGAADpBgAA7wYAAOkGAADuBgAA7gYAAOkGAADqBgAA7gYAAOoGAADtBgAA7QYAAOoGAADrBgAA7QYAAOsGAADsBgAA6wYAAPAGAADsBgAA7AYAAPAGAAD7BgAA+wYAAPAGAADxBgAA+wYAAPEGAAD6BgAA+gYAAPEGAADyBgAA+gYAAPIGAAD5BgAA+QYAAPIGAADzBgAA+QYAAPMGAAD4BgAA+AYAAPMGAAD0BgAA+AYAAPQGAAD3BgAA9wYAAPQGAAD1BgAA9wYAAPUGAAD2BgAA9QYAAPwGAAD2BgAA9gYAAPwGAAADBwAAAwcAAPwGAAD9BgAAAwcAAP0GAAACBwAAAgcAAP0GAAD+BgAAAgcAAP4GAAABBwAAAQcAAP4GAAD/BgAAAQcAAP8GAAAABwAA/wYAAAQHAAAABwAAAAcAAAQHAAAFBwAABAcAAAYHAAAFBwAABQcAAAYHAAAHBwAABgcAAAgHAAAHBwAABwcAAAgHAAAJBwAACAcAAAoHAAAJBwAACQcAAAoHAAANBwAADQcAAAoHAAALBwAADQcAAAsHAAAMBwAACwcAAA4HAAAMBwAADAcAAA4HAAARBwAAEQcAAA4HAAAPBwAAEQcAAA8HAAAQBwAADwcAANgGAAAQBwAAEAcAANgGAADbBgAAygYAAO8GAADLBgAAywYAAO8GAADuBgAAywYAAO4GAADOBgAAzgYAAO4GAADtBgAAzgYAAO0GAADPBgAAzwYAAO0GAADsBgAAzwYAAOwGAAAQBwAAEAcAAOwGAAD7BgAAEAcAAPsGAAARBwAAEQcAAPsGAAD6BgAAEQcAAPoGAAD5BgAA7wYAAMoGAADiBgAA4gYAAMoGAADJBgAA4gYAAMkGAADXBgAA4gYAANcGAADjBgAA4wYAANcGAADWBgAA4wYAANYGAADkBgAA5AYAANYGAADlBgAA5QYAANYGAADVBgAA5QYAANUGAADmBgAA5gYAANUGAADRBgAA5gYAANEGAADnBgAA5wYAANEGAADaBgAA2gYAANEGAADbBgAA2wYAANEGAAAQBwAAEAcAANEGAADPBgAAEQcAAPkGAAAMBwAADAcAAPkGAAD4BgAADAcAAPgGAAD3BgAADAcAAPcGAAANBwAADQcAAPcGAAD2BgAADQcAAPYGAAAJBwAACQcAAPYGAAADBwAACQcAAAMHAAAHBwAABwcAAAMHAAACBwAABwcAAAIHAAAFBwAABQcAAAIHAAABBwAABQcAAAEHAAAABwAAEgcAABMHAAAVBwAAFQcAABMHAAAUBwAAEwcAABYHAAAUBwAAFAcAABYHAAAXBwAAFgcAABgHAAAXBwAAFwcAABgHAAAZBwAAGAcAABIHAAAZBwAAGQcAABIHAAAVBwAAGQcAABUHAAAXBwAAFwcAABUHAAAUBwAAGgcAABsHAAAjBwAAIwcAABsHAAAiBwAAIgcAABsHAAAcBwAAIgcAABwHAAAhBwAAIQcAABwHAAAdBwAAIQcAAB0HAAAgBwAAIAcAAB0HAAAeBwAAIAcAAB4HAAAfBwAAHgcAACQHAAAfBwAAHwcAACQHAAAvBwAALwcAACQHAAAlBwAALwcAACUHAAAuBwAALgcAACUHAAAmBwAALgcAACYHAAAtBwAALQcAACYHAAAnBwAALQcAACcHAAAsBwAALAcAACcHAAAoBwAALAcAACgHAAArBwAAKwcAACgHAAApBwAAKwcAACkHAAAqBwAAKQcAADAHAAAqBwAAKgcAADAHAAA7BwAAOwcAADAHAAAxBwAAOwcAADEHAAA6BwAAOgcAADEHAAAyBwAAOgcAADIHAAA5BwAAOQcAADIHAAAzBwAAOQcAADMHAAA4BwAAOAcAADMHAAA0BwAAOAcAADQHAAA3BwAANwcAADQHAAA1BwAANwcAADUHAAA2BwAANQcAADwHAAA2BwAANgcAADwHAAA/BwAAPwcAADwHAAA9BwAAPwcAAD0HAAA+BwAAPQcAAEAHAAA+BwAAPgcAAEAHAABFBwAARQcAAEAHAABBBwAARQcAAEEHAABEBwAARAcAAEEHAABCBwAARAcAAEIHAABDBwAAQgcAAEYHAABDBwAAQwcAAEYHAABNBwAATQcAAEYHAABHBwAATQcAAEcHAABMBwAATAcAAEcHAABIBwAATAcAAEgHAABLBwAASwcAAEgHAABJBwAASwcAAEkHAABKBwAASQcAAE4HAABKBwAASgcAAE4HAABRBwAAUQcAAE4HAABPBwAAUQcAAE8HAABQBwAATwcAAFIHAABQBwAAUAcAAFIHAABVBwAAVQcAAFIHAABTBwAAVQcAAFMHAABUBwAAUwcAAFYHAABUBwAAVAcAAFYHAABXBwAAVgcAAFgHAABXBwAAVwcAAFgHAABhBwAAYQcAAFgHAABZBwAAYQcAAFkHAABgBwAAYAcAAFkHAABaBwAAYAcAAFoHAABfBwAAXwcAAFoHAABbBwAAXwcAAFsHAABeBwAAXgcAAFsHAABcBwAAXgcAAFwHAABdBwAAXAcAAGIHAABdBwAAXQcAAGIHAABtBwAAbQcAAGIHAABjBwAAbQcAAGMHAABsBwAAbAcAAGMHAABkBwAAbAcAAGQHAABrBwAAawcAAGQHAABlBwAAawcAAGUHAABqBwAAagcAAGUHAABmBwAAagcAAGYHAABpBwAAaQcAAGYHAABnBwAAaQcAAGcHAABoBwAAZwcAAG4HAABoBwAAaAcAAG4HAAB5BwAAeQcAAG4HAABvBwAAeQcAAG8HAAB4BwAAeAcAAG8HAABwBwAAeAcAAHAHAAB3BwAAdwcAAHAHAABxBwAAdwcAAHEHAAB2BwAAdgcAAHEHAAByBwAAdgcAAHIHAAB1BwAAdQcAAHIHAABzBwAAdQcAAHMHAAB0BwAAcwcAAHoHAAB0BwAAdAcAAHoHAAB9BwAAfQcAAHoHAAB7BwAAfQcAAHsHAAB8BwAAewcAAH4HAAB8BwAAfAcAAH4HAACDBwAAgwcAAH4HAAB/BwAAgwcAAH8HAACCBwAAggcAAH8HAACABwAAggcAAIAHAACBBwAAgAcAAIQHAACBBwAAgQcAAIQHAACHBwAAhwcAAIQHAACFBwAAhwcAAIUHAACGBwAAhQcAAIgHAACGBwAAhgcAAIgHAACLBwAAiwcAAIgHAACJBwAAiwcAAIkHAACKBwAAiQcAAIwHAACKBwAAigcAAIwHAACTBwAAkwcAAIwHAACNBwAAkwcAAI0HAACSBwAAkgcAAI0HAACOBwAAkgcAAI4HAACRBwAAkQcAAI4HAACPBwAAkQcAAI8HAACQBwAAjwcAABoHAACQBwAAkAcAABoHAAAjBwAAIwcAACIHAACQBwAAkAcAACIHAAAhBwAAkAcAACEHAACRBwAAkQcAACEHAAAgBwAAkQcAACAHAACSBwAAkgcAACAHAACTBwAAkwcAACAHAAAfBwAAkwcAAB8HAACKBwAAigcAAB8HAACLBwAAiwcAAB8HAAAvBwAAiwcAAC8HAACGBwAAhgcAAC8HAAAuBwAAhgcAAC4HAACHBwAAhwcAAC4HAAAtBwAAhwcAAC0HAAAsBwAAhwcAACwHAACBBwAAgQcAACwHAAArBwAAgQcAACsHAAAqBwAAgQcAACoHAACCBwAAggcAACoHAAA7BwAAggcAADsHAAA6BwAAggcAADoHAACDBwAAgwcAADoHAAA5BwAAgwcAADkHAAA4BwAAgwcAADgHAAB8BwAAfAcAADgHAAA3BwAAfAcAADcHAAB9BwAAfQcAADcHAAA2BwAAfQcAADYHAAB0BwAAdAcAADYHAAA/BwAAdAcAAD8HAAB1BwAAdQcAAD8HAAA+BwAAdQcAAD4HAAB2BwAAdgcAAD4HAABFBwAAdgcAAEUHAAB3BwAAdwcAAEUHAAB4BwAAeAcAAEUHAABEBwAAeAcAAEQHAAB5BwAAeQcAAEQHAABoBwAAaAcAAEQHAABDBwAAaAcAAEMHAABpBwAAaQcAAEMHAABqBwAAagcAAEMHAABNBwAAagcAAE0HAABrBwAAawcAAE0HAABsBwAAbAcAAE0HAABMBwAAbAcAAEwHAABtBwAAbQcAAEwHAABLBwAAbQcAAEsHAABdBwAAXQcAAEsHAABKBwAAXQcAAEoHAABRBwAAXQcAAFEHAABeBwAAXgcAAFEHAABQBwAAXgcAAFAHAABfBwAAXwcAAFAHAABVBwAAXwcAAFUHAABgBwAAYAcAAFUHAABUBwAAYAcAAFQHAABhBwAAYQcAAFQHAABXBwAAlAcAAJUHAACdBwAAnQcAAJUHAACcBwAAnAcAAJUHAACWBwAAnAcAAJYHAACbBwAAmwcAAJYHAACXBwAAmwcAAJcHAACaBwAAmgcAAJcHAACYBwAAmgcAAJgHAACZBwAAngcAAJ8HAAClBwAApQcAAJ8HAACkBwAApAcAAJ8HAACgBwAApAcAAKAHAACjBwAAowcAAKAHAAChBwAAowcAAKEHAACiBwAAogcAAKEHAACUBwAAogcAAJQHAACdBwAApgcAAKcHAACtBwAArQcAAKcHAACsBwAArAcAAKcHAACoBwAArAcAAKgHAACrBwAAqwcAAKgHAACpBwAAqwcAAKkHAACqBwAAqgcAAKkHAACeBwAAqgcAAJ4HAAClBwAAmAcAAK4HAACZBwAAmQcAAK4HAACzBwAAswcAAK4HAACvBwAAswcAAK8HAACyBwAAsgcAAK8HAACwBwAAsgcAALAHAACxBwAAsQcAALAHAACmBwAAsQcAAKYHAACtBwAAtAcAALUHAAC5BwAAuQcAALUHAAC4BwAAuAcAALUHAAC2BwAAuAcAALYHAAC3BwAAtgcAALoHAAC3BwAAtwcAALoHAAC9BwAAvQcAALoHAAC7BwAAvQcAALsHAAC8BwAAuwcAAL4HAAC8BwAAvAcAAL4HAADFBwAAxQcAAL4HAAC/BwAAxQcAAL8HAADEBwAAxAcAAL8HAADABwAAxAcAAMAHAADDBwAAwwcAAMAHAADBBwAAwwcAAMEHAADCBwAAwQcAAMYHAADCBwAAwgcAAMYHAADJBwAAyQcAAMYHAADHBwAAyQcAAMcHAADIBwAAxwcAAMoHAADIBwAAyAcAAMoHAADNBwAAzQcAAMoHAADLBwAAzQcAAMsHAADMBwAAywcAAM4HAADMBwAAzAcAAM4HAADTBwAA0wcAAM4HAADPBwAA0wcAAM8HAADSBwAA0gcAAM8HAADQBwAA0gcAANAHAADRBwAA0QcAANAHAAC0BwAA0QcAALQHAAC5BwAAnAcAAMMHAACdBwAAnQcAAMMHAADCBwAAnQcAAMIHAADJBwAAwwcAAJwHAADEBwAAxAcAAJwHAACbBwAAxAcAAJsHAADFBwAAxQcAAJsHAACaBwAAxQcAAJoHAAC8BwAAvAcAAJoHAACZBwAAvAcAAJkHAACzBwAAvAcAALMHAAC9BwAAvQcAALMHAACyBwAAvQcAALIHAAC3BwAAtwcAALIHAACxBwAAtwcAALEHAAC4BwAAuAcAALEHAACtBwAAuAcAAK0HAAC5BwAAuQcAAK0HAADRBwAA0QcAAK0HAACsBwAA0QcAAKwHAADSBwAA0gcAAKwHAACrBwAA0gcAAKsHAADTBwAA0wcAAKsHAACqBwAA0wcAAKoHAADMBwAAzAcAAKoHAAClBwAAzAcAAKUHAACkBwAAzAcAAKQHAADNBwAAzQcAAKQHAACjBwAAzQcAAKMHAADIBwAAyAcAAKMHAACiBwAAyAcAAKIHAADJBwAAyQcAAKIHAACdBwAA1AcAANUHAADXBwAA1wcAANUHAADWBwAA1QcAANgHAADWBwAA1gcAANgHAADZBwAA2AcAANoHAADZBwAA2QcAANoHAADbBwAA2gcAANQHAADbBwAA2wcAANQHAADXBwAA2wcAANcHAADZBwAA2QcAANcHAADWBwAA3AcAAN0HAADhBwAA4QcAAN0HAADgBwAA4AcAAN0HAADeBwAA4AcAAN4HAADfBwAA4gcAAOMHAADlBwAA5QcAAOMHAADkBwAA5AcAAOMHAADcBwAA5AcAANwHAADhBwAA5gcAAOIHAADnBwAA5wcAAOIHAADlBwAA3gcAAOgHAADfBwAA3wcAAOgHAADtBwAA7QcAAOgHAADpBwAA7QcAAOkHAADsBwAA7AcAAOkHAADqBwAA7AcAAOoHAADrBwAA6wcAAOoHAADmBwAA6wcAAOYHAADnBwAA7gcAAO8HAADxBwAA8QcAAO8HAADwBwAA7wcAAPIHAADwBwAA8AcAAPIHAAD9BwAA/QcAAPIHAADzBwAA/QcAAPMHAAD8BwAA/AcAAPMHAAD0BwAA/AcAAPQHAAD7BwAA+wcAAPQHAAD1BwAA+wcAAPUHAAD6BwAA+gcAAPUHAAD2BwAA+gcAAPYHAAD5BwAA+QcAAPYHAAD3BwAA+QcAAPcHAAD4BwAA9wcAAP4HAAD4BwAA+AcAAP4HAAAFCAAABQgAAP4HAAD/BwAABQgAAP8HAAAECAAABAgAAP8HAAAACAAABAgAAAAIAAADCAAAAwgAAAAIAAABCAAAAwgAAAEIAAACCAAAAQgAAAYIAAACCAAAAggAAAYIAAARCAAAEQgAAAYIAAAHCAAAEQgAAAcIAAAQCAAAEAgAAAcIAAAICAAAEAgAAAgIAAAPCAAADwgAAAgIAAAJCAAADwgAAAkIAAAOCAAADggAAAkIAAAKCAAADggAAAoIAAANCAAADQgAAAoIAAALCAAADQgAAAsIAAAMCAAACwgAABIIAAAMCAAADAgAABIIAAAZCAAAGQgAABIIAAATCAAAGQgAABMIAAAYCAAAGAgAABMIAAAUCAAAGAgAABQIAAAXCAAAFwgAABQIAAAVCAAAFwgAABUIAAAWCAAAFQgAABoIAAAWCAAAFggAABoIAAAbCAAAGggAABwIAAAbCAAAGwgAABwIAAAdCAAAHAgAAB4IAAAdCAAAHQgAAB4IAAAfCAAAHggAACAIAAAfCAAAHwgAACAIAAAjCAAAIwgAACAIAAAhCAAAIwgAACEIAAAiCAAAIQgAACQIAAAiCAAAIggAACQIAAAnCAAAJwgAACQIAAAlCAAAJwgAACUIAAAmCAAAJQgAAO4HAAAmCAAAJggAAO4HAADxBwAA4AcAAAUIAADhBwAA4QcAAAUIAAAECAAA4QcAAAQIAADkBwAA5AcAAAQIAAADCAAA5AcAAAMIAADlBwAA5QcAAAMIAAACCAAA5QcAAAIIAAAmCAAAJggAAAIIAAARCAAAJggAABEIAAAQCAAABQgAAOAHAAD4BwAA+AcAAOAHAADfBwAA+AcAAN8HAADtBwAA+AcAAO0HAAD5BwAA+QcAAO0HAADsBwAA+QcAAOwHAAD6BwAA+gcAAOwHAAD7BwAA+wcAAOwHAADrBwAA+wcAAOsHAAD8BwAA/AcAAOsHAADnBwAA/AcAAOcHAAD9BwAA/QcAAOcHAADwBwAA8AcAAOcHAADxBwAA8QcAAOcHAAAmCAAAJggAAOcHAADlBwAAJggAABAIAAAnCAAAJwgAABAIAAAPCAAAJwgAAA8IAAAiCAAAIggAAA8IAAAOCAAAIggAAA4IAAANCAAAIggAAA0IAAAjCAAAIwgAAA0IAAAMCAAAIwgAAAwIAAAfCAAAHwgAAAwIAAAZCAAAHwgAABkIAAAdCAAAHQgAABkIAAAYCAAAHQgAABgIAAAbCAAAGwgAABgIAAAXCAAAGwgAABcIAAAWCAAAKAgAACkIAAAxCAAAMQgAACkIAAAwCAAAMAgAACkIAAAqCAAAMAgAACoIAAAvCAAALwgAACoIAAArCAAALwgAACsIAAAuCAAALggAACsIAAAsCAAALggAACwIAAAtCAAAMggAADMIAAA5CAAAOQgAADMIAAA4CAAAOAgAADMIAAA0CAAAOAgAADQIAAA3CAAANwgAADQIAAA1CAAANwgAADUIAAA2CAAANggAADUIAAAoCAAANggAACgIAAAxCAAAOggAADsIAABBCAAAQQgAADsIAABACAAAQAgAADsIAAA8CAAAQAgAADwIAAA/CAAAPwgAADwIAAA9CAAAPwgAAD0IAAA+CAAAPggAAD0IAAAyCAAAPggAADIIAAA5CAAALAgAAEIIAAAtCAAALQgAAEIIAABHCAAARwgAAEIIAABDCAAARwgAAEMIAABGCAAARggAAEMIAABECAAARggAAEQIAABFCAAARQgAAEQIAAA6CAAARQgAADoIAABBCAAASAgAAEkIAABLCAAASwgAAEkIAABKCAAASQgAAEwIAABKCAAASggAAEwIAABTCAAAUwgAAEwIAABNCAAAUwgAAE0IAABSCAAAUggAAE0IAABOCAAAUggAAE4IAABRCAAAUQgAAE4IAABPCAAAUQgAAE8IAABQCAAATwgAAFQIAABQCAAAUAgAAFQIAABbCAAAWwgAAFQIAABVCAAAWwgAAFUIAABaCAAAWggAAFUIAABWCAAAWggAAFYIAABZCAAAWQgAAFYIAABXCAAAWQgAAFcIAABYCAAAVwgAAFwIAABYCAAAWAgAAFwIAABfCAAAXwgAAFwIAABdCAAAXwgAAF0IAABeCAAAXQgAAGAIAABeCAAAXggAAGAIAABjCAAAYwgAAGAIAABhCAAAYwgAAGEIAABiCAAAYQgAAGQIAABiCAAAYggAAGQIAABlCAAAZAgAAGYIAABlCAAAZQgAAGYIAABnCAAAZggAAGgIAABnCAAAZwgAAGgIAABpCAAAaAgAAGoIAABpCAAAaQgAAGoIAABxCAAAcQgAAGoIAABrCAAAcQgAAGsIAABwCAAAcAgAAGsIAABsCAAAcAgAAGwIAABvCAAAbwgAAGwIAABtCAAAbwgAAG0IAABuCAAAbQgAAHIIAABuCAAAbggAAHIIAAB1CAAAdQgAAHIIAABzCAAAdQgAAHMIAAB0CAAAcwgAAHYIAAB0CAAAdAgAAHYIAAB5CAAAeQgAAHYIAAB3CAAAeQgAAHcIAAB4CAAAdwgAAHoIAAB4CAAAeAgAAHoIAAB7CAAAeggAAHwIAAB7CAAAewgAAHwIAAB9CAAAfAgAAH4IAAB9CAAAfQgAAH4IAACFCAAAhQgAAH4IAAB/CAAAhQgAAH8IAACECAAAhAgAAH8IAACACAAAhAgAAIAIAACDCAAAgwgAAIAIAACBCAAAgwgAAIEIAACCCAAAgQgAAIYIAACCCAAAgggAAIYIAACNCAAAjQgAAIYIAACHCAAAjQgAAIcIAACMCAAAjAgAAIcIAACICAAAjAgAAIgIAACLCAAAiwgAAIgIAACJCAAAiwgAAIkIAACKCAAAiQgAAI4IAACKCAAAiggAAI4IAACPCAAAjggAAJAIAACPCAAAjwgAAJAIAACRCAAAkAgAAEgIAACRCAAAkQgAAEgIAABLCAAAMAgAAI8IAAAxCAAAMQgAAI8IAACRCAAAMQgAAJEIAAA2CAAANggAAJEIAABKCAAANggAAEoIAAA3CAAANwgAAEoIAAA4CAAAOAgAAEoIAABTCAAAOAgAAFMIAAA5CAAAOQgAAFMIAABSCAAAOQgAAFIIAABRCAAAjwgAADAIAABnCAAAZwgAADAIAAAvCAAAZwgAAC8IAAAuCAAAZwgAAC4IAABlCAAAZQgAAC4IAAAtCAAAZQgAAC0IAABHCAAARggAAGMIAABHCAAARwgAAGMIAABiCAAARwgAAGIIAABlCAAAYwgAAEYIAABeCAAAXggAAEYIAABFCAAAXggAAEUIAABfCAAAXwgAAEUIAABBCAAAXwgAAEEIAABYCAAAWAgAAEEIAABACAAAWAgAAEAIAABZCAAAWQgAAEAIAABaCAAAWggAAEAIAAA/CAAAWggAAD8IAABbCAAAWwgAAD8IAAA+CAAAWwgAAD4IAABQCAAAUAgAAD4IAABRCAAAUQgAAD4IAAA5CAAAkQgAAEsIAABKCAAAZwgAAGkIAACPCAAAjwgAAGkIAACKCAAAiggAAGkIAABxCAAAiggAAHEIAACLCAAAiwgAAHEIAACMCAAAjAgAAHEIAABwCAAAjAgAAHAIAACNCAAAjQgAAHAIAABvCAAAjQgAAG8IAACCCAAAgggAAG8IAABuCAAAgggAAG4IAAB1CAAAgggAAHUIAACDCAAAgwgAAHUIAAB0CAAAgwgAAHQIAAB5CAAAgwgAAHkIAACECAAAhAgAAHkIAAB4CAAAhAgAAHgIAACFCAAAhQgAAHgIAAB9CAAAfQgAAHgIAAB7CAAAkggAAJMIAACVCAAAlQgAAJMIAACUCAAAkwgAAJYIAACUCAAAlAgAAJYIAACXCAAAlggAAJgIAACXCAAAlwgAAJgIAACZCAAAmAgAAJIIAACZCAAAmQgAAJIIAACVCAAAlQgAAJQIAACZCAAAmQgAAJQIAACXCAAAmggAAJsIAACdCAAAnQgAAJsIAACcCAAAmwgAAJ4IAACcCAAAnAgAAJ4IAACfCAAAnggAAKAIAACfCAAAnwgAAKAIAACnCAAApwgAAKAIAAChCAAApwgAAKEIAACmCAAApggAAKEIAACiCAAApggAAKIIAAClCAAApQgAAKIIAACjCAAApQgAAKMIAACkCAAAowgAAKgIAACkCAAApAgAAKgIAACpCAAAqAgAAKoIAACpCAAAqQgAAKoIAACxCAAAsQgAAKoIAACrCAAAsQgAAKsIAACwCAAAsAgAAKsIAACsCAAAsAgAAKwIAACvCAAArwgAAKwIAACtCAAArwgAAK0IAACuCAAArQgAALIIAACuCAAArggAALIIAACzCAAAsggAAJoIAACzCAAAswgAAJoIAACdCAAAswgAAJ0IAACuCAAArggAAJ0IAACfCAAArggAAJ8IAACvCAAArwgAAJ8IAACwCAAAsAgAAJ8IAACnCAAAsAgAAKcIAACmCAAAnQgAAJwIAACfCAAAsAgAAKYIAACxCAAAsQgAAKYIAAClCAAAsQgAAKUIAACpCAAAqQgAAKUIAACkCAAAtAgAALUIAAC3CAAAtwgAALUIAAC2CAAAtQgAALgIAAC2CAAAtggAALgIAAC5CAAAuAgAALoIAAC5CAAAuQgAALoIAAC7CAAAuggAALwIAAC7CAAAuwgAALwIAAC9CAAAvAgAAL4IAAC9CAAAvQgAAL4IAAC/CAAAvggAALQIAAC/CAAAvwgAALQIAAC3CAAAvwgAALcIAAC9CAAAvQgAALcIAAC2CAAAvQgAALYIAAC5CAAAuQgAALsIAAC9CAAAwAgAAMEIAADDCAAAwwgAAMEIAADCCAAAwQgAAMQIAADCCAAAwggAAMQIAADFCAAAxAgAAMYIAADFCAAAxQgAAMYIAADHCAAAxggAAMAIAADHCAAAxwgAAMAIAADDCAAAxwgAAMMIAADFCAAAxQgAAMMIAADCCAAAyAgAAMkIAADLCAAAywgAAMkIAADKCAAAyQgAAMwIAADKCAAAyggAAMwIAADNCAAAzAgAAM4IAADNCAAAzQgAAM4IAADPCAAAzggAANAIAADPCAAAzwgAANAIAADXCAAA1wgAANAIAADRCAAA1wgAANEIAADWCAAA1ggAANEIAADSCAAA1ggAANIIAADVCAAA1QgAANIIAADTCAAA1QgAANMIAADUCAAA0wgAANgIAADUCAAA1AgAANgIAADfCAAA3wgAANgIAADZCAAA3wgAANkIAADeCAAA3ggAANkIAADaCAAA3ggAANoIAADdCAAA3QgAANoIAADbCAAA3QgAANsIAADcCAAA2wgAAOAIAADcCAAA3AgAAOAIAADhCAAA4AgAAOIIAADhCAAA4QgAAOIIAADjCAAA4ggAAOQIAADjCAAA4wgAAOQIAADlCAAA5AgAAOYIAADlCAAA5QgAAOYIAADtCAAA7QgAAOYIAADnCAAA7QgAAOcIAADsCAAA7AgAAOcIAADoCAAA7AgAAOgIAADrCAAA6wgAAOgIAADpCAAA6wgAAOkIAADqCAAA6QgAAO4IAADqCAAA6ggAAO4IAAD1CAAA9QgAAO4IAADvCAAA9QgAAO8IAAD0CAAA9AgAAO8IAADwCAAA9AgAAPAIAADzCAAA8wgAAPAIAADxCAAA8wgAAPEIAADyCAAA8QgAAPYIAADyCAAA8ggAAPYIAAD3CAAA9ggAAMgIAAD3CAAA9wgAAMgIAADLCAAA9wgAAMsIAADyCAAA8ggAAMsIAADXCAAA8ggAANcIAADWCAAA1wgAAMsIAADPCAAAzwgAAMsIAADKCAAAzwgAAMoIAADNCAAA1ggAANUIAADyCAAA8ggAANUIAADzCAAA8wgAANUIAADUCAAA8wgAANQIAAD0CAAA9AgAANQIAADfCAAA9AgAAN8IAAD1CAAA9QgAAN8IAADqCAAA6ggAAN8IAADeCAAA6ggAAN4IAADrCAAA6wgAAN4IAADsCAAA7AgAAN4IAADtCAAA7QgAAN4IAADdCAAA7QgAAN0IAADlCAAA5QgAAN0IAADcCAAA5QgAANwIAADjCAAA4wgAANwIAADhCAAA+AgAAPkIAAD7CAAA+wgAAPkIAAD6CAAA+QgAAPwIAAD6CAAA+ggAAPwIAAD9CAAA/AgAAP4IAAD9CAAA/QgAAP4IAAD/CAAA/ggAAPgIAAD/CAAA/wgAAPgIAAD7CAAA+wgAAPoIAAD/CAAA/wgAAPoIAAD9CAAAAAkAAAEJAAADCQAAAwkAAAEJAAACCQAAAQkAAAQJAAACCQAAAgkAAAQJAAAFCQAABAkAAAYJAAAFCQAABQkAAAYJAAAHCQAABgkAAAgJAAAHCQAABwkAAAgJAAAPCQAADwkAAAgJAAAJCQAADwkAAAkJAAAOCQAADgkAAAkJAAAKCQAADgkAAAoJAAANCQAADQkAAAoJAAALCQAADQkAAAsJAAAMCQAACwkAABAJAAAMCQAADAkAABAJAAAXCQAAFwkAABAJAAARCQAAFwkAABEJAAAWCQAAFgkAABEJAAASCQAAFgkAABIJAAAVCQAAFQkAABIJAAATCQAAFQkAABMJAAAUCQAAEwkAABgJAAAUCQAAFAkAABgJAAAZCQAAGAkAABoJAAAZCQAAGQkAABoJAAAbCQAAGgkAABwJAAAbCQAAGwkAABwJAAAdCQAAHAkAAB4JAAAdCQAAHQkAAB4JAAAlCQAAJQkAAB4JAAAfCQAAJQkAAB8JAAAkCQAAJAkAAB8JAAAgCQAAJAkAACAJAAAjCQAAIwkAACAJAAAhCQAAIwkAACEJAAAiCQAAIQkAACYJAAAiCQAAIgkAACYJAAAtCQAALQkAACYJAAAnCQAALQkAACcJAAAsCQAALAkAACcJAAAoCQAALAkAACgJAAArCQAAKwkAACgJAAApCQAAKwkAACkJAAAqCQAAKQkAAC4JAAAqCQAAKgkAAC4JAAAvCQAALgkAAAAJAAAvCQAALwkAAAAJAAADCQAALwkAAAMJAAAqCQAAKgkAAAMJAAAPCQAAKgkAAA8JAAAOCQAADwkAAAMJAAAHCQAABwkAAAMJAAACCQAABwkAAAIJAAAFCQAADgkAAA0JAAAqCQAAKgkAAA0JAAArCQAAKwkAAA0JAAAMCQAAKwkAAAwJAAAsCQAALAkAAAwJAAAXCQAALAkAABcJAAAtCQAALQkAABcJAAAiCQAAIgkAABcJAAAWCQAAIgkAABYJAAAjCQAAIwkAABYJAAAkCQAAJAkAABYJAAAlCQAAJQkAABYJAAAVCQAAJQkAABUJAAAdCQAAHQkAABUJAAAUCQAAHQkAABQJAAAbCQAAGwkAABQJAAAZCQAAMAkAADEJAAAzCQAAMwkAADEJAAAyCQAAMQkAADQJAAAyCQAAMgkAADQJAAA1CQAANAkAADYJAAA1CQAANQkAADYJAAA3CQAANgkAADAJAAA3CQAANwkAADAJAAAzCQAAMwkAADIJAAA3CQAANwkAADIJAAA1CQAAOAkAADkJAAA7CQAAOwkAADkJAAA6CQAAOQkAADwJAAA6CQAAOgkAADwJAAA9CQAAPAkAAD4JAAA9CQAAPQkAAD4JAAA/CQAAPgkAADgJAAA/CQAAPwkAADgJAAA7CQAAOwkAADoJAAA/CQAAPwkAADoJAAA9CQAAQAkAAEEJAABDCQAAQwkAAEEJAABCCQAAQQkAAEQJAABCCQAAQgkAAEQJAABFCQAARAkAAEYJAABFCQAARQkAAEYJAABHCQAARgkAAEgJAABHCQAARwkAAEgJAABJCQAASAkAAEoJAABJCQAASQkAAEoJAABLCQAASgkAAEwJAABLCQAASwkAAEwJAABNCQAATAkAAE4JAABNCQAATQkAAE4JAABZCQAAWQkAAE4JAABPCQAAWQkAAE8JAABYCQAAWAkAAE8JAABQCQAAWAkAAFAJAABXCQAAVwkAAFAJAABRCQAAVwkAAFEJAABWCQAAVgkAAFEJAABSCQAAVgkAAFIJAABVCQAAVQkAAFIJAABTCQAAVQkAAFMJAABUCQAAUwkAAFoJAABUCQAAVAkAAFoJAABbCQAAWgkAAFwJAABbCQAAWwkAAFwJAABdCQAAXAkAAF4JAABdCQAAXQkAAF4JAABfCQAAXgkAAGAJAABfCQAAXwkAAGAJAABlCQAAZQkAAGAJAABhCQAAZQkAAGEJAABkCQAAZAkAAGEJAABiCQAAZAkAAGIJAABjCQAAYgkAAGYJAABjCQAAYwkAAGYJAABnCQAAZgkAAGgJAABnCQAAZwkAAGgJAABpCQAAaAkAAGoJAABpCQAAaQkAAGoJAABrCQAAagkAAGwJAABrCQAAawkAAGwJAABtCQAAbAkAAG4JAABtCQAAbQkAAG4JAABvCQAAbgkAAEAJAABvCQAAbwkAAEAJAABDCQAAQwkAAEIJAABvCQAAbwkAAEIJAABFCQAAbwkAAEUJAABLCQAASwkAAEUJAABJCQAASQkAAEUJAABHCQAAbwkAAEsJAABpCQAAaQkAAEsJAABNCQAAaQkAAE0JAABnCQAAZwkAAE0JAABZCQAAZwkAAFkJAABjCQAAYwkAAFkJAABYCQAAYwkAAFgJAABXCQAAVwkAAFYJAABjCQAAYwkAAFYJAABVCQAAYwkAAFUJAABkCQAAZAkAAFUJAABUCQAAZAkAAFQJAABlCQAAZQkAAFQJAABfCQAAXwkAAFQJAABbCQAAXwkAAFsJAABdCQAAawkAAG0JAABpCQAAaQkAAG0JAABvCQAAcAkAAHEJAABzCQAAcwkAAHEJAAByCQAAcQkAAHQJAAByCQAAcgkAAHQJAAB1CQAAdAkAAHYJAAB1CQAAdQkAAHYJAAB3CQAAdgkAAHAJAAB3CQAAdwkAAHAJAABzCQAAdwkAAHMJAAB1CQAAdQkAAHMJAAByCQAAeAkAAHkJAAB7CQAAewkAAHkJAAB6CQAAeQkAAHwJAAB6CQAAegkAAHwJAAB9CQAAfAkAAH4JAAB9CQAAfQkAAH4JAAB/CQAAfgkAAIAJAAB/CQAAfwkAAIAJAACHCQAAhwkAAIAJAACBCQAAhwkAAIEJAACGCQAAhgkAAIEJAACCCQAAhgkAAIIJAACFCQAAhQkAAIIJAACDCQAAhQkAAIMJAACECQAAgwkAAIgJAACECQAAhAkAAIgJAACPCQAAjwkAAIgJAACJCQAAjwkAAIkJAACOCQAAjgkAAIkJAACKCQAAjgkAAIoJAACNCQAAjQkAAIoJAACLCQAAjQkAAIsJAACMCQAAiwkAAJAJAACMCQAAjAkAAJAJAACRCQAAkAkAAJIJAACRCQAAkQkAAJIJAACTCQAAkgkAAJQJAACTCQAAkwkAAJQJAACVCQAAlAkAAJYJAACVCQAAlQkAAJYJAACdCQAAnQkAAJYJAACXCQAAnQkAAJcJAACcCQAAnAkAAJcJAACYCQAAnAkAAJgJAACbCQAAmwkAAJgJAACZCQAAmwkAAJkJAACaCQAAmQkAAJ4JAACaCQAAmgkAAJ4JAAClCQAApQkAAJ4JAACfCQAApQkAAJ8JAACkCQAApAkAAJ8JAACgCQAApAkAAKAJAACjCQAAowkAAKAJAAChCQAAowkAAKEJAACiCQAAoQkAAKYJAACiCQAAogkAAKYJAACnCQAApgkAAHgJAACnCQAApwkAAHgJAAB7CQAApwkAAHsJAACiCQAAogkAAHsJAACHCQAAogkAAIcJAACGCQAAhwkAAHsJAAB/CQAAfwkAAHsJAAB6CQAAfwkAAHoJAAB9CQAAhgkAAIUJAACiCQAAogkAAIUJAACjCQAAowkAAIUJAACECQAAowkAAIQJAACkCQAApAkAAIQJAACPCQAApAkAAI8JAAClCQAApQkAAI8JAACaCQAAmgkAAI8JAACOCQAAmgkAAI4JAACbCQAAmwkAAI4JAACcCQAAnAkAAI4JAACdCQAAnQkAAI4JAACNCQAAnQkAAI0JAACVCQAAlQkAAI0JAACMCQAAlQkAAIwJAACTCQAAkwkAAIwJAACRCQAAqAkAAKkJAACxCQAAsQkAAKkJAACwCQAAsAkAAKkJAACqCQAAsAkAAKoJAACvCQAArwkAAKoJAACrCQAArwkAAKsJAACuCQAArgkAAKsJAACsCQAArgkAAKwJAACtCQAArAkAALIJAACtCQAArQkAALIJAAC9CQAAvQkAALIJAACzCQAAvQkAALMJAAC8CQAAvAkAALMJAAC0CQAAvAkAALQJAAC7CQAAuwkAALQJAAC1CQAAuwkAALUJAAC6CQAAugkAALUJAAC2CQAAugkAALYJAAC5CQAAuQkAALYJAAC3CQAAuQkAALcJAAC4CQAAtwkAAL4JAAC4CQAAuAkAAL4JAADJCQAAyQkAAL4JAAC/CQAAyQkAAL8JAADICQAAyAkAAL8JAADACQAAyAkAAMAJAADHCQAAxwkAAMAJAADBCQAAxwkAAMEJAADGCQAAxgkAAMEJAADCCQAAxgkAAMIJAADFCQAAxQkAAMIJAADDCQAAxQkAAMMJAADECQAAwwkAAMoJAADECQAAxAkAAMoJAADNCQAAzQkAAMoJAADLCQAAzQkAAMsJAADMCQAAywkAAM4JAADMCQAAzAkAAM4JAADTCQAA0wkAAM4JAADPCQAA0wkAAM8JAADSCQAA0gkAAM8JAADQCQAA0gkAANAJAADRCQAA0AkAANQJAADRCQAA0QkAANQJAADbCQAA2wkAANQJAADVCQAA2wkAANUJAADaCQAA2gkAANUJAADWCQAA2gkAANYJAADZCQAA2QkAANYJAADXCQAA2QkAANcJAADYCQAA1wkAANwJAADYCQAA2AkAANwJAADfCQAA3wkAANwJAADdCQAA3wkAAN0JAADeCQAA3QkAAOAJAADeCQAA3gkAAOAJAADjCQAA4wkAAOAJAADhCQAA4wkAAOEJAADiCQAA4QkAAOQJAADiCQAA4gkAAOQJAADlCQAA5AkAAOYJAADlCQAA5QkAAOYJAADvCQAA7wkAAOYJAADnCQAA7wkAAOcJAADuCQAA7gkAAOcJAADoCQAA7gkAAOgJAADtCQAA7QkAAOgJAADpCQAA7QkAAOkJAADsCQAA7AkAAOkJAADqCQAA7AkAAOoJAADrCQAA6gkAAPAJAADrCQAA6wkAAPAJAAD7CQAA+wkAAPAJAADxCQAA+wkAAPEJAAD6CQAA+gkAAPEJAADyCQAA+gkAAPIJAAD5CQAA+QkAAPIJAADzCQAA+QkAAPMJAAD4CQAA+AkAAPMJAAD0CQAA+AkAAPQJAAD3CQAA9wkAAPQJAAD1CQAA9wkAAPUJAAD2CQAA9QkAAPwJAAD2CQAA9gkAAPwJAAAHCgAABwoAAPwJAAD9CQAABwoAAP0JAAAGCgAABgoAAP0JAAD+CQAABgoAAP4JAAAFCgAABQoAAP4JAAD/CQAABQoAAP8JAAAECgAABAoAAP8JAAAACgAABAoAAAAKAAADCgAAAwoAAAAKAAABCgAAAwoAAAEKAAACCgAAAQoAAAgKAAACCgAAAgoAAAgKAAALCgAACwoAAAgKAAAJCgAACwoAAAkKAAAKCgAACQoAAAwKAAAKCgAACgoAAAwKAAARCgAAEQoAAAwKAAANCgAAEQoAAA0KAAAQCgAAEAoAAA0KAAAOCgAAEAoAAA4KAAAPCgAADgoAABIKAAAPCgAADwoAABIKAAAVCgAAFQoAABIKAAATCgAAFQoAABMKAAAUCgAAEwoAABYKAAAUCgAAFAoAABYKAAAZCgAAGQoAABYKAAAXCgAAGQoAABcKAAAYCgAAFwoAABoKAAAYCgAAGAoAABoKAAAhCgAAIQoAABoKAAAbCgAAIQoAABsKAAAgCgAAIAoAABsKAAAcCgAAIAoAABwKAAAfCgAAHwoAABwKAAAdCgAAHwoAAB0KAAAeCgAAHQoAAKgJAAAeCgAAHgoAAKgJAACxCQAAsQkAALAJAAAeCgAAHgoAALAJAACvCQAAHgoAAK8JAAAfCgAAHwoAAK8JAACuCQAAHwoAAK4JAAAgCgAAIAoAAK4JAAAhCgAAIQoAAK4JAACtCQAAIQoAAK0JAAAYCgAAGAoAAK0JAAAZCgAAGQoAAK0JAAC9CQAAGQoAAL0JAAAUCgAAFAoAAL0JAAC8CQAAFAoAALwJAAAVCgAAFQoAALwJAAC7CQAAFQoAALsJAAC6CQAAFQoAALoJAAAPCgAADwoAALoJAAC5CQAADwoAALkJAAC4CQAADwoAALgJAAAQCgAAEAoAALgJAADJCQAAEAoAAMkJAADICQAAEAoAAMgJAAARCgAAEQoAAMgJAADHCQAAEQoAAMcJAADGCQAAEQoAAMYJAAAKCgAACgoAAMYJAADFCQAACgoAAMUJAAALCgAACwoAAMUJAADECQAACwoAAMQJAAACCgAAAgoAAMQJAADNCQAAAgoAAM0JAAADCgAAAwoAAM0JAADMCQAAAwoAAMwJAAAECgAABAoAAMwJAADTCQAABAoAANMJAAAFCgAABQoAANMJAAAGCgAABgoAANMJAADSCQAABgoAANIJAAAHCgAABwoAANIJAAD2CQAA9gkAANIJAADRCQAA9gkAANEJAAD3CQAA9wkAANEJAAD4CQAA+AkAANEJAADbCQAA+AkAANsJAAD5CQAA+QkAANsJAAD6CQAA+gkAANsJAADaCQAA+gkAANoJAAD7CQAA+wkAANoJAADZCQAA+wkAANkJAADrCQAA6wkAANkJAADYCQAA6wkAANgJAADfCQAA6wkAAN8JAADsCQAA7AkAAN8JAADeCQAA7AkAAN4JAADtCQAA7QkAAN4JAADjCQAA7QkAAOMJAADuCQAA7gkAAOMJAADiCQAA7gkAAOIJAADvCQAA7wkAAOIJAADlCQAAIgoAACMKAAAnCgAAJwoAACMKAAAmCgAAJgoAACMKAAAkCgAAJgoAACQKAAAlCgAAKAoAACkKAAArCgAAKwoAACkKAAAqCgAAKgoAACkKAAAiCgAAKgoAACIKAAAnCgAALAoAAC0KAAAzCgAAMwoAAC0KAAAyCgAAMgoAAC0KAAAuCgAAMgoAAC4KAAAxCgAAMQoAAC4KAAAvCgAAMQoAAC8KAAAwCgAAMAoAAC8KAAAoCgAAMAoAACgKAAArCgAANAoAADUKAAA9CgAAPQoAADUKAAA8CgAAPAoAADUKAAA2CgAAPAoAADYKAAA7CgAAOwoAADYKAAA3CgAAOwoAADcKAAA6CgAAOgoAADcKAAA4CgAAOgoAADgKAAA5CgAAOQoAADgKAAAsCgAAOQoAACwKAAAzCgAAPgoAADQKAAA/CgAAPwoAADQKAAA9CgAAJAoAAD4KAAAlCgAAJQoAAD4KAAA/CgAAQAoAAEEKAABFCgAARQoAAEEKAABECgAARAoAAEEKAABCCgAARAoAAEIKAABDCgAAQgoAAEYKAABDCgAAQwoAAEYKAABJCgAASQoAAEYKAABHCgAASQoAAEcKAABICgAARwoAAEoKAABICgAASAoAAEoKAABRCgAAUQoAAEoKAABLCgAAUQoAAEsKAABQCgAAUAoAAEsKAABMCgAAUAoAAEwKAABPCgAATwoAAEwKAABNCgAATwoAAE0KAABOCgAATQoAAFIKAABOCgAATgoAAFIKAABZCgAAWQoAAFIKAABTCgAAWQoAAFMKAABYCgAAWAoAAFMKAABUCgAAWAoAAFQKAABXCgAAVwoAAFQKAABVCgAAVwoAAFUKAABWCgAAVQoAAFoKAABWCgAAVgoAAFoKAABdCgAAXQoAAFoKAABbCgAAXQoAAFsKAABcCgAAWwoAAF4KAABcCgAAXAoAAF4KAABhCgAAYQoAAF4KAABfCgAAYQoAAF8KAABgCgAAXwoAAGIKAABgCgAAYAoAAGIKAABpCgAAaQoAAGIKAABjCgAAaQoAAGMKAABoCgAAaAoAAGMKAABkCgAAaAoAAGQKAABnCgAAZwoAAGQKAABlCgAAZwoAAGUKAABmCgAAZQoAAGoKAABmCgAAZgoAAGoKAABrCgAAagoAAGwKAABrCgAAawoAAGwKAABtCgAAbAoAAG4KAABtCgAAbQoAAG4KAAB1CgAAdQoAAG4KAABvCgAAdQoAAG8KAAB0CgAAdAoAAG8KAABwCgAAdAoAAHAKAABzCgAAcwoAAHAKAABxCgAAcwoAAHEKAAByCgAAcQoAAHYKAAByCgAAcgoAAHYKAAB3CgAAdgoAAHgKAAB3CgAAdwoAAHgKAAB/CgAAfwoAAHgKAAB5CgAAfwoAAHkKAAB+CgAAfgoAAHkKAAB6CgAAfgoAAHoKAAB9CgAAfQoAAHoKAAB7CgAAfQoAAHsKAAB8CgAAewoAAIAKAAB8CgAAfAoAAIAKAACBCgAAgAoAAIIKAACBCgAAgQoAAIIKAACJCgAAiQoAAIIKAACDCgAAiQoAAIMKAACICgAAiAoAAIMKAACECgAAiAoAAIQKAACHCgAAhwoAAIQKAACFCgAAhwoAAIUKAACGCgAAhQoAAIoKAACGCgAAhgoAAIoKAACRCgAAkQoAAIoKAACLCgAAkQoAAIsKAACQCgAAkAoAAIsKAACMCgAAkAoAAIwKAACPCgAAjwoAAIwKAACNCgAAjwoAAI0KAACOCgAAjQoAAJIKAACOCgAAjgoAAJIKAACZCgAAmQoAAJIKAACTCgAAmQoAAJMKAACYCgAAmAoAAJMKAACUCgAAmAoAAJQKAACXCgAAlwoAAJQKAACVCgAAlwoAAJUKAACWCgAAlQoAAJoKAACWCgAAlgoAAJoKAAChCgAAoQoAAJoKAACbCgAAoQoAAJsKAACgCgAAoAoAAJsKAACcCgAAoAoAAJwKAACfCgAAnwoAAJwKAACdCgAAnwoAAJ0KAACeCgAAnQoAAEAKAACeCgAAngoAAEAKAABFCgAAKgoAACcKAABWCgAAVgoAACcKAAAmCgAAVgoAACYKAABXCgAAVwoAACYKAAAlCgAAVwoAACUKAABYCgAAWAoAACUKAAA/CgAAWAoAAD8KAABZCgAAWQoAAD8KAABOCgAATgoAAD8KAACBCgAATgoAAIEKAACJCgAAPwoAAD0KAACBCgAAgQoAAD0KAAB8CgAAfAoAAD0KAAA8CgAAfAoAADwKAAA7CgAAfAoAADsKAABtCgAAbQoAADsKAAA6CgAAbQoAADoKAAA5CgAAbQoAADkKAABrCgAAawoAADkKAAAzCgAAawoAADMKAABmCgAAZgoAADMKAAAyCgAAZgoAADIKAAAxCgAAZgoAADEKAABnCgAAZwoAADEKAAAwCgAAZwoAADAKAABoCgAAaAoAADAKAABpCgAAaQoAADAKAAArCgAAaQoAACsKAABgCgAAYAoAACsKAABhCgAAYQoAACsKAABcCgAAXAoAACsKAAAqCgAAXAoAACoKAABdCgAAXQoAACoKAABWCgAAngoAAEUKAACfCgAAnwoAAEUKAACgCgAAoAoAAEUKAABECgAAoAoAAEQKAAChCgAAoQoAAEQKAACWCgAAlgoAAEQKAACXCgAAlwoAAEQKAABDCgAAlwoAAEMKAACYCgAAmAoAAEMKAACZCgAAmQoAAEMKAABJCgAAmQoAAEkKAACOCgAAjgoAAEkKAABICgAAjgoAAEgKAACPCgAAjwoAAEgKAABRCgAAjwoAAFEKAACQCgAAkAoAAFEKAABQCgAAkAoAAFAKAACRCgAAkQoAAFAKAABPCgAAkQoAAE8KAACGCgAAhgoAAE8KAACHCgAAhwoAAE8KAACICgAAiAoAAE8KAABOCgAAiAoAAE4KAACJCgAAfAoAAG0KAAB9CgAAfQoAAG0KAAB1CgAAfQoAAHUKAAB0CgAAdAoAAHMKAAB9CgAAfQoAAHMKAAB+CgAAfgoAAHMKAAByCgAAfgoAAHIKAAB/CgAAfwoAAHIKAAB3CgAAogoAAKMKAACrCgAAqwoAAKMKAACqCgAAqgoAAKMKAACkCgAAqgoAAKQKAACpCgAAqQoAAKQKAAClCgAAqQoAAKUKAACoCgAAqAoAAKUKAACmCgAAqAoAAKYKAACnCgAArAoAAK0KAACzCgAAswoAAK0KAACyCgAAsgoAAK0KAACuCgAAsgoAAK4KAACxCgAAsQoAAK4KAACvCgAAsQoAAK8KAACwCgAAsAoAAK8KAACiCgAAsAoAAKIKAACrCgAAtAoAALUKAAC7CgAAuwoAALUKAAC6CgAAugoAALUKAAC2CgAAugoAALYKAAC5CgAAuQoAALYKAAC3CgAAuQoAALcKAAC4CgAAuAoAALcKAACsCgAAuAoAAKwKAACzCgAApgoAALwKAACnCgAApwoAALwKAADBCgAAwQoAALwKAAC9CgAAwQoAAL0KAADACgAAwAoAAL0KAAC+CgAAwAoAAL4KAAC/CgAAvwoAAL4KAAC0CgAAvwoAALQKAAC7CgAAwgoAAMMKAADFCgAAxQoAAMMKAADECgAAwwoAAMYKAADECgAAxAoAAMYKAADHCgAAxgoAAMgKAADHCgAAxwoAAMgKAADLCgAAywoAAMgKAADJCgAAywoAAMkKAADKCgAAyQoAAMwKAADKCgAAygoAAMwKAADTCgAA0woAAMwKAADNCgAA0woAAM0KAADSCgAA0goAAM0KAADOCgAA0goAAM4KAADRCgAA0QoAAM4KAADPCgAA0QoAAM8KAADQCgAAzwoAANQKAADQCgAA0AoAANQKAADbCgAA2woAANQKAADVCgAA2woAANUKAADaCgAA2goAANUKAADWCgAA2goAANYKAADZCgAA2QoAANYKAADXCgAA2QoAANcKAADYCgAA1woAANwKAADYCgAA2AoAANwKAADdCgAA3AoAAN4KAADdCgAA3QoAAN4KAADfCgAA3goAAOAKAADfCgAA3woAAOAKAADhCgAA4AoAAOIKAADhCgAA4QoAAOIKAADjCgAA4goAAMIKAADjCgAA4woAAMIKAADFCgAAqgoAANEKAACrCgAAqwoAANEKAADQCgAAqwoAANAKAADbCgAA0QoAAKoKAADSCgAA0goAAKoKAACpCgAA0goAAKkKAADTCgAA0woAAKkKAACoCgAA0woAAKgKAADKCgAAygoAAKgKAACnCgAAygoAAKcKAADLCgAAywoAAKcKAADBCgAAywoAAMEKAADHCgAAxwoAAMEKAADACgAAxwoAAMAKAAC/CgAAuwoAAOMKAAC/CgAAvwoAAOMKAADFCgAAvwoAAMUKAADHCgAAxwoAAMUKAADECgAAuwoAALoKAADjCgAA4woAALoKAADfCgAA4woAAN8KAADhCgAAugoAALkKAADfCgAA3woAALkKAAC4CgAA3woAALgKAADdCgAA3QoAALgKAACzCgAA3QoAALMKAACyCgAA3QoAALIKAADYCgAA2AoAALIKAACxCgAA2AoAALEKAADZCgAA2QoAALEKAADaCgAA2goAALEKAACwCgAA2goAALAKAADbCgAA2woAALAKAACrCgAA5AoAAOUKAADtCgAA7QoAAOUKAADsCgAA7AoAAOUKAADmCgAA7AoAAOYKAADrCgAA6woAAOYKAADnCgAA6woAAOcKAADqCgAA6goAAOcKAADoCgAA6goAAOgKAADpCgAA7goAAO8KAAD1CgAA9QoAAO8KAAD0CgAA9AoAAO8KAADwCgAA9AoAAPAKAADzCgAA8woAAPAKAADxCgAA8woAAPEKAADyCgAA8goAAPEKAADkCgAA8goAAOQKAADtCgAA9goAAPcKAAD9CgAA/QoAAPcKAAD8CgAA/AoAAPcKAAD4CgAA/AoAAPgKAAD7CgAA+woAAPgKAAD5CgAA+woAAPkKAAD6CgAA+goAAPkKAADuCgAA+goAAO4KAAD1CgAA6AoAAP4KAADpCgAA6QoAAP4KAAADCwAAAwsAAP4KAAD/CgAAAwsAAP8KAAACCwAAAgsAAP8KAAAACwAAAgsAAAALAAABCwAAAQsAAAALAAD2CgAAAQsAAPYKAAD9CgAABAsAAAULAAAHCwAABwsAAAULAAAGCwAABQsAAAgLAAAGCwAABgsAAAgLAAAJCwAACAsAAAoLAAAJCwAACQsAAAoLAAANCwAADQsAAAoLAAALCwAADQsAAAsLAAAMCwAACwsAAA4LAAAMCwAADAsAAA4LAAAVCwAAFQsAAA4LAAAPCwAAFQsAAA8LAAAUCwAAFAsAAA8LAAAQCwAAFAsAABALAAATCwAAEwsAABALAAARCwAAEwsAABELAAASCwAAEQsAABYLAAASCwAAEgsAABYLAAAdCwAAHQsAABYLAAAXCwAAHQsAABcLAAAcCwAAHAsAABcLAAAYCwAAHAsAABgLAAAbCwAAGwsAABgLAAAZCwAAGwsAABkLAAAaCwAAGQsAAB4LAAAaCwAAGgsAAB4LAAAfCwAAHgsAACALAAAfCwAAHwsAACALAAAhCwAAIAsAACILAAAhCwAAIQsAACILAAAjCwAAIgsAACQLAAAjCwAAIwsAACQLAAAlCwAAJAsAAAQLAAAlCwAAJQsAAAQLAAAHCwAA7AoAABILAADtCgAA7QoAABILAAAdCwAA7QoAAB0LAADyCgAA8goAAB0LAAAcCwAA8goAABwLAADzCgAA8woAABwLAAAbCwAA8woAABsLAAD0CgAA9AoAABsLAAAaCwAA9AoAABoLAAD1CgAA9QoAABoLAAAfCwAA9QoAAB8LAAD6CgAA+goAAB8LAAAhCwAA+goAACELAAD7CgAA+woAACELAAD8CgAA/AoAACELAAAlCwAA/AoAACULAAD9CgAA/QoAACULAAABCwAAAQsAACULAAAHCwAAAQsAAAcLAAAJCwAACQsAAAcLAAAGCwAA6woAABQLAADsCgAA7AoAABQLAAATCwAA7AoAABMLAAASCwAAFAsAAOsKAAAVCwAAFQsAAOsKAADqCgAAFQsAAOoKAAAMCwAADAsAAOoKAADpCgAADAsAAOkKAAANCwAADQsAAOkKAAAJCwAACQsAAOkKAAADCwAACQsAAAMLAAACCwAAAgsAAAELAAAJCwAAIQsAACMLAAAlCwAAJgsAACcLAAApCwAAKQsAACcLAAAoCwAAJwsAACoLAAAoCwAAKAsAACoLAAArCwAAKgsAACwLAAArCwAAKwsAACwLAAAtCwAALAsAAC4LAAAtCwAALQsAAC4LAAAxCwAAMQsAAC4LAAAvCwAAMQsAAC8LAAAwCwAALwsAADILAAAwCwAAMAsAADILAAA1CwAANQsAADILAAAzCwAANQsAADMLAAA0CwAAMwsAADYLAAA0CwAANAsAADYLAAA3CwAANgsAADgLAAA3CwAANwsAADgLAAA5CwAAOAsAADoLAAA5CwAAOQsAADoLAAA7CwAAOgsAADwLAAA7CwAAOwsAADwLAABDCwAAQwsAADwLAAA9CwAAQwsAAD0LAABCCwAAQgsAAD0LAAA+CwAAQgsAAD4LAABBCwAAQQsAAD4LAAA/CwAAQQsAAD8LAABACwAAPwsAAEQLAABACwAAQAsAAEQLAABFCwAARAsAACYLAABFCwAARQsAACYLAAApCwAARQsAACkLAABACwAAQAsAACkLAAAxCwAAQAsAADELAAAwCwAAKQsAACgLAAAxCwAAMQsAACgLAAAtCwAALQsAACgLAAArCwAAMAsAADULAABACwAAQAsAADULAABBCwAAQQsAADULAAA0CwAAQQsAADQLAABCCwAAQgsAADQLAABDCwAAQwsAADQLAAA7CwAAOwsAADQLAAA5CwAAOQsAADQLAAA3CwAARgsAAEcLAABJCwAASQsAAEcLAABICwAARwsAAEoLAABICwAASAsAAEoLAABLCwAASgsAAEwLAABLCwAASwsAAEwLAABNCwAATAsAAE4LAABNCwAATQsAAE4LAABVCwAAVQsAAE4LAABPCwAAVQsAAE8LAABUCwAAVAsAAE8LAABQCwAAVAsAAFALAABTCwAAUwsAAFALAABRCwAAUwsAAFELAABSCwAAUQsAAFYLAABSCwAAUgsAAFYLAABdCwAAXQsAAFYLAABXCwAAXQsAAFcLAABcCwAAXAsAAFcLAABYCwAAXAsAAFgLAABbCwAAWwsAAFgLAABZCwAAWwsAAFkLAABaCwAAWQsAAF4LAABaCwAAWgsAAF4LAABfCwAAXgsAAGALAABfCwAAXwsAAGALAABhCwAAYAsAAGILAABhCwAAYQsAAGILAABjCwAAYgsAAGQLAABjCwAAYwsAAGQLAABrCwAAawsAAGQLAABlCwAAawsAAGULAABqCwAAagsAAGULAABmCwAAagsAAGYLAABpCwAAaQsAAGYLAABnCwAAaQsAAGcLAABoCwAAZwsAAGwLAABoCwAAaAsAAGwLAABzCwAAcwsAAGwLAABtCwAAcwsAAG0LAAByCwAAcgsAAG0LAABuCwAAcgsAAG4LAABxCwAAcQsAAG4LAABvCwAAcQsAAG8LAABwCwAAbwsAAHQLAABwCwAAcAsAAHQLAAB1CwAAdAsAAEYLAAB1CwAAdQsAAEYLAABJCwAAdQsAAEkLAABwCwAAcAsAAEkLAABVCwAAcAsAAFULAABUCwAAVQsAAEkLAABNCwAATQsAAEkLAABICwAATQsAAEgLAABLCwAAVAsAAFMLAABwCwAAcAsAAFMLAABSCwAAcAsAAFILAABxCwAAcQsAAFILAABdCwAAcQsAAF0LAAByCwAAcgsAAF0LAABzCwAAcwsAAF0LAABcCwAAcwsAAFwLAABoCwAAaAsAAFwLAABpCwAAaQsAAFwLAABqCwAAagsAAFwLAABrCwAAawsAAFwLAABjCwAAYwsAAFwLAABbCwAAYwsAAFsLAABaCwAAXwsAAGELAABaCwAAWgsAAGELAABjCwAAdgsAAHcLAAB7CwAAewsAAHcLAAB6CwAAegsAAHcLAAB4CwAAegsAAHgLAAB5CwAAfAsAAH0LAAB/CwAAfwsAAH0LAAB+CwAAfgsAAH0LAAB2CwAAfgsAAHYLAAB7CwAAgAsAAHwLAACBCwAAgQsAAHwLAAB/CwAAeAsAAIILAAB5CwAAeQsAAIILAACHCwAAhwsAAIILAACDCwAAhwsAAIMLAACGCwAAhgsAAIMLAACECwAAhgsAAIQLAACFCwAAhQsAAIQLAACACwAAhQsAAIALAACBCwAAiAsAAIkLAACLCwAAiwsAAIkLAACKCwAAiQsAAIwLAACKCwAAigsAAIwLAACXCwAAlwsAAIwLAACNCwAAlwsAAI0LAACWCwAAlgsAAI0LAACOCwAAlgsAAI4LAACVCwAAlQsAAI4LAACPCwAAlQsAAI8LAACUCwAAlAsAAI8LAACQCwAAlAsAAJALAACTCwAAkwsAAJALAACRCwAAkwsAAJELAACSCwAAkQsAAJgLAACSCwAAkgsAAJgLAACfCwAAnwsAAJgLAACZCwAAnwsAAJkLAACeCwAAngsAAJkLAACaCwAAngsAAJoLAACdCwAAnQsAAJoLAACbCwAAnQsAAJsLAACcCwAAmwsAAKALAACcCwAAnAsAAKALAACrCwAAqwsAAKALAAChCwAAqwsAAKELAACqCwAAqgsAAKELAACiCwAAqgsAAKILAACpCwAAqQsAAKILAACjCwAAqQsAAKMLAACoCwAAqAsAAKMLAACkCwAAqAsAAKQLAACnCwAApwsAAKQLAAClCwAApwsAAKULAACmCwAApQsAAKwLAACmCwAApgsAAKwLAACzCwAAswsAAKwLAACtCwAAswsAAK0LAACyCwAAsgsAAK0LAACuCwAAsgsAAK4LAACxCwAAsQsAAK4LAACvCwAAsQsAAK8LAACwCwAArwsAALQLAACwCwAAsAsAALQLAAC1CwAAtAsAALYLAAC1CwAAtQsAALYLAAC3CwAAtgsAALgLAAC3CwAAtwsAALgLAAC5CwAAuAsAALoLAAC5CwAAuQsAALoLAAC9CwAAvQsAALoLAAC7CwAAvQsAALsLAAC8CwAAuwsAAL4LAAC8CwAAvAsAAL4LAADBCwAAwQsAAL4LAAC/CwAAwQsAAL8LAADACwAAvwsAAIgLAADACwAAwAsAAIgLAACLCwAAegsAAJ8LAAB7CwAAewsAAJ8LAACeCwAAewsAAJ4LAAB+CwAAfgsAAJ4LAACdCwAAfgsAAJ0LAAB/CwAAfwsAAJ0LAACcCwAAfwsAAJwLAADACwAAwAsAAJwLAACrCwAAwAsAAKsLAADBCwAAwQsAAKsLAACqCwAAwQsAAKoLAACpCwAAnwsAAHoLAACSCwAAkgsAAHoLAAB5CwAAkgsAAHkLAACHCwAAkgsAAIcLAACTCwAAkwsAAIcLAACGCwAAkwsAAIYLAACUCwAAlAsAAIYLAACVCwAAlQsAAIYLAACFCwAAlQsAAIULAACWCwAAlgsAAIULAACBCwAAlgsAAIELAACXCwAAlwsAAIELAACKCwAAigsAAIELAACLCwAAiwsAAIELAADACwAAwAsAAIELAAB/CwAAwQsAAKkLAAC8CwAAvAsAAKkLAACoCwAAvAsAAKgLAACnCwAAvAsAAKcLAAC9CwAAvQsAAKcLAACmCwAAvQsAAKYLAAC5CwAAuQsAAKYLAACzCwAAuQsAALMLAAC3CwAAtwsAALMLAACyCwAAtwsAALILAAC1CwAAtQsAALILAACxCwAAtQsAALELAACwCwAAwgsAAMMLAADLCwAAywsAAMMLAADKCwAAygsAAMMLAADECwAAygsAAMQLAADJCwAAyQsAAMQLAADFCwAAyQsAAMULAADICwAAyAsAAMULAADGCwAAyAsAAMYLAADHCwAAzAsAAM0LAADTCwAA0wsAAM0LAADSCwAA0gsAAM0LAADOCwAA0gsAAM4LAADRCwAA0QsAAM4LAADPCwAA0QsAAM8LAADQCwAA0AsAAM8LAADCCwAA0AsAAMILAADLCwAA1AsAANULAADbCwAA2wsAANULAADaCwAA2gsAANULAADWCwAA2gsAANYLAADZCwAA2QsAANYLAADXCwAA2QsAANcLAADYCwAA2AsAANcLAADMCwAA2AsAAMwLAADTCwAAxgsAANwLAADHCwAAxwsAANwLAADhCwAA4QsAANwLAADdCwAA4QsAAN0LAADgCwAA4AsAAN0LAADeCwAA4AsAAN4LAADfCwAA3wsAAN4LAADUCwAA3wsAANQLAADbCwAA4gsAAOMLAADlCwAA5QsAAOMLAADkCwAA4wsAAOYLAADkCwAA5AsAAOYLAADnCwAA5gsAAOgLAADnCwAA5wsAAOgLAADpCwAA6AsAAOoLAADpCwAA6QsAAOoLAADrCwAA6gsAAOwLAADrCwAA6wsAAOwLAADtCwAA7AsAAO4LAADtCwAA7QsAAO4LAAD3CwAA9wsAAO4LAADvCwAA9wsAAO8LAAD2CwAA9gsAAO8LAADwCwAA9gsAAPALAAD1CwAA9QsAAPALAADxCwAA9QsAAPELAAD0CwAA9AsAAPELAADyCwAA9AsAAPILAADzCwAA8gsAAPgLAADzCwAA8wsAAPgLAAD/CwAA/wsAAPgLAAD5CwAA/wsAAPkLAAD+CwAA/gsAAPkLAAD6CwAA/gsAAPoLAAD9CwAA/QsAAPoLAAD7CwAA/QsAAPsLAAD8CwAA+wsAAAAMAAD8CwAA/AsAAAAMAAADDAAAAwwAAAAMAAABDAAAAwwAAAEMAAACDAAAAQwAAAQMAAACDAAAAgwAAAQMAAAFDAAABAwAAOILAAAFDAAABQwAAOILAADlCwAAygsAAPMLAADLCwAAywsAAPMLAAD/CwAAywsAAP8LAADQCwAA0AsAAP8LAAD+CwAA0AsAAP4LAADRCwAA0QsAAP4LAAD9CwAA0QsAAP0LAADSCwAA0gsAAP0LAAD8CwAA0gsAAPwLAADTCwAA0wsAAPwLAAADDAAA0wsAAAMMAADYCwAA2AsAAAMMAAACDAAA2AsAAAIMAADZCwAA2QsAAAIMAADaCwAA2gsAAAIMAADlCwAA2gsAAOULAADkCwAAyQsAAPULAADKCwAAygsAAPULAAD0CwAAygsAAPQLAADzCwAAyAsAAPcLAADJCwAAyQsAAPcLAAD2CwAAyQsAAPYLAAD1CwAAxwsAAOsLAADICwAAyAsAAOsLAADtCwAAyAsAAO0LAAD3CwAAxwsAAOELAADrCwAA6wsAAOELAADpCwAA6QsAAOELAADgCwAA6QsAAOALAADfCwAA6QsAAN8LAADkCwAA5AsAAN8LAADbCwAA5AsAANsLAADaCwAABQwAAOULAAACDAAA5AsAAOcLAADpCwAABgwAAAcMAAAJDAAACQwAAAcMAAAIDAAABwwAAAoMAAAIDAAACAwAAAoMAAALDAAACgwAAAwMAAALDAAACwwAAAwMAAANDAAADAwAAA4MAAANDAAADQwAAA4MAAAVDAAAFQwAAA4MAAAPDAAAFQwAAA8MAAAUDAAAFAwAAA8MAAAQDAAAFAwAABAMAAATDAAAEwwAABAMAAARDAAAEwwAABEMAAASDAAAEQwAABYMAAASDAAAEgwAABYMAAAdDAAAHQwAABYMAAAXDAAAHQwAABcMAAAcDAAAHAwAABcMAAAYDAAAHAwAABgMAAAbDAAAGwwAABgMAAAZDAAAGwwAABkMAAAaDAAAGQwAAB4MAAAaDAAAGgwAAB4MAAAfDAAAHgwAACAMAAAfDAAAHwwAACAMAAAhDAAAIAwAACIMAAAhDAAAIQwAACIMAAAjDAAAIgwAACQMAAAjDAAAIwwAACQMAAArDAAAKwwAACQMAAAlDAAAKwwAACUMAAAqDAAAKgwAACUMAAAmDAAAKgwAACYMAAApDAAAKQwAACYMAAAnDAAAKQwAACcMAAAoDAAAJwwAACwMAAAoDAAAKAwAACwMAAAzDAAAMwwAACwMAAAtDAAAMwwAAC0MAAAyDAAAMgwAAC0MAAAuDAAAMgwAAC4MAAAxDAAAMQwAAC4MAAAvDAAAMQwAAC8MAAAwDAAALwwAADQMAAAwDAAAMAwAADQMAAA1DAAANAwAAAYMAAA1DAAANQwAAAYMAAAJDAAANQwAAAkMAAAwDAAAMAwAAAkMAAAVDAAAMAwAABUMAAAUDAAAFQwAAAkMAAANDAAADQwAAAkMAAAIDAAADQwAAAgMAAALDAAAFAwAABMMAAAwDAAAMAwAABMMAAAxDAAAMQwAABMMAAASDAAAMQwAABIMAAAyDAAAMgwAABIMAAAdDAAAMgwAAB0MAAAzDAAAMwwAAB0MAAAoDAAAKAwAAB0MAAAcDAAAKAwAABwMAAApDAAAKQwAABwMAAAqDAAAKgwAABwMAAArDAAAKwwAABwMAAAbDAAAKwwAABsMAAAjDAAAIwwAABsMAAAaDAAAIwwAABoMAAAhDAAAIQwAABoMAAAfDAAANgwAADcMAAA7DAAAOwwAADcMAAA6DAAAOgwAADcMAAA4DAAAOgwAADgMAAA5DAAAPAwAAD0MAAA/DAAAPwwAAD0MAAA+DAAAPgwAAD0MAAA2DAAAPgwAADYMAAA7DAAAQAwAAEEMAABHDAAARwwAAEEMAABGDAAARgwAAEEMAABCDAAARgwAAEIMAABFDAAARQwAAEIMAABDDAAARQwAAEMMAABEDAAARAwAAEMMAAA8DAAARAwAADwMAAA/DAAASAwAAEkMAABRDAAAUQwAAEkMAABQDAAAUAwAAEkMAABKDAAAUAwAAEoMAABPDAAATwwAAEoMAABLDAAATwwAAEsMAABODAAATgwAAEsMAABMDAAATgwAAEwMAABNDAAATQwAAEwMAABADAAATQwAAEAMAABHDAAAUgwAAEgMAABTDAAAUwwAAEgMAABRDAAAOAwAAFIMAAA5DAAAOQwAAFIMAABTDAAAVAwAAFUMAABZDAAAWQwAAFUMAABYDAAAWAwAAFUMAABWDAAAWAwAAFYMAABXDAAAVgwAAFoMAABXDAAAVwwAAFoMAABdDAAAXQwAAFoMAABbDAAAXQwAAFsMAABcDAAAWwwAAF4MAABcDAAAXAwAAF4MAABlDAAAZQwAAF4MAABfDAAAZQwAAF8MAABkDAAAZAwAAF8MAABgDAAAZAwAAGAMAABjDAAAYwwAAGAMAABhDAAAYwwAAGEMAABiDAAAYQwAAGYMAABiDAAAYgwAAGYMAABtDAAAbQwAAGYMAABnDAAAbQwAAGcMAABsDAAAbAwAAGcMAABoDAAAbAwAAGgMAABrDAAAawwAAGgMAABpDAAAawwAAGkMAABqDAAAaQwAAG4MAABqDAAAagwAAG4MAABxDAAAcQwAAG4MAABvDAAAcQwAAG8MAABwDAAAbwwAAHIMAABwDAAAcAwAAHIMAAB1DAAAdQwAAHIMAABzDAAAdQwAAHMMAAB0DAAAcwwAAHYMAAB0DAAAdAwAAHYMAAB9DAAAfQwAAHYMAAB3DAAAfQwAAHcMAAB8DAAAfAwAAHcMAAB4DAAAfAwAAHgMAAB7DAAAewwAAHgMAAB5DAAAewwAAHkMAAB6DAAAeQwAAH4MAAB6DAAAegwAAH4MAAB/DAAAfgwAAIAMAAB/DAAAfwwAAIAMAACBDAAAgAwAAIIMAACBDAAAgQwAAIIMAACJDAAAiQwAAIIMAACDDAAAiQwAAIMMAACIDAAAiAwAAIMMAACEDAAAiAwAAIQMAACHDAAAhwwAAIQMAACFDAAAhwwAAIUMAACGDAAAhQwAAIoMAACGDAAAhgwAAIoMAACLDAAAigwAAIwMAACLDAAAiwwAAIwMAACTDAAAkwwAAIwMAACNDAAAkwwAAI0MAACSDAAAkgwAAI0MAACODAAAkgwAAI4MAACRDAAAkQwAAI4MAACPDAAAkQwAAI8MAACQDAAAjwwAAJQMAACQDAAAkAwAAJQMAACVDAAAlAwAAJYMAACVDAAAlQwAAJYMAACdDAAAnQwAAJYMAACXDAAAnQwAAJcMAACcDAAAnAwAAJcMAACYDAAAnAwAAJgMAACbDAAAmwwAAJgMAACZDAAAmwwAAJkMAACaDAAAmQwAAJ4MAACaDAAAmgwAAJ4MAAClDAAApQwAAJ4MAACfDAAApQwAAJ8MAACkDAAApAwAAJ8MAACgDAAApAwAAKAMAACjDAAAowwAAKAMAAChDAAAowwAAKEMAACiDAAAoQwAAKYMAACiDAAAogwAAKYMAACtDAAArQwAAKYMAACnDAAArQwAAKcMAACsDAAArAwAAKcMAACoDAAArAwAAKgMAACrDAAAqwwAAKgMAACpDAAAqwwAAKkMAACqDAAAqQwAAK4MAACqDAAAqgwAAK4MAAC1DAAAtQwAAK4MAACvDAAAtQwAAK8MAAC0DAAAtAwAAK8MAACwDAAAtAwAALAMAACzDAAAswwAALAMAACxDAAAswwAALEMAACyDAAAsQwAAFQMAACyDAAAsgwAAFQMAABZDAAAPgwAADsMAABqDAAAagwAADsMAAA6DAAAagwAADoMAABrDAAAawwAADoMAAA5DAAAawwAADkMAABsDAAAbAwAADkMAABTDAAAbAwAAFMMAABtDAAAbQwAAFMMAABiDAAAYgwAAFMMAACVDAAAYgwAAJUMAACdDAAAUwwAAFEMAACVDAAAlQwAAFEMAACQDAAAkAwAAFEMAABQDAAAkAwAAFAMAABPDAAAkAwAAE8MAACBDAAAgQwAAE8MAABODAAAgQwAAE4MAABNDAAAgQwAAE0MAAB/DAAAfwwAAE0MAABHDAAAfwwAAEcMAAB6DAAAegwAAEcMAABGDAAAegwAAEYMAABFDAAAegwAAEUMAAB7DAAAewwAAEUMAABEDAAAewwAAEQMAAB8DAAAfAwAAEQMAAB9DAAAfQwAAEQMAAA/DAAAfQwAAD8MAAB0DAAAdAwAAD8MAAB1DAAAdQwAAD8MAABwDAAAcAwAAD8MAAA+DAAAcAwAAD4MAABxDAAAcQwAAD4MAABqDAAAsgwAAFkMAACzDAAAswwAAFkMAAC0DAAAtAwAAFkMAABYDAAAtAwAAFgMAAC1DAAAtQwAAFgMAACqDAAAqgwAAFgMAACrDAAAqwwAAFgMAABXDAAAqwwAAFcMAACsDAAArAwAAFcMAACtDAAArQwAAFcMAABdDAAArQwAAF0MAACiDAAAogwAAF0MAABcDAAAogwAAFwMAACjDAAAowwAAFwMAABlDAAAowwAAGUMAABkDAAAYwwAAKUMAABkDAAAZAwAAKUMAACkDAAAZAwAAKQMAACjDAAAYgwAAJwMAABjDAAAYwwAAJwMAACbDAAAYwwAAJsMAACaDAAAkAwAAIEMAACRDAAAkQwAAIEMAACJDAAAkQwAAIkMAACIDAAAiAwAAIcMAACRDAAAkQwAAIcMAACSDAAAkgwAAIcMAACGDAAAkgwAAIYMAACTDAAAkwwAAIYMAACLDAAAnQwAAJwMAABiDAAAmgwAAKUMAABjDAAAtgwAALcMAAC5DAAAuQwAALcMAAC4DAAAtwwAALoMAAC4DAAAuAwAALoMAAC7DAAAugwAALwMAAC7DAAAuwwAALwMAAC9DAAAvAwAAL4MAAC9DAAAvQwAAL4MAADFDAAAxQwAAL4MAAC/DAAAxQwAAL8MAADEDAAAxAwAAL8MAADADAAAxAwAAMAMAADDDAAAwwwAAMAMAADBDAAAwwwAAMEMAADCDAAAwQwAAMYMAADCDAAAwgwAAMYMAADNDAAAzQwAAMYMAADHDAAAzQwAAMcMAADMDAAAzAwAAMcMAADIDAAAzAwAAMgMAADLDAAAywwAAMgMAADJDAAAywwAAMkMAADKDAAAyQwAAM4MAADKDAAAygwAAM4MAADPDAAAzgwAANAMAADPDAAAzwwAANAMAADRDAAA0AwAANIMAADRDAAA0QwAANIMAADTDAAA0gwAANQMAADTDAAA0wwAANQMAADbDAAA2wwAANQMAADVDAAA2wwAANUMAADaDAAA2gwAANUMAADWDAAA2gwAANYMAADZDAAA2QwAANYMAADXDAAA2QwAANcMAADYDAAA1wwAANwMAADYDAAA2AwAANwMAADjDAAA4wwAANwMAADdDAAA4wwAAN0MAADiDAAA4gwAAN0MAADeDAAA4gwAAN4MAADhDAAA4QwAAN4MAADfDAAA4QwAAN8MAADgDAAA3wwAAOQMAADgDAAA4AwAAOQMAADlDAAA5AwAALYMAADlDAAA5QwAALYMAAC5DAAA5QwAALkMAADgDAAA4AwAALkMAADFDAAA4AwAAMUMAADEDAAAxQwAALkMAAC9DAAAvQwAALkMAAC4DAAAvQwAALgMAAC7DAAAxAwAAMMMAADgDAAA4AwAAMMMAADhDAAA4QwAAMMMAADCDAAA4QwAAMIMAADiDAAA4gwAAMIMAADNDAAA4gwAAM0MAADjDAAA4wwAAM0MAADYDAAA2AwAAM0MAADMDAAA2AwAAMwMAADZDAAA2QwAAMwMAADaDAAA2gwAAMwMAADbDAAA2wwAAMwMAADLDAAA2wwAAMsMAADTDAAA0wwAAMsMAADKDAAA0wwAAMoMAADRDAAA0QwAAMoMAADPDAAA5gwAAOcMAADpDAAA6QwAAOcMAADoDAAA5wwAAOoMAADoDAAA6AwAAOoMAADrDAAA6gwAAOwMAADrDAAA6wwAAOwMAADtDAAA7AwAAO4MAADtDAAA7QwAAO4MAAD1DAAA9QwAAO4MAADvDAAA9QwAAO8MAAD0DAAA9AwAAO8MAADwDAAA9AwAAPAMAADzDAAA8wwAAPAMAADxDAAA8wwAAPEMAADyDAAA8QwAAPYMAADyDAAA8gwAAPYMAAD9DAAA/QwAAPYMAAD3DAAA/QwAAPcMAAD8DAAA/AwAAPcMAAD4DAAA/AwAAPgMAAD7DAAA+wwAAPgMAAD5DAAA+wwAAPkMAAD6DAAA+QwAAP4MAAD6DAAA+gwAAP4MAAD/DAAA/gwAAAANAAD/DAAA/wwAAAANAAABDQAAAA0AAAINAAABDQAAAQ0AAAINAAADDQAAAg0AAAQNAAADDQAAAw0AAAQNAAALDQAACw0AAAQNAAAFDQAACw0AAAUNAAAKDQAACg0AAAUNAAAGDQAACg0AAAYNAAAJDQAACQ0AAAYNAAAHDQAACQ0AAAcNAAAIDQAABw0AAAwNAAAIDQAACA0AAAwNAAATDQAAEw0AAAwNAAANDQAAEw0AAA0NAAASDQAAEg0AAA0NAAAODQAAEg0AAA4NAAARDQAAEQ0AAA4NAAAPDQAAEQ0AAA8NAAAQDQAADw0AABQNAAAQDQAAEA0AABQNAAAVDQAAFA0AAOYMAAAVDQAAFQ0AAOYMAADpDAAAFQ0AAOkMAAAQDQAAEA0AAOkMAAD1DAAAEA0AAPUMAAD0DAAA9QwAAOkMAADtDAAA7QwAAOkMAADoDAAA7QwAAOgMAADrDAAA9AwAAPMMAAAQDQAAEA0AAPMMAAARDQAAEQ0AAPMMAADyDAAAEQ0AAPIMAAASDQAAEg0AAPIMAAD9DAAAEg0AAP0MAAATDQAAEw0AAP0MAAAIDQAACA0AAP0MAAD8DAAACA0AAPwMAAAJDQAACQ0AAPwMAAAKDQAACg0AAPwMAAALDQAACw0AAPwMAAD7DAAACw0AAPsMAAADDQAAAw0AAPsMAAD6DAAAAw0AAPoMAAABDQAAAQ0AAPoMAAD/DAAAFg0AABcNAAAbDQAAGw0AABcNAAAaDQAAGg0AABcNAAAYDQAAGg0AABgNAAAZDQAAHA0AAB0NAAAfDQAAHw0AAB0NAAAeDQAAHg0AAB0NAAAWDQAAHg0AABYNAAAbDQAAIA0AABwNAAAhDQAAIQ0AABwNAAAfDQAAGA0AACINAAAZDQAAGQ0AACINAAAnDQAAJw0AACINAAAjDQAAJw0AACMNAAAmDQAAJg0AACMNAAAkDQAAJg0AACQNAAAlDQAAJQ0AACQNAAAgDQAAJQ0AACANAAAhDQAAKA0AACkNAAArDQAAKw0AACkNAAAqDQAAKQ0AACwNAAAqDQAAKg0AACwNAAA3DQAANw0AACwNAAAtDQAANw0AAC0NAAA2DQAANg0AAC0NAAAuDQAANg0AAC4NAAA1DQAANQ0AAC4NAAAvDQAANQ0AAC8NAAA0DQAANA0AAC8NAAAwDQAANA0AADANAAAzDQAAMw0AADANAAAxDQAAMw0AADENAAAyDQAAMQ0AADgNAAAyDQAAMg0AADgNAAA/DQAAPw0AADgNAAA5DQAAPw0AADkNAAA+DQAAPg0AADkNAAA6DQAAPg0AADoNAAA9DQAAPQ0AADoNAAA7DQAAPQ0AADsNAAA8DQAAOw0AAEANAAA8DQAAPA0AAEANAABLDQAASw0AAEANAABBDQAASw0AAEENAABKDQAASg0AAEENAABCDQAASg0AAEINAABJDQAASQ0AAEINAABDDQAASQ0AAEMNAABIDQAASA0AAEMNAABEDQAASA0AAEQNAABHDQAARw0AAEQNAABFDQAARw0AAEUNAABGDQAARQ0AAEwNAABGDQAARg0AAEwNAABTDQAAUw0AAEwNAABNDQAAUw0AAE0NAABSDQAAUg0AAE0NAABODQAAUg0AAE4NAABRDQAAUQ0AAE4NAABPDQAAUQ0AAE8NAABQDQAATw0AAFQNAABQDQAAUA0AAFQNAABVDQAAVA0AAFYNAABVDQAAVQ0AAFYNAABXDQAAVg0AAFgNAABXDQAAVw0AAFgNAABZDQAAWA0AAFoNAABZDQAAWQ0AAFoNAABdDQAAXQ0AAFoNAABbDQAAXQ0AAFsNAABcDQAAWw0AAF4NAABcDQAAXA0AAF4NAABhDQAAYQ0AAF4NAABfDQAAYQ0AAF8NAABgDQAAXw0AACgNAABgDQAAYA0AACgNAAArDQAAGg0AAD8NAAAbDQAAGw0AAD8NAAA+DQAAGw0AAD4NAAAeDQAAHg0AAD4NAAA9DQAAHg0AAD0NAAAfDQAAHw0AAD0NAAA8DQAAHw0AADwNAABgDQAAYA0AADwNAABLDQAAYA0AAEsNAABKDQAAPw0AABoNAAAyDQAAMg0AABoNAAAZDQAAMg0AABkNAAAnDQAAMg0AACcNAAAzDQAAMw0AACcNAAAmDQAAMw0AACYNAAA0DQAANA0AACYNAAAlDQAANA0AACUNAAA1DQAANQ0AACUNAAA2DQAANg0AACUNAAAhDQAANg0AACENAAA3DQAANw0AACENAAAqDQAAKg0AACENAAArDQAAKw0AACENAABgDQAAYA0AACENAAAfDQAAYA0AAEoNAABhDQAAYQ0AAEoNAABJDQAAYQ0AAEkNAABcDQAAXA0AAEkNAABIDQAAXA0AAEgNAABHDQAAXA0AAEcNAABdDQAAXQ0AAEcNAABGDQAAXQ0AAEYNAABZDQAAWQ0AAEYNAABTDQAAWQ0AAFMNAABXDQAAVw0AAFMNAABSDQAAVw0AAFINAABVDQAAVQ0AAFINAABRDQAAVQ0AAFENAABQDQAAYg0AAGMNAABnDQAAZw0AAGMNAABmDQAAZg0AAGMNAABkDQAAZg0AAGQNAABlDQAAaA0AAGkNAABrDQAAaw0AAGkNAABqDQAAag0AAGkNAABiDQAAag0AAGINAABnDQAAbA0AAG0NAABzDQAAcw0AAG0NAAByDQAAcg0AAG0NAABuDQAAcg0AAG4NAABxDQAAcQ0AAG4NAABvDQAAcQ0AAG8NAABwDQAAcA0AAG8NAABoDQAAcA0AAGgNAABrDQAAdA0AAHUNAAB9DQAAfQ0AAHUNAAB8DQAAfA0AAHUNAAB2DQAAfA0AAHYNAAB7DQAAew0AAHYNAAB3DQAAew0AAHcNAAB6DQAAeg0AAHcNAAB4DQAAeg0AAHgNAAB5DQAAeQ0AAHgNAABsDQAAeQ0AAGwNAABzDQAAfg0AAHQNAAB/DQAAfw0AAHQNAAB9DQAAZA0AAH4NAABlDQAAZQ0AAH4NAAB/DQAAgA0AAIENAACFDQAAhQ0AAIENAACEDQAAhA0AAIENAACCDQAAhA0AAIINAACDDQAAgg0AAIYNAACDDQAAgw0AAIYNAACJDQAAiQ0AAIYNAACHDQAAiQ0AAIcNAACIDQAAhw0AAIoNAACIDQAAiA0AAIoNAACRDQAAkQ0AAIoNAACLDQAAkQ0AAIsNAACQDQAAkA0AAIsNAACMDQAAkA0AAIwNAACPDQAAjw0AAIwNAACNDQAAjw0AAI0NAACODQAAjQ0AAJINAACODQAAjg0AAJINAACZDQAAmQ0AAJINAACTDQAAmQ0AAJMNAACYDQAAmA0AAJMNAACUDQAAmA0AAJQNAACXDQAAlw0AAJQNAACVDQAAlw0AAJUNAACWDQAAlQ0AAJoNAACWDQAAlg0AAJoNAACdDQAAnQ0AAJoNAACbDQAAnQ0AAJsNAACcDQAAmw0AAJ4NAACcDQAAnA0AAJ4NAAChDQAAoQ0AAJ4NAACfDQAAoQ0AAJ8NAACgDQAAnw0AAKINAACgDQAAoA0AAKINAACpDQAAqQ0AAKINAACjDQAAqQ0AAKMNAACoDQAAqA0AAKMNAACkDQAAqA0AAKQNAACnDQAApw0AAKQNAAClDQAApw0AAKUNAACmDQAApQ0AAKoNAACmDQAApg0AAKoNAACrDQAAqg0AAKwNAACrDQAAqw0AAKwNAACtDQAArA0AAK4NAACtDQAArQ0AAK4NAAC1DQAAtQ0AAK4NAACvDQAAtQ0AAK8NAAC0DQAAtA0AAK8NAACwDQAAtA0AALANAACzDQAAsw0AALANAACxDQAAsw0AALENAACyDQAAsQ0AALYNAACyDQAAsg0AALYNAAC3DQAAtg0AALgNAAC3DQAAtw0AALgNAAC/DQAAvw0AALgNAAC5DQAAvw0AALkNAAC+DQAAvg0AALkNAAC6DQAAvg0AALoNAAC9DQAAvQ0AALoNAAC7DQAAvQ0AALsNAAC8DQAAuw0AAMANAAC8DQAAvA0AAMANAADBDQAAwA0AAMINAADBDQAAwQ0AAMINAADJDQAAyQ0AAMINAADDDQAAyQ0AAMMNAADIDQAAyA0AAMMNAADEDQAAyA0AAMQNAADHDQAAxw0AAMQNAADFDQAAxw0AAMUNAADGDQAAxQ0AAMoNAADGDQAAxg0AAMoNAADRDQAA0Q0AAMoNAADLDQAA0Q0AAMsNAADQDQAA0A0AAMsNAADMDQAA0A0AAMwNAADPDQAAzw0AAMwNAADNDQAAzw0AAM0NAADODQAAzQ0AANINAADODQAAzg0AANINAADZDQAA2Q0AANINAADTDQAA2Q0AANMNAADYDQAA2A0AANMNAADUDQAA2A0AANQNAADXDQAA1w0AANQNAADVDQAA1w0AANUNAADWDQAA1Q0AANoNAADWDQAA1g0AANoNAADhDQAA4Q0AANoNAADbDQAA4Q0AANsNAADgDQAA4A0AANsNAADcDQAA4A0AANwNAADfDQAA3w0AANwNAADdDQAA3w0AAN0NAADeDQAA3Q0AAIANAADeDQAA3g0AAIANAACFDQAAag0AAGcNAACWDQAAlg0AAGcNAABmDQAAlg0AAGYNAACXDQAAlw0AAGYNAABlDQAAlw0AAGUNAACYDQAAmA0AAGUNAAB/DQAAmA0AAH8NAACZDQAAmQ0AAH8NAACODQAAjg0AAH8NAADBDQAAjg0AAMENAADJDQAAwQ0AAH8NAAC8DQAAvA0AAH8NAAB9DQAAvA0AAH0NAAB8DQAAfA0AAHsNAAC8DQAAvA0AAHsNAACtDQAAvA0AAK0NAAC9DQAAvQ0AAK0NAAC+DQAAvg0AAK0NAAC1DQAAvg0AALUNAAC0DQAAew0AAHoNAACtDQAArQ0AAHoNAAB5DQAArQ0AAHkNAACrDQAAqw0AAHkNAABzDQAAqw0AAHMNAAByDQAAqw0AAHINAACmDQAApg0AAHINAABxDQAApg0AAHENAACnDQAApw0AAHENAABwDQAApw0AAHANAACoDQAAqA0AAHANAACpDQAAqQ0AAHANAACgDQAAoA0AAHANAABrDQAAoA0AAGsNAAChDQAAoQ0AAGsNAACcDQAAnA0AAGsNAACdDQAAnQ0AAGsNAABqDQAAnQ0AAGoNAACWDQAA3g0AAIUNAADfDQAA3w0AAIUNAADgDQAA4A0AAIUNAADhDQAA4Q0AAIUNAACEDQAA4Q0AAIQNAADWDQAA1g0AAIQNAADXDQAA1w0AAIQNAACDDQAA1w0AAIMNAADYDQAA2A0AAIMNAADZDQAA2Q0AAIMNAACJDQAA2Q0AAIkNAADODQAAzg0AAIkNAACIDQAA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Dw8AABIPAAAQDwAAEA8AABIPAAAdDwAAHQ8AABIPAAATDwAAHQ8AABMPAAAcDwAAHA8AABMPAAAUDwAAHA8AABQPAAAbDwAAGw8AABQPAAAVDwAAGw8AABUPAAAaDwAAGg8AABUPAAAWDwAAGg8AABYPAAAZDwAAGQ8AABYPAAAXDwAAGQ8AABcPAAAYDwAAFw8AAB4PAAAYDwAAGA8AAB4PAAAlDwAAJQ8AAB4PAAAfDwAAJQ8AAB8PAAAkDwAAJA8AAB8PAAAgDwAAJA8AACAPAAAjDwAAIw8AACAPAAAhDwAAIw8AACEPAAAiDwAAIQ8AACYPAAAiDwAAIg8AACYPAAAxDwAAMQ8AACYPAAAnDwAAMQ8AACcPAAAwDwAAMA8AACcPAAAoDwAAMA8AACgPAAAvDwAALw8AACgPAAApDwAALw8AACkPAAAuDwAALg8AACkPAAAqDwAALg8AACoPAAAtDwAALQ8AACoPAAArDwAALQ8AACsPAAAsDwAAKw8AADIPAAAsDwAALA8AADIPAAA5DwAAOQ8AADIPAAAzDwAAOQ8AADMPAAA4DwAAOA8AADMPAAA0DwAAOA8AADQPAAA3DwAANw8AADQPAAA1DwAANw8AADUPAAA2DwAANQ8AADoPAAA2DwAANg8AADoPAAA7DwAAOg8AADwPAAA7DwAAOw8AADwPAAA9DwAAPA8AAD4PAAA9DwAAPQ8AAD4PAAA/DwAAPg8AAEAPAAA/DwAAPw8AAEAPAABDDwAAQw8AAEAPAABBDwAAQw8AAEEPAABCDwAAQQ8AAEQPAABCDwAAQg8AAEQPAABHDwAARw8AAEQPAABFDwAARw8AAEUPAABGDwAARQ8AAA4PAABGDwAARg8AAA4PAAARDwAAAA8AACUPAAABDwAAAQ8AACUPAAAkDwAAAQ8AACQPAAAEDwAABA8AACQPAAAjDwAABA8AACMPAAAFDwAABQ8AACMPAAAiDwAABQ8AACIPAABGDwAARg8AACIPAAAxDwAARg8AADEPAAAwDwAAJQ8AAAAPAAAYDwAAGA8AAAAPAAD/DgAAGA8AAP8OAAANDwAAGA8AAA0PAAAZDwAAGQ8AAA0PAAAMDwAAGQ8AAAwPAAAaDwAAGg8AAAwPAAAbDwAAGw8AAAwPAAALDwAAGw8AAAsPAAAcDwAAHA8AAAsPAAAHDwAA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FxEAAHgJAACmCQAAGREAAEAJAAAYEQAAGBEAAEAJAABwCQAAGBEAAHAJAAB2CQAAGhEAABIHAAAZEQAAGREAABIHAAAYBwAAGREAABgHAABACQAAQAkAABgHAABBCQAAQQkAABgHAAAWBwAAQQkAABYHAABGCQAARgkAABYHAAA+CQAARgkAAD4JAABICQAASAkAAD4JAAA8CQAASAkAADwJAABMCQAATAkAADwJAABOCQAATgkAADwJAABPCQAATwkAADwJAABQCQAAUAkAADwJAABRCQAAUQkAADwJAACyEAAAUQkAALIQAABSCQAAUgkAALIQAABTCQAAUwkAALIQAABaCQAAWgkAALIQAADzBgAAWgkAAPMGAADyBgAAGxEAAMoHAAAaEQAAGhEAAMoHAABjBwAAGhEAAGMHAABiBwAAHBEAADYJAAAbEQAAGxEAADYJAADLBwAAGxEAAMsHAADKBwAALgkAABwRAAD+CAAA/ggAABwRAAAdEQAA/ggAAB0RAAD4CAAA+AgAAB0RAAAeEQAA+AgAAB4RAACQCAAAkAgAAB4RAABICAAASAgAAB4RAABOCAAASAgAAE4IAABNCAAATggAAB4RAABPCAAATwgAAB4RAAAfEQAATwgAAB8RAABUCAAAVAgAAB8RAADoCAAAVAgAAOgIAADnCAAAHxEAACARAACYCAAAmAgAACARAACSCAAAkggAACARAACyCAAAkggAALIIAACTCAAAkwgAALIIAACtCAAAkwgAAK0IAADACAAAwAgAAK0IAACsCAAAwAgAAKwIAACrCAAAsggAACARAACaCAAAmggAACARAAAhEQAAhRAAAF4QAACKEAAAihAAAF4QAACVEAAAihAAAJUQAACUEAAAihAAAJQQAACMEAAAjBAAAJQQAACREAAAjBAAAJEQAACOEAAAjhAAAJEQAACQEAAAhRAAAIQQAADfEAAAghAAAHsQAADeEAAA3hAAAHsQAAB6EAAARAEAAHcQAABGAQAARgEAAHcQAAB2EAAARgEAAHYQAABxEAAARgEAAHEQAABUAQAAVAEAAHEQAABwEAAAVAEAAHAQAABWAQAAVgEAAHAQAABvEAAAVgEAAG8QAABuEAAAVgEAAG4QAAAjAQAAIwEAAG4QAABnEAAAIwEAAGcQAAAmAQAAJgEAAGcQAABmEAAA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9g0AAP8NAAD3DQAA9w0AAP8NAAD8DQAA/A0AAP8NAAD+DQAA/A0AAP4NAAD9DQAAJg4AAFADAAAnDgAAJw4AAFADAABOAwAAJw4AAE4DAAAEDgAABA4AAE4DAABJAwAABA4AAEkDAAAGDgAABg4AAEkDAABIAwAABg4AAEgDAABHAwAAUAMAACYOAABRAwAAUQMAACYOAAAlDgAAUQMAACUOAADOEAAAzhAAACUOAAAkDgAAzhAAACQOAAAfDgAAGg4AALsNAAAcDgAAHA4AALsNAAC6DQAAHA4AALoNAAC5DQAAuw0AABoOAADADQAAwA0AABoOAAAVDgAAwA0AABUOAADCDQAAwg0AABUOAADDDQAAww0AABUOAAAUDgAAww0AABQOAADEDQAAxA0AABQOAAATDgAAxA0AABMOAADFDQAAxQ0AABMOAAASDgAAxQ0AABIOAADKDQAAyg0AABIOAAAPDgAAyg0AAA8OAAD5EAAA+RAAAA8OAAAODgAA+RAAAA4OAAAJDgAABg4AAEcDAAAHDgAABw4AAEcDAABGAwAABw4AAEYDAABDAwAA7w0AAO4NAADiDQAAhg0AAIINAACUDQAAlA0AAIINAACBDQAAlA0AAIENAACADQAAlA0AAIANAACVDQAAlQ0AAIANAADdDQAAlQ0AAN0NAACaDQAAmg0AAN0NAACbDQAAmw0AAN0NAACeDQAAng0AAN0NAAApDQAAng0AACkNAAAoDQAA2g0AANUNAAD6EAAA+hAAANUNAADUDQAA+hAAANQNAADTDQAA0w0AANINAAD6EAAA+hAAANINAADNDQAAyw0AAMoNAAD5EAAAuQ0AALgNAAAcDgAAHA4AALgNAAC2DQAAtg0AALENAADNEAAAzRAAALENAACqDQAAzRAAAKoNAAClDQAAsQ0AALANAACqDQAAqg0AALANAACvDQAAqg0AAK8NAACuDQAArg0AAKwNAACqDQAAzBAAAKMNAABODQAATg0AAKMNAACiDQAATg0AAKINAABPDQAATw0AAKINAACfDQAATw0AAJ8NAAAoDQAAKA0AAJ8NAACeDQAAlA0AAJMNAACGDQAAhg0AAJMNAACHDQAAhw0AAJMNAACSDQAAhw0AAJINAACKDQAAig0AAJINAACLDQAAiw0AAJINAACMDQAAjA0AAJINAACNDQAATw0AACgNAABUDQAAVA0AACgNAABfDQAAVA0AAF8NAABeDQAAXg0AAFsNAABUDQAAVA0AAFsNAABaDQAAVA0AAFoNAABYDQAAWA0AAFYNAABUDQAATg0AAE0NAADMEAAAzBAAAE0NAABMDQAAzBAAAEwNAABFDQAAyxAAAEMNAABkAwAAZAMAAEMNAABCDQAAZAMAAEINAABBDQAAZAMAAEENAABmAwAAZgMAAEENAABADQAAZgMAAEANAAA7DQAAOA0AADENAAD7EAAA+xAAADENAAAwDQAA+xAAADANAAAvDQAADw0AAA4NAAAUDQAAFA0AAA4NAAANDQAAFA0AAA0NAAAMDQAAFA0AAAwNAADKEAAAyhAAAAwNAAAHDQAAyhAAAAcNAAAGDQAAyhAAAAYNAACaAwAAmgMAAAYNAAAFDQAAmgMAAAUNAAAEDQAAmgMAAAQNAACcAwAAnAMAAAQNAAACDQAAnAMAAAINAACqAwAAqgMAAAINAAAADQAAqgMAAAANAACsAwAArAMAAAANAACAAwAArAMAAIADAACuAwAA+QwAAOwMAAD+DAAA/gwAAOwMAADqDAAA/gwAAOoMAAD9EAAA7AwAAPkMAADuDAAA7gwAAPkMAAD4DAAA7gwAAPgMAAD3DAAA9wwAAPYMAADuDAAA7gwAAPYMAADxDAAA7gwAAPEMAADwDAAA8AwAAO8MAADuDAAAtgwAAJQMAAC3DAAAtwwAAJQMAACPDAAAtwwAAI8MAACODAAA3AwAANcMAAD/EAAA/xAAANcMAADWDAAA/xAAANYMAAAiBAAAIgQAANYMAAAjBAAAIwQAANYMAADVDAAAIwQAANUMAAAoBAAAKAQAANUMAAApBAAAKQQAANUMAADUDAAAKQQAANQMAAAqBAAAKgQAANQMAAArBAAAKwQAANQMAADSDAAAKwQAANIMAADpAwAA6QMAANIMAADsAwAA7AMAANIMAADtAwAA7QMAANIMAADQDAAA7QMAANAMAADwAwAA0AwAAM4MAADIEAAAyBAAAM4MAAC6DAAAyBAAALoMAAC3DAAAugwAAM4MAAC8DAAAvAwAAM4MAADJDAAAvAwAAMkMAAC+DAAAvgwAAMkMAADIDAAAvgwAAMgMAAC/DAAAvwwAAMgMAADHDAAAvwwAAMcMAADGDAAAxgwAAMEMAAC/DAAAvwwAAMEMAADADAAAWgwAAFYMAABoDAAAaAwAAFYMAABVDAAAaAwAAFUMAABUDAAAaAwAAFQMAABpDAAAaQwAAFQMAACxDAAAaQwAALEMAABuDAAAbgwAALEMAABvDAAAbwwAALEMAAByDAAApgwAAKEMAAABEQAAAREAAKEMAACgDAAAngwAAJkMAAAAEQAAABEAAJkMAAC2DAAAmQwAAJgMAAC2DAAAtgwAAJgMAACXDAAAtgwAAJcMAACWDAAAlgwAAJQMAAC2DAAAjQwAAIwMAACODAAAjgwAAIwMAAC3DAAAjAwAAIoMAAC3DAAAxxAAAIUMAAB+DAAAfgwAAIUMAACEDAAAfgwAAIQMAACDDAAAgwwAAIIMAAB+DAAAfgwAAIIMAACADAAAfgwAAHkMAADHEAAAaAwAAGcMAABaDAAAWgwAAGcMAABbDAAAWwwAAGcMAABmDAAAWwwAAGYMAABeDAAAXgwAAGYMAABfDAAAXwwAAGYMAABgDAAAYAwAAGYMAABhDAAAIAwAAB4MAAAEEQAABBEAAB4MAAAKDAAACgwAAB4MAAAMDAAADAwAAB4MAAAZDAAADAwAABkMAAAODAAADgwAABkMAAAYDAAADgwAABgMAAAPDAAADwwAABgMAAAQDAAAEAwAABgMAAARDAAAEQwAABgMAAAWDAAAFgwAABgMAAAXDAAA+gsAAPkLAADDEAAAwxAAAPkLAACuCwAAwxAAAK4LAACtCwAArgsAAPkLAACvCwAArwsAAPkLAAD4CwAArwsAAPgLAACICwAAiAsAAPgLAADyCwAA7wsAAO4LAAAFEQAABREAAO4LAADsCwAABREAAOwLAADmCwAA5gsAAOwLAADqCwAA5gsAAOoLAADoCwAArwsAAIgLAAC0CwAAtAsAAIgLAAC/CwAAtAsAAL8LAAC+CwAAtAsAAL4LAAC2CwAAtgsAAL4LAAC7CwAAtgsAALsLAAC4CwAAuAsAALsLAAC6CwAApQsAAKQLAADCEAAAwhAAAKQLAACjCwAAwhAAAKMLAADHBAAAxwQAAKMLAACiCwAAxwQAAKILAADIBAAAyAQAAKILAAChCwAAyAQAAKELAACgCwAAyAQAAKALAADJBAAAyQQAAKALAACbCwAAyQQAAJsLAACmBAAApgQAAJsLAACaCwAApgQAAJoLAACoBAAA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BAcAANgGAAAPBwAABAcAAA8HAAAOBwAAoQkAAKAJAACmCQAApgkAAKAJAACfCQAApgkAAJ8JAACeCQAAmQkAAJgJAAAWEQAAFhEAAJgJAADABgAAFhEAAMAGAAC9BgAAmAkAAJcJAADABgAAwAYAAJcJAADBBgAAwQYAAJcJAACWCQAAwQYAAJYJAADCBgAAwgYAAJYJAACUCQAAwgYAAJQJAACmBgAApgYAAJQJAACnBgAApwYAAJQJAACSCQAApwYAAJIJAACoBgAAqAYAAJIJAACsBgAAiwkAAH4JAACQCQAAkAkAAH4JAAB8CQAAkAkAAHwJAAC0EAAAtBAAAHwJAAB5CQAAfgkAAIsJAACACQAAgAkAAIsJAACKCQAAgAkAAIoJAACJCQAAiQkAAIgJAACACQAAgAkAAIgJAACDCQAAgAkAAIMJAACCCQAAggkAAIEJAACACQAAcAkAAEAJAABxCQAAcQkAAEAJAABsCQAAcQkAAGwJAADoBgAA6AYAAGwJAADpBgAA6QYAAGwJAADqBgAA6gYAAGwJAABqCQAA6gYAAGoJAADrBgAA6wYAAGoJAABcCQAA6wYAAFwJAADwBgAA8AYAAFwJAADxBgAA8QYAAFwJAABaCQAA8QYAAFoJAADyBgAAdAkAAOAGAAB2CQAAdgkAAOAGAADfBgAAdgkAAN8GAADeBgAA4AYAAHQJAADhBgAA4QYAAHQJAABxCQAA4QYAAHEJAADoBgAAQAkAAG4JAABsCQAAaAkAAGYJAABqCQAAagkAAGYJAABcCQAAXAkAAGYJAABeCQAAXgkAAGYJAABiCQAAXgkAAGIJAABhCQAAYQkAAGAJAABeCQAATAkAAEoJAABICQAARgkAAEQJAABBCQAAPgkAABYHAAA4CQAAOAkAABYHAAATBwAAOAkAABMHAABZBwAAWQcAABMHAAASBwAAWQcAABIHAABaBwAAWgcAABIHAABbBwAAWwcAABIHAABcBwAAXAcAABIHAAAaEQAAXAcAABoRAABiBwAAMAkAADYJAAAcEQAANAkAAM8HAAA2CQAANgkAAM8HAADOBwAANgkAAM4HAADLBwAAMQkAANQHAAA0CQAANAkAANQHAADaBwAANAkAANoHAADPBwAAzwcAANoHAADQBwAA0AcAANoHAAC0BwAAtAcAANoHAADYBwAAtAcAANgHAAC1BwAAtQcAANgHAAC2BwAAtgcAANgHAAC6BwAAugcAANgHAACwEAAAugcAALAQAAC7BwAAuwcAALAQAAC+BwAA7gcAAAEJAADvBwAA7wcAAAEJAAAACQAA7wcAAAAJAADyBwAA8gcAAAAJAADzBwAA8wcAAAAJAAD0BwAA9AcAAAAJAAD+CAAA9AcAAP4IAAD1BwAA9QcAAP4IAAD2BwAA9gcAAP4IAAD8CAAA9gcAAPwIAAD3BwAA9wcAAPwIAAD5CAAA9wcAAPkIAAD+BwAA/gcAAPkIAACQCAAA/gcAAJAIAAD/BwAA/wcAAJAIAAAACAAAAAgAAJAIAAABCAAAAQgAAJAIAACOCAAAAQgAAI4IAAAGCAAABggAAI4IAAAHCAAABwgAAI4IAAAICAAACAgAAI4IAACJCAAACAgAAIkIAACICAAAAAkAAC4JAAD+CAAAGgkAABgJAACvEAAArxAAABgJAAAECQAABAkAABgJAAAGCQAABgkAABgJAAATCQAABgkAABMJAAAICQAACAkAABMJAAASCQAACAkAABIJAAARCQAAEQkAABAJAAAICQAACAkAABAJAAALCQAACAkAAAsJAAAKCQAACgkAAAkJAAAICQAA+QgAAPgIAACQCAAA8QgAAPAIAAD2CAAA9ggAAPAIAADvCAAA9ggAAO8IAADuCAAA6QgAAOgIAAAfEQAAVAgAAOcIAABVCAAAVQgAAOcIAADmCAAAVQgAAOYIAABWCAAAVggAAOYIAADkCAAAVggAAOQIAABXCAAAVwgAAOQIAABcCAAAXAgAAOQIAADiCAAAXAgAAOIIAABdCAAAXQgAAOIIAAB6CAAAXQgAAHoIAABgCAAAYAgAAHoIAAB3CAAAYAgAAHcIAABhCAAAYQgAAHcIAABkCAAAZAgAAHcIAAB2CAAAZAgAAHYIAABzCAAA4AgAAH4IAADiCAAA4ggAAH4IAAB8CAAA4ggAAHwIAAB6CAAA2QgAANgIAADQCAAA0AgAANgIAADTCAAA0AgAANMIAADSCAAA0ggAANEIAADQCAAAzAgAAMkIAACsEAAAwAgAAKsIAADBCAAAwQgAAKsIAACqCAAAwQgAAKoIAACoCAAAkwgAAMAIAACWCAAAlggAAMAIAADGCAAAvggAALwIAACjCAAAowgAALwIAAC6CAAAoggAAKEIAACbCAAAmwgAAKEIAACgCAAAmwgAAKAIAACeCAAASQgAAEgIAABMCAAATAgAAEgIAABNCAAAhwgAAAoIAACICAAAiAgAAAoIAAAJCAAAiAgAAAkIAAAICAAAgQgAAIAIAACtEAAArRAAAIAIAAB/CAAAfwgAAH4IAADgCAAAcwgAAHIIAABkCAAAZAgAAHIIAABtCAAAZAgAAG0IAABsCAAAbAgAAGsIAABkCAAAZAgAAGsIAABqCAAAZAgAAGoIAABoCAAAaAgAAGYIAABkCAAAJAgAACEIAAAaCAAAGggAACEIAAAgCAAAGggAACAIAAAeCAAAHggAABwIAAAaCAAAEwgAABIIAACuEAAArhAAABIIAAALCAAArhAAAAsIAAAKCAAAYwcAAMoHAABkBwAAZAcAAMoHAADHBwAAZAcAAMcHAABlBwAAZQcAAMcHAABmBwAAZgcAAMcHAADGBwAAZgcAAMYHAABnBwAAZwcAAMYHAABuBwAAbgcAAMYHAADBBwAAbgcAAMEHAABvBwAAbwcAAMEHAAAaBwAAbwcAABoHAABwBwAAcAcAABoHAABxBwAAcQcAABoHAACPBwAAcQcAAI8HAAByBwAAcgcAAI8HAABzBwAAcwcAAI8HAACOBwAAcwcAAI4HAACNBwAAwQcAAMAHAAAaBwAAGgcAAMAHAAC/BwAAJAcAAB4HAACxEAAAsRAAAB4HAAAdBwAAjQcAAIwHAABzBwAAcwcAAIwHAACJBwAAcwcAAIkHAAB6BwAAegcAAIkHAACIBwAAegcAAIgHAACFBwAAhAcAAIAHAACFBwAAhQcAAIAHAAB/BwAAhQcAAH8HAAB+BwAAfgcAAHsHAACFBwAAhQcAAHsHAAB6BwAAWQcAAFgHAAA4CQAAOAkAAFgHAABWBwAATwcAAE4HAAA1BwAANQcAAE4HAAA8BwAAPAcAAE4HAABJBwAAPAcAAEkHAABIBwAAPAcAAEgHAAA9BwAAPQcAAEgHAABHBwAAPQcAAEcHAABABwAAQAcAAEcHAABBBwAAQQcAAEcHAABCBwAAQgcAAEcHAABGBwAAJQcAACQHAACxEAAADgcAAAsHAAAEBwAABAcAAAsHAAAKBwAABAcAAAoHAAAIBwAACAcAAAYHAAAEBwAA/wYAAP4GAAB5CQAA/QYAAPwGAACzEAAAsxAAAPwGAAD1BgAAdgkAAN4GAAB4CQAAeAkAAN4GAADdBgAAeAkAAN0GAADcBgAA3AYAANkGAAB4CQAAcAYAALgGAAByBgAAcgYAALgGAACzBgAAcgYAALMGAACyBgAAcgYAALIGAAB0BgAAdAYAALIGAACxBgAAdAYAALEGAAB1BgAAdQYAALEGAACwBgAAdQYAALAGAAB2BgAAdgYAALAGAAC1EAAAsAYAAK0GAAC1EAAAtRAAAK0GAACsBgAAVgYAAIQGAAC2EAAAthAAAIQGAAB8BgAAfwYAAH4GAACEBgAAhAYAAH4GAAB9BgAAhAYAAH0GAAB8BgAAcAYAAG4GAAAVEQAAWgYAAG4GAABcBgAAXAYAAG4GAABpBgAAXAYAAGkGAABeBgAAXgYAAGkGAABoBgAAXgYAAGgGAABfBgAAXwYAAGgGAABgBgAAYAYAAGgGAABhBgAAYQYAAGgGAABmBgAAZgYAAGgGAABnBgAATAYAAEoGAAASEQAAEhEAAEoGAABIBgAARgYAAEMGAAA+BgAAPgYAAEMGAAA/BgAAPwYAAEMGAABCBgAA5AUAACIGAADmBQAA5gUAACIGAAAhBgAA5gUAACEGAADnBQAA5wUAACEGAAAgBgAA5wUAACAGAADoBQAA6AUAACAGAAC8EAAA6AUAALwQAADpBQAA6QUAALwQAADuBQAArwUAALkFAACwBQAAsAUAALkFAAC4BQAAsAUAALgFAAC2BQAAtgUAALgFAAC3BQAArwUAAK4FAAC5BQAAuQUAAK4FAACtBQAAuQUAAK0FAACsBQAA8QUAAM4FAACsBQAArAUAAM4FAADJBQAArAUAAMkFAAC5BQAAuQUAAMkFAAC+BQAAvgUAAMkFAAC/BQAAvwUAAMkFAADABQAAwAUAAMkFAADBBQAAwQUAAMkFAADGBQAAxgUAAMkFAADIBQAAxgUAAMgFAADHBQAA0wUAANIFAABGCwAARgsAANIFAADRBQAARgsAANEFAADQBQAA0AUAAM4FAABGCwAARgsAAM4FAADxBQAAmQUAAHIFAACeBQAAngUAAHIFAACpBQAAngUAAKkFAACoBQAAngUAAKgFAACgBQAAoAUAAKgFAAClBQAAoAUAAKUFAACiBQAAogUAAKUFAACkBQAAmAUAAJcFAAC+EAAAvhAAAJcFAACWBQAA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FgMAACIDAAAXAwAAFwMAACIDAAAhAwAAFwMAACEDAAAgAwAAWwMAADgDAAAWAwAAFgMAADgDAAAzAwAAFgMAADMDAAAjAwAAIwMAADMDAAAoAwAAKAMAADMDAAApAwAAKQMAADMDAAAqAwAAKgMAADMDAAArAwAAKwMAADMDAAAwAwAAMAMAADMDAAAyAwAAMAMAADIDAAAxAwAABw4AAEMDAAD4EAAA+BAAAEMDAABCAwAA+BAAAEIDAAA9AwAAIwMAACIDAAAWAwAAEAMAAA4DAAASAwAAEgMAAA4DAAAJAwAA/gIAAPsCAAD1AgAA9QIAAPsCAAD6AgAA9QIAAPoCAAD4AgAA0AIAAM0CAADSEAAAxAIAAMoCAADzEAAA8xAAAMoCAADMDgAAaAIAAGQCAAB2AgAAdgIAAGQCAABjAgAAdgIAAGMCAABiAgAAdgIAAGICAAB3AgAAdwIAAGICAAC/AgAAdwIAAL8CAAB8AgAAfAIAAL8CAAB9AgAAfQIAAL8CAACAAgAAgAIAAL8CAAD2DgAAvQIAALwCAAD4DgAAtAIAAK8CAADxEAAA8RAAAK8CAACuAgAA8RAAAK4CAACtAgAA8RAAAK0CAAA2AgAANgIAAK0CAACsAgAANgIAAKwCAACnAgAApwIAAKYCAAA2AgAANgIAAKYCAAClAgAANgIAAKUCAACkAgAApAIAAKICAAA2AgAANgIAAKICAAA3AgAANwIAAKICAACdAgAANwIAAJ0CAACcAgAAnAIAAJsCAAA3AgAANwIAAJsCAACaAgAANwIAAJoCAACYAgAAkQIAAJACAACMAgAAjAIAAJACAACOAgAAjAIAAIcCAADUEAAA1BAAAIcCAACGAgAAdgIAAHUCAABoAgAAaAIAAHUCAABpAgAAaQIAAHUCAAB0AgAAaQIAAHQCAABsAgAAbAIAAHQCAABtAgAAbQIAAHQCAABuAgAAbgIAAHQCAABvAgAAOgIAADcCAADVEAAA1RAAADcCAACYAgAAxgEAAMABAADYEAAA2BAAAMABAAC/AQAAMQIAABMCAAC8AQAAvAEAABMCAAASAgAAvAEAABICAAARAgAAMAIAABUCAAAxAgAAMQIAABUCAAAUAgAAMQIAABQCAAATAgAAMAIAAC8CAAAVAgAAFQIAAC8CAAAuAgAAFQIAAC4CAAArAgAA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RQIAAFkCAABGAgAARgIAAFkCAABYAgAARgIAAFgCAABXAgAAWQIAAEUCAABaAgAAWgIAAEUCAABEAgAAWgIAAEQCAABLAgAASwIAAEoCAABaAgAAWgIAAEoCAABRAgAAWgIAAFECAABOAgAATgIAAFECAABQAgAATgIAAFACAABPAgAAVwIAAFYCAABGAgAARgIAAFYCAABgAgAAIxEAACQRAAAmEQAAJhEAACQRAAAlEQAAJBEAACcRAAAlEQAAJREAACcRAAAoEQAAJxEAACkRAAAoEQAAKBEAACkRAAAqEQAAKREAACMRAAAqEQAAKhEAACMRAAAmEQAAJhEAACURAAAqEQAAKhEAACURAAAoEQAAKxEAACwRAAAuEQAALhEAACwRAAAtEQAALxEAADARAAA2EQAANhEAADARAAA1EQAANREAADARAAAxEQAANREAADERAAA0EQAANBEAADERAAAyEQAANBEAADIRAAAzEQAAMxEAADIRAAArEQAAMxEAACsRAAAuEQAANxEAADgRAAA+EQAAPhEAADgRAAA9EQAAPREAADgRAAA5EQAAPREAADkRAAA8EQAAPBEAADkRAAA6EQAAPBEAADoRAAA7EQAAOxEAADoRAAAvEQAAOxEAAC8RAAA2EQAAPxEAADcRAABAEQAAQBEAADcRAAA+EQAAQREAAD8RAABCEQAAQhEAAD8RAABAEQAALBEAAEERAAAtEQAALREAAEERAABCEQAAQxEAAEQRAABGEQAARhEAAEQRAABFEQAARBEAAEcRAABFEQAARREAAEcRAABIEQAARxEAAEkRAABIEQAASBEAAEkRAABKEQAASREAAEsRAABKEQAAShEAAEsRAABOEQAAThEAAEsRAABMEQAAThEAAEwRAABNEQAATBEAAE8RAABNEQAATREAAE8RAABQEQAATxEAAFERAABQEQAAUBEAAFERAABSEQAAUREAAFMRAABSEQAAUhEAAFMRAABUEQAAUxEAAFURAABUEQAAVBEAAFURAABWEQAAVREAAFcRAABWEQAAVhEAAFcRAABeEQAAXhEAAFcRAABYEQAAXhEAAFgRAABdEQAAXREAAFgRAABZEQAAXREAAFkRAABcEQAAXBEAAFkRAABaEQAAXBEAAFoRAABbEQAAWhEAAF8RAABbEQAAWxEAAF8RAABgEQAAXxEAAGERAABgEQAAYBEAAGERAABiEQAAYREAAGMRAABiEQAAYhEAAGMRAABqEQAAahEAAGMRAABkEQAAahEAAGQRAABpEQAAaREAAGQRAABlEQAAaREAAGURAABoEQAAaBEAAGURAABmEQAAaBEAAGYRAABnEQAAZhEAAGsRAABnEQAAZxEAAGsRAAB2EQAAdhEAAGsRAABsEQAAdhEAAGwRAAB1EQAAdREAAGwRAABtEQAAdREAAG0RAAB0EQAAdBEAAG0RAABuEQAAdBEAAG4RAABzEQAAcxEAAG4RAABvEQAAcxEAAG8RAAByEQAAchEAAG8RAABwEQAAchEAAHARAABxEQAAcBEAAHcRAABxEQAAcREAAHcRAAB4EQAAdxEAAEMRAAB4EQAAeBEAAEMRAABGEQAALREAAE0RAAAuEQAALhEAAE0RAABgEQAALhEAAGARAAAzEQAAMxEAAGARAAA0EQAANBEAAGARAABiEQAANBEAAGIRAAA1EQAANREAAGIRAABqEQAANREAAGoRAABpEQAATREAAC0RAABOEQAAThEAAC0RAABCEQAAThEAAEIRAABKEQAAShEAAEIRAABIEQAASBEAAEIRAAB4EQAASBEAAHgRAABGEQAAQhEAAEARAAB4EQAAeBEAAEARAABxEQAAcREAAEARAAA+EQAAcREAAD4RAAA9EQAAcREAAD0RAAByEQAAchEAAD0RAAA8EQAAchEAADwRAABzEQAAcxEAADwRAAA7EQAAcxEAADsRAAB0EQAAdBEAADsRAAB1EQAAdREAADsRAAB2EQAAdhEAADsRAAA2EQAAdhEAADYRAABnEQAAZxEAADYRAABoEQAAaBEAADYRAABpEQAAaREAADYRAAA1EQAARhEAAEURAABIEQAATREAAFARAABgEQAAYBEAAFARAABbEQAAWxEAAFARAABcEQAAXBEAAFARAABdEQAAXREAAFARAABeEQAAXhEAAFARAABSEQAAXhEAAFIRAABWEQAAVhEAAFIRAABUEQAAeREAAHoRAAB8EQAAfBEAAHoRAAB7EQAAfREAAHkRAAB+EQAAfhEAAHkRAAB8EQAAehEAAH0RAAB7EQAAexEAAH0RAAB+EQAAfxEAAIARAACCEQAAghEAAIARAACBEQAAgBEAAIMRAACBEQAAgREAAIMRAACEEQAAgxEAAIURAACEEQAAhBEAAIURAACGEQAAhREAAIcRAACGEQAAhhEAAIcRAACIEQAAhxEAAIkRAACIEQAAiBEAAIkRAACKEQAAiREAAIsRAACKEQAAihEAAIsRAACMEQAAixEAAI0RAACMEQAAjBEAAI0RAACOEQAAjREAAH8RAACOEQAAjhEAAH8RAACCEQAAexEAAIgRAAB8EQAAfBEAAIgRAACKEQAAfBEAAIoRAACOEQAAjhEAAIoRAACMEQAAiBEAAHsRAACGEQAAhhEAAHsRAAB+EQAAhhEAAH4RAACEEQAAhBEAAH4RAACCEQAAhBEAAIIRAACBEQAAghEAAH4RAAB8EQAAjhEAAIIRAAB8EQAAjxEAAJARAACYEQAAmBEAAJARAACXEQAAlxEAAJARAACREQAAlxEAAJERAACWEQAAlhEAAJERAACSEQAAlhEAAJIRAACVEQAAlREAAJIRAACTEQAAlREAAJMRAACUEQAAmREAAJoRAACiEQAAohEAAJoRAAChEQAAoREAAJoRAACbEQAAoREAAJsRAACgEQAAoBEAAJsRAACcEQAAoBEAAJwRAACfEQAAnxEAAJwRAACdEQAAnxEAAJ0RAACeEQAAnhEAAJ0RAACPEQAAnhEAAI8RAACYEQAAoxEAAJkRAACkEQAApBEAAJkRAACiEQAApREAAKMRAACmEQAAphEAAKMRAACkEQAAkxEAAKURAACUEQAAlBEAAKURAACmEQAApxEAAKgRAACqEQAAqhEAAKgRAACpEQAAqBEAAKsRAACpEQAAqREAAKsRAACsEQAAqxEAAK0RAACsEQAArBEAAK0RAACuEQAArREAAK8RAACuEQAArhEAAK8RAACwEQAArxEAALERAACwEQAAsBEAALERAAC4EQAAuBEAALERAACyEQAAuBEAALIRAAC3EQAAtxEAALIRAACzEQAAtxEAALMRAAC2EQAAthEAALMRAAC0EQAAthEAALQRAAC1EQAAtBEAALkRAAC1EQAAtREAALkRAADAEQAAwBEAALkRAAC6EQAAwBEAALoRAAC/EQAAvxEAALoRAAC7EQAAvxEAALsRAAC+EQAAvhEAALsRAAC8EQAAvhEAALwRAAC9EQAAvBEAAKcRAAC9EQAAvREAAKcRAACqEQAAlxEAALYRAACYEQAAmBEAALYRAAC1EQAAmBEAALURAADAEQAAlhEAALgRAACXEQAAlxEAALgRAAC3EQAAlxEAALcRAAC2EQAAuBEAAJYRAACwEQAAsBEAAJYRAACVEQAAsBEAAJURAACUEQAAsBEAAJQRAACuEQAArhEAAJQRAACmEQAArhEAAKYRAACpEQAAqREAAKYRAACqEQAAqhEAAKYRAACkEQAAqhEAAKQRAAC9EQAAvREAAKQRAACiEQAAvREAAKIRAAChEQAAoREAAKARAAC9EQAAvREAAKARAACfEQAAvREAAJ8RAAC+EQAAvhEAAJ8RAACeEQAAvhEAAJ4RAAC/EQAAvxEAAJ4RAADAEQAAwBEAAJ4RAACYEQAAqREAAKwRAACuEQAAwREAAMIRAADEEQAAxBEAAMIRAADDEQAAxREAAMYRAADQEQAA0BEAAMYRAADPEQAAzxEAAMYRAADHEQAAzxEAAMcRAADOEQAAzhEAAMcRAADIEQAAzhEAAMgRAADNEQAAzREAAMgRAADJEQAAzREAAMkRAADMEQAAzBEAAMkRAADKEQAAzBEAAMoRAADLEQAAyxEAAMoRAADBEQAAyxEAAMERAADEEQAA0REAANIRAADYEQAA2BEAANIRAADXEQAA1xEAANIRAADTEQAA1xEAANMRAADWEQAA1hEAANMRAADUEQAA1hEAANQRAADVEQAA1REAANQRAADFEQAA1REAAMURAADQEQAA2REAANERAADaEQAA2hEAANERAADYEQAAwhEAANkRAADDEQAAwxEAANkRAADaEQAA2xEAANwRAADeEQAA3hEAANwRAADdEQAA3BEAAN8RAADdEQAA3REAAN8RAADgEQAA3xEAAOERAADgEQAA4BEAAOERAADiEQAA4REAAOMRAADiEQAA4hEAAOMRAADsEQAA7BEAAOMRAADkEQAA7BEAAOQRAADrEQAA6xEAAOQRAADlEQAA6xEAAOURAADqEQAA6hEAAOURAADmEQAA6hEAAOYRAADpEQAA6REAAOYRAADnEQAA6REAAOcRAADoEQAA5xEAAO0RAADoEQAA6BEAAO0RAAD2EQAA9hEAAO0RAADuEQAA9hEAAO4RAAD1EQAA9REAAO4RAADvEQAA9REAAO8RAAD0EQAA9BEAAO8RAADwEQAA9BEAAPARAADzEQAA8xEAAPARAADxEQAA8xEAAPERAADyEQAA8REAANsRAADyEQAA8hEAANsRAADeEQAAyxEAAMQRAADgEQAA4BEAAMQRAADDEQAA4BEAAMMRAADdEQAA3REAAMMRAADeEQAA3hEAAMMRAADaEQAA3hEAANoRAADyEQAA8hEAANoRAADYEQAA8hEAANgRAADXEQAA8hEAANcRAADzEQAA8xEAANcRAADWEQAA8xEAANYRAAD0EQAA9BEAANYRAAD1EQAA9REAANYRAADVEQAA9REAANURAAD2EQAA9hEAANURAADQEQAA9hEAANARAADoEQAA6BEAANARAADpEQAA6REAANARAADPEQAA6REAAM8RAADqEQAA6hEAAM8RAADOEQAA6hEAAM4RAADrEQAA6xEAAM4RAADNEQAA6xEAAM0RAADsEQAA7BEAAM0RAADiEQAA4hEAAM0RAADMEQAA4hEAAMwRAADgEQAA4BEAAMwRAADLEQAA9xEAAPgRAAD6EQAA+hEAAPgRAAD5EQAA+BEAAPsRAAD5EQAA+REAAPsRAAD8EQAA+xEAAP0RAAD8EQAA/BEAAP0RAAD+EQAA/REAAP8RAAD+EQAA/hEAAP8RAAAAEgAA/xEAAAESAAAAEgAAABIAAAESAAACEgAAARIAAAMSAAACEgAAAhIAAAMSAAAEEgAAAxIAAAUSAAAEEgAABBIAAAUSAAAGEgAABRIAAAcSAAAGEgAABhIAAAcSAAAIEgAABxIAAPcRAAAIEgAACBIAAPcRAAD6EQAACBIAAPoRAAAGEgAABhIAAPoRAAD5EQAABhIAAPkRAAAAEgAAABIAAPkRAAD+EQAA/hEAAPkRAAD8EQAAABIAAAISAAAGEgAABhIAAAISAAAEEgAACRIAAAoSAAAMEgAADBIAAAoSAAALEgAAChIAAA0SAAALEgAACxIAAA0SAAAOEgAADRIAAA8SAAAOEgAADhIAAA8SAAAWEgAAFhIAAA8SAAAQEgAAFhIAABASAAAVEgAAFRIAABASAAAREgAAFRIAABESAAAUEgAAFBIAABESAAASEgAAFBIAABISAAATEgAAEhIAABcSAAATEgAAExIAABcSAAAeEgAAHhIAABcSAAAYEgAAHhIAABgSAAAdEgAAHRIAABgSAAAZEgAAHRIAABkSAAAcEgAAHBIAABkSAAAaEgAAHBIAABoSAAAbEgAAGhIAAB8SAAAbEgAAGxIAAB8SAAAmEgAAJhIAAB8SAAAgEgAAJhIAACASAAAlEgAAJRIAACASAAAhEgAAJRIAACESAAAkEgAAJBIAACESAAAiEgAAJBIAACISAAAjEgAAIhIAACcSAAAjEgAAIxIAACcSAAAuEgAALhIAACcSAAAoEgAALhIAACgSAAAtEgAALRIAACgSAAApEgAALRIAACkSAAAsEgAALBIAACkSAAAqEgAALBIAACoSAAArEgAAKhIAAC8SAAArEgAAKxIAAC8SAAAwEgAALxIAADESAAAwEgAAMBIAADESAAA6EgAAOhIAADESAAAyEgAAOhIAADISAAA5EgAAORIAADISAAAzEgAAORIAADMSAAA4EgAAOBIAADMSAAA0EgAAOBIAADQSAAA3EgAANxIAADQSAAA1EgAANxIAADUSAAA2EgAANRIAADsSAAA2EgAANhIAADsSAAA+EgAAPhIAADsSAAA8EgAAPhIAADwSAAA9EgAAPBIAAD8SAAA9EgAAPRIAAD8SAABGEgAARhIAAD8SAABAEgAARhIAAEASAABFEgAARRIAAEASAABBEgAARRIAAEESAABEEgAARBIAAEESAABCEgAARBIAAEISAABDEgAAQhIAAEcSAABDEgAAQxIAAEcSAABSEgAAUhIAAEcSAABIEgAAUhIAAEgSAABREgAAURIAAEgSAABJEgAAURIAAEkSAABQEgAAUBIAAEkSAABKEgAAUBIAAEoSAABPEgAATxIAAEoSAABLEgAATxIAAEsSAABOEgAAThIAAEsSAABMEgAAThIAAEwSAABNEgAATBIAAFMSAABNEgAATRIAAFMSAABaEgAAWhIAAFMSAABUEgAAWhIAAFQSAABZEgAAWRIAAFQSAABVEgAAWRIAAFUSAABYEgAAWBIAAFUSAABWEgAAWBIAAFYSAABXEgAAVhIAAFsSAABXEgAAVxIAAFsSAABcEgAAWxIAAF0SAABcEgAAXBIAAF0SAABeEgAAXRIAAAkSAABeEgAAXhIAAAkSAAAMEgAADBIAAAsSAABeEgAAXhIAAAsSAABcEgAAXBIAAAsSAABXEgAAVxIAAAsSAAAOEgAAVxIAAA4SAABYEgAAWBIAAA4SAABZEgAAWRIAAA4SAAAWEgAAWRIAABYSAAAVEgAAWRIAABUSAABaEgAAWhIAABUSAAAUEgAAWhIAABQSAABNEgAATRIAABQSAAATEgAATRIAABMSAAAeEgAAHRIAAE8SAAAeEgAAHhIAAE8SAABOEgAAHhIAAE4SAABNEgAATxIAAB0SAABQEgAAUBIAAB0SAAAcEgAAUBIAABwSAABREgAAURIAABwSAABSEgAAUhIAABwSAAAbEgAAUhIAABsSAABDEgAAQxIAABsSAABEEgAARBIAABsSAAAmEgAARBIAACYSAABFEgAARRIAACYSAAAlEgAARRIAACUSAABGEgAARhIAACUSAAA9EgAAPRIAACUSAAAkEgAAPRIAACQSAAA+EgAAPhIAACQSAAAjEgAAPhIAACMSAAA2EgAANhIAACMSAAAuEgAANhIAAC4SAAA3EgAANxIAAC4SAAAtEgAANxIAAC0SAAA4EgAAOBIAAC0SAAAsEgAAOBIAACwSAAA5EgAAORIAACwSAAA6EgAAOhIAACwSAAArEgAAOhIAACsSAAAwEgAAXxIAAGASAABiEgAAYhIAAGASAABhEgAAYBIAAGMSAABhEgAAYRIAAGMSAABkEgAAYxIAAGUSAABkEgAAZBIAAGUSAABmEgAAZRIAAGcSAABmEgAAZhIAAGcSAABoEgAAZxIAAGkSAABoEgAAaBIAAGkSAABqEgAAaRIAAF8SAABqEgAAahIAAF8SAABiEgAAahIAAGISAABoEgAAaBIAAGISAABhEgAAaBIAAGESAABkEgAAZBIAAGYSAABoEgAAaxIAAGwSAABuEgAAbhIAAGwSAABtEgAAbxIAAHASAAB6EgAAehIAAHASAAB5EgAAeRIAAHASAABxEgAAeRIAAHESAAB4EgAAeBIAAHESAAByEgAAeBIAAHISAAB3EgAAdxIAAHISAABzEgAAdxIAAHMSAAB2EgAAdhIAAHMSAAB0EgAAdhIAAHQSAAB1EgAAdRIAAHQSAABrEgAAdRIAAGsSAABuEgAAexIAAHwSAACCEgAAghIAAHwSAACBEgAAgRIAAHwSAAB9EgAAgRIAAH0SAACAEgAAgBIAAH0SAAB+EgAAgBIAAH4SAAB/EgAAfxIAAH4SAABvEgAAfxIAAG8SAAB6EgAAgxIAAHsSAACEEgAAhBIAAHsSAACCEgAAbBIAAIMSAABtEgAAbRIAAIMSAACEEgAAhRIAAIYSAACIEgAAiBIAAIYSAACHEgAAhhIAAIkSAACHEgAAhxIAAIkSAACKEgAAiRIAAIsSAACKEgAAihIAAIsSAACMEgAAixIAAI0SAACMEgAAjBIAAI0SAACWEgAAlhIAAI0SAACOEgAAlhIAAI4SAACVEgAAlRIAAI4SAACPEgAAlRIAAI8SAACUEgAAlBIAAI8SAACQEgAAlBIAAJASAACTEgAAkxIAAJASAACREgAAkxIAAJESAACSEgAAkRIAAJcSAACSEgAAkhIAAJcSAACgEgAAoBIAAJcSAACYEgAAoBIAAJgSAACfEgAAnxIAAJgSAACZEgAAnxIAAJkSAACeEgAAnhIAAJkSAACaEgAAnhIAAJoSAACdEgAAnRIAAJoSAACbEgAAnRIAAJsSAACcEgAAmxIAAIUSAACcEgAAnBIAAIUSAACIEgAAdRIAAG4SAACKEgAAihIAAG4SAABtEgAAihIAAG0SAACHEgAAhxIAAG0SAACIEgAAiBIAAG0SAACEEgAAiBIAAIQSAACcEgAAnBIAAIQSAACCEgAAnBIAAIISAACBEgAAnBIAAIESAACdEgAAnRIAAIESAACAEgAAnRIAAIASAACeEgAAnhIAAIASAACfEgAAnxIAAIASAAB/EgAAnxIAAH8SAACgEgAAoBIAAH8SAAB6EgAAoBIAAHoSAACSEgAAkhIAAHoSAACTEgAAkxIAAHoSAAB5EgAAkxIAAHkSAACUEgAAlBIAAHkSAAB4EgAAlBIAAHgSAACVEgAAlRIAAHgSAAB3EgAAlRIAAHcSAACWEgAAlhIAAHcSAACMEgAAjBIAAHcSAAB2EgAAjBIAAHYSAACKEgAAihIAAHYSAAB1EgAAoRIAAKISAACkEgAApBIAAKISAACjEgAAohIAAKUSAACjEgAAoxIAAKUSAACmEgAApRIAAKcSAACmEgAAphIAAKcSAACoEgAApxIAAKkSAACoEgAAqBIAAKkSAACqEgAAqRIAAKsSAACqEgAAqhIAAKsSAACsEgAAqxIAAK0SAACsEgAArBIAAK0SAACuEgAArRIAAK8SAACuEgAArhIAAK8SAACwEgAArxIAALESAACwEgAAsBIAALESAACyEgAAsRIAALMSAACyEgAAshIAALMSAAC0EgAAsxIAALUSAAC0EgAAtBIAALUSAAC2EgAAtRIAALcSAAC2EgAAthIAALcSAAC4EgAAtxIAAKESAAC4EgAAuBIAAKESAACkEgAAthIAALgSAAC0EgAAtBIAALgSAACkEgAAtBIAAKQSAACyEgAAshIAAKQSAACsEgAAshIAAKwSAACwEgAAsBIAAKwSAACuEgAApBIAAKMSAACsEgAArBIAAKMSAACqEgAAqhIAAKMSAACmEgAAqhIAAKYSAACoEgAAuRIAALoSAAC8EgAAvBIAALoSAAC7EgAAuhIAAL0SAAC7EgAAuxIAAL0SAAC+EgAAvRIAAL8SAAC+EgAAvhIAAL8SAADAEgAAvxIAALkSAADAEgAAwBIAALkSAAC8EgAAvBIAALsSAADAEgAAwBIAALsSAAC+EgAAwRIAAMISAADEEgAAxBIAAMISAADDEgAAwhIAAMUSAADDEgAAwxIAAMUSAADGEgAAxRIAAMcSAADGEgAAxhIAAMcSAADIEgAAxxIAAMkSAADIEgAAyBIAAMkSAADKEgAAyRIAAMsSAADKEgAAyhIAAMsSAADMEgAAyxIAAM0SAADMEgAAzBIAAM0SAADOEgAAzRIAAM8SAADOEgAAzhIAAM8SAADQEgAAzxIAANESAADQEgAA0BIAANESAADSEgAA0RIAANMSAADSEgAA0hIAANMSAADUEgAA0xIAAMESAADUEgAA1BIAAMESAADEEgAA0hIAANQSAADIEgAAyBIAANQSAADEEgAAyBIAAMQSAADDEgAAwxIAAMYSAADIEgAAyBIAAMoSAADSEgAA0hIAAMoSAADMEgAA0hIAAMwSAADOEgAAzhIAANASAADSEgAA1RIAANYSAADYEgAA2BIAANYSAADXEgAA2RIAANoSAADgEgAA4BIAANoSAADfEgAA3xIAANoSAADbEgAA3xIAANsSAADeEgAA3hIAANsSAADcEgAA3hIAANwSAADdEgAA3RIAANwSAADVEgAA3RIAANUSAADYEgAA4RIAAOISAADoEgAA6BIAAOISAADnEgAA5xIAAOISAADjEgAA5xIAAOMSAADmEgAA5hIAAOMSAADkEgAA5hIAAOQSAADlEgAA5RIAAOQSAADZEgAA5RIAANkSAADgEgAA6RIAAOESAADqEgAA6hIAAOESAADoEgAA6xIAAOkSAADsEgAA7BIAAOkSAADqEgAA1hIAAOsSAADXEgAA1xIAAOsSAADsEgAA7RIAAO4SAADwEgAA8BIAAO4SAADvEgAA7hIAAPESAADvEgAA7xIAAPESAADyEgAA8RIAAPMSAADyEgAA8hIAAPMSAAD0EgAA8xIAAPUSAAD0EgAA9BIAAPUSAAD4EgAA+BIAAPUSAAD2EgAA+BIAAPYSAAD3EgAA9hIAAPkSAAD3EgAA9xIAAPkSAAD6EgAA+RIAAPsSAAD6EgAA+hIAAPsSAAD8EgAA+xIAAP0SAAD8EgAA/BIAAP0SAAD+EgAA/RIAAP8SAAD+EgAA/hIAAP8SAAAAEwAA/xIAAAETAAAAEwAAABMAAAETAAAIEwAACBMAAAETAAACEwAACBMAAAITAAAHEwAABxMAAAITAAADEwAABxMAAAMTAAAGEwAABhMAAAMTAAAEEwAABhMAAAQTAAAFEwAABBMAAAkTAAAFEwAABRMAAAkTAAAKEwAACRMAAAsTAAAKEwAAChMAAAsTAAAMEwAACxMAAA0TAAAMEwAADBMAAA0TAAAUEwAAFBMAAA0TAAAOEwAAFBMAAA4TAAATEwAAExMAAA4TAAAPEwAAExMAAA8TAAASEwAAEhMAAA8TAAAQEwAAEhMAABATAAAREwAAEBMAABUTAAAREwAAERMAABUTAAAgEwAAIBMAABUTAAAWEwAAIBMAABYTAAAfEwAAHxMAABYTAAAXEwAAHxMAABcTAAAeEwAAHhMAABcTAAAYEwAAHhMAABgTAAAdEwAAHRMAABgTAAAZEwAAHRMAABkTAAAcEwAAHBMAABkTAAAaEwAAHBMAABoTAAAbEwAAGhMAACETAAAbEwAAGxMAACETAAAiEwAAIRMAAO0SAAAiEwAAIhMAAO0SAADwEgAA1xIAAPcSAADYEgAA2BIAAPcSAAAKEwAA2BIAAAoTAADdEgAA3RIAAAoTAADeEgAA3hIAAAoTAAAMEwAA3hIAAAwTAADfEgAA3xIAAAwTAAAUEwAA3xIAABQTAAATEwAA9xIAANcSAAD4EgAA+BIAANcSAADsEgAA+BIAAOwSAAD0EgAA9BIAAOwSAADyEgAA8hIAAOwSAAAiEwAA8hIAACITAADwEgAA7BIAAOoSAAAiEwAAIhMAAOoSAAAbEwAAGxMAAOoSAADoEgAAGxMAAOgSAADnEgAAGxMAAOcSAAAcEwAAHBMAAOcSAADmEgAAHBMAAOYSAAAdEwAAHRMAAOYSAADlEgAAHRMAAOUSAAAeEwAAHhMAAOUSAAAfEwAAHxMAAOUSAAAgEwAAIBMAAOUSAADgEgAAIBMAAOASAAAREwAAERMAAOASAAASEwAAEhMAAOASAAATEwAAExMAAOASAADfEgAA8BIAAO8SAADyEgAA9xIAAPoSAAAKEwAAChMAAPoSAAAFEwAABRMAAPoSAAAGEwAABhMAAPoSAAAHEwAABxMAAPoSAAAIEwAACBMAAPoSAAD8EgAACBMAAPwSAAAAEwAAABMAAPwSAAD+EgAAIxMAACQTAAAsEwAALBMAACQTAAArEwAAKxMAACQTAAAlEwAAKxMAACUTAAAqEwAAKhMAACUTAAAmEwAAKhMAACYTAAApEwAAKRMAACYTAAAnEwAAKRMAACcTAAAoEwAALRMAAC4TAAA0EwAANBMAAC4TAAAzEwAAMxMAAC4TAAAvEwAAMxMAAC8TAAAyEwAAMhMAAC8TAAAwEwAAMhMAADATAAAxEwAAMRMAADATAAAjEwAAMRMAACMTAAAsEwAANRMAADYTAAA6EwAAOhMAADYTAAA5EwAAORMAADYTAAA3EwAAORMAADcTAAA4EwAAOBMAADcTAAAtEwAAOBMAAC0TAAA0EwAAJxMAADsTAAAoEwAAKBMAADsTAABAEwAAQBMAADsTAAA8EwAAQBMAADwTAAA/EwAAPxMAADwTAAA9EwAAPxMAAD0TAAA+EwAAPhMAAD0TAAA1EwAAPhMAADUTAAA6EwAAQRMAAEITAABKEwAAShMAAEITAABJEwAASRMAAEITAABDEwAASRMAAEMTAABIEwAASBMAAEMTAABEEwAASBMAAEQTAABHEwAARxMAAEQTAABFEwAARxMAAEUTAABGEwAASxMAAEwTAABOEwAAThMAAEwTAABNEwAATRMAAEwTAABBEwAATRMAAEETAABKEwAATxMAAFATAABSEwAAUhMAAFATAABREwAAURMAAFATAABLEwAAURMAAEsTAABOEwAARRMAAFMTAABGEwAARhMAAFMTAABYEwAAWBMAAFMTAABUEwAAWBMAAFQTAABXEwAAVxMAAFQTAABVEwAAVxMAAFUTAABWEwAAVhMAAFUTAABPEwAAVhMAAE8TAABSEwAAWRMAAFoTAABcEwAAXBMAAFoTAABbEwAAWhMAAF0TAABbEwAAWxMAAF0TAABeEwAAXRMAAF8TAABeEwAAXhMAAF8TAABmEwAAZhMAAF8TAABgEwAAZhMAAGATAABlEwAAZRMAAGATAABhEwAAZRMAAGETAABkEwAAZBMAAGETAABiEwAAZBMAAGITAABjEwAAYhMAAGcTAABjEwAAYxMAAGcTAABuEwAAbhMAAGcTAABoEwAAbhMAAGgTAABtEwAAbRMAAGgTAABpEwAAbRMAAGkTAABsEwAAbBMAAGkTAABqEwAAbBMAAGoTAABrEwAAahMAAG8TAABrEwAAaxMAAG8TAAB2EwAAdhMAAG8TAABwEwAAdhMAAHATAAB1EwAAdRMAAHATAABxEwAAdRMAAHETAAB0EwAAdBMAAHETAAByEwAAdBMAAHITAABzEwAAchMAAHcTAABzEwAAcxMAAHcTAAB+EwAAfhMAAHcTAAB4EwAAfhMAAHgTAAB9EwAAfRMAAHgTAAB5EwAAfRMAAHkTAAB8EwAAfBMAAHkTAAB6EwAAfBMAAHoTAAB7EwAAehMAAH8TAAB7EwAAexMAAH8TAACGEwAAhhMAAH8TAACAEwAAhhMAAIATAACFEwAAhRMAAIATAACBEwAAhRMAAIETAACEEwAAhBMAAIETAACCEwAAhBMAAIITAACDEwAAghMAAIcTAACDEwAAgxMAAIcTAACOEwAAjhMAAIcTAACIEwAAjhMAAIgTAACNEwAAjRMAAIgTAACJEwAAjRMAAIkTAACMEwAAjBMAAIkTAACKEwAAjBMAAIoTAACLEwAAihMAAI8TAACLEwAAixMAAI8TAACQEwAAjxMAAJETAACQEwAAkBMAAJETAACSEwAAkRMAAJMTAACSEwAAkhMAAJMTAACaEwAAmhMAAJMTAACUEwAAmhMAAJQTAACZEwAAmRMAAJQTAACVEwAAmRMAAJUTAACYEwAAmBMAAJUTAACWEwAAmBMAAJYTAACXEwAAlhMAAJsTAACXEwAAlxMAAJsTAACcEwAAmxMAAJ0TAACcEwAAnBMAAJ0TAACeEwAAnRMAAJ8TAACeEwAAnhMAAJ8TAACgEwAAnxMAAKETAACgEwAAoBMAAKETAACoEwAAqBMAAKETAACiEwAAqBMAAKITAACnEwAApxMAAKITAACjEwAApxMAAKMTAACmEwAAphMAAKMTAACkEwAAphMAAKQTAAClEwAApBMAAFkTAAClEwAApRMAAFkTAABcEwAAMRMAACwTAABrEwAAaxMAACwTAAArEwAAaxMAACsTAABsEwAAbBMAACsTAAAqEwAAbBMAACoTAABtEwAAbRMAACoTAAApEwAAbRMAACkTAABuEwAAbhMAACkTAAAoEwAAbhMAACgTAABjEwAAYxMAACgTAABkEwAAZBMAACgTAABAEwAAZBMAAEATAABlEwAAZRMAAEATAAA/EwAAZRMAAD8TAABmEwAAZhMAAD8TAAA+EwAAZhMAAD4TAABeEwAAXhMAAD4TAAA6EwAAXhMAADoTAABSEwAAUhMAADoTAAB7EwAAUhMAAHsTAABWEwAAVhMAAHsTAACGEwAAVhMAAIYTAABXEwAAVxMAAIYTAACFEwAAVxMAAIUTAABYEwAAWBMAAIUTAACEEwAAWBMAAIQTAABGEwAARhMAAIQTAACDEwAARhMAAIMTAACOEwAAOhMAADkTAAB7EwAAexMAADkTAAB8EwAAfBMAADkTAAA4EwAAfBMAADgTAAB9EwAAfRMAADgTAAB+EwAAfhMAADgTAAA0EwAAfhMAADQTAABzEwAAcxMAADQTAAB0EwAAdBMAADQTAAAzEwAAdBMAADMTAAB1EwAAdRMAADMTAAAyEwAAdRMAADITAAB2EwAAdhMAADITAAAxEwAAdhMAADETAABrEwAATRMAAEoTAACLEwAAixMAAEoTAABJEwAAixMAAEkTAACMEwAAjBMAAEkTAABIEwAAjBMAAEgTAACNEwAAjRMAAEgTAABHEwAAjRMAAEcTAACOEwAAjhMAAEcTAABGEwAAUhMAAFETAABeEwAAXhMAAFETAABbEwAAWxMAAFETAABOEwAAWxMAAE4TAACSEwAAkhMAAE4TAACQEwAAkBMAAE4TAABNEwAAkBMAAE0TAACLEwAApRMAAFwTAACmEwAAphMAAFwTAABbEwAAphMAAFsTAACnEwAApxMAAFsTAACoEwAAqBMAAFsTAACgEwAAoBMAAFsTAACSEwAAoBMAAJITAACaEwAAmhMAAJkTAACgEwAAoBMAAJkTAACeEwAAnhMAAJkTAACYEwAAnhMAAJgTAACXEwAAlxMAAJwTAACeEwAAqRMAAKoTAACyEwAAshMAAKoTAACxEwAAsRMAAKoTAACrEwAAsRMAAKsTAACwEwAAsBMAAKsTAACsEwAAsBMAAKwTAACvEwAArxMAAKwTAACtEwAArxMAAK0TAACuEwAArRMAALMTAACuEwAArhMAALMTAAC+EwAAvhMAALMTAAC0EwAAvhMAALQTAAC9EwAAvRMAALQTAAC1EwAAvRMAALUTAAC8EwAAvBMAALUTAAC2EwAAvBMAALYTAAC7EwAAuxMAALYTAAC3EwAAuxMAALcTAAC6EwAAuhMAALcTAAC4EwAAuhMAALgTAAC5EwAAuBMAAL8TAAC5EwAAuRMAAL8TAADKEwAAyhMAAL8TAADAEwAAyhMAAMATAADJEwAAyRMAAMATAADBEwAAyRMAAMETAADIEwAAyBMAAMETAADCEwAAyBMAAMITAADHEwAAxxMAAMITAADDEwAAxxMAAMMTAADGEwAAxhMAAMMTAADEEwAAxhMAAMQTAADFEwAAxBMAAMsTAADFEwAAxRMAAMsTAADOEwAAzhMAAMsTAADMEwAAzhMAAMwTAADNEwAAzBMAAM8TAADNEwAAzRMAAM8TAADSEwAA0hMAAM8TAADQEwAA0hMAANATAADREwAA0BMAANMTAADREwAA0RMAANMTAADaEwAA2hMAANMTAADUEwAA2hMAANQTAADZEwAA2RMAANQTAADVEwAA2RMAANUTAADYEwAA2BMAANUTAADWEwAA2BMAANYTAADXEwAA1hMAANsTAADXEwAA1xMAANsTAADiEwAA4hMAANsTAADcEwAA4hMAANwTAADhEwAA4RMAANwTAADdEwAA4RMAAN0TAADgEwAA4BMAAN0TAADeEwAA4BMAAN4TAADfEwAA3hMAAOMTAADfEwAA3xMAAOMTAADkEwAA4xMAAOUTAADkEwAA5BMAAOUTAADsEwAA7BMAAOUTAADmEwAA7BMAAOYTAADrEwAA6xMAAOYTAADnEwAA6xMAAOcTAADqEwAA6hMAAOcTAADoEwAA6hMAAOgTAADpEwAA6BMAAO0TAADpEwAA6RMAAO0TAAD4EwAA+BMAAO0TAADuEwAA+BMAAO4TAAD3EwAA9xMAAO4TAADvEwAA9xMAAO8TAAD2EwAA9hMAAO8TAADwEwAA9hMAAPATAAD1EwAA9RMAAPATAADxEwAA9RMAAPETAAD0EwAA9BMAAPETAADyEwAA9BMAAPITAADzEwAA8hMAAPkTAADzEwAA8xMAAPkTAAD8EwAA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uBQAAJIUAAC+FAAAvhQAAJIUAACRFAAAvhQAAJEUAADBFAAAwRQAAJEUAACQFAAAwRQAAJAUAADEFAAAxBQAAJAUAACPFAAAxBQAAI8UAADHFAAAxxQAAI8UAACOFAAAxxQAAI4UAADKFAAAyhQAAI4UAACNFAAAyhQAAI0UAADMFAAAzBQAAI0UAACMFAAAzBQAAIwUAACtFAAArRQAAIwUAACLFAAArRQAAIsUAADPFAAAzxQAAIsUAACKFAAAzxQAAIoUAACxFAAAsRQAAIoUAACJFAAAsRQAAIkUAADYFAAA2BQAAIkUAADTFAAA2BQAANMUAADUFAAA1BQAANMUAADaFAAA1BQAANoUAADbFAAA2xQAANoUAADeFAAA2xQAAN4UAACiFAAAohQAAN4UAAChFAAAoRQAAN4UAACyFAAAoRQAALIUAACgFAAAoBQAALIUAADiFAAAoBQAAOIUAADlFAAA5RQAAOIUAADhFAAA5RQAAOEUAADkFAAA5BQAAOEUAACzFAAA5BQAALMUAADjFAAA4xQAALMUAACEFAAA4xQAAIQUAACDFAAAiRQAAIgUAADTFAAA0xQAAIgUAADZFAAA0xQAANkUAADaFAAA2hQAANkUAADdFAAA2hQAAN0UAADeFAAA3hQAAN0UAACyFAAAiBQAAIcUAADZFAAA2RQAAIcUAADcFAAA2RQAANwUAADdFAAA3RQAANwUAADgFAAA3RQAAOAUAACyFAAAshQAAOAUAADhFAAAshQAAOEUAADiFAAAhxQAAIYUAADcFAAA3BQAAIYUAADfFAAA3BQAAN8UAADgFAAA4BQAAN8UAACzFAAA4BQAALMUAADhFAAAhhQAAIUUAADfFAAA3xQAAIUUAACzFAAAhRQAAIQUAACzFAAA4xQAAIMUAADmFAAA5hQAAIMUAACCFAAA5hQAAIIUAADpFAAA6RQAAIIUAACBFAAA6RQAAIEUAADsFAAA7BQAAIEUAACAFAAA7BQAAIAUAADvFAAA7xQAAIAUAAC1FAAA7xQAALUUAAD1FAAA9RQAALUUAADzFAAA9RQAAPMUAAD0FAAA9BQAAPMUAAD4FAAA9BQAAPgUAACaFAAAmhQAAPgUAACZFAAAmRQAAPgUAAD7FAAAmRQAAPsUAACYFAAAmBQAAPsUAAC2FAAAmBQAALYUAACXFAAAlxQAALYUAAAAFQAAlxQAAAAVAAADFQAAAxUAAAAVAAD/FAAAAxUAAP8UAAACFQAAAhUAAP8UAAD+FAAAAhUAAP4UAAABFQAAARUAAP4UAAB6FAAAARUAAHoUAAB5FAAAgBQAAH8UAAC1FAAAtRQAAH8UAADyFAAAtRQAAPIUAADzFAAA8xQAAPIUAAD3FAAA8xQAAPcUAAD4FAAA+BQAAPcUAAD7FAAAfxQAAH4UAADyFAAA8hQAAH4UAAD2FAAA8hQAAPYUAAD3FAAA9xQAAPYUAAD6FAAA9xQAAPoUAAD7FAAA+xQAAPoUAAC2FAAAfhQAAH0UAAD2FAAA9hQAAH0UAAD5FAAA9hQAAPkUAAD6FAAA+hQAAPkUAAD9FAAA+hQAAP0UAAC2FAAAthQAAP0UAAAAFQAAfRQAAHwUAAD5FAAA+RQAAHwUAAD8FAAA+RQAAPwUAAD9FAAA/RQAAPwUAAD/FAAA/RQAAP8UAAAAFQAAfBQAAHsUAAD8FAAA/BQAAHsUAAD+FAAA/BQAAP4UAAD/FAAAexQAAHoUAAD+FAAAARUAAHkUAAAEFQAABBUAAHkUAAB4FAAABBUAAHgUAAAHFQAABxUAAHgUAAB3FAAABxUAAHcUAAAKFQAAChUAAHcUAAB2FAAADBUAAJQUAAAJFQAACRUAAJQUAACVFAAACRUAAJUUAAAGFQAABhUAAJUUAACWFAAABhUAAJYUAAADFQAAAxUAAJYUAACXFAAAmhQAAJsUAAD0FAAA9BQAAJsUAAC0FAAA9BQAALQUAAD1FAAA9RQAALQUAADwFAAA9RQAAPAUAADvFAAA7xQAAPAUAADsFAAAmxQAAJwUAAC0FAAAtBQAAJwUAADxFAAAtBQAAPEUAADwFAAA8BQAAPEUAADtFAAA8BQAAO0UAADsFAAA7BQAAO0UAADpFAAA8RQAAJwUAADuFAAA7hQAAJwUAACdFAAA7hQAAJ0UAADrFAAA6xQAAJ0UAACeFAAA6xQAAJ4UAADoFAAA6BQAAJ4UAACfFAAA6BQAAJ8UAADlFAAA5RQAAJ8UAACgFAAAohQAAKMUAADbFAAA2xQAAKMUAADVFAAA2xQAANUUAADUFAAA1BQAANUUAADXFAAA1BQAANcUAADYFAAA2BQAANcUAACxFAAAoxQAAKQUAADVFAAA1RQAAKQUAADWFAAA1RQAANYUAADXFAAA1xQAANYUAADSFAAA1xQAANIUAACxFAAAsRQAANIUAADPFAAA1hQAAKQUAACwFAAAsBQAAKQUAAClFAAAsBQAAKUUAADRFAAA0RQAAKUUAACmFAAA0RQAAKYUAACvFAAArxQAAKYUAACnFAAArxQAAKcUAADOFAAAzhQAAKcUAACoFAAAzhQAAKgUAAC3FAAAtxQAAKgUAACpFAAAtxQAAKkUAADJFAAAyRQAAKkUAADGFAAAyRQAAMYUAADFFAAAxRQAAMYUAADCFAAAxRQAAMIUAADBFAAAwRQAAMIUAAC+FAAAqRQAAKoUAADGFAAAxhQAAKoUAADDFAAAxhQAAMMUAADCFAAAwhQAAMMUAAC/FAAAwhQAAL8UAAC+FAAAvhQAAL8UAAC4FAAAqhQAAKsUAADDFAAAwxQAAKsUAADAFAAAwxQAAMAUAAC/FAAAvxQAAMAUAAC5FAAAvxQAALkUAAC4FAAAuBQAALkUAAC9FAAAqxQAAKwUAADAFAAAwBQAAKwUAAC6FAAAwBQAALoUAAC5FAAAuRQAALoUAAC8FAAAuRQAALwUAAC9FAAArBQAAJMUAAC6FAAAuhQAAJMUAAC7FAAAuhQAALsUAAC8FAAArRQAAK4UAADMFAAAzBQAAK4UAADNFAAAzBQAAM0UAADKFAAAyhQAAM0UAADLFAAAyhQAAMsUAADHFAAAxxQAAMsUAADIFAAAxxQAAMgUAADEFAAAxBQAAMgUAADFFAAAxBQAAMUUAADBFAAArhQAAK8UAADNFAAAzRQAAK8UAADOFAAAzRQAAM4UAADLFAAAyxQAAM4UAAC3FAAAyxQAALcUAADIFAAAyBQAALcUAADJFAAAyBQAAMkUAADFFAAArhQAAK0UAADQFAAA0BQAAK0UAADPFAAA0BQAAM8UAADSFAAArxQAAK4UAADRFAAA0RQAAK4UAADQFAAA0RQAANAUAACwFAAAsBQAANAUAADSFAAAsBQAANIUAADWFAAA6BQAAOUUAADkFAAA5BQAAOMUAADnFAAA5xQAAOMUAADmFAAA5xQAAOYUAADqFAAA6hQAAOYUAADpFAAA6hQAAOkUAADtFAAA6xQAAOgUAADnFAAA5xQAAOgUAADkFAAA6xQAAOcUAADqFAAA7hQAAOsUAADqFAAA7hQAAOoUAADtFAAA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gxUAAA8VAACAFQAAgBUAAA8VAAAQFQAAgBUAABAVAAB9FQAAfRUAABAVAAARFQAAFBUAABUVAABuFQAAbhUAABUVAAAuFQAAbhUAAC4VAABvFQAAbxUAAC4VAABqFQAAbxUAAGoVAABpFQAAaRUAAGoVAABmFQAAFRUAABYVAAAuFQAALhUAABYVAABrFQAALhUAAGsVAABqFQAAahUAAGsVAABnFQAAahUAAGcVAABmFQAAZhUAAGcVAABjFQAAaxUAABYVAABoFQAAaBUAABYVAAAXFQAAaBUAABcVAABlFQAAZRUAABcVAAAYFQAAZRUAABgVAABiFQAAYhUAABgVAAAZFQAAYhUAABkVAABfFQAAXxUAABkVAAAaFQAAHBUAAB0VAABVFQAAVRUAAB0VAABPFQAAVRUAAE8VAABOFQAAThUAAE8VAABRFQAAThUAAFEVAABSFQAAUhUAAFEVAAArFQAAHRUAAB4VAABPFQAATxUAAB4VAABQFQAATxUAAFAVAABRFQAAURUAAFAVAABMFQAAURUAAEwVAAArFQAAKxUAAEwVAABJFQAAUBUAAB4VAAAqFQAAKhUAAB4VAAAfFQAAKhUAAB8VAABLFQAASxUAAB8VAAAgFQAASxUAACAVAAApFQAAKRUAACAVAAAhFQAAKRUAACEVAABIFQAASBUAACEVAAAiFQAASBUAACIVAAAxFQAAMRUAACIVAAAjFQAAMRUAACMVAABDFQAAQxUAACMVAABAFQAAQxUAAEAVAAA/FQAAPxUAAEAVAAA8FQAAPxUAADwVAAA7FQAAOxUAADwVAAA4FQAAIxUAACQVAABAFQAAQBUAACQVAAA9FQAAQBUAAD0VAAA8FQAAPBUAAD0VAAA5FQAAPBUAADkVAAA4FQAAOBUAADkVAAAyFQAAJBUAACUVAAA9FQAAPRUAACUVAAA6FQAAPRUAADoVAAA5FQAAORUAADoVAAAzFQAAORUAADMVAAAyFQAAMhUAADMVAAA3FQAAJRUAACYVAAA6FQAAOhUAACYVAAA0FQAAOhUAADQVAAAzFQAAMxUAADQVAAA2FQAAMxUAADYVAAA3FQAAJhUAAA0VAAA0FQAANBUAAA0VAAA1FQAANBUAADUVAAA2FQAAJxUAACgVAABGFQAARhUAACgVAABHFQAARhUAAEcVAABEFQAARBUAAEcVAABFFQAARBUAAEUVAABBFQAAQRUAAEUVAABCFQAAQRUAAEIVAAA+FQAAPhUAAEIVAAA/FQAAPhUAAD8VAAA7FQAAKBUAACkVAABHFQAARxUAACkVAABIFQAARxUAAEgVAABFFQAARRUAAEgVAAAxFQAARRUAADEVAABCFQAAQhUAADEVAABDFQAAQhUAAEMVAAA/FQAAKBUAACcVAABKFQAAShUAACcVAABJFQAAShUAAEkVAABMFQAAKRUAACgVAABLFQAASxUAACgVAABKFQAASxUAAEoVAAAqFQAAKhUAAEoVAABMFQAAKhUAAEwVAABQFQAAYhUAAF8VAABeFQAAXhUAAF0VAABhFQAAYRUAAF0VAABgFQAAYRUAAGAVAABkFQAAZBUAAGAVAABjFQAAZBUAAGMVAABnFQAAZRUAAGIVAABhFQAAYRUAAGIVAABeFQAAZRUAAGEVAABkFQAAaBUAAGUVAABkFQAAaBUAAGQVAABnFQAAaxUAAGgVAABnFQAAgBUAAH0VAAB8FQAAfBUAAHsVAAB/FQAAfxUAAHsVAAB+FQAAfxUAAH4VAACCFQAAghUAAH4VAACBFQAAghUAAIEVAACFFQAAhRUAAIEVAACEFQAAgxUAAIAVAAB/FQAAfxUAAIAVAAB8FQAAgxUAAH8VAACCFQAAhhUAAIMVAACCFQAAhhUAAIIVAACFFQAAkRUAAIcVAACUFQAAlBUAAIcVAACIFQAAlBUAAIgVAACJFQAAlBUAAIkVAACTFQAAkxUAAIkVAACKFQAAkxUAAIoVAACSFQAAkhUAAIoVAAA6FAAAkhUAADoUAAA5FAAAkhUAADkUAACVFQAAlRUAADkUAAA4FAAAlRUAADgUAACYFQAAmBUAADgUAAA3FAAAmBUAADcUAACbFQAAmxUAADcUAAA2FAAAmxUAADYUAACeFQAAnhUAADYUAAA1FAAAnhUAADUUAACLFQAAixUAADUUAAA0FAAAixUAAIwVAACeFQAAnhUAAIwVAACfFQAAnhUAAJ8VAACbFQAAmxUAAJ8VAACcFQAAmxUAAJwVAACYFQAAmBUAAJwVAACZFQAAmBUAAJkVAACVFQAAlRUAAJkVAACWFQAAlRUAAJYVAACSFQAAkhUAAJYVAACTFQAAjBUAAI0VAACfFQAAnxUAAI0VAACgFQAAnxUAAKAVAACcFQAAnBUAAKAVAACdFQAAnBUAAJ0VAACZFQAAmRUAAJ0VAACaFQAAmRUAAJoVAACWFQAAlhUAAJoVAACXFQAAlhUAAJcVAACTFQAAkxUAAJcVAACUFQAAjRUAAA4BAACgFQAAoBUAAA4BAACOFQAAoBUAAI4VAACdFQAAnRUAAI4VAACPFQAAnRUAAI8VAACaFQAAmhUAAI8VAACQFQAAmhUAAJAVAACXFQAAlxUAAJAVAACRFQAAlxUAAJEVAACUFQAAchQAAHEUAACmFQAAphUAAHEUAAChFQAAphUAAKEVAACiFQAAphUAAKIVAAClFQAApRUAAKIVAACjFQAApRUAAKMVAACkFQAApBUAAKMVAAAUAQAApBUAABQBAAATAQAAoxUAAJ0AAAAUAQAApBUAABMBAACnFQAApxUAABMBAAASAQAApxUAABIBAACqFQAAqhUAABIBAAARAQAAqhUAABEBAACtFQAArRUAABEBAAAQAQAArRUAABABAACwFQAAsBUAABABAAAPAQAAsBUAAA8BAACNFQAAjRUAAA8BAAAOAQAAjRUAAIwVAACwFQAAsBUAAIwVAACxFQAAsBUAALEVAACtFQAArRUAALEVAACuFQAArRUAAK4VAACqFQAAqhUAAK4VAACrFQAAqhUAAKsVAACnFQAApxUAAKsVAACoFQAApxUAAKgVAACkFQAApBUAAKgVAAClFQAAjBUAAIsVAACxFQAAsRUAAIsVAACyFQAAsRUAALIVAACuFQAArhUAALIVAACvFQAArhUAAK8VAACrFQAAqxUAAK8VAACsFQAAqxUAAKwVAACoFQAAqBUAAKwVAACpFQAAqBUAAKkVAAClFQAApRUAAKkVAACmFQAAixUAADQUAACyFQAAshUAADQUAAB1FAAAshUAAHUUAACvFQAArxUAAHUUAAB0FAAArxUAAHQUAACsFQAArBUAAHQUAABzFAAArBUAAHMUAACpFQAAqRUAAHMUAAByFAAAqRUAAHIUAACmFQAAnQAAAKMVAACeAAAAngAAAKMVAAC4FQAAngAAALgVAACfAAAAnwAAALgVAAC7FQAAnwAAALsVAACgAAAAoAAAALsVAAC+FQAAoAAAAL4VAAChAAAAoQAAAL4VAADBFQAAoQAAAMEVAACiAAAAogAAAMEVAADEFQAAogAAAMQVAACjAAAAowAAAMQVAADHFQAAowAAAMcVAACkAAAApAAAAMcVAADKFQAApAAAAMoVAAClAAAApQAAAMoVAADNFQAApQAAAM0VAACmAAAApgAAAM0VAADQFQAApgAAANAVAACnAAAApwAAANAVAADTFQAApwAAANMVAACoAAAAqAAAANMVAADWFQAAqAAAANYVAACpAAAAqQAAANYVAADZFQAAqQAAANkVAACqAAAAqgAAANkVAADcFQAAqgAAANwVAACrAAAAqwAAANwVAADfFQAAqwAAAN8VAACsAAAArAAAAN8VAADiFQAArAAAAOIVAACtAAAArQAAAOIVAADlFQAArQAAAOUVAACuAAAArgAAAOUVAADoFQAArgAAAOgVAACvAAAArwAAAOgVAADrFQAArwAAAOsVAACwAAAAsAAAAOsVAADuFQAAsAAAAO4VAACxAAAAsQAAAO4VAADxFQAAsQAAAPEVAACyAAAAsgAAAPEVAAD0FQAAsgAAAPQVAACzAAAAswAAAPQVAAD3FQAAswAAAPcVAAC0AAAAtAAAAPcVAAD6FQAAtAAAAPoVAAC1AAAAtQAAAPoVAAD9FQAAtQAAAP0VAAC2AAAAtgAAAP0VAAAAFgAAtgAAAAAWAAC3AAAAtwAAAAAWAAADFgAAtwAAAAMWAAC4AAAAuAAAAAMWAAAGFgAAuAAAAAYWAAC5AAAAuQAAAAYWAAAJFgAAuQAAAAkWAAC6AAAAugAAAAkWAAAMFgAAugAAAAwWAAC7AAAAuwAAAAwWAAAPFgAAuwAAAA8WAAC8AAAAvAAAAA8WAAASFgAAvAAAABIWAAC9AAAAvQAAABIWAAAVFgAAvQAAABUWAAC+AAAAvgAAABUWAAAYFgAAvgAAABgWAAC/AAAAvwAAABgWAAAbFgAAvwAAABsWAADAAAAAwAAAABsWAAAeFgAAwAAAAB4WAADBAAAAwQAAAB4WAAAhFgAAwQAAACEWAADCAAAAwgAAACEWAAAkFgAAwgAAACQWAADDAAAAwwAAACQWAAAnFgAAwwAAACcWAADEAAAAxAAAACcWAAAqFgAAxAAAACoWAADFAAAAxQAAACoWAAAtFgAAxQAAAC0WAADGAAAAxgAAAC0WAAAwFgAAxgAAADAWAADHAAAAxwAAADAWAAAzFgAAxwAAADMWAADIAAAAyAAAADMWAAA2FgAAyAAAADYWAAAcAAAAHAAAADYWAAC1FQAAtRUAADYWAAA1FgAAtRUAADUWAAC0FQAAtBUAADUWAAA0FgAAtBUAADQWAACzFQAAsxUAADQWAABGFAAARhQAADQWAABHFAAARxQAADQWAAAxFgAARxQAADEWAABIFAAASBQAADEWAAAuFgAASBQAAC4WAABJFAAASRQAAC4WAAArFgAASRQAACsWAABKFAAAShQAACsWAAAoFgAAShQAACgWAABLFAAASxQAACgWAAAlFgAASxQAACUWAABMFAAATBQAACUWAAAiFgAATBQAACIWAABNFAAATRQAACIWAAAfFgAATRQAAB8WAABOFAAAThQAAB8WAAAcFgAAThQAABwWAABPFAAATxQAABwWAAAZFgAATxQAABkWAABQFAAAUBQAABkWAAAWFgAAUBQAABYWAABRFAAAURQAABYWAAATFgAAURQAABMWAABSFAAAUhQAABMWAAAQFgAAUhQAABAWAABTFAAAUxQAABAWAAANFgAAUxQAAA0WAABUFAAAVBQAAA0WAAAKFgAAVBQAAAoWAABVFAAAVRQAAAoWAAAHFgAAVRQAAAcWAABWFAAAVhQAAAcWAAAEFgAAVhQAAAQWAABXFAAAVxQAAAQWAAABFgAAVxQAAAEWAABYFAAAWBQAAAEWAAD+FQAAWBQAAP4VAABZFAAAWRQAAP4VAAD7FQAAWRQAAPsVAABaFAAAWhQAAPsVAAD4FQAAWhQAAPgVAABbFAAAWxQAAPgVAAD1FQAAWxQAAPUVAABcFAAAXBQAAPUVAADyFQAAXBQAAPIVAABdFAAAXRQAAPIVAADvFQAAXRQAAO8VAABeFAAAXhQAAO8VAADsFQAAXhQAAOwVAABfFAAAXxQAAOwVAADpFQAAXxQAAOkVAABgFAAAYBQAAOkVAADmFQAAYBQAAOYVAABhFAAAYRQAAOYVAADjFQAAYRQAAOMVAABiFAAAYhQAAOMVAADgFQAAYhQAAOAVAABjFAAAYxQAAOAVAADdFQAAYxQAAN0VAABkFAAAZBQAAN0VAADaFQAAZBQAANoVAABlFAAAZRQAANoVAADXFQAAZRQAANcVAABmFAAAZhQAANcVAADUFQAAZhQAANQVAABnFAAAZxQAANQVAADRFQAAZxQAANEVAABoFAAAaBQAANEVAADOFQAAaBQAAM4VAABpFAAAaRQAAM4VAADLFQAAaRQAAMsVAABqFAAAahQAAMsVAADIFQAAahQAAMgVAABrFAAAaxQAAMgVAADFFQAAaxQAAMUVAABsFAAAbBQAAMUVAADCFQAAbBQAAMIVAABtFAAAbRQAAMIVAAC/FQAAbRQAAL8VAABuFAAAbhQAAL8VAAC8FQAAbhQAALwVAABvFAAAbxQAALwVAAC5FQAAbxQAALkVAABwFAAAcBQAALkVAAC2FQAAcBQAALYVAABxFAAAcRQAALYVAAChFQAAoRUAALYVAAC3FQAAoRUAALcVAACiFQAAohUAALcVAAC4FQAAohUAALgVAACjFQAAuxUAALgVAAC3FQAAtxUAALYVAAC6FQAAuhUAALYVAAC5FQAAuhUAALkVAAC9FQAAvRUAALkVAAC8FQAAvRUAALwVAADAFQAAwBUAALwVAAC/FQAAwBUAAL8VAADDFQAAwxUAAL8VAADCFQAAwxUAAMIVAADGFQAAxhUAAMIVAADFFQAAxhUAAMUVAADJFQAAyRUAAMUVAADIFQAAyRUAAMgVAADMFQAAzBUAAMgVAADLFQAAzBUAAMsVAADPFQAAzxUAAMsVAADOFQAAzxUAAM4VAADSFQAA0hUAAM4VAADRFQAA0hUAANEVAADVFQAA1RUAANEVAADUFQAA1RUAANQVAADYFQAA2BUAANQVAADXFQAA2BUAANcVAADbFQAA2xUAANcVAADaFQAA2xUAANoVAADeFQAA3hUAANoVAADdFQAA3hUAAN0VAADhFQAA4RUAAN0VAADgFQAA4RUAAOAVAADkFQAA5BUAAOAVAADjFQAA5BUAAOMVAADnFQAA5xUAAOMVAADmFQAA5xUAAOYVAADqFQAA6hUAAOYVAADpFQAA6hUAAOkVAADtFQAA7RUAAOkVAADsFQAA7RUAAOwVAADwFQAA8BUAAOwVAADvFQAA8BUAAO8VAADzFQAA8xUAAO8VAADyFQAA8xUAAPIVAAD2FQAA9hUAAPIVAAD1FQAA9hUAAPUVAAD5FQAA+RUAAPUVAAD4FQAA+RUAAPgVAAD8FQAA/BUAAPgVAAD7FQAA/BUAAPsVAAD/FQAA/xUAAPsVAAD+FQAA/xUAAP4VAAACFgAAAhYAAP4VAAABFgAAAhYAAAEWAAAFFgAABRYAAAEWAAAEFgAABRYAAAQWAAAIFgAACBYAAAQWAAAHFgAACBYAAAcWAAALFgAACxYAAAcWAAAKFgAACxYAAAoWAAAOFgAADhYAAAoWAAANFgAADhYAAA0WAAARFgAAERYAAA0WAAAQFgAAERYAABAWAAAUFgAAFBYAABAWAAATFgAAFBYAABMWAAAXFgAAFxYAABMWAAAWFgAAFxYAABYWAAAaFgAAGhYAABYWAAAZFgAAGhYAABkWAAAdFgAAHRYAABkWAAAcFgAAHRYAABwWAAAgFgAAIBYAABwWAAAfFgAAIBYAAB8WAAAjFgAAIxYAAB8WAAAiFgAAIxYAACIWAAAmFgAAJhYAACIWAAAlFgAAJhYAACUWAAApFgAAKRYAACUWAAAoFgAAKRYAACgWAAAsFgAALBYAACgWAAArFgAALBYAACsWAAAvFgAALxYAACsWAAAuFgAALxYAAC4WAAAyFgAAMhYAAC4WAAAxFgAAMhYAADEWAAA1FgAANRYAADEWAAA0FgAAvhUAALsVAAC6FQAAuhUAALsVAAC3FQAAvhUAALoVAAC9FQAAwRUAAL4VAAC9FQAAwRUAAL0VAADAFQAAxBUAAMEVAADAFQAAxBUAAMAVAADDFQAAxxUAAMQVAADDFQAAxxUAAMMVAADGFQAAyhUAAMcVAADGFQAAyhUAAMYVAADJFQAAzRUAAMoVAADJFQAAzRUAAMkVAADMFQAA0BUAAM0VAADMFQAA0BUAAMwVAADPFQAA0xUAANAVAADPFQAA0xUAAM8VAADSFQAA1hUAANMVAADSFQAA1hUAANIVAADVFQAA2RUAANYVAADVFQAA2RUAANUVAADYFQAA3BUAANkVAADYFQAA3BUAANgVAADbFQAA3xUAANwVAADbFQAA3xUAANsVAADeFQAA4hUAAN8VAADeFQAA4hUAAN4VAADhFQAA5RUAAOIVAADhFQAA5RUAAOEVAADkFQAA6BUAAOUVAADkFQAA6BUAAOQVAADnFQAA6xUAAOgVAADnFQAA6xUAAOcVAADqFQAA7hUAAOsVAADqFQAA7hUAAOoVAADtFQAA8RUAAO4VAADtFQAA8RUAAO0VAADwFQAA9BUAAPEVAADwFQAA9BUAAPAVAADzFQAA9xUAAPQVAADzFQAA9xUAAPMVAAD2FQAA+hUAAPcVAAD2FQAA+hUAAPYVAAD5FQAA/RUAAPoVAAD5FQAA/RUAAPkVAAD8FQAAABYAAP0VAAD8FQAAABYAAPwVAAD/FQAAAxYAAAAWAAD/FQAAAxYAAP8VAAACFgAABhYAAAMWAAACFgAABhYAAAIWAAAFFgAACRYAAAYWAAAFFgAACRYAAAUWAAAIFgAADBYAAAkWAAAIFgAADBYAAAgWAAALFgAADxYAAAwWAAALFgAADxYAAAsWAAAOFgAAEhYAAA8WAAAOFgAAEhYAAA4WAAARFgAAFRYAABIWAAARFgAAFRYAABEWAAAUFgAAGBYAABUWAAAUFgAAGBYAABQWAAAXFgAAGxYAABgWAAAXFgAAGxYAABcWAAAaFgAAHhYAABsWAAAaFgAAHhYAABoWAAAdFgAAIRYAAB4WAAAdFgAAIRYAAB0WAAAgFgAAJBYAACEWAAAgFgAAJBYAACAWAAAjFgAAJxYAACQWAAAjFgAAJxYAACMWAAAmFgAAKhYAACcWAAAmFgAAKhYAACYWAAApFgAALRYAACoWAAApFgAALRYAACkWAAAsFgAAMBYAAC0WAAAsFgAAMBYAACwWAAAvFgAAMxYAADAWAAAvFgAAMxYAAC8WAAAyFgAANhYAADMWAAAyFgAANhYAADIWAAA1FgAAQhQAAEEUAAA8FgAAPBYAAEEUAAA3FgAAPBYAADcWAAA4FgAAPBYAADgWAAA7FgAAOxYAADgWAAA5FgAAOxYAADkWAAA6FgAAOhYAADkWAABHAAAAOhYAAEcAAABGAAAAORYAAEgAAABHAAAAOhYAAEYAAAA9FgAAPRYAAEYAAABFAAAAPRYAAEUAAABAFgAAQBYAAEUAAABEAAAAQBYAAEQAAABDFgAAQxYAAEQAAABDAAAAQxYAAEMAAABGFgAARhYAAEMAAABCAAAARhYAAEIAAAC1FQAAtRUAAEIAAAAcAAAAtRUAALQVAABGFgAARhYAALQVAABHFgAARhYAAEcWAABDFgAAQxYAAEcWAABEFgAAQxYAAEQWAABAFgAAQBYAAEQWAABBFgAAQBYAAEEWAAA9FgAAPRYAAEEWAAA+FgAAPRYAAD4WAAA6FgAAOhYAAD4WAAA7FgAAtBUAALMVAABHFgAARxYAALMVAABIFgAARxYAAEgWAABEFgAARBYAAEgWAABFFgAARBYAAEUWAABBFgAAQRYAAEUWAABCFgAAQRYAAEIWAAA+FgAAPhYAAEIWAAA/FgAAPhYAAD8WAAA7FgAAOxYAAD8WAAA8FgAAsxUAAEYUAABIFgAASBYAAEYUAABFFAAASBYAAEUUAABFFgAARRYAAEUUAABEFAAARRYAAEQUAABCFgAAQhYAAEQUAABDFAAAQhYAAEMUAAA/FgAAPxYAAEMUAABCFAAAPxYAAEIUAAA8FgAAUBYAAEgAAABTFgAAUxYAAEgAAAA5FgAAUxYAADkWAAA4FgAAUxYAADgWAABSFgAAUhYAADgWAAA3FgAAUhYAADcWAABRFgAAURYAADcWAABBFAAAURYAAEEUAABAFAAAURYAAEAUAABUFgAAVBYAAEAUAAA/FAAAVBYAAD8UAABXFgAAVxYAAD8UAAA+FAAAVxYAAD4UAABaFgAAWhYAAD4UAAA9FAAAWhYAAD0UAABdFgAAXRYAAD0UAAA8FAAAXRYAADwUAABJFgAASRYAADwUAAA7FAAASRYAAEoWAABdFgAAXRYAAEoWAABeFgAAXRYAAF4WAABaFgAAWhYAAF4WAABbFgAAWhYAAFsWAABXFgAAVxYAAFsWAABYFgAAVxYAAFgWAABUFgAAVBYAAFgWAABVFgAAVBYAAFUWAABRFgAAURYAAFUWAABSFgAAShYAAEsWAABeFgAAXhYAAEsWAABfFgAAXhYAAF8WAABbFgAAWxYAAF8WAABcFgAAWxYAAFwWAABYFgAAWBYAAFwWAABZFgAAWBYAAFkWAABVFgAAVRYAAFkWAABWFgAAVRYAAFYWAABSFgAAUhYAAFYWAABTFgAASxYAAEwWAABfFgAAXxYAAEwWAABNFgAAXxYAAE0WAABcFgAAXBYAAE0WAABOFgAAXBYAAE4WAABZFgAAWRYAAE4WAABPFgAAWRYAAE8WAABWFgAAVhYAAE8WAABQFgAAVhYAAFAWAABTFgAAhxUAAEwWAACIFQAAiBUAAEwWAABLFgAAiBUAAEsWAACJFQAAiRUAAEsWAABKFgAAiRUAAEoWAACKFQAAihUAAEoWAABJFgAAihUAAEkWAAA6FAAAOhQAAEkWAAA7FAAArBQAAH0WAACTFAAAkxQAAH0WAACCFgAAkxQAAIIWAACUFAAAlBQAAIIWAADAFgAAlBQAAMAWAACVFAAAlRQAAMAWAAC9FgAAlRQAAL0WAACWFAAAlhQAAL0WAAC7FgAAlhQAALsWAACXFAAAlxQAALsWAAC4FgAAlxQAALgWAACYFAAAmBQAALgWAAC1FgAAmBQAALUWAACZFAAAmRQAALUWAACyFgAAmRQAALIWAACaFAAAmhQAALIWAACvFgAAmhQAAK8WAACbFAAAmxQAAK8WAACtFgAAmxQAAK0WAACcFAAAnBQAAK0WAACqFgAAnBQAAKoWAACdFAAAnRQAAKoWAACnFgAAnRQAAKcWAACeFAAAnhQAAKcWAACkFgAAnhQAAKQWAACfFAAAnxQAAKQWAACiFgAAnxQAAKIWAACgFAAAoBQAAKIWAACfFgAAoBQAAJ8WAAChFAAAoRQAAJ8WAACcFgAAoRQAAJwWAACiFAAAohQAAJwWAACZFgAAohQAAJkWAACjFAAAoxQAAJkWAACWFgAAoxQAAJYWAACkFAAApBQAAJYWAACUFgAApBQAAJQWAAClFAAApRQAAJQWAACRFgAApRQAAJEWAACmFAAAphQAAJEWAAB1FgAAphQAAHUWAACnFAAApxQAAHUWAACOFgAApxQAAI4WAACoFAAAqBQAAI4WAACLFgAAqBQAAIsWAACpFAAAqRQAAIsWAACJFgAAqRQAAIkWAACqFAAAqhQAAIkWAACGFgAAqhQAAIYWAACrFAAAqxQAAIYWAACDFgAAqxQAAIMWAACsFAAArBQAAIMWAAB9FgAAYRYAAIAWAABgFgAAYBYAAIAWAAB/FgAAYBYAAH8WAAB0FgAAdBYAAH8WAACFFgAAdBYAAIUWAABzFgAAcxYAAIUWAACIFgAAcxYAAIgWAAB8FgAAfBYAAIgWAACHFgAAfBYAAIcWAACKFgAAihYAAIcWAACGFgAAihYAAIYWAACJFgAAgBYAAGEWAADCFgAAwhYAAGEWAABiFgAAwhYAAGIWAAC/FgAAvxYAAGIWAAB7FgAAvxYAAHsWAAC8FgAAvBYAAHsWAAC5FgAAvBYAALkWAAC4FgAAuBYAALkWAAC1FgAAYhYAAGMWAAB7FgAAexYAAGMWAAC6FgAAexYAALoWAAC5FgAAuRYAALoWAAC2FgAAuRYAALYWAAC1FgAAtRYAALYWAACyFgAAYxYAAGQWAAC6FgAAuhYAAGQWAAC3FgAAuhYAALcWAAC2FgAAthYAALcWAACzFgAAthYAALMWAACyFgAAshYAALMWAACvFgAAZBYAAGUWAAC3FgAAtxYAAGUWAAC0FgAAtxYAALQWAACzFgAAsxYAALQWAACwFgAAsxYAALAWAACvFgAArxYAALAWAACtFgAAZRYAAGYWAAC0FgAAtBYAAGYWAACxFgAAtBYAALEWAACwFgAAsBYAALEWAACuFgAAsBYAAK4WAACtFgAArRYAAK4WAACqFgAAsRYAAGYWAAB6FgAAehYAAGYWAABnFgAAehYAAGcWAACsFgAArBYAAGcWAABoFgAArBYAAGgWAACpFgAAqRYAAGgWAABpFgAAqRYAAGkWAACmFgAAphYAAGkWAABqFgAAphYAAGoWAAB5FgAAeRYAAGoWAABrFgAAeRYAAGsWAAChFgAAoRYAAGsWAACeFgAAoRYAAJ4WAACdFgAAnRYAAJ4WAACaFgAAnRYAAJoWAACZFgAAmRYAAJoWAACWFgAAaxYAAGwWAACeFgAAnhYAAGwWAACbFgAAnhYAAJsWAACaFgAAmhYAAJsWAACXFgAAmhYAAJcWAACWFgAAlhYAAJcWAACUFgAAbBYAAG0WAACbFgAAmxYAAG0WAACYFgAAmxYAAJgWAACXFgAAlxYAAJgWAACVFgAAlxYAAJUWAACUFgAAlBYAAJUWAACRFgAAbRYAAG4WAACYFgAAmBYAAG4WAAB4FgAAmBYAAHgWAACVFgAAlRYAAHgWAACSFgAAlRYAAJIWAACRFgAAkRYAAJIWAAB1FgAAbhYAAG8WAAB4FgAAeBYAAG8WAACTFgAAeBYAAJMWAACSFgAAkhYAAJMWAAB2FgAAkhYAAHYWAAB1FgAAdRYAAHYWAACOFgAAkxYAAG8WAAB3FgAAdxYAAG8WAABwFgAAdxYAAHAWAACQFgAAkBYAAHAWAABxFgAAkBYAAHEWAACNFgAAjRYAAHEWAAByFgAAjRYAAHIWAAB8FgAAfBYAAHIWAABzFgAAdhYAAHcWAACPFgAAjxYAAHcWAACQFgAAjxYAAJAWAACMFgAAjBYAAJAWAACNFgAAjBYAAI0WAACKFgAAihYAAI0WAAB8FgAAdxYAAHYWAACTFgAAfRYAAH4WAACCFgAAghYAAH4WAACBFgAAghYAAIEWAADAFgAAwBYAAIEWAADBFgAAwBYAAMEWAAC9FgAAvRYAAMEWAAC+FgAAvRYAAL4WAAC7FgAAuxYAAL4WAAC8FgAAuxYAALwWAAC4FgAAfhYAAH8WAACBFgAAgRYAAH8WAACAFgAAgRYAAIAWAADBFgAAwRYAAIAWAADCFgAAwRYAAMIWAAC+FgAAvhYAAMIWAAC/FgAAvhYAAL8WAAC8FgAAfhYAAH0WAACEFgAAhBYAAH0WAACDFgAAhBYAAIMWAACHFgAAhxYAAIMWAACGFgAAfxYAAH4WAACFFgAAhRYAAH4WAACEFgAAhRYAAIQWAACIFgAAiBYAAIQWAACHFgAAjBYAAIoWAACJFgAAjxYAAIwWAACLFgAAixYAAIwWAACJFgAAdhYAAI8WAACOFgAAjhYAAI8WAACLFgAAmRYAAJwWAACdFgAAnRYAAJwWAACgFgAAnRYAAKAWAAChFgAAoRYAAKAWAAB5FgAAnBYAAJ8WAACgFgAAoBYAAJ8WAACjFgAAoBYAAKMWAAB5FgAAeRYAAKMWAACmFgAAnxYAAKIWAACjFgAAoxYAAKIWAAClFgAAoxYAAKUWAACmFgAAphYAAKUWAACpFgAAohYAAKQWAAClFgAApRYAAKQWAACoFgAApRYAAKgWAACpFgAAqRYAAKgWAACsFgAApBYAAKcWAACoFgAAqBYAAKcWAACrFgAAqBYAAKsWAACsFgAArBYAAKsWAAB6FgAApxYAAKoWAACrFgAAqxYAAKoWAACuFgAAqxYAAK4WAAB6FgAAehYAAK4WAACxFgAAxBYAAGEWAADDFgAAwxYAAGEWAABgFgAAwxYAAGAWAAB0FgAAYRYAAMQWAABiFgAAYhYAAMQWAADFFgAAYhYAAMUWAABjFgAAYxYAAMUWAABkFgAAZBYAAMUWAADGFgAAZBYAAMYWAABlFgAAZRYAAMYWAABmFgAAZhYAAMYWAADHFgAAZhYAAMcWAABnFgAAZxYAAMcWAADIFgAAZxYAAMgWAABoFgAAaBYAAMgWAABpFgAAaRYAAMgWAADJFgAAaRYAAMkWAABqFgAAahYAAMkWAADKFgAAahYAAMoWAABrFgAAaxYAAMoWAABsFgAAbBYAAMoWAADLFgAAbBYAAMsWAABtFgAAbRYAAMsWAABuFgAAbhYAAMsWAADMFgAAbhYAAMwWAABvFgAAbxYAAMwWAADNFgAAbxYAAM0WAABwFgAAcBYAAM0WAABxFgAAcRYAAM0WAADOFgAAcRYAAM4WAAByFgAAchYAAM4WAABzFgAAcxYAAM4WAADPFgAAcxYAAM8WAAB0FgAAdBYAAM8WAADDFgAAJhUAAO0WAAANFQAADRUAAO0WAADyFgAADRUAAPIWAAAOFQAADhUAAPIWAAAwFwAADhUAADAXAAAPFQAADxUAADAXAAAtFwAADxUAAC0XAAAQFQAAEBUAAC0XAAArFwAAEBUAACsXAAARFQAAERUAACsXAAAoFwAAERUAACgXAAASFQAAEhUAACgXAAAlFwAAEhUAACUXAAATFQAAExUAACUXAAAiFwAAExUAACIXAAAUFQAAFBUAACIXAAAfFwAAFBUAAB8XAAAVFQAAFRUAAB8XAAAdFwAAFRUAAB0XAAAWFQAAFhUAAB0XAAAaFwAAFhUAABoXAAAXFQAAFxUAABoXAAAXFwAAFxUAABcXAAAYFQAAGBUAABcXAAAUFwAAGBUAABQXAAAZFQAAGRUAABQXAAASFwAAGRUAABIXAAAaFQAAGhUAABIXAAAPFwAAGhUAAA8XAAAbFQAAGxUAAA8XAAAMFwAAGxUAAAwXAAAcFQAAHBUAAAwXAAAJFwAAHBUAAAkXAAAdFQAAHRUAAAkXAAAGFwAAHRUAAAYXAAAeFQAAHhUAAAYXAAAEFwAAHhUAAAQXAAAfFQAAHxUAAAQXAAABFwAAHxUAAAEXAAAgFQAAIBUAAAEXAADlFgAAIBUAAOUWAAAhFQAAIRUAAOUWAAD+FgAAIRUAAP4WAAAiFQAAIhUAAP4WAAD7FgAAIhUAAPsWAAAjFQAAIxUAAPsWAAD5FgAAIxUAAPkWAAAkFQAAJBUAAPkWAAD2FgAAJBUAAPYWAAAlFQAAJRUAAPYWAADzFgAAJRUAAPMWAAAmFQAAJhUAAPMWAADtFgAA0RYAAPAWAADQFgAA0BYAAPAWAADvFgAA0BYAAO8WAADkFgAA5BYAAO8WAAD1FgAA5BYAAPUWAADjFgAA4xYAAPUWAAD4FgAA4xYAAPgWAADsFgAA7BYAAPgWAAD3FgAA7BYAAPcWAAD6FgAA+hYAAPcWAAD2FgAA+hYAAPYWAAD5FgAA8BYAANEWAAAyFwAAMhcAANEWAADSFgAAMhcAANIWAAAvFwAALxcAANIWAADrFgAALxcAAOsWAAAsFwAALBcAAOsWAAApFwAALBcAACkXAAAoFwAAKBcAACkXAAAlFwAA0hYAANMWAADrFgAA6xYAANMWAAAqFwAA6xYAACoXAAApFwAAKRcAACoXAAAmFwAAKRcAACYXAAAlFwAAJRcAACYXAAAiFwAA0xYAANQWAAAqFwAAKhcAANQWAAAnFwAAKhcAACcXAAAmFwAAJhcAACcXAAAjFwAAJhcAACMXAAAiFwAAIhcAACMXAAAfFwAA1BYAANUWAAAnFwAAJxcAANUWAAAkFwAAJxcAACQXAAAjFwAAIxcAACQXAAAgFwAAIxcAACAXAAAfFwAAHxcAACAXAAAdFwAA1RYAANYWAAAkFwAAJBcAANYWAAAhFwAAJBcAACEXAAAgFwAAIBcAACEXAAAeFwAAIBcAAB4XAAAdFwAAHRcAAB4XAAAaFwAAIRcAANYWAADqFgAA6hYAANYWAADXFgAA6hYAANcWAAAcFwAAHBcAANcWAADYFgAAHBcAANgWAAAZFwAAGRcAANgWAADZFgAAGRcAANkWAAAWFwAAFhcAANkWAADaFgAAFhcAANoWAADpFgAA6RYAANoWAADbFgAA6RYAANsWAAARFwAAERcAANsWAAAOFwAAERcAAA4XAAANFwAADRcAAA4XAAAKFwAADRcAAAoXAAAJFwAACRcAAAoXAAAGFwAA2xYAANwWAAAOFwAADhcAANwWAAALFwAADhcAAAsXAAAKFwAAChcAAAsXAAAHFwAAChcAAAcXAAAGFwAABhcAAAcXAAAEFwAA3BYAAN0WAAALFwAACxcAAN0WAAAIFwAACxcAAAgXAAAHFwAABxcAAAgXAAAFFwAABxcAAAUXAAAEFwAABBcAAAUXAAABFwAA3RYAAN4WAAAIFwAACBcAAN4WAADoFgAACBcAAOgWAAAFFwAABRcAAOgWAAACFwAABRcAAAIXAAABFwAAARcAAAIXAADlFgAA3hYAAN8WAADoFgAA6BYAAN8WAAADFwAA6BYAAAMXAAACFwAAAhcAAAMXAADmFgAAAhcAAOYWAADlFgAA5RYAAOYWAAD+FgAAAxcAAN8WAADnFgAA5xYAAN8WAADgFgAA5xYAAOAWAAAAFwAAABcAAOAWAADhFgAAABcAAOEWAAD9FgAA/RYAAOEWAADiFgAA/RYAAOIWAADsFgAA7BYAAOIWAADjFgAA5hYAAOcWAAD/FgAA/xYAAOcWAAAAFwAA/xYAAAAXAAD8FgAA/BYAAAAXAAD9FgAA/BYAAP0WAAD6FgAA+hYAAP0WAADsFgAA5xYAAOYWAAADFwAA7RYAAO4WAADyFgAA8hYAAO4WAADxFgAA8hYAAPEWAAAwFwAAMBcAAPEWAAAxFwAAMBcAADEXAAAtFwAALRcAADEXAAAuFwAALRcAAC4XAAArFwAAKxcAAC4XAAAsFwAAKxcAACwXAAAoFwAA7hYAAO8WAADxFgAA8RYAAO8WAADwFgAA8RYAAPAWAAAxFwAAMRcAAPAWAAAyFwAAMRcAADIXAAAuFwAALhcAADIXAAAvFwAALhcAAC8XAAAsFwAA7hYAAO0WAAD0FgAA9BYAAO0WAADzFgAA9BYAAPMWAAD3FgAA9xYAAPMWAAD2FgAA7xYAAO4WAAD1FgAA9RYAAO4WAAD0FgAA9RYAAPQWAAD4FgAA+BYAAPQWAAD3FgAA/BYAAPoWAAD5FgAA/xYAAPwWAAD7FgAA+xYAAPwWAAD5FgAA5hYAAP8WAAD+FgAA/hYAAP8WAAD7FgAACRcAAAwXAAANFwAADRcAAAwXAAAQFwAADRcAABAXAAARFwAAERcAABAXAADpFgAADBcAAA8XAAAQFwAAEBcAAA8XAAATFwAAEBcAABMXAADpFgAA6RYAABMXAAAWFwAADxcAABIXAAATFwAAExcAABIXAAAVFwAAExcAABUXAAAWFwAAFhcAABUXAAAZFwAAEhcAABQXAAAVFwAAFRcAABQXAAAYFwAAFRcAABgXAAAZFwAAGRcAABgXAAAcFwAAFBcAABcXAAAYFwAAGBcAABcXAAAbFwAAGBcAABsXAAAcFwAAHBcAABsXAADqFgAAFxcAABoXAAAbFwAAGxcAABoXAAAeFwAAGxcAAB4XAADqFgAA6hYAAB4XAAAhFwAANBcAANEWAAAzFwAAMxcAANEWAADQFgAAMxcAANAWAADkFgAA0RYAADQXAADSFgAA0hYAADQXAAA1FwAA0hYAADUXAADTFgAA0xYAADUXAADUFgAA1BYAADUXAAA2FwAA1BYAADYXAADVFgAA1RYAADYXAADWFgAA1hYAADYXAAA3FwAA1hYAADcXAADXFgAA1xYAADcXAAA4FwAA1xYAADgXAADYFgAA2BYAADgXAADZFgAA2RYAADgXAAA5FwAA2RYAADkXAADaFgAA2hYAADkXAAA6FwAA2hYAADoXAADbFgAA2xYAADoXAADcFgAA3BYAADoXAAA7FwAA3BYAADsXAADdFgAA3RYAADsXAADeFgAA3hYAADsXAAA8FwAA3hYAADwXAADfFgAA3xYAADwXAAA9FwAA3xYAAD0XAADgFgAA4BYAAD0XAADhFgAA4RYAAD0XAAA+FwAA4RYAAD4XAADiFgAA4hYAAD4XAADjFgAA4xYAAD4XAAA/FwAA4xYAAD8XAADkFgAA5BYAAD8XAAAzFwAARhcAAEAXAABJFwAASRcAAEAXAABBFwAASRcAAEEXAABCFwAASRcAAEIXAABIFwAASBcAAEIXAABDFwAASBcAAEMXAABHFwAARxcAAEMXAACHFQAARxcAAIcVAACRFQAARxcAAJEVAABKFwAAShcAAJEVAACQFQAAShcAAJAVAABNFwAATRcAAJAVAACPFQAATRcAAI8VAABQFwAAUBcAAI8VAACOFQAAUBcAAI4VAAANAQAADQEAAI4VAAAOAQAADQEAAAwBAABQFwAAUBcAAAwBAABRFwAAUBcAAFEXAABNFwAATRcAAFEXAABOFwAATRcAAE4XAABKFwAAShcAAE4XAABLFwAAShcAAEsXAABHFwAARxcAAEsXAABIFwAADAEAAAsBAABRFwAAURcAAAsBAABSFwAAURcAAFIXAABOFwAAThcAAFIXAABPFwAAThcAAE8XAABLFwAASxcAAE8XAABMFwAASxcAAEwXAABIFwAASBcAAEwXAABJFwAACwEAAAoBAABSFwAAUhcAAAoBAABEFwAAUhcAAEQXAABPFwAATxcAAEQXAABFFwAATxcAAEUXAABMFwAATBcAAEUXAABGFwAATBcAAEYXAABJFwAAQBcAAFMXAABBFwAAQRcAAFMXAABUFwAAQRcAAFQXAABCFwAAQhcAAFQXAABVFwAAQhcAAFUXAABDFwAAQxcAAFUXAABWFwAAQxcAAFYXAACHFQAAhxUAAFYXAABMFgAAWRcAAEwAAABcFwAAXBcAAEwAAABLAAAAXBcAAEsAAABKAAAAXBcAAEoAAABbFwAAWxcAAEoAAABJAAAAWxcAAEkAAABaFwAAWhcAAEkAAABIAAAAWhcAAEgAAABQFgAAWhcAAFAWAABdFwAAXRcAAFAWAABPFgAAXRcAAE8WAABgFwAAYBcAAE8WAABOFgAAYBcAAE4WAABjFwAAYxcAAE4WAABNFgAAYxcAAE0WAABWFwAAVhcAAE0WAABMFgAAVhcAAFUXAABjFwAAYxcAAFUXAABkFwAAYxcAAGQXAABgFwAAYBcAAGQXAABhFwAAYBcAAGEXAABdFwAAXRcAAGEXAABeFwAAXRcAAF4XAABaFwAAWhcAAF4XAABbFwAAVRcAAFQXAABkFwAAZBcAAFQXAABlFwAAZBcAAGUXAABhFwAAYRcAAGUXAABiFwAAYRcAAGIXAABeFwAAXhcAAGIXAABfFwAAXhcAAF8XAABbFwAAWxcAAF8XAABcFwAAVBcAAFMXAABlFwAAZRcAAFMXAABXFwAAZRcAAFcXAABiFwAAYhcAAFcXAABYFwAAYhcAAFgXAABfFwAAXxcAAFgXAABZFwAAXxcAAFkXAABcFwAADAAAAAsAAABoFwAAaBcAAAsAAABnFwAAZxcAAAsAAAB2FwAAZxcAAHYXAABmFwAAZhcAAHYXAAB3FwAAZhcAAHcXAAB4FwAACwAAAAoAAAB2FwAAdhcAAAoAAACCFwAAghcAAAoAAAAJAAAAghcAAAkAAABOAAAAghcAAE4AAACBFwAAgRcAAE4AAABNAAAAgRcAAE0AAACAFwAAgBcAAE0AAABMAAAAgBcAAEwAAAB/FwAAfxcAAEwAAAB+FwAAfhcAAEwAAABZFwAAfhcAAFkXAAB9FwAAfRcAAFkXAABYFwAAfRcAAFgXAABXFwAAfRcAAFcXAAB8FwAAfBcAAFcXAABTFwAAfBcAAFMXAABAFwAARhcAAHAXAABAFwAAQBcAAHAXAAB7FwAAQBcAAHsXAAB8FwAAcBcAAEYXAABvFwAAbxcAAEYXAABFFwAAbxcAAEUXAABEFwAAbxcAAEQXAABuFwAAbhcAAEQXAAAKAQAAbhcAAAoBAABtFwAAbRcAAAoBAABsFwAAbBcAAAoBAAAJAQAAbBcAAAkBAABrFwAAaxcAAAkBAAAIAQAAaxcAAAgBAABqFwAAahcAAAgBAADMAAAAahcAAMwAAAAAAQAAahcAAAABAABpFwAAaRcAAAABAAD/AAAAaRcAAP8AAABmFwAAZhcAAP8AAAD+AAAAcBcAAHEXAAB7FwAAexcAAHEXAAB6FwAAehcAAHEXAAByFwAAehcAAHIXAAB5FwAAeRcAAHIXAABzFwAAeRcAAHMXAAB4FwAAeBcAAHMXAAB0FwAAeBcAAHQXAABmFwAAZhcAAHQXAAB1FwAAZhcAAHUXAABpFwAA0xcAAIMXAADiFwAA4hcAAIMXAACEFwAA4hcAAIQXAADhFwAA4RcAAIQXAACFFwAA4RcAAIUXAADgFwAA4BcAAIUXAACGFwAA4BcAAIYXAADfFwAA3xcAAIYXAACHFwAA3xcAAIcXAADeFwAA3hcAAIcXAACIFwAA3hcAAIgXAADdFwAA3RcAAIgXAACJFwAA3RcAAIkXAADcFwAA3BcAAIkXAACKFwAA3BcAAIoXAACLFwAAixcAAIwXAADcFwAA3BcAAIwXAADjFwAA3BcAAOMXAADdFwAA3RcAAOMXAADkFwAA3RcAAOQXAADeFwAA3hcAAOQXAADlFwAA3hcAAOUXAADfFwAA3xcAAOUXAADmFwAA3xcAAOYXAADgFwAA4BcAAOYXAADnFwAA4BcAAOcXAADoFwAA6BcAAOcXAADuFwAA6BcAAO4XAADvFwAA7xcAAO4XAAD1FwAA7xcAAPUXAAD2FwAA9hcAAPUXAAD9FwAA9hcAAP0XAAD+FwAA/hcAAP0XAADbFwAA/hcAANsXAADRFwAA0RcAANsXAADQFwAA0BcAANsXAADaFwAA0BcAANoXAADPFwAAzxcAANoXAAARGAAAzxcAABEYAAAYGAAAGBgAABEYAAAQGAAAGBgAABAYAAAXGAAAFxgAABAYAAAPGAAAFxgAAA8YAAAWGAAAFhgAAA8YAAAOGAAAFhgAAA4YAAAVGAAAFRgAAA4YAAANGAAAFRgAAA0YAAAUGAAAFBgAAA0YAAAMGAAAFBgAAAwYAAATGAAAExgAAAwYAAALGAAAExgAAAsYAAASGAAAEhgAAAsYAACVFwAAEhgAAJUXAACWFwAAjBcAAI0XAADjFwAA4xcAAI0XAACOFwAA4xcAAI4XAADqFwAA6hcAAI4XAACPFwAA6hcAAI8XAADxFwAA8RcAAI8XAACQFwAA8RcAAJAXAAD4FwAA+BcAAJAXAACRFwAA+BcAAJEXAAD/FwAA/xcAAJEXAACSFwAA/xcAAJIXAAAFGAAABRgAAJIXAACTFwAABRgAAJMXAAALGAAACxgAAJMXAACUFwAACxgAAJQXAACVFwAAEhgAAJYXAAAZGAAAGRgAAJYXAACXFwAAGRgAAJcXAAAgGAAAIBgAAJcXAACYFwAAIBgAAJgXAAAmGAAAJhgAAJgXAACZFwAAJhgAAJkXAAAsGAAALBgAAJkXAACaFwAALBgAAJoXAAAzGAAAMxgAAJoXAACbFwAAMxgAAJsXAAA6GAAAOhgAAJsXAACcFwAAOhgAAJwXAABBGAAAQRgAAJwXAACdFwAAQRgAAJ0XAABHGAAARxgAAJ0XAACeFwAARxgAAJ4XAABNGAAATRgAAJ4XAACfFwAATRgAAJ8XAABUGAAAVBgAAJ8XAACgFwAAVBgAAKAXAABbGAAAWxgAAKAXAAChFwAAWxgAAKEXAABiGAAAYhgAAKEXAACiFwAAYhgAAKIXAACjFwAAYhgAAKMXAABoGAAAaBgAAKMXAACkFwAAaBgAAKQXAABvGAAAbxgAAKQXAAClFwAAbxgAAKUXAAB2GAAAdhgAAKUXAACmFwAAdhgAAKYXAAB5GAAAeRgAAKYXAACnFwAAeRgAAKcXAAB7GAAAexgAAKcXAACoFwAAexgAAKgXAAB8GAAAfBgAAKgXAACpFwAAfBgAAKkXAACsFwAArBcAAKkXAACqFwAArBcAAKoXAACrFwAArBcAAK0XAAB8GAAAfBgAAK0XAAB7GAAArRcAAK4XAAB7GAAAexgAAK4XAAB5GAAAeRgAAK4XAAB6GAAAehgAAK4XAACvFwAAehgAAK8XAAB3GAAAdxgAAK8XAACwFwAAdxgAALAXAAB4GAAAeBgAALAXAACxFwAAeBgAALEXAACyFwAAshcAALMXAAB4GAAAeBgAALMXAABxGAAAeBgAAHEYAABwGAAAcBgAAHEYAABpGAAAcBgAAGkYAABoGAAAaBgAAGkYAABiGAAAcRgAALMXAAByGAAAchgAALMXAAC0FwAAchgAALQXAAC1FwAAtRcAALYXAAByGAAAchgAALYXAAC3FwAAchgAALcXAAC4FwAAchgAALgXAABzGAAAcxgAALgXAAC5FwAAcxgAALkXAAC6FwAAuhcAALsXAABzGAAAcxgAALsXAAC8FwAAcxgAALwXAAC9FwAAvRcAAL4XAABzGAAAcxgAAL4XAAB0GAAAcxgAAHQYAABsGAAAbBgAAHQYAABtGAAAbBgAAG0YAABmGAAAZhgAAG0YAABnGAAAZhgAAGcYAABfGAAAXxgAAGcYAABgGAAAXxgAAGAYAABYGAAAWBgAAGAYAABZGAAAWBgAAFkYAABRGAAAURgAAFkYAABSGAAAURgAAFIYAABLGAAASxgAAFIYAABMGAAASxgAAEwYAABFGAAARRgAAEwYAABGGAAARRgAAEYYAAA+GAAAPhgAAEYYAAA/GAAAPhgAAD8YAAA3GAAANxgAAD8YAAA4GAAANxgAADgYAAAwGAAAMBgAADgYAAAxGAAAMBgAADEYAAAqGAAAKhgAADEYAAArGAAAKhgAACsYAAAkGAAAJBgAACsYAAAlGAAAJBgAACUYAAAdGAAAHRgAACUYAAAeGAAAHRgAAB4YAAAWGAAAFhgAAB4YAAAXGAAAvhcAAL8XAAB0GAAAdBgAAL8XAADAFwAAdBgAAMAXAADUFwAA1BcAAMAXAADBFwAA1BcAAMEXAADFFwAAxRcAAMEXAADCFwAAxRcAAMIXAADDFwAAwxcAAMQXAADFFwAAxRcAAMYXAADUFwAA1BcAAMYXAAB1GAAA1BcAAHUYAAB0GAAAdBgAAHUYAABtGAAAdRgAAMYXAABuGAAAbhgAAMYXAADHFwAAbhgAAMcXAADVFwAA1RcAAMcXAADIFwAA1RcAAMgXAABhGAAAYRgAAMgXAABaGAAAYRgAAFoYAABZGAAAWRgAAFoYAABSGAAAyBcAAMkXAABaGAAAWhgAAMkXAABTGAAAWhgAAFMYAABSGAAAUhgAAFMYAABMGAAAUxgAAMkXAADWFwAA1hcAAMkXAADKFwAA1hcAAMoXAADXFwAA1xcAAMoXAADLFwAA1xcAAMsXAABAGAAAQBgAAMsXAAA5GAAAQBgAADkYAAA4GAAAOBgAADkYAAAxGAAAyxcAAMwXAAA5GAAAORgAAMwXAAAyGAAAORgAADIYAAAxGAAAMRgAADIYAAArGAAAMhgAAMwXAADYFwAA2BcAAMwXAADNFwAA2BcAAM0XAADZFwAA2RcAAM0XAADOFwAA2RcAAM4XAAAfGAAAHxgAAM4XAAAYGAAAHxgAABgYAAAXGAAAzhcAAM8XAAAYGAAA/hcAANEXAAD3FwAA9xcAANEXAADSFwAA9xcAANIXAADwFwAA8BcAANIXAADTFwAA8BcAANMXAADpFwAA6RcAANMXAADiFwAA6RcAAOIXAADhFwAA6RcAAOEXAADoFwAA6BcAAOEXAADgFwAA4xcAAOoXAADkFwAA5BcAAOoXAADrFwAA5BcAAOsXAADlFwAA5RcAAOsXAADsFwAA5RcAAOwXAADmFwAA5hcAAOwXAADtFwAA5hcAAO0XAADnFwAA5xcAAO0XAADuFwAA8BcAAOkXAADvFwAA7xcAAOkXAADoFwAA6hcAAPEXAADrFwAA6xcAAPEXAADyFwAA6xcAAPIXAADsFwAA7BcAAPIXAADzFwAA7BcAAPMXAADtFwAA7RcAAPMXAAD0FwAA7RcAAPQXAADuFwAA7hcAAPQXAAD1FwAA9xcAAPAXAAD2FwAA9hcAAPAXAADvFwAA8hcAAPEXAAD5FwAA+RcAAPEXAAD4FwAA+RcAAPgXAAAAGAAAABgAAPgXAAD/FwAAABgAAP8XAAAGGAAABhgAAP8XAAAFGAAABhgAAAUYAAAMGAAADBgAAAUYAAALGAAA8xcAAPIXAAD6FwAA+hcAAPIXAAD5FwAA+hcAAPkXAAABGAAAARgAAPkXAAAAGAAAARgAAAAYAAAHGAAABxgAAAAYAAAGGAAABxgAAAYYAAANGAAADRgAAAYYAAAMGAAA9BcAAPMXAAD7FwAA+xcAAPMXAAD6FwAA+xcAAPoXAAACGAAAAhgAAPoXAAABGAAAAhgAAAEYAAAIGAAACBgAAAEYAAAHGAAACBgAAAcYAAAOGAAADhgAAAcYAAANGAAA9RcAAPQXAAD8FwAA/BcAAPQXAAD7FwAA/BcAAPsXAAADGAAAAxgAAPsXAAACGAAAAxgAAAIYAAAJGAAACRgAAAIYAAAIGAAACRgAAAgYAAAPGAAADxgAAAgYAAAOGAAA/hcAAPcXAAD2FwAA9RcAAPwXAAD9FwAA/RcAAPwXAAAEGAAA/RcAAAQYAADbFwAA2xcAAAQYAADaFwAABBgAAPwXAAADGAAABBgAAAMYAAAKGAAAChgAAAMYAAAJGAAAChgAAAkYAAAQGAAAEBgAAAkYAAAPGAAAERgAANoXAAAKGAAAChgAANoXAAAEGAAAERgAAAoYAAAQGAAAExgAABIYAAAaGAAAGhgAABIYAAAZGAAAGhgAABkYAAAhGAAAIRgAABkYAAAgGAAAIRgAACAYAAAnGAAAJxgAACAYAAAmGAAAJxgAACYYAAAtGAAALRgAACYYAAAsGAAALRgAACwYAAA0GAAANBgAACwYAAAzGAAANBgAADMYAAA7GAAAOxgAADMYAAA6GAAAOxgAADoYAABCGAAAQhgAADoYAABBGAAAQhgAAEEYAABIGAAASBgAAEEYAABHGAAASBgAAEcYAABOGAAAThgAAEcYAABNGAAAThgAAE0YAABVGAAAVRgAAE0YAABUGAAAVRgAAFQYAABcGAAAXBgAAFQYAABbGAAAXBgAAFsYAABjGAAAYxgAAFsYAABiGAAAYxgAAGIYAABpGAAAFBgAABMYAAAbGAAAGxgAABMYAAAaGAAAGxgAABoYAAAiGAAAIhgAABoYAAAhGAAAIhgAACEYAAAoGAAAKBgAACEYAAAnGAAAKBgAACcYAAAuGAAALhgAACcYAAAtGAAALhgAAC0YAAA1GAAANRgAAC0YAAA0GAAANRgAADQYAAA8GAAAPBgAADQYAAA7GAAAPBgAADsYAABDGAAAQxgAADsYAABCGAAAQxgAAEIYAABJGAAASRgAAEIYAABIGAAASRgAAEgYAABPGAAATxgAAEgYAABOGAAATxgAAE4YAABWGAAAVhgAAE4YAABVGAAAVhgAAFUYAABdGAAAXRgAAFUYAABcGAAAXRgAAFwYAABkGAAAZBgAAFwYAABjGAAAZBgAAGMYAABqGAAAahgAAGMYAABpGAAAahgAAGkYAABxGAAAHRgAABYYAAAVGAAAFRgAABQYAAAcGAAAHBgAABQYAAAbGAAAHBgAABsYAAAjGAAAIxgAABsYAAAiGAAAIxgAACIYAAApGAAAKRgAACIYAAAoGAAAKRgAACgYAAAvGAAALxgAACgYAAAuGAAALxgAAC4YAAA2GAAANhgAAC4YAAA1GAAANhgAADUYAAA9GAAAPRgAADUYAAA8GAAAPRgAADwYAABEGAAARBgAADwYAABDGAAARBgAAEMYAABKGAAAShgAAEMYAABJGAAAShgAAEkYAABQGAAAUBgAAEkYAABPGAAAUBgAAE8YAABXGAAAVxgAAE8YAABWGAAAVxgAAFYYAABeGAAAXhgAAFYYAABdGAAAXhgAAF0YAABlGAAAZRgAAF0YAABkGAAAZRgAAGQYAABrGAAAaxgAAGQYAABqGAAAaxgAAGoYAAByGAAAchgAAGoYAABxGAAAHxgAABcYAAAeGAAAJBgAAB0YAAAcGAAAHBgAAB0YAAAVGAAAJBgAABwYAAAjGAAA2RcAAB8YAAAeGAAA2RcAAB4YAAAlGAAAKhgAACQYAAAjGAAAKhgAACMYAAApGAAA2BcAANkXAAAlGAAA2BcAACUYAAArGAAAMBgAACoYAAApGAAAMBgAACkYAAAvGAAAMhgAANgXAAArGAAANxgAADAYAAAvGAAANxgAAC8YAAA2GAAAPhgAADcYAAA2GAAAPhgAADYYAAA9GAAAQBgAADgYAAA/GAAARRgAAD4YAAA9GAAARRgAAD0YAABEGAAA1xcAAEAYAAA/GAAA1xcAAD8YAABGGAAASxgAAEUYAABEGAAASxgAAEQYAABKGAAA1hcAANcXAABGGAAA1hcAAEYYAABMGAAAURgAAEsYAABKGAAAURgAAEoYAABQGAAAUxgAANYXAABMGAAAWBgAAFEYAABQGAAAWBgAAFAYAABXGAAAXxgAAFgYAABXGAAAXxgAAFcYAABeGAAAYRgAAFkYAABgGAAAZhgAAF8YAABeGAAAZhgAAF4YAABlGAAA1RcAAGEYAABgGAAA1RcAAGAYAABnGAAAbBgAAGYYAABlGAAAbBgAAGUYAABrGAAAbhgAANUXAABnGAAAbhgAAGcYAABtGAAAcxgAAGwYAABrGAAAcxgAAGsYAAByGAAAdRgAAG4YAABtGAAAaBgAAG8YAABwGAAAcBgAAG8YAAB3GAAAcBgAAHcYAAB4GAAAehgAAHcYAAB2GAAAdhgAAHcYAABvGAAAeRgAAHoYAAB2GAAAwxcAAK4XAADEFwAAxBcAAK4XAACtFwAAxBcAAK0XAAACGQAAAhkAAK0XAACsFwAAAhkAAKwXAAABGQAAARkAAKwXAACrFwAAARkAAKsXAAAAGQAAABkAAKsXAAB9GAAAABkAAH0YAAD/GAAA/xgAAH0YAAD+GAAA/hgAAH0YAAB+GAAA/hgAAH4YAAD9GAAA/RgAAH4YAAB/GAAA/RgAAH8YAAD8GAAA/BgAAH8YAAD7GAAA+xgAAH8YAACAGAAA+xgAAIAYAAD6GAAA+hgAAIAYAACBGAAA+hgAAIEYAAD5GAAA+RgAAIEYAAD4GAAA+BgAAIEYAACCGAAA+BgAAIIYAAD3GAAA9xgAAIIYAACDGAAA9xgAAIMYAAD2GAAA9hgAAIMYAACEGAAA9hgAAIQYAAD1GAAA9RgAAIQYAACFGAAA9RgAAIUYAAD0GAAA9BgAAIUYAACGGAAA9BgAAIYYAACHGAAAwxcAAMIXAACuFwAArhcAAMIXAACvFwAArxcAAMIXAADBFwAArxcAAMEXAACwFwAAsBcAAMEXAADAFwAAsBcAAMAXAACxFwAAsRcAAMAXAAC/FwAAsRcAAL8XAACyFwAAshcAAL8XAACzFwAAsxcAAL8XAAC+FwAAsxcAAL4XAAC0FwAAtBcAAL4XAAC9FwAAtBcAAL0XAAC1FwAAtRcAAL0XAAC8FwAAtRcAALwXAAC2FwAAthcAALwXAAC7FwAAthcAALsXAAC3FwAAtxcAALsXAAC6FwAAtxcAALoXAAC4FwAAuBcAALoXAAC5FwAA9BgAAIcYAADzGAAA8xgAAIcYAACIGAAA8xgAAIgYAADyGAAA8hgAAIgYAACJGAAA8hgAAIkYAADxGAAA8RgAAIkYAACKGAAA8RgAAIoYAADwGAAA8BgAAIoYAACLGAAA8BgAAIsYAACMGAAA8BgAAIwYAADvGAAA7xgAAIwYAACNGAAA7xgAAI0YAADuGAAA7hgAAI0YAACOGAAA7hgAAI4YAADtGAAA7RgAAI4YAACPGAAA7RgAAI8YAADsGAAA7BgAAI8YAACQGAAA7BgAAJAYAADrGAAA6xgAAJAYAACRGAAA6xgAAJEYAACSGAAA6xgAAJIYAADqGAAA6hgAAJIYAACTGAAA6hgAAJMYAADpGAAA6RgAAJMYAACUGAAA6RgAAJQYAADoGAAA6BgAAJQYAACVGAAA6BgAAJUYAADnGAAA5xgAAJUYAACWGAAA5xgAAJYYAACXGAAA5xgAAJcYAADmGAAA5hgAAJcYAACYGAAA5hgAAJgYAADlGAAA5RgAAJgYAACZGAAA5RgAAJkYAADkGAAA5BgAAJkYAACaGAAA5BgAAJoYAADjGAAA4xgAAJoYAACbGAAA4xgAAJsYAADiGAAA4hgAAJsYAACcGAAA4hgAAJwYAACdGAAA4hgAAJ0YAADhGAAA4RgAAJ0YAACeGAAA4RgAAJ4YAADgGAAA4BgAAJ4YAACfGAAA4BgAAJ8YAADfGAAA3xgAAJ8YAACgGAAA3xgAAKAYAADeGAAA3hgAAKAYAAChGAAA3hgAAKEYAACiGAAA3hgAAKIYAADdGAAA3RgAAKIYAACjGAAA3RgAAKMYAADcGAAA3BgAAKMYAACkGAAA3BgAAKQYAADbGAAA2xgAAKQYAAClGAAA2xgAAKUYAADaGAAA2hgAAKUYAACmGAAA2hgAAKYYAADZGAAA2RgAAKYYAACnGAAA2RgAAKcYAACoGAAA2RgAAKgYAADYGAAA2BgAAKgYAACpGAAA2BgAAKkYAADXGAAA1xgAAKkYAACqGAAA1xgAAKoYAADWGAAA1hgAAKoYAACrGAAA1hgAAKsYAADVGAAA1RgAAKsYAACsGAAA1RgAAKwYAACtGAAA1RgAAK0YAADUGAAA1BgAAK0YAACuGAAA1BgAAK4YAADTGAAA0xgAAK4YAACvGAAA0xgAAK8YAADSGAAA0hgAAK8YAACwGAAA0hgAALAYAADRGAAA0RgAALAYAACxGAAA0RgAALEYAADQGAAA0BgAALEYAACyGAAA0BgAALIYAACzGAAA0BgAALMYAADPGAAAzxgAALMYAAC0GAAAzxgAALQYAADOGAAAzhgAALQYAAC1GAAAzhgAALUYAADNGAAAzRgAALUYAAC2GAAAzRgAALYYAADMGAAAzBgAALYYAAC3GAAAzBgAALcYAAC4GAAAzBgAALgYAADLGAAAyxgAALgYAAC5GAAAyxgAALkYAADKGAAAyhgAALkYAAC6GAAAyhgAALoYAADJGAAAyRgAALoYAAC7GAAAyRgAALsYAADIGAAAyBgAALsYAAC8GAAAyBgAALwYAAC9GAAAyBgAAL0YAADHGAAAxxgAAL0YAAC+GAAAxxgAAL4YAADGGAAAxhgAAL4YAAC/GAAAxhgAAL8YAADFGAAAxRgAAL8YAADAGAAAxRgAAMAYAADEGAAAxBgAAMAYAADBGAAAxBgAAMEYAADDGAAAwxgAAMEYAADCGAAAqhcAAB0ZAACrFwAAqxcAAB0ZAAAeGQAAqxcAAB4ZAAB9GAAAfRgAAB4ZAAAfGQAAfRgAAB8ZAAB+GAAAfhgAAB8ZAAAgGQAAfhgAACAZAAAhGQAAHRkAAKoXAAAcGQAAHBkAAKoXAACpFwAAHBkAAKkXAAAbGQAAGxkAAKkXAACoFwAAGxkAAKgXAACnFwAAGxkAAKcXAAAaGQAAGhkAAKcXAACmFwAAGhkAAKYXAAAZGQAAGRkAAKYXAAClFwAAGRkAAKUXAAAYGQAAGBkAAKUXAACkFwAAGBkAAKQXAAAXGQAAFxkAAKQXAACjFwAAFxkAAKMXAACiFwAAFxkAAKIXAAAWGQAAFhkAAKIXAAChFwAAFhkAAKEXAAAVGQAAFRkAAKEXAACgFwAAFRkAAKAXAAAUGQAAFBkAAKAXAACfFwAAFBkAAJ8XAAATGQAAExkAAJ8XAACeFwAAExkAAJ4XAACdFwAAExkAAJ0XAAASGQAAEhkAAJ0XAACcFwAAEhkAAJwXAAARGQAAERkAAJwXAACbFwAAERkAAJsXAAAQGQAAEBkAAJsXAACaFwAAEBkAAJoXAAAPGQAADxkAAJoXAACZFwAADxkAAJkXAAAOGQAADhkAAJkXAACYFwAADhkAAJgXAACXFwAADhkAAJcXAAANGQAADRkAAJcXAACWFwAADRkAAJYXAAAMGQAADBkAAJYXAACVFwAADBkAAJUXAAALGQAACxkAAJUXAACUFwAACxkAAJQXAAAKGQAAChkAAJQXAACTFwAAChkAAJMXAAAJGQAACRkAAJMXAACSFwAACRkAAJIXAACRFwAACRkAAJEXAAAIGQAACBkAAJEXAACQFwAACBkAAJAXAAAHGQAABxkAAJAXAACPFwAABxkAAI8XAAAGGQAABhkAAI8XAACOFwAABhkAAI4XAAAFGQAABRkAAI4XAACNFwAABRkAAI0XAAAEGQAABBkAAI0XAACMFwAABBkAAIwXAAADGQAAAxkAAIwXAACLFwAAfhgAACEZAAB/GAAAfxgAACEZAAAiGQAAfxgAACIZAACAGAAAgBgAACIZAAAjGQAAgBgAACMZAAAkGQAAgBgAACQZAACBGAAAgRgAACQZAAAlGQAAgRgAACUZAACCGAAAghgAACUZAAAmGQAAghgAACYZAABkGQAAZBkAACYZAAAnGQAAZBkAACcZAABjGQAAYxkAACcZAAAoGQAAYxkAACgZAABiGQAAYhkAACgZAAApGQAAYhkAACkZAABhGQAAYRkAACkZAAAqGQAAYRkAACoZAABgGQAAYBkAACoZAAArGQAAYBkAACsZAABfGQAAXxkAACsZAAAsGQAAXxkAACwZAABeGQAAXhkAACwZAABdGQAAXRkAACwZAAAtGQAAXRkAAC0ZAABcGQAAXBkAAC0ZAAAuGQAAXBkAAC4ZAABbGQAAWxkAAC4ZAAAvGQAAWxkAAC8ZAABaGQAAWhkAAC8ZAAAwGQAAWhkAADAZAABZGQAAWRkAADAZAAAxGQAAWRkAADEZAABYGQAAWBkAADEZAAAyGQAAWBkAADIZAABXGQAAVxkAADIZAAAzGQAAVxkAADMZAABWGQAAVhkAADMZAAA0GQAAVhkAADQZAABVGQAAVRkAADQZAAA1GQAAVRkAADUZAABUGQAAVBkAADUZAAA2GQAAVBkAADYZAABTGQAAUxkAADYZAABSGQAAUhkAADYZAAA3GQAAUhkAADcZAABRGQAAURkAADcZAAA4GQAAURkAADgZAABQGQAAUBkAADgZAAA5GQAAUBkAADkZAABPGQAATxkAADkZAAA6GQAATxkAADoZAABOGQAAThkAADoZAAA7GQAAThkAADsZAABNGQAATRkAADsZAAA8GQAATRkAADwZAABMGQAATBkAADwZAAA9GQAATBkAAD0ZAABLGQAASxkAAD0ZAAA+GQAASxkAAD4ZAABKGQAAShkAAD4ZAAA/GQAAShkAAD8ZAABJGQAASRkAAD8ZAABAGQAASRkAAEAZAABIGQAASBkAAEAZAABBGQAASBkAAEEZAABHGQAARxkAAEEZAABCGQAARxkAAEIZAABGGQAARhkAAEIZAABDGQAARhkAAEMZAABFGQAARRkAAEMZAABEGQAAghkAAGUZAACDGQAAgxkAAGUZAABmGQAAgxkAAGYZAACEGQAAhBkAAGYZAABnGQAAhBkAAGcZAACGGQAAhhkAAGcZAACFGQAAhhkAAIUZAACJGQAAiRkAAIUZAACIGQAAiRkAAIgZAACOGQAAjhkAAIgZAACNGQAAjhkAAI0ZAACTGQAAkxkAAI0ZAACSGQAAkxkAAJIZAACaGQAAmhkAAJIZAACZGQAAmhkAAJkZAAChGQAAoRkAAJkZAACgGQAAoRkAAKAZAACoGQAAqBkAAKAZAACnGQAAqBkAAKcZAABzGQAAcxkAAKcZAAByGQAAchkAAKcZAACmGQAAchkAAKYZAABxGQAAcRkAAKYZAAClGQAAcRkAAKUZAABwGQAAcBkAAKUZAABuGQAAcBkAAG4ZAABvGQAAZxkAAGgZAACFGQAAhRkAAGgZAACIGQAAaBkAAGkZAACIGQAAiBkAAGkZAACNGQAAjRkAAGkZAACMGQAAjBkAAGkZAABqGQAAjBkAAGoZAACRGQAAkRkAAGoZAABrGQAAkRkAAGsZAACYGQAAmBkAAGsZAACXGQAAmBkAAJcZAACfGQAAnxkAAJcZAACeGQAAnxkAAJ4ZAACmGQAAphkAAJ4ZAAClGQAAaxkAAGwZAACXGQAAlxkAAGwZAACeGQAAbBkAAG0ZAACeGQAAnhkAAG0ZAAClGQAAbRkAAG4ZAAClGQAAcxkAAHQZAACoGQAAqBkAAHQZAACpGQAAqBkAAKkZAAChGQAAoRkAAKkZAACiGQAAoRkAAKIZAACaGQAAmhkAAKIZAACbGQAAmhkAAJsZAACTGQAAkxkAAJsZAACUGQAAkxkAAJQZAACOGQAAjhkAAJQZAACPGQAAjhkAAI8ZAACJGQAAiRkAAI8ZAACKGQAAiRkAAIoZAACGGQAAhhkAAIoZAACHGQAAhhkAAIcZAACAGQAAgBkAAIcZAAB/GQAAfxkAAIcZAACKGQAAfxkAAIoZAACLGQAAixkAAIoZAACQGQAAixkAAJAZAAB+GQAAfhkAAJAZAAB9GQAAfRkAAJAZAACVGQAAfRkAAJUZAACWGQAAlhkAAJUZAACdGQAAlhkAAJ0ZAAB8GQAAfBkAAJ0ZAAB7GQAAexkAAJ0ZAAB6GQAAehkAAJ0ZAACkGQAAehkAAKQZAAB5GQAAeRkAAKQZAACrGQAAeRkAAKsZAAB4GQAAeBkAAKsZAAB2GQAAeBkAAHYZAAB3GQAAdBkAAHUZAACpGQAAqRkAAHUZAACqGQAAqRkAAKoZAACiGQAAohkAAKoZAACjGQAAohkAAKMZAACbGQAAmxkAAKMZAACcGQAAmxkAAJwZAACUGQAAlBkAAJwZAACVGQAAlBkAAJUZAACPGQAAjxkAAJUZAACQGQAAjxkAAJAZAACKGQAAdRkAAHYZAACqGQAAqhkAAHYZAACrGQAAqhkAAKsZAACjGQAAoxkAAKsZAACkGQAAoxkAAKQZAACcGQAAnBkAAKQZAACdGQAAnBkAAJ0ZAACVGQAAfBkAAH0ZAACWGQAAfhkAAH8ZAACLGQAAhhkAAIAZAACEGQAAhBkAAIAZAACBGQAAhBkAAIEZAACCGQAAhBkAAIIZAACDGQAAkhkAAI0ZAACMGQAAmRkAAJIZAACRGQAAkRkAAJIZAACMGQAAoBkAAJkZAACYGQAAmBkAAJkZAACRGQAAoBkAAJgZAACfGQAApxkAAKAZAACfGQAApxkAAJ8ZAACmGQAAdhkAAHEZAAB3GQAAdxkAAHEZAABwGQAAdxkAAHAZAABvGQAAcRkAAHYZAAByGQAAchkAAHYZAAB1GQAAchkAAHUZAABzGQAAcxkAAHUZAAB0GQAAdxkAAG8ZAAC5GQAAuRkAAG8ZAACsGQAAuRkAAKwZAABcAAAAuRkAAFwAAAC1GQAAtRkAAFwAAAACAAAAtRkAAAIAAACtGQAArRkAAAIAAAABAAAArRkAAAEAAAAAAAAArRkAAK4ZAAC1GQAAtRkAAK4ZAAC0GQAAtBkAAK4ZAACvGQAAtBkAAK8ZAACzGQAAsxkAAK8ZAACyGQAAshkAAK8ZAACwGQAAshkAALAZAACxGQAAwxgAALYZAAC1GQAAtRkAALYZAAC3GQAAtRkAALcZAAC4GQAAwxgAAMIYAAC2GQAAuBkAALkZAAC1GQAAwhkAAG0ZAABdAAAAXQAAAG0ZAABsGQAAXQAAAGwZAABeAAAAXgAAAGwZAABrGQAAXgAAAGsZAABfAAAAXwAAAGsZAABqGQAAXwAAAGoZAABpGQAAXwAAAGkZAABgAAAAYAAAAGkZAABoGQAAYAAAAGgZAABhAAAAYQAAAGgZAABnGQAAYQAAAGcZAABmGQAAYQAAAGYZAABiAAAAYgAAAGYZAABlGQAAYgAAAGUZAABjAAAAYwAAAGUZAAC6GQAAYwAAALoZAAC7GQAAYwAAALsZAABkAAAAZAAAALsZAAC8GQAAZAAAALwZAABlAAAAZQAAALwZAAC9GQAAZQAAAL0ZAABmAAAAZgAAAL0ZAAC+GQAAZgAAAL4ZAAC/GQAAZgAAAL8ZAABnAAAAZwAAAL8ZAADAGQAAZwAAAMAZAABoAAAAaAAAAMAZAABEGQAAaAAAAEQZAABDGQAAaAAAAEMZAABpAAAAaQAAAEMZAABCGQAAaQAAAEIZAABBGQAAaQAAAEEZAABqAAAAagAAAEEZAABAGQAAagAAAEAZAABrAAAAawAAAEAZAAA/GQAAawAAAD8ZAAA+GQAAawAAAD4ZAABsAAAAbAAAAD4ZAAA9GQAAbAAAAD0ZAABtAAAAbQAAAD0ZAAA8GQAAbQAAADwZAAA7GQAAbQAAADsZAABuAAAAbgAAADsZAAA6GQAAbgAAADoZAABvAAAAbwAAADoZAAA5GQAA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0BkAAA0aAAAJGgAA0BkAAAkaAADPGQAAzxkAAAkaAAAFGgAAzxkAAAUaAADOGQAAzhkAAAUaAAD/GQAAzhkAAP8ZAADNGQAAzRkAAP8ZAADVGQAAzRkAANUZAADMGQAAzBkAANUZAAD7GQAAzBkAAPsZAADzGQAA8xkAAPsZAAD8GQAA8xkAAPwZAAD0GQAA9BkAAPwZAAD9GQAA9BkAAP0ZAAD1GQAA9RkAAP0ZAAD+GQAAyhkAAMsZAADvGQAA7xkAAMsZAAD6GQAA7xkAAPoZAAD5GQAA+RkAAPoZAAD0GQAA+RkAAPQZAAD1GQAA+hkAAMsZAADzGQAA8xkAAMsZAADMGQAA0xkAANQZAAAZGgAAGRoAANQZAAAdGgAAGRoAAB0aAAAeGgAAHhoAAB0aAADEGQAAHhoAAMQZAADDGQAA1BkAAMUZAAAdGgAAHRoAAMUZAADEGQAAnxAAAJ4QAAD2GQAA9hkAAJ4QAAD3GQAA9hkAAPcZAAD4GQAA+BkAAPcZAADxGQAA+BkAAPEZAADwGQAA8BkAAPEZAADtGQAA8BkAAO0ZAADuGQAA7hkAAO0ZAADXGQAA9xkAAJ4QAADyGQAA8hkAAJ4QAACdEAAA8hkAAJ0QAADYGQAA2BkAAJ0QAACcEAAA2BkAAJwQAADrGQAA6xkAAJwQAADoGQAA6xkAAOgZAADnGQAA5xkAAOgZAADjGQAA5xkAAOMZAADiGQAA4hkAAOMZAADeGQAA4hkAAN4ZAADdGQAA3RkAAN4ZAADZGQAAnBAAAJsQAADoGQAA6BkAAJsQAADkGQAA6BkAAOQZAADjGQAA4xkAAOQZAADfGQAA4xkAAN8ZAADeGQAA3hkAAN8ZAADaGQAA3hkAANoZAADZGQAAmxAAAJoQAADkGQAA5BkAAJoQAADgGQAA5BkAAOAZAADfGQAA3xkAAOAZAADbGQAA3xkAANsZAADaGQAAmhAAAJkQAADgGQAA4BkAAJkQAADcGQAA4BkAANwZAADbGQAA3RkAAOEZAADiGQAA4hkAAOEZAADmGQAA4hkAAOYZAADnGQAA5xkAAOYZAADqGQAA5xkAAOoZAADrGQAA6xkAAOoZAADYGQAA4RkAAOUZAADmGQAA5hkAAOUZAADpGQAA5hkAAOkZAADqGQAA6hkAAOkZAADsGQAA6hkAAOwZAADYGQAA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ahoAAPEaAADwGgAAahoAAPAaAABpGgAAaRoAAPAaAADvGgAAaRoAAO8aAABoGgAAaBoAAO8aAADNGgAAaBoAAM0aAABnGgAAZxoAAM0aAADuGgAAZxoAAO4aAABmGgAAZhoAAO4aAADtGgAAZhoAAO0aAABlGgAAZRoAAO0aAADsGgAAZRoAAOwaAABkGgAAZBoAAOwaAADrGgAAZBoAAOsaAABjGgAAYxoAAOsaAADqGgAAYxoAAOoaAABiGgAAYhoAAOoaAADpGgAAYhoAAOkaAABhGgAAYRoAAOkaAADoGgAAYRoAAOgaAABgGgAAYBoAAOgaAADnGgAAYBoAAOcaAABfGgAAXxoAAOcaAADmGgAAXxoAAOYaAABeGgAAXhoAAOYaAADlGgAAXhoAAOUaAABdGgAAXRoAAOUaAADkGgAAXRoAAOQaAABcGgAAXBoAAOQaAADjGgAAXBoAAOMaAABbGgAAWxoAAOMaAADiGgAAWxoAAOIaAABaGgAAWhoAAOIaAADhGgAAWhoAAOEaAABZGgAAWRoAAOEaAADgGgAAWRoAAOAaAABYGgAAWBoAAOAaAADfGgAAWBoAAN8aAABXGgAAVxoAAN8aAADeGgAAVxoAAN4aAABWGgAAVhoAAN4aAADdGgAAVhoAAN0aAABVGgAAVRoAAN0aAADcGgAAVRoAANwaAABUGgAAVBoAANwaAADbGgAAVBoAANsaAABTGgAAUxoAANsaAADaGgAAUxoAANoaAABSGgAAUhoAANoaAADZGgAAUhoAANkaAABRGgAAURoAANkaAADYGgAAURoAANgaAABQGgAAUBoAANgaAADXGgAAUBoAANcaAABPGgAATxoAANcaAADWGgAATxoAANYaAABOGgAAThoAANYaAADVGgAAThoAANUaAABNGgAATRoAANUaAADUGgAATRoAANQaAABMGgAATBoAANQaAADTGgAATBoAANMaAABLGgAASxoAANMaAADSGgAASxoAANIaAABKGgAAShoAANIaAADRGgAAShoAANEaAABJGgAASRoAANEaAADQGgAASRoAANAaAABIGgAASBoAANAaAADOGgAAihoAAN4aAACJGgAAiRoAAN4aAADfGgAAiRoAAN8aAADLGgAAyxoAAN8aAADgGgAAyxoAAOAaAADKGgAAyhoAAOAaAADhGgAAyhoAAOEaAADJGgAAyRoAAOEaAADiGgAAyRoAAOIaAADIGgAAyBoAAOIaAADjGgAAyBoAAOMaAADHGgAAxxoAAOMaAADkGgAAxxoAAOQaAADGGgAAxhoAAOQaAADlGgAAxhoAAOUaAADFGgAAxRoAAOUaAADmGgAAxRoAAOYaAADEGgAAxBoAAOYaAADnGgAAxBoAAOcaAADDGgAAwxoAAOcaAADoGgAAwxoAAOgaAADCGgAAwhoAAOgaAADpGgAAwhoAAOkaAADBGgAAwRoAAOkaAADqGgAAwRoAAOoaAADAGgAAwBoAAOoaAADrGgAAwBoAAOsaAAC/GgAAvxoAAOsaAADsGgAAvxoAAOwaAAC+GgAAvhoAAOwaAADtGgAAvhoAAO0aAAC9GgAAvRoAAO0aAADuGgAAvRoAAO4aAAC8GgAAvBoAAO4aAADNGgAAvBoAAM0aAAC7GgAAuxoAAM0aAADvGgAAuxoAAO8aAAC6GgAAuhoAAO8aAADwGgAAuhoAAPAaAAC5GgAAuRoAAPAaAADxGgAAuRoAAPEaAAC4GgAAuBoAAPEaAADyGgAAuBoAAPIaAAC3GgAAtxoAAPIaAADzGgAAtxoAAPMaAAC2GgAAthoAAPMaAAD0GgAAthoAAPQaAAC1GgAAtRoAAPQaAAD1GgAAtRoAAPUaAAC0GgAAtBoAAPUaAAD2GgAAtBoAAPYaAACzGgAAsxoAAPYaAAD3GgAAsxoAAPcaAACyGgAAshoAAPcaAAD4GgAAshoAAPgaAACxGgAAsRoAAPgaAAD5GgAAsRoAAPkaAACwGgAAsBoAAPkaAAD6GgAAsBoAAPoaAACvGgAArxoAAPoaAAD7GgAArxoAAPsaAACuGgAArhoAAPsaAAD8GgAArhoAAPwaAACtGgAArRoAAPwaAAD9GgAArRoAAP0aAACsGgAArBoAAP0aAAD+GgAArBoAAP4aAACrGgAAqxoAAP4aAAD/GgAAqxoAAP8aAACqGgAAqhoAAP8aAAAAGwAAqhoAAAAbAACpGgAAqRoAAAAbAAABGwAAqRoAAAEbAACoGgAAqBoAAAEbAAACGwAAqBoAAAIbAACnGgAApxoAAAIbAAADGwAApxoAAAMbAACmGgAAphoAAAMbAAAEGwAAphoAAAQbAAClGgAApRoAAAQbAAAFGwAApRoAAAUbAACkGgAApBoAAAUbAAAGGwAApBoAAAYbAACjGgAAoxoAAAYbAAAHGwAAoxoAAAcbAACiGgAAohoAAAcbAAAIGwAAohoAAAgbAAChGgAAoRoAAAgbAAAJGwAAoRoAAAkbAACgGgAAoBoAAAkbAAAKGwAAoBoAAAobAACfGgAAnxoAAAobAAALGwAAnxoAAAsbAACeGgAAnhoAAAsbAAAMGwAAnhoAAAwbAACdGgAAnRoAAAwbAAANGwAAnRoAAA0bAACcGgAAnBoAAA0bAAAOGwAAnBoAAA4bAACbGgAAmxoAAA4bAADPGgAAmxoAAM8aAACaGgAAmhoAAM8aAADOGgAAmhoAAM4aAACZGgAAmRoAAM4aAADQGgAAmRoAANAaAACYGgAAmBoAANAaAADRGgAAmBoAANEaAACXGgAAlxoAANEaAADSGgAAlxoAANIaAACWGgAAlhoAANIaAADTGgAAlhoAANMaAACVGgAAlRoAANMaAADUGgAAlRoAANQaAACUGgAAlBoAANQaAADVGgAAlBoAANUaAACTGgAAkxoAANUaAADWGgAAkxoAANYaAACSGgAAkhoAANYaAADXGgAAkhoAANcaAACRGgAAkRoAANcaAADYGgAAkRoAANgaAACQGgAAkBoAANgaAADZGgAAkBoAANkaAACPGgAAjxoAANkaAADaGgAAjxoAANoaAACOGgAAjhoAANoaAADbGgAAjhoAANsaAACNGgAAjRoAANsaAADcGgAAjRoAANwaAACMGgAAjBoAANwaAADdGgAAjBoAAN0aAACLGgAAixoAAN0aAADeGgAAixoAAN4aAACKGgAAyxoAAMwaAACJGgAAzBoAAMsaAABYGwAAWBsAAMsaAABXGwAAVxsAAMsaAABWGwAAVhsAAMsaAABTGwAAVhsAAFMbAABVGwAAVRsAAFMbAABUGwAAyxoAAMoaAABTGwAAUxsAAMoaAABSGwAAUhsAAMoaAADJGgAAUhsAAMkaAABRGwAAURsAAMkaAADIGgAAURsAAMgaAABQGwAAUBsAAMgaAADHGgAAUBsAAMcaAABPGwAATxsAAMcaAADGGgAATxsAAMYaAABOGwAAThsAAMYaAADFGgAAThsAAMUaAABNGwAATRsAAMUaAADEGgAATRsAAMQaAABMGwAATBsAAMQaAADDGgAATBsAAMMaAABLGwAA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ahsAAGkbAABvGwAAZhsAAGUbAABrGwAAaxsAAGUbAABqGwAAaxsAAGobAABwGwAAcBsAAGobAABvGwAAZxsAAGYbAABsGwAAbBsAAGYbAABrGwAAbBsAAGsbAABxGwAAcRsAAGsbAABwGwAAchsAAG0bAABsGwAAbBsAAG0bAABnGwAAchsAAGwbAABxGwAAdBsAAEgaAABzGwAAcxsAAEgaAABHGgAAcxsAAEcaAAC0GwAAtBsAAEcaAACIGgAAtBsAAIgaAACzGwAAsxsAAIgaAACHGgAAsxsAAIcaAACyGwAAshsAAIcaAACGGgAAshsAAIYaAACxGwAAsRsAAIYaAACFGgAAsRsAAIUaAACwGwAAsBsAAIUaAACEGgAAsBsAAIQaAACvGwAArxsAAIQaAACDGgAArxsAAIMaAACuGwAArhsAAIMaAACCGgAArhsAAIIaAACtGwAArRsAAIIaAACBGgAArRsAAIEaAACsGwAArBsAAIEaAACAGgAArBsAAIAaAACrGwAAqxsAAIAaAAB/GgAAqxsAAH8aAACqGwAAqhsAAH8aAAB+GgAAqhsAAH4aAACpGwAAqRsAAH4aAAB9GgAAqRsAAH0aAACoGwAAqBsAAH0aAAB8GgAAqBsAAHwaAACnGwAApxsAAHwaAAB7GgAApxsAAHsaAACmGwAAphsAAHsaAAB6GgAAphsAAHoaAAClGwAApRsAAHoaAAB5GgAApRsAAHkaAACkGwAApBsAAHkaAAB4GgAApBsAAHgaAACjGwAAoxsAAHgaAAB3GgAAoxsAAHcaAACiGwAAohsAAHcaAAB2GgAAohsAAHYaAAChGwAAoRsAAHYaAAB1GgAAoRsAAHUaAACgGwAAoBsAAHUaAAB0GgAAoBsAAHQaAACfGwAAnxsAAHQaAABzGgAAnxsAAHMaAACeGwAAnhsAAHMaAAByGgAAnhsAAHIaAACdGwAAnRsAAHIaAABxGgAAnRsAAHEaAACcGwAAnBsAAHEaAABwGgAAnBsAAHAaAACbGwAAmxsAAHAaAABvGgAAmxsAAG8aAACaGwAAmhsAAG8aAABuGgAAmhsAAG4aAACZGwAAmRsAAG4aAABtGgAAmRsAAG0aAACYGwAAmBsAAG0aAABsGgAAmBsAAGwaAACXGwAAlxsAAGwaAABrGgAAlxsAAGsaAACWGwAAlhsAAGsaAABqGgAAlhsAAGoaAACVGwAAlRsAAGoaAABpGgAAlRsAAGkaAACUGwAAlBsAAGkaAABoGgAAlBsAAGgaAACTGwAAkxsAAGgaAABnGgAAkxsAAGcaAACSGwAAkhsAAGcaAABmGgAAkhsAAGYaAACRGwAAkRsAAGYaAABlGgAAkRsAAGUaAACQGwAAkBsAAGUaAABkGgAAkBsAAGQaAACPGwAAjxsAAGQaAABjGgAAjxsAAGMaAACOGwAAjhsAAGMaAABiGgAAjhsAAGIaAACNGwAAjRsAAGIaAABhGgAAjRsAAGEaAACMGwAAjBsAAGEaAABgGgAAjBsAAGAaAACLGwAAixsAAGAaAABfGgAAixsAAF8aAACKGwAAihsAAF8aAABeGgAAihsAAF4aAACJGwAAiRsAAF4aAABdGgAAiRsAAF0aAACIGwAAiBsAAF0aAABcGgAAiBsAAFwaAACHGwAAhxsAAFwaAABbGgAAhxsAAFsaAACGGwAAhhsAAFsaAABaGgAAhhsAAFoaAACFGwAAhRsAAFoaAABZGgAAhRsAAFkaAACEGwAAhBsAAFkaAABYGgAAhBsAAFgaAACDGwAAgxsAAFgaAABXGgAAgxsAAFcaAACCGwAAghsAAFcaAABWGgAAghsAAFYaAACBGwAAgRsAAFYaAABVGgAAgRsAAFUaAACAGwAAgBsAAFUaAABUGgAAgBsAAFQaAAB/GwAAfxsAAFQaAABTGgAAfxsAAFMaAAB+GwAAfhsAAFMaAABSGgAAfhsAAFIaAAB9GwAAfRsAAFIaAABRGgAAfRsAAFEaAAB8GwAAfBsAAFEaAABQGgAAfBsAAFAaAAB7GwAAexsAAFAaAABPGgAAexsAAE8aAAB6GwAAehsAAE8aAABOGgAAehsAAE4aAAB5GwAAeRsAAE4aAABNGgAAeRsAAE0aAAB4GwAAeBsAAE0aAABMGgAAeBsAAEwaAAB3GwAAdxsAAEwaAABLGgAAdxsAAEsaAAB2GwAAdhsAAEsaAABKGgAAdhsAAEoaAAB1GwAAdRsAAEoaAABJGgAAdRsAAEkaAAB0GwAAdBsAAEkaAABIGgAAtRsAALwbAACoEAAAqBAAALwbAAC9GwAAqBAAAL0bAAC+GwAAvhsAAL0bAADDGwAAvhsAAMMbAADEGwAAxBsAAMMbAAC4GwAAxBsAALgbAADFGwAAxRsAALgbAAC5GwAAxRsAALkbAAC6GwAAvBsAALUbAADBGwAAwRsAALUbAAC2GwAAwRsAALYbAAC3GwAAuBsAAMMbAAC3GwAAtxsAAMMbAADCGwAAtxsAAMIbAADBGwAAwRsAAMIbAAC8GwAAxRsAALobAADAGwAAwBsAALobAAC7GwAAwBsAALsbAAC/GwAAvxsAALsbAACoEAAAvxsAAKgQAAC+GwAAuxsAAKkQAACoEAAAwxsAAL0bAADCGwAAwhsAAL0bAAC8GwAAxRsAAMAbAAC/GwAAxRsAAL8bAADEGwAAxBsAAL8bAAC+GwAAzxsAALcbAADWGwAA1hsAALcbAAC2GwAA1hsAALYbAADVGwAA1RsAALYbAADUGwAA1RsAANQbAADaGwAA2hsAANQbAADZGwAA2hsAANkbAADeGwAA3hsAANkbAADdGwAA3hsAAN0bAADgGwAA4BsAAN0bAADhGwAA4BsAAOEbAADKGwAAyhsAAOEbAADiGwAAyhsAAOIbAADJGwAAyRsAAOIbAADjGwAAyRsAAOMbAAATGwAAExsAAOMbAADQGwAAExsAANAbAADIGwAAyBsAANAbAADXGwAAyBsAANcbAADHGwAAxxsAANcbAADSGwAAxxsAANIbAADGGwAAxhsAANIbAACoEAAAqBAAANIbAAC1GwAAtRsAANIbAADTGwAAtRsAANMbAADUGwAA1BsAANMbAADZGwAAthsAALUbAADUGwAAyhsAAMsbAADgGwAA4BsAAMsbAADfGwAA4BsAAN8bAADeGwAA3hsAAN8bAADRGwAA3hsAANEbAADaGwAA2hsAANEbAADbGwAA2hsAANsbAADVGwAA1RsAANsbAADWGwAAyxsAAMwbAADfGwAA3xsAAMwbAADRGwAAzBsAAM0bAADRGwAA0RsAAM0bAADbGwAAzRsAAM4bAADbGwAA2xsAAM4bAADWGwAAzhsAAM8bAADWGwAA0xsAANIbAADYGwAA2BsAANIbAADXGwAA2BsAANcbAADcGwAA3BsAANcbAADQGwAA3BsAANAbAADiGwAA4hsAANAbAADjGwAA3RsAANkbAADYGwAA2BsAANkbAADTGwAA3RsAANgbAADcGwAA4RsAAN0bAADcGwAA4RsAANwbAADiGwAAExsAABIbAADJGwAAyRsAABIbAABjGwAAyRsAAGMbAABiGwAAyRsAAGIbAADKGwAAyhsAAGIbAABhGwAAyhsAAGEbAADLGwAAyxsAAGEbAADMGwAAzBsAAGEbAABgGwAA5RsAAOsbAADkGwAA5BsAAOsbAADsGwAA5BsAAOwbAADtGwAA7RsAAOwbAADyGwAA7RsAAPIbAADzGwAA8xsAAPIbAADhEAAA8xsAAOEQAAD0GwAA9BsAAOEQAADnGwAA9BsAAOcbAADoGwAA6xsAAOUbAADwGwAA8BsAAOUbAADmGwAA8BsAAOYbAADiEAAA4RAAAPIbAADiEAAA4hAAAPIbAADxGwAA4hAAAPEbAADwGwAA8BsAAPEbAADrGwAA9BsAAOgbAADvGwAA7xsAAOgbAADpGwAA7xsAAOkbAADuGwAA7hsAAOkbAADkGwAA7hsAAOQbAADtGwAA6RsAAOobAADkGwAA8hsAAOwbAADxGwAA8RsAAOwbAADrGwAA9BsAAO8bAADuGwAA9BsAAO4bAADzGwAA8xsAAO4bAADtGwAA/hsAAPUbAAADHAAAAxwAAPUbAAD2GwAAAxwAAPYbAAACHAAAAhwAAPYbAAD3GwAAAhwAAPcbAAABHAAAARwAAPcbAAAAHAAAARwAAAAcAAAGHAAABhwAAAAcAAAFHAAABhwAAAUcAAALHAAACxwAAAUcAAAKHAAACxwAAAocAADmGwAA5hsAAAocAAAJHAAA5hsAAAkcAADiEAAA4hAAAAkcAAD7GwAA+xsAAAkcAAD6GwAA+hsAAAkcAAAEHAAA+hsAAAQcAAD5GwAA+RsAAAQcAAD/GwAA+RsAAP8bAABUGwAAVBsAAP8bAAD4GwAA+BsAAP8bAAAAHAAA+BsAAAAcAAD3GwAA5hsAAOUbAAALHAAACxwAAOUbAAAMHAAACxwAAAwcAAAGHAAABhwAAAwcAAAHHAAABhwAAAccAAABHAAAARwAAAccAAACHAAADBwAAOUbAAANHAAADRwAAOUbAADkGwAADRwAAOQbAAD8GwAADRwAAPwbAAAIHAAACBwAAPwbAAD9GwAACBwAAP0bAAADHAAAAxwAAP0bAAD+GwAABRwAAAAcAAD/GwAABRwAAP8bAAAEHAAACBwAAAMcAAACHAAACBwAAAIcAAAHHAAAChwAAAUcAAAEHAAAChwAAAQcAAAJHAAADRwAAAgcAAAHHAAADRwAAAccAAAMHAAA9RsAAA4cAAD2GwAA9hsAAA4cAAAPHAAA9hsAAA8cAAAQHAAA9hsAABAcAAD3GwAA9xsAABAcAAARHAAA9xsAABEcAAD4GwAA+BsAABEcAABUGwAAVBsAABEcAABVGwAAzBoAABccAACJGgAAiRoAABccAAAYHAAAiRoAABgcAAAZHAAAGRwAABgcAAAeHAAAGRwAAB4cAAAfHAAAHxwAAB4cAAAiHAAAHxwAACIcAAAjHAAAIxwAACIcAAAPHAAAIxwAAA8cAAAOHAAAzBoAAFgbAAAXHAAAFxwAAFgbAAAcHAAAFxwAABwcAAAdHAAAHRwAABwcAAAWHAAAHRwAABYcAAAhHAAAIRwAABYcAAAQHAAAIRwAABAcAAAiHAAAIhwAABAcAAAPHAAAWBsAAFcbAAAcHAAAHBwAAFcbAAAWHAAAVxsAAFYbAAAWHAAAFhwAAFYbAAARHAAAFhwAABEcAAAQHAAAVhsAAFUbAAARHAAAIxwAAA4cAAAkHAAAJBwAAA4cAAASHAAAJBwAABIcAAATHAAAJBwAABMcAAAgHAAAIBwAABMcAAAUHAAAIBwAABQcAAAbHAAAGxwAABQcAABcGwAAGxwAAFwbAABbGwAAFBwAABUcAABcGwAAWxsAAFobAAAbHAAAGxwAAFobAAAaHAAAGxwAABocAAAgHAAAIBwAABocAAAfHAAAIBwAAB8cAAAjHAAAWhsAAFkbAAAaHAAAGhwAAFkbAAAZHAAAGhwAABkcAAAfHAAAWRsAAIkaAAAZHAAAHhwAABgcAAAdHAAAHRwAABgcAAAXHAAAIhwAAB4cAAAhHAAAIRwAAB4cAAAdHAAAJBwAACAcAAAjHAAAihcAAIkXAACLFwAAixcAAIkXAACIFwAAixcAAIgXAACHFwAAhxcAAIYXAACLFwAAixcAAIYXAACFFwAAixcAAIUXAACEFwAAhBcAAIMXAACLFwAAixcAAIMXAAADGQAAAxkAAIMXAAAlHAAAAxkAACUcAACRAAAAkQAAACUcAAAqHAAAkQAAACocAAArHAAAJhwAACgcAAAlHAAAJRwAACgcAAApHAAAJRwAACkcAAAqHAAAJhwAACccAAAoHAAAkQAAACscAACSAAAAkgAAACscAAAsHAAAkgAAACwcAAABAQAAAQEAACwcAAAyHAAAAQEAADIcAAD7AAAAMhwAACwcAAAxHAAAMRwAACwcAAC4GwAAMRwAALgbAAAwHAAAMBwAALgbAAAvHAAALxwAALgbAAAuHAAALhwAALgbAAAtHAAALRwAALgbAAC3GwAALRwAALcbAABgGwAAYBsAALcbAADMGwAAzBsAALcbAADNGwAAzRsAALcbAADOGwAAzhsAALcbAADPGwAALRwAAGAbAAA2HAAANhwAAGAbAABfGwAANhwAAF8bAAA1HAAANRwAAF8bAABeGwAANRwAAF4bAAA0HAAANBwAAF4bAABdGwAANBwAAF0bAABcGwAAXBsAABUcAAA0HAAANBwAABUcAAAzHAAAFRwAABQcAAAzHAAAMxwAABQcAAA5HAAAORwAABQcAAATHAAAORwAABMcAAA4HAAAOBwAABMcAAASHAAAOBwAABIcAAA3HAAANxwAABIcAAAOHAAADhwAAPUbAAA3HAAANxwAAPUbAAD+GwAANxwAAP4bAADkGwAA5BsAAP4bAAD9GwAA5BsAAP0bAAD8GwAA5BsAAOobAAA3HAAANxwAAOobAABDHAAANxwAAEMcAABEHAAAOhwAAEEcAADqGwAA6hsAAEEcAABCHAAA6hsAAEIcAABDHAAAOhwAADscAABBHAAAQRwAADscAABAHAAAQBwAADscAAA8HAAAQBwAADwcAAA/HAAAPxwAADwcAAA9HAAAPxwAAD0cAAA+HAAARRwAAEYcAABIHAAASBwAAEYcAABHHAAARhwAAEkcAABHHAAARxwAAEkcAABKHAAASRwAAEscAABKHAAAShwAAEscAABMHAAASxwAAEUcAABMHAAATBwAAEUcAABIHAAATBwAAEgcAABKHAAAShwAAEgcAABHHAAAThwAAGgcAABNHAAATRwAAGgcAABpHAAATRwAAGkcAABnHAAAZxwAAGkcAABqHAAAZxwAAGocAABmHAAAZhwAAGocAABrHAAAZhwAAGscAABlHAAAZRwAAGscAABsHAAAZRwAAGwcAABkHAAAZBwAAGwcAABtHAAAZBwAAG0cAABjHAAAYxwAAG0cAABuHAAAYxwAAG4cAABiHAAAYhwAAG4cAABvHAAAYhwAAG8cAABhHAAAYRwAAG8cAABwHAAAYRwAAHAcAABgHAAAYBwAAHAcAABxHAAAYBwAAHEcAABfHAAAXxwAAHEcAAByHAAAXxwAAHIcAABeHAAAXhwAAHIcAABzHAAAXhwAAHMcAABdHAAAXRwAAHMcAAB0HAAAXRwAAHQcAABcHAAAXBwAAHQcAAB1HAAAXBwAAHUcAABbHAAAWxwAAHUcAAB2HAAAWxwAAHYcAABaHAAAWhwAAHYcAAB3HAAAWhwAAHccAABZHAAAWRwAAHccAAB4HAAAWRwAAHgcAABYHAAAWBwAAHgcAAB5HAAAWBwAAHkcAABXHAAAVxwAAHkcAAB6HAAAVxwAAHocAABWHAAAVhwAAHocAAB7HAAAVhwAAHscAABVHAAAVRwAAHscAAB8HAAAVRwAAHwcAABUHAAAVBwAAHwcAAB9HAAAVBwAAH0cAABTHAAAUxwAAH0cAAB+HAAAUxwAAH4cAABSHAAAUhwAAH4cAAB/HAAAUhwAAH8cAABRHAAAURwAAH8cAACAHAAAURwAAIAcAABQHAAAUBwAAIAcAACBHAAAUBwAAIEcAABPHAAATxwAAIEcAACCHAAATxwAAIIcAABOHAAAThwAAIIcAABoHAAATRwAAGccAABOHAAAThwAAGccAABPHAAATxwAAGccAABmHAAATxwAAGYcAABQHAAAUBwAAGYcAABlHAAAUBwAAGUcAABRHAAAURwAAGUcAABkHAAAURwAAGQcAABSHAAAUhwAAGQcAABjHAAAUhwAAGMcAABTHAAAUxwAAGMcAABiHAAAUxwAAGIcAABUHAAAVBwAAGIcAABhHAAAVBwAAGEcAABVHAAAVRwAAGEcAABgHAAAVRwAAGAcAABWHAAAVhwAAGAcAABfHAAAVhwAAF8cAABXHAAAVxwAAF8cAABeHAAAVxwAAF4cAABYHAAAWBwAAF4cAABdHAAAWBwAAF0cAABZHAAAWRwAAF0cAABcHAAAWRwAAFwcAABaHAAAWhwAAFwcAABbHAAAhBwAAJ4cAACDHAAAgxwAAJ4cAACfHAAAgxwAAJ8cAACdHAAAnRwAAJ8cAACgHAAAnRwAAKAcAACcHAAAnBwAAKAcAAChHAAAnBwAAKEcAACbHAAAmxwAAKEcAACiHAAAmxwAAKIcAACaHAAAmhwAAKIcAACjHAAAmhwAAKMcAACZHAAAmRwAAKMcAACkHAAAmRwAAKQcAACYHAAAmBwAAKQcAAClHAAAmBwAAKUcAACXHAAAlxwAAKUcAACmHAAAlxwAAKYcAACWHAAAlhwAAKYcAACnHAAAlhwAAKccAACVHAAAlRwAAKccAACoHAAAlRwAAKgcAACUHAAAlBwAAKgcAACpHAAAlBwAAKkcAACTHAAAkxwAAKkcAACqHAAAkxwAAKocAACSHAAAkhwAAKocAACrHAAAkhwAAKscAACRHAAAkRwAAKscAACsHAAAkRwAAKwcAACQHAAAkBwAAKwcAACtHAAAkBwAAK0cAACPHAAAjxwAAK0cAACuHAAAjxwAAK4cAACOHAAAjhwAAK4cAACvHAAAjhwAAK8cAACNHAAAjRwAAK8cAACwHAAAjRwAALAcAACMHAAAjBwAALAcAACxHAAAjBwAALEcAACLHAAAixwAALEcAACyHAAAixwAALIcAACKHAAAihwAALIcAACzHAAAihwAALMcAACJHAAAiRwAALMcAAC0HAAAiRwAALQcAACIHAAAiBwAALQcAAC1HAAAiBwAALUcAACHHAAAhxwAALUcAAC2HAAAhxwAALYcAACGHAAAhhwAALYcAAC3HAAAhhwAALccAACFHAAAhRwAALccAAC4HAAAhRwAALgcAACEHAAAhBwAALgcAACeHAAAgxwAAJ0cAACEHAAAhBwAAJ0cAACFHAAAhRwAAJ0cAACcHAAAhRwAAJwcAACGHAAAhhwAAJwcAACbHAAAhhwAAJscAACHHAAAhxwAAJscAACaHAAAhxwAAJocAACIHAAAiBwAAJocAACZHAAAiBwAAJkcAACJHAAAiRwAAJkcAACYHAAAiRwAAJgcAACKHAAAihwAAJgcAACXHAAAihwAAJccAACLHAAAixwAAJccAACWHAAAixwAAJYcAACMHAAAjBwAAJYcAACVHAAAjBwAAJUcAACNHAAAjRwAAJUcAACUHAAAjRwAAJQcAACOHAAAjhwAAJQcAACTHAAAjhwAAJMcAACPHAAAjxwAAJMcAACSHAAAjxwAAJIcAACQHAAAkBwAAJIcAACRHAAAuhwAANQcAAC5HAAAuRwAANQcAADVHAAAuRwAANUcAADTHAAA0xwAANUcAADWHAAA0xwAANYcAADSHAAA0hwAANYcAADXHAAA0hwAANccAADRHAAA0RwAANccAADYHAAA0RwAANgcAADQHAAA0BwAANgcAADZHAAA0BwAANkcAADPHAAAzxwAANkcAADaHAAAzxwAANocAADOHAAAzhwAANocAADbHAAAzhwAANscAADNHAAAzRwAANscAADcHAAAzRwAANwcAADMHAAAzBwAANwcAADdHAAAzBwAAN0cAADLHAAAyxwAAN0cAADeHAAAyxwAAN4cAADKHAAAyhwAAN4cAADfHAAAyhwAAN8cAADJHAAAyRwAAN8cAADgHAAAyRwAAOAcAADIHAAAyBwAAOAcAADhHAAAyBwAAOEcAADHHAAAxxwAAOEcAADiHAAAxxwAAOIcAADGHAAAxhwAAOIcAADjHAAAxhwAAOMcAADFHAAAxRwAAOMcAADkHAAAxRwAAOQcAADEHAAAxBwAAOQcAADlHAAAxBwAAOUcAADDHAAAwxwAAOUcAADmHAAAwxwAAOYcAADCHAAAwhwAAOYcAADnHAAAwhwAAOccAADBHAAAwRwAAOccAADoHAAAwRwAAOgcAADAHAAAwBwAAOgcAADpHAAAwBwAAOkcAAC/HAAAvxwAAOkcAADqHAAAvxwAAOocAAC+HAAAvhwAAOocAADrHAAAvhwAAOscAAC9HAAAvRwAAOscAADsHAAAvRwAAOwcAAC8HAAAvBwAAOwcAADtHAAAvBwAAO0cAAC7HAAAuxwAAO0cAADuHAAAuxwAAO4cAAC6HAAAuhwAAO4cAADUHAAAuRwAANMcAAC6HAAAuhwAANMcAAC7HAAAuxwAANMcAADSHAAAuxwAANIcAAC8HAAAvBwAANIcAADRHAAAvBwAANEcAAC9HAAAvRwAANEcAADQHAAAvRwAANAcAAC+HAAAvhwAANAcAADPHAAAvhwAAM8cAAC/HAAAvxwAAM8cAADOHAAAvxwAAM4cAADAHAAAwBwAAM4cAADNHAAAwBwAAM0cAADBHAAAwRwAAM0cAADMHAAAwRwAAMwcAADCHAAAwhwAAMwcAADLHAAAwhwAAMscAADDHAAAwxwAAMscAADKHAAAwxwAAMocAADEHAAAxBwAAMocAADJHAAAxBwAAMkcAADFHAAAxRwAAMkcAADIHAAAxRwAAMgcAADGHAAAxhwAAMgcAADHHAAA8BwAAMMWAADvHAAA7xwAAMMWAADPFgAA7xwAAM8WAAD7HAAA+xwAAM8WAADOFgAA+xwAAM4WAAD6HAAA+hwAAM4WAADNFgAA+hwAAM0WAAD5HAAA+RwAAM0WAADMFgAA+RwAAMwWAAD4HAAA+BwAAMwWAADLFgAA+BwAAMsWAAD3HAAA9xwAAMsWAADKFgAA9xwAAMoWAAD2HAAA9hwAAMoWAADJFgAA9hwAAMkWAAD1HAAA9RwAAMkWAADIFgAA9RwAAMgWAAD0HAAA9BwAAMgWAADHFgAA9BwAAMcWAADzHAAA8xwAAMcWAADGFgAA8xwAAMYWAADyHAAA8hwAAMYWAADFFgAA8hwAAMUWAADxHAAA8RwAAMUWAADEFgAA8RwAAMQWAADwHAAA8BwAAMQWAADDFgAA7xwAAPscAADwHAAA8BwAAPscAADxHAAA8RwAAPscAAD6HAAA8RwAAPocAADyHAAA8hwAAPocAAD5HAAA8hwAAPkcAADzHAAA8xwAAPkcAAD4HAAA8xwAAPgcAAD0HAAA9BwAAPgcAAD3HAAA9BwAAPccAAD1HAAA9RwAAPccAAD2HAAA/RwAADMXAAD8HAAA/BwAADMXAAA/FwAA/BwAAD8XAAAIHQAACB0AAD8XAAA+FwAACB0AAD4XAAAHHQAABx0AAD4XAAA9FwAABx0AAD0XAAAGHQAABh0AAD0XAAA8FwAABh0AADwXAAAFHQAABR0AADwXAAA7FwAABR0AADsXAAAEHQAABB0AADsXAAA6FwAABB0AADoXAAADHQAAAx0AADoXAAA5FwAAAx0AADkXAAACHQAAAh0AADkXAAA4FwAAAh0AADgXAAABHQAAAR0AADgXAAA3FwAAAR0AADcXAAAAHQAAAB0AADcXAAA2FwAAAB0AADYXAAD/HAAA/xwAADYXAAA1FwAA/xwAADUXAAD+HAAA/hwAADUXAAA0FwAA/hwAADQXAAD9HAAA/RwAADQXAAAzFwAA/BwAAAgdAAD9HAAA/RwAAAgdAAD+HAAA/hwAAAgdAAAHHQAA/hwAAAcdAAD/HAAA/xwAAAcdAAAGHQAA/xwAAAYdAAAAHQAAAB0AAAYdAAAFHQAAAB0AAAUdAAABHQAAAR0AAAUdAAAEHQAAAR0AAAQdAAACHQAAAh0AAAQdAAADHQAAKxwAACocAACHHQAAhx0AACocAAApHAAAhx0AACkcAAAJHQAACR0AACkcAAAoHAAACR0AACgcAAAnHAAACR0AAAodAACHHQAAhx0AAAodAACGHQAAhh0AAAodAAALHQAAhh0AAAsdAACFHQAAhR0AAAsdAAAMHQAAhR0AAAwdAACEHQAAhB0AAAwdAAANHQAAhB0AAA0dAACDHQAAgx0AAA0dAAAOHQAAgx0AAA4dAACCHQAAgh0AAA4dAAAPHQAAgh0AAA8dAACBHQAAgR0AAA8dAAAQHQAAgR0AABAdAACAHQAAgB0AABAdAAARHQAAgB0AABEdAAB/HQAAfx0AABEdAAASHQAAfx0AABIdAAB+HQAAfh0AABIdAAATHQAAfh0AABMdAAB9HQAAfR0AABMdAAAUHQAAfR0AABQdAAB8HQAAfB0AABQdAAAVHQAAfB0AABUdAAB7HQAAex0AABUdAAAWHQAAex0AABYdAAB6HQAAeh0AABYdAAAXHQAAeh0AABcdAAB5HQAAeR0AABcdAAAYHQAAeR0AABgdAAB4HQAAeB0AABgdAAAZHQAAeB0AABkdAAB3HQAAdx0AABkdAAAaHQAAdx0AABodAAB2HQAAdh0AABodAAAbHQAAdh0AABsdAAB1HQAAdR0AABsdAAAcHQAAdR0AABwdAAB0HQAAdB0AABwdAAAdHQAAdB0AAB0dAABzHQAAcx0AAB0dAAAeHQAAcx0AAB4dAAByHQAAch0AAB4dAAAfHQAAch0AAB8dAABxHQAAcR0AAB8dAAAgHQAAcR0AACAdAABwHQAAcB0AACAdAAAhHQAAcB0AACEdAABvHQAAbx0AACEdAAAiHQAAbx0AACIdAABuHQAAbh0AACIdAAAjHQAAbh0AACMdAABtHQAAbR0AACMdAAAkHQAAbR0AACQdAABsHQAAbB0AACQdAAAlHQAAbB0AACUdAABrHQAAax0AACUdAAAmHQAAax0AACYdAABqHQAAah0AACYdAAAnHQAAah0AACcdAABpHQAAaR0AACcdAAAoHQAAaR0AACgdAABoHQAAaB0AACgdAAApHQAAaB0AACkdAABnHQAAZx0AACkdAAAqHQAAZx0AACodAABmHQAAZh0AACodAAArHQAAZh0AACsdAABlHQAAZR0AACsdAABkHQAAZB0AACsdAAAsHQAAZB0AACwdAABjHQAAYx0AACwdAAAtHQAAYx0AAC0dAABiHQAAYh0AAC0dAAAuHQAAYh0AAC4dAABhHQAAYR0AAC4dAAAvHQAAYR0AAC8dAABgHQAAYB0AAC8dAAAwHQAAYB0AADAdAABfHQAAXx0AADAdAAAxHQAAXx0AADEdAABeHQAAXh0AADEdAAAyHQAAXh0AADIdAABdHQAAXR0AADIdAAAzHQAAXR0AADMdAABcHQAAXB0AADMdAAA0HQAAXB0AADQdAABbHQAAWx0AADQdAAA1HQAAWx0AADUdAABaHQAAWh0AADUdAAA2HQAAWh0AADYdAABZHQAAWR0AADYdAAA3HQAAWR0AADcdAABYHQAAWB0AADcdAAA4HQAAWB0AADgdAABXHQAAVx0AADgdAAA5HQAAVx0AADkdAABWHQAAVh0AADkdAAA6HQAAVh0AADodAABVHQAAVR0AADodAAA7HQAAVR0AADsdAABUHQAAVB0AADsdAAA8HQAAVB0AADwdAABTHQAAUx0AADwdAAA9HQAAUx0AAD0dAABSHQAAUh0AAD0dAAA+HQAAUh0AAD4dAABRHQAAUR0AAD4dAAA/HQAAUR0AAD8dAABQHQAAUB0AAD8dAABAHQAAUB0AAEAdAABPHQAATx0AAEAdAABBHQAATx0AAEEdAABOHQAATh0AAEEdAABCHQAATh0AAEIdAABNHQAATR0AAEIdAABDHQAATR0AAEMdAABMHQAATB0AAEMdAABEHQAATB0AAEQdAABLHQAASx0AAEQdAABFHQAASx0AAEUdAABKHQAASh0AAEUdAABGHQAASh0AAEYdAABJHQAASR0AAEYdAABHHQAASR0AAEcdAABIHQAASB0AAEcdAACvGQAArxkAAEcdAACwGQAAJRwAAIMXAADGHQAAxh0AAIMXAADTFwAAxh0AANMXAADFHQAAxR0AANMXAADSFwAAxR0AANIXAADEHQAAxB0AANIXAADRFwAAxB0AANEXAADDHQAAwx0AANEXAADQFwAAwx0AANAXAADCHQAAwh0AANAXAADPFwAAwh0AAM8XAADBHQAAwR0AAM8XAADOFwAAwR0AAM4XAADAHQAAwB0AAM4XAAC/HQAAvx0AAM4XAADNFwAAvx0AAM0XAAC+HQAAvh0AAM0XAADMFwAAvh0AAMwXAAC9HQAAvR0AAMwXAADLFwAAvR0AAMsXAAC8HQAAvB0AAMsXAADKFwAAvB0AAMoXAAC7HQAAux0AAMoXAADJFwAAux0AAMkXAAC6HQAAuh0AAMkXAADIFwAAuh0AAMgXAAC5HQAAuR0AAMgXAADHFwAAuR0AAMcXAAC4HQAAuB0AAMcXAADGFwAAuB0AAMYXAAC3HQAAtx0AAMYXAAC2HQAAth0AAMYXAADFFwAAth0AAMUXAAC1HQAAtR0AAMUXAADEFwAAtR0AAMQXAAC0HQAAtB0AAMQXAAACGQAAtB0AAAIZAAABGQAAtB0AAAEZAACzHQAAsx0AAAEZAAAAGQAAsx0AAAAZAACyHQAAsh0AAAAZAAD/GAAAsh0AAP8YAAD+GAAAsh0AAP4YAACxHQAAsR0AAP4YAAD9GAAAsR0AAP0YAACwHQAAsB0AAP0YAAD8GAAAsB0AAPwYAACvHQAArx0AAPwYAAD7GAAArx0AAPsYAAD6GAAArx0AAPoYAACuHQAArh0AAPoYAAD5GAAArh0AAPkYAACtHQAArR0AAPkYAAD4GAAArR0AAPgYAAD3GAAArR0AAPcYAACsHQAArB0AAPcYAAD2GAAArB0AAPYYAACrHQAAqx0AAPYYAAD1GAAAqx0AAPUYAACqHQAAqh0AAPUYAAD0GAAAqh0AAPQYAADzGAAAqh0AAPMYAACpHQAAqR0AAPMYAADyGAAAqR0AAPIYAACoHQAAqB0AAPIYAADxGAAAqB0AAPEYAACnHQAApx0AAPEYAADwGAAApx0AAPAYAADvGAAApx0AAO8YAACmHQAAph0AAO8YAADuGAAAph0AAO4YAAClHQAApR0AAO4YAADtGAAApR0AAO0YAADsGAAApR0AAOwYAACkHQAApB0AAOwYAADrGAAApB0AAOsYAACjHQAAox0AAOsYAADqGAAAox0AAOoYAACiHQAAoh0AAOoYAADpGAAAoh0AAOkYAADoGAAAoh0AAOgYAAChHQAAoR0AAOgYAADnGAAAoR0AAOcYAACgHQAAoB0AAOcYAADmGAAAoB0AAOYYAADlGAAAoB0AAOUYAACfHQAAnx0AAOUYAADkGAAAnx0AAOQYAACeHQAAnh0AAOQYAADjGAAAnh0AAOMYAACdHQAAnR0AAOMYAADiGAAAnR0AAOIYAADhGAAAnR0AAOEYAACcHQAAnB0AAOEYAADgGAAAnB0AAOAYAACbHQAAmx0AAOAYAADfGAAAmx0AAN8YAADeGAAAmx0AAN4YAACaHQAAmh0AAN4YAADdGAAAmh0AAN0YAACZHQAAmR0AAN0YAADcGAAAmR0AANwYAACYHQAAmB0AANwYAADbGAAAmB0AANsYAADaGAAAmB0AANoYAACXHQAAlx0AANoYAADZGAAAlx0AANkYAACWHQAAlh0AANkYAADYGAAAlh0AANgYAADXGAAAlh0AANcYAACVHQAAlR0AANcYAADWGAAAlR0AANYYAACUHQAAlB0AANYYAADVGAAAlB0AANUYAACTHQAAkx0AANUYAADUGAAAkx0AANQYAADTGAAAkx0AANMYAACSHQAAkh0AANMYAADSGAAAkh0AANIYAACRHQAAkR0AANIYAADRGAAAkR0AANEYAADQGAAAkR0AANAYAACQHQAAkB0AANAYAADPGAAAkB0AAM8YAACPHQAAjx0AAM8YAADOGAAAjx0AAM4YAACOHQAAjh0AAM4YAADNGAAAjh0AAM0YAADMGAAAjh0AAMwYAACNHQAAjR0AAMwYAADLGAAAjR0AAMsYAACMHQAAjB0AAMsYAADKGAAAjB0AAMoYAADJGAAAjB0AAMkYAACLHQAAix0AAMkYAADIGAAAix0AAMgYAACKHQAAih0AAMgYAADHGAAAih0AAMcYAACJHQAAiR0AAMcYAADGGAAAiR0AAMYYAADFGAAAiR0AAMUYAACIHQAAiB0AAMUYAADEGAAAiB0AAMQYAAC1GQAAtRkAAMQYAADDGAAAexkAAHoZAADJHQAAyR0AAHoZAADIHQAAyB0AAHoZAAB5GQAAyB0AAHkZAADHHQAAxx0AAHkZAAB4GQAAxx0AAHgZAAC5GQAAuRkAAHgZAAB3GQAALBwAACscAAAIHgAACB4AACscAACHHQAACB4AAIcdAAAHHgAABx4AAIcdAACGHQAABx4AAIYdAAAGHgAABh4AAIYdAACFHQAABh4AAIUdAAAFHgAABR4AAIUdAACEHQAABR4AAIQdAAAEHgAABB4AAIQdAACDHQAABB4AAIMdAAADHgAAAx4AAIMdAACCHQAAAx4AAIIdAAACHgAAAh4AAIIdAACBHQAAAh4AAIEdAAABHgAAAR4AAIEdAACAHQAAAR4AAIAdAAAAHgAAAB4AAIAdAAB/HQAAAB4AAH8dAAD/HQAA/x0AAH8dAAB+HQAA/x0AAH4dAAD+HQAA/h0AAH4dAAB9HQAA/h0AAH0dAAD9HQAA/R0AAH0dAAB8HQAA/R0AAHwdAAD8HQAA/B0AAHwdAAB7HQAA/B0AAHsdAAD7HQAA+x0AAHsdAAB6HQAA+x0AAHodAAD6HQAA+h0AAHodAAB5HQAA+h0AAHkdAAD5HQAA+R0AAHkdAAB4HQAA+R0AAHgdAAD4HQAA+B0AAHgdAAB3HQAA+B0AAHcdAAD3HQAA9x0AAHcdAAB2HQAA9x0AAHYdAAD2HQAA9h0AAHYdAAB1HQAA9h0AAHUdAAD1HQAA9R0AAHUdAAB0HQAA9R0AAHQdAAD0HQAA9B0AAHQdAABzHQAA9B0AAHMdAADzHQAA8x0AAHMdAAByHQAA8x0AAHIdAADyHQAA8h0AAHIdAABxHQAA8h0AAHEdAADxHQAA8R0AAHEdAABwHQAA8R0AAHAdAADwHQAA8B0AAHAdAABvHQAA8B0AAG8dAADvHQAA7x0AAG8dAABuHQAA7x0AAG4dAADuHQAA7h0AAG4dAABtHQAA7h0AAG0dAADtHQAA7R0AAG0dAABsHQAA7R0AAGwdAADsHQAA7B0AAGwdAABrHQAA7B0AAGsdAADrHQAA6x0AAGsdAABqHQAA6x0AAGodAADqHQAA6h0AAGodAABpHQAA6h0AAGkdAADpHQAA6R0AAGkdAABoHQAA6R0AAGgdAADoHQAA6B0AAGgdAABnHQAA6B0AAGcdAADnHQAA5x0AAGcdAABmHQAA5x0AAGYdAADmHQAA5h0AAGYdAABlHQAA5h0AAGUdAABkHQAA5h0AAGQdAADlHQAA5R0AAGQdAABjHQAA5R0AAGMdAADkHQAA5B0AAGMdAABiHQAA5B0AAGIdAADjHQAA4x0AAGIdAABhHQAA4x0AAGEdAADiHQAA4h0AAGEdAABgHQAA4h0AAGAdAADhHQAA4R0AAGAdAABfHQAA4R0AAF8dAADgHQAA4B0AAF8dAABeHQAA4B0AAF4dAADfHQAA3x0AAF4dAABdHQAA3x0AAF0dAADeHQAA3h0AAF0dAABcHQAA3h0AAFwdAADdHQAA3R0AAFwdAABbHQAA3R0AAFsdAADcHQAA3B0AAFsdAABaHQAA3B0AAFodAADbHQAA2x0AAFodAABZHQAA2x0AAFkdAADaHQAA2h0AAFkdAABYHQAA2h0AAFgdAADZHQAA2R0AAFgdAABXHQAA2R0AAFcdAADYHQAA2B0AAFcdAABWHQAA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Dh4AAIwdAAANHgAADR4AAIwdAACLHQAADR4AAIsdAAAMHgAADB4AAIsdAACKHQAADB4AAIodAAALHgAACx4AAIodAACJHQAACx4AAIkdAAAKHgAACh4AAIkdAACIHQAACh4AAIgdAAAJHgAACR4AAIgdAAC1GQAACR4AALUZAACxGQAAsRkAALUZAACyGQAAshkAALUZAACzGQAAsxkAALUZAAC0GQAAuBkAALcZAAC5GQAAuRkAALcZAAC2GQAAuRkAALYZAADCGAAAwhgAAMEYAAC5GQAAuRkAAMEYAADHHQAAxx0AAMEYAADAGAAAxx0AAMAYAADIHQAAyB0AAMAYAAC/GAAAyB0AAL8YAADJHQAAyR0AAL8YAAC+GAAAyR0AAL4YAAC9GAAAyR0AAL0YAAB7GQAAexkAAL0YAAC8GAAAexkAALwYAAB8GQAAfBkAALwYAAC7GAAAfBkAALsYAAB9GQAAfRkAALsYAAC6GAAAfRkAALoYAAB+GQAAfhkAALoYAAC5GAAAfhkAALkYAAB/GQAAfxkAALkYAAC4GAAAfxkAALgYAACAGQAAgBkAALgYAAC3GAAAgBkAALcYAACBGQAAgRkAALcYAAC2GAAAgRkAALYYAACCGQAAghkAALYYAAC1GAAAghkAALUYAABlGQAAZRkAALUYAAC0GAAAZRkAALQYAAC6GQAAuhkAALQYAACzGAAAuhkAALMYAAC7GQAAuxkAALMYAACyGAAAuxkAALIYAACxGAAAuxkAALEYAAC8GQAAvBkAALEYAACwGAAAvBkAALAYAAC9GQAAvRkAALAYAACvGAAAvRkAAK8YAACuGAAAvRkAAK4YAAC+GQAAvhkAAK4YAACtGAAAvhkAAK0YAACsGAAAvhkAAKwYAAC/GQAAvxkAAKwYAACrGAAAvxkAAKsYAADAGQAAwBkAAKsYAACqGAAAwBkAAKoYAACpGAAAwBkAAKkYAABEGQAARBkAAKkYAACoGAAARBkAAKgYAABFGQAARRkAAKgYAACnGAAARRkAAKcYAABGGQAARhkAAKcYAACmGAAARhkAAKYYAABHGQAARxkAAKYYAAClGAAARxkAAKUYAABIGQAASBkAAKUYAACkGAAASBkAAKQYAABJGQAASRkAAKQYAACjGAAASRkAAKMYAABKGQAAShkAAKMYAACiGAAA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0xAAANkdAADYHQAA0xAAANgdAADUEAAA1BAAANgdAADXHQAA1BAAANcdAADVEAAA1RAAANcdAADWHQAA1RAAANYdAADWEAAA1hAAANYdAADVHQAA1hAAANUdAADXEAAA1xAAANUdAADUHQAA1xAAANQdAADYEAAA2BAAANQdAADTHQAA2BAAANMdAADZEAAA2RAAANMdAADSHQAA2RAAANIdAADaEAAA2hAAANIdAADRHQAA2hAAANEdAADQHQAA2hAAANAdAADbEAAA2xAAANAdAADPHQAA2xAAAM8dAADcEAAA3BAAAM8dAADOHQAA3BAAAM4dAADdEAAA3RAAAM4dAADNHQAA3RAAAM0dAADeEAAA3hAAAM0dAADMHQAA3hAAAMwdAADfEAAA3xAAAMwdAADLHQAA3xAAAMsdAADgEAAA4BAAAMsdAADKHQAA4BAAAModAADhEAAA4RAAAModAAA6HAAA4RAAADocAADnGwAA5xsAADocAADoGwAA6BsAADocAADpGwAA6RsAADocAADqGwAAuhsAALkbAAAsHAAALBwAALkbAAC4GwAAJhwAAEceAAAnHAAAJxwAAEceAAAJHQAACR0AAEceAABGHgAACR0AAEYeAAAKHQAACh0AAEYeAABFHgAACh0AAEUeAAALHQAACx0AAEUeAABEHgAACx0AAEQeAAAMHQAADB0AAEQeAABDHgAADB0AAEMeAAANHQAADR0AAEMeAABCHgAADR0AAEIeAAAOHQAADh0AAEIeAABBHgAADh0AAEEeAAAPHQAADx0AAEEeAABAHgAADx0AAEAeAAAQHQAAEB0AAEAeAAA/HgAAEB0AAD8eAAARHQAAER0AAD8eAAA+HgAAER0AAD4eAAASHQAAEh0AAD4eAAA9HgAAEh0AAD0eAAATHQAAEx0AAD0eAAA8HgAAEx0AADweAAAUHQAAFB0AADweAAA7HgAAFB0AADseAAAVHQAAFR0AADseAAA6HgAAFR0AADoeAAAWHQAAFh0AADoeAAA5HgAAFh0AADkeAAAXHQAAFx0AADkeAAA4HgAAFx0AADgeAAAYHQAAGB0AADgeAAA3HgAAGB0AADceAAAZHQAAGR0AADceAAA2HgAAGR0AADYeAAAaHQAAGh0AADYeAAA1HgAAGh0AADUeAAAbHQAAGx0AADUeAAA0HgAA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yh4AAOMQAADiEAAAyh4AAOIQAAD7GwAAIhEAACERAABNHgAATR4AACERAABPHgAATR4AAE8eAABQHgAAUB4AAE8eAABSHgAAIREAACARAABPHgAATx4AACARAABRHgAATx4AAFEeAABSHgAAUh4AAFEeAABUHgAAIBEAAB8RAABRHgAAUR4AAB8RAABTHgAAUR4AAFMeAABUHgAAVB4AAFMeAABWHgAAHxEAAB4RAABTHgAAUx4AAB4RAABVHgAAUx4AAFUeAABWHgAAVh4AAFUeAABYHgAAHhEAAB0RAABVHgAAVR4AAB0RAABXHgAAVR4AAFceAABYHgAAWB4AAFceAABaHgAAHREAABwRAABXHgAAVx4AABwRAABZHgAAVx4AAFkeAABaHgAAWh4AAFkeAABcHgAAHBEAABsRAABZHgAAWR4AABsRAABbHgAAWR4AAFseAABcHgAAXB4AAFseAABeHgAAGxEAABoRAABbHgAAWx4AABoRAABdHgAAWx4AAF0eAABeHgAAXh4AAF0eAABgHgAAGhEAABkRAABdHgAAXR4AABkRAABfHgAAXR4AAF8eAABgHgAAYB4AAF8eAABiHgAAGREAABgRAABfHgAAXx4AABgRAABhHgAAXx4AAGEeAABiHgAAYh4AAGEeAABkHgAAGBEAABcRAABhHgAAYR4AABcRAABjHgAAYR4AAGMeAABkHgAAZB4AAGMeAABmHgAAFxEAABYRAABjHgAAYx4AABYRAABlHgAAYx4AAGUeAABmHgAAZh4AAGUeAABoHgAAFhEAABURAABlHgAAZR4AABURAABnHgAAZR4AAGceAABoHgAAaB4AAGceAABqHgAAFREAABQRAABnHgAAZx4AABQRAABpHgAAZx4AAGkeAABqHgAAah4AAGkeAABsHgAAFBEAABMRAABpHgAAaR4AABMRAABrHgAAaR4AAGseAABsHgAAbB4AAGseAABuHgAAExEAABIRAABrHgAAax4AABIRAABtHgAAax4AAG0eAABuHgAAbh4AAG0eAABwHgAAEhEAABERAABtHgAAbR4AABERAABvHgAAbR4AAG8eAABwHgAAcB4AAG8eAAByHgAAEREAABARAABvHgAAbx4AABARAABxHgAAbx4AAHEeAAByHgAAch4AAHEeAAB0HgAAEBEAAA8RAABxHgAAcR4AAA8RAABzHgAAcR4AAHMeAAB0HgAAdB4AAHMeAAB2HgAADxEAAA4RAABzHgAAcx4AAA4RAAB1HgAAcx4AAHUeAAB2HgAAdh4AAHUeAAB4HgAADhEAAA0RAAB1HgAAdR4AAA0RAAB3HgAAdR4AAHceAAB4HgAAeB4AAHceAAB6HgAADREAAAwRAAB3HgAAdx4AAAwRAAB5HgAAdx4AAHkeAAB6HgAAeh4AAHkeAAB8HgAADBEAAAsRAAB5HgAAeR4AAAsRAAB7HgAAeR4AAHseAAB8HgAAfB4AAHseAAB+HgAACxEAAAoRAAB7HgAAex4AAAoRAAB9HgAAex4AAH0eAAB+HgAAfh4AAH0eAACAHgAAChEAAAkRAAB9HgAAfR4AAAkRAAB/HgAAfR4AAH8eAACAHgAAgB4AAH8eAACCHgAACREAAAgRAAB/HgAAfx4AAAgRAACBHgAAfx4AAIEeAACCHgAAgh4AAIEeAACEHgAACBEAAAcRAACBHgAAgR4AAAcRAACDHgAAgR4AAIMeAACEHgAAhB4AAIMeAACGHgAABxEAAAYRAACDHgAAgx4AAAYRAACFHgAAgx4AAIUeAACGHgAAhh4AAIUeAACJHgAABhEAAAURAACFHgAAhR4AAAURAACKHgAAhR4AAIoeAACJHgAAiR4AAIoeAACIHgAAih4AAAURAACHHgAAhx4AAAURAAAEEQAAhx4AAAQRAACLHgAAix4AAAQRAAADEQAAix4AAAMRAACNHgAAjR4AAAMRAAACEQAAjR4AAAIRAAABEQAAjR4AAAERAACPHgAAjx4AAAERAAAAEQAA+xsAAPobAADKHgAAyh4AAPobAADLHgAAyh4AAMseAADIHgAAyB4AAMseAADJHgAAyB4AAMkeAADGHgAAxh4AAMkeAADHHgAAxh4AAMceAADEHgAAxB4AAMceAADFHgAAxB4AAMUeAADCHgAAwh4AAMUeAADDHgAAwh4AAMMeAADAHgAAwB4AAMMeAADBHgAAwB4AAMEeAAC+HgAAvh4AAMEeAAC/HgAAvh4AAL8eAAC8HgAAvB4AAL8eAAC9HgAAvB4AAL0eAAC6HgAAuh4AAL0eAAC7HgAAuh4AALseAAC4HgAAuB4AALseAAC5HgAAuB4AALkeAAC2HgAAth4AALkeAAC3HgAAth4AALceAAC0HgAAtB4AALceAAC1HgAAtB4AALUeAACyHgAAsh4AALUeAACzHgAAsh4AALMeAACwHgAAsB4AALMeAACxHgAAsB4AALEeAACuHgAArh4AALEeAACvHgAArh4AAK8eAACsHgAArB4AAK8eAACtHgAArB4AAK0eAABIHgAASB4AAK0eAABJHgAASB4AAEkeAACqHgAAqh4AAEkeAACrHgAAqh4AAKseAACoHgAAqB4AAKseAACpHgAAqB4AAKkeAACmHgAAph4AAKkeAACnHgAAph4AAKceAACkHgAApB4AAKceAAClHgAApB4AAKUeAACiHgAAoh4AAKUeAACjHgAAoh4AAKMeAACgHgAAoB4AAKMeAAChHgAAoB4AAKEeAACeHgAAnh4AAKEeAACfHgAAnh4AAJ8eAACcHgAAnB4AAJ8eAACdHgAAnB4AAJ0eAACaHgAAmh4AAJ0eAACbHgAAmh4AAJseAACYHgAAmB4AAJseAACZHgAAmB4AAJkeAACWHgAAlh4AAJkeAACXHgAAlh4AAJceAACUHgAAlB4AAJceAACVHgAAlB4AAJUeAABKHgAASh4AAJUeAACTHgAASh4AAJMeAACSHgAAkh4AAJMeAAA2GwAAkh4AADYbAAA1GwAA+hsAAPkbAADLHgAAyx4AAPkbAABUGwAAyx4AAFQbAABTGwAAyx4AAFMbAADJHgAAyR4AAFMbAABSGwAAyR4AAFIbAADHHgAAxx4AAFIbAABRGwAAxx4AAFEbAADFHgAAxR4AAFEbAABQGwAAxR4AAFAbAADDHgAAwx4AAFAbAABPGwAAwx4AAE8bAADBHgAAwR4AAE8bAABOGwAAwR4AAE4bAAC/HgAAvx4AAE4bAABNGwAAvx4AAE0bAAC9HgAAvR4AAE0bAABMGwAAvR4AAEwbAAC7HgAAux4AAEwbAABLGwAAux4AAEsbAAC5HgAAuR4AAEsbAABKGwAAuR4AAEobAAC3HgAAtx4AAEobAABJGwAAtx4AAEkbAAC1HgAAtR4AAEkbAABIGwAAtR4AAEgbAACzHgAAsx4AAEgbAABHGwAAsx4AAEcbAACxHgAAsR4AAEcbAABGGwAAsR4AAEYbAACvHgAArx4AAEYbAABFGwAArx4AAEUbAACtHgAArR4AAEUbAABEGwAArR4AAEQbAABJHgAASR4AAEQbAABDGwAASR4AAEMbAACrHgAAqx4AAEMbAABCGwAAqx4AAEIbAACpHgAAqR4AAEIbAABBGwAAqR4AAEEbAACnHgAApx4AAEEbAABAGwAApx4AAEAbAAClHgAApR4AAEAbAAA/GwAApR4AAD8bAACjHgAAox4AAD8bAAA+GwAAox4AAD4bAAChHgAAoR4AAD4bAAA9GwAAoR4AAD0bAACfHgAAnx4AAD0bAAA8GwAAnx4AADwbAACdHgAAnR4AADwbAAA7GwAAnR4AADsbAACbHgAAmx4AADsbAAA6GwAAmx4AADobAACZHgAAmR4AADobAAA5GwAAmR4AADkbAACXHgAAlx4AADkbAAA4GwAAlx4AADgbAACVHgAAlR4AADgbAAA3GwAAlR4AADcbAACTHgAAkx4AADcbAAA2GwAAkh4AADUbAACQHgAAkB4AADUbAAA0GwAAFRsAABQbAABOHgAATh4AABQbAABMHgAATh4AAEweAABLHgAAjB4AAIgeAACHHgAAhx4AAIgeAACKHgAAjB4AAIceAACLHgAAjh4AAIweAACLHgAAjh4AAIseAACNHgAAjx4AAI4eAACNHgAAkh4AAJAeAACRHgAASh4AAJIeAACRHgAAQhwAAEEcAADUHgAA1B4AAEEcAADMHgAA1B4AAMweAADNHgAA1B4AAM0eAADTHgAA0x4AAM0eAADOHgAA0x4AAM4eAADPHgAA0x4AAM8eAADVHgAA1R4AAM8eAADQHgAA1R4AANAeAADXHgAA1x4AANAeAADRHgAA1x4AANEeAADZHgAA2R4AANEeAADSHgAA2R4AANIeAAA5HAAAORwAANIeAAAzHAAAORwAADgcAADZHgAA2R4AADgcAADaHgAA2R4AANoeAADXHgAA1x4AANoeAADYHgAA1x4AANgeAADVHgAA1R4AANgeAADWHgAA1R4AANYeAADTHgAA0x4AANYeAADUHgAAOBwAADccAADaHgAA2h4AADccAABEHAAA2h4AAEQcAADYHgAA2B4AAEQcAABDHAAA2B4AAEMcAADWHgAA1h4AAEMcAABCHAAA1h4AAEIcAADUHgAArxkAAK4ZAABIHQAASB0AAK4ZAADgHgAASB0AAOAeAADjHgAA4x4AAOAeAADhHgAA4x4AAOEeAADiHgAA4h4AAOEeAADeHgAA4h4AAN4eAADOHgAArhkAAK0ZAADgHgAA4B4AAK0ZAADkHgAA4B4AAOQeAADlHgAA5R4AAOQeAAANAAAA5R4AAA0AAAAMAAAAAAAAAA4AAACtGQAArRkAAA4AAADkHgAADgAAAA0AAADkHgAA5R4AAAwAAADfHgAA3x4AAAwAAABoFwAA3x4AAGgXAADbHgAA2x4AAGgXAABnFwAA2x4AAGcXAABmFwAA2x4AANweAADfHgAA3x4AANweAADlHgAA3B4AAN0eAADlHgAA5R4AAN0eAADhHgAA5R4AAOEeAADgHgAA3R4AAN4eAADhHgAAzh4AAM0eAADiHgAA4h4AAM0eAADMHgAA4h4AAMweAADjHgAA4x4AAMweAABAHAAA4x4AAEAcAAA/HAAAzB4AAEEcAABAHAAAPxwAAD4cAADjHgAA4x4AAD4cAABIHQAAzh4AAOYeAADPHgAAzx4AAOYeAADsHgAAzx4AAOweAADQHgAA0B4AAOweAADuHgAA0B4AAO4eAADRHgAA0R4AAO4eAADyHgAA0R4AAPIeAADSHgAA0h4AAPIeAADxHgAA0h4AAPEeAAAzHAAAMxwAAPEeAAA0HAAANBwAAPEeAADwHgAANBwAAPAeAAA1HAAANRwAAPAeAADvHgAANRwAAO8eAAA2HAAANhwAAO8eAAAtHAAALRwAAO8eAAAuHAAALhwAAO8eAAD0HgAALhwAAPQeAADpHgAA6R4AAPQeAADzHgAA6R4AAPMeAADtHgAA7R4AAPMeAADyHgAA7R4AAPIeAADuHgAA5h4AAOceAADsHgAA7B4AAOceAADrHgAA7B4AAOseAADuHgAA7h4AAOseAADtHgAA5x4AAOgeAADrHgAA6x4AAOgeAADqHgAA6x4AAOoeAADtHgAA7R4AAOoeAADpHgAA6B4AADAcAADqHgAA6h4AADAcAAAvHAAA6h4AAC8cAADpHgAA6R4AAC8cAAAuHAAA8x4AAPQeAADwHgAA8B4AAPQeAADvHgAA8h4AAPMeAADxHgAA8R4AAPMeAADwHgAA+wAAADIcAAD8AAAA/AAAADIcAAD1HgAA/AAAAPUeAAD9AAAA/QAAAPUeAAD2HgAA/QAAAPYeAAD+AAAA/gAAAPYeAAD3HgAA/gAAAPceAAD4HgAA+B4AAPceAADcHgAA+B4AANweAADbHgAA9R4AADIcAAD5HgAA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lBsAAG4cAABtHAAAlBsAAG0cAACVGwAAlRsAAG0cAABsHAAAlRsAAGwcAABFHAAARRwAAGwcAABrHAAARRwAAGscAABqHAAAahwAAGkcAABFHAAAnxwAAJ4cAABJHAAASRwAAJ4cAAC4HAAAthwAALUcAABLHAAASxwAALUcAAC0GwAASxwAALQbAACzGwAAtRwAALQcAAC0GwAAtBsAALQcAABzGwAAcxsAALQcAACzHAAAcxsAALMcAAB0GwAAdBsAALMcAACyHAAAdBsAALIcAAB1GwAAdRsAALIcAACxHAAAdRsAALEcAAB2GwAAdhsAALEcAACwHAAAdhsAALAcAACvHAAAdhsAAK8cAAB3GwAAdxsAAK8cAACuHAAAdxsAAK4cAACtHAAAdxsAAK0cAAB4GwAAeBsAAK0cAACsHAAAeBsAAKwcAACrHAAAeBsAAKscAAB5GwAAeRsAAKscAACqHAAAeRsAAKocAAB6GwAAehsAAKocAACpHAAAehsAAKkcAACoHAAAehsAAKgcAAB7GwAAexsAAKgcAACnHAAAexsAAKccAACmHAAAexsAAKYcAAB8GwAAfBsAAKYcAAClHAAAfBsAAKUcAAB9GwAAfRsAAKUcAACkHAAAfRsAAKQcAAB+GwAAfhsAAKQcAACjHAAAfhsAAKMcAAB/GwAAfxsAAKMcAACiHAAAoRwAAKAcAABJHAAASRwAAKAcAACfHAAA7RwAAOwcAABFHAAARRwAAOwcAADrHAAARRwAAOscAADqHAAA6RwAAJ8bAADqHAAA6hwAAJ8bAACeGwAA6hwAAJ4bAABFHAAARRwAAJ4bAACdGwAARRwAAJ0bAACcGwAAnxsAAOkcAACgGwAAoBsAAOkcAADoHAAAoBsAAOgcAAChGwAAoRsAAOgcAADnHAAAoRsAAOccAACiGwAAohsAAOccAADmHAAAohsAAOYcAADlHAAAohsAAOUcAACjGwAAoxsAAOUcAADkHAAAoxsAAOQcAADjHAAAoxsAAOMcAACkGwAApBsAAOMcAADiHAAApBsAAOIcAADhHAAApBsAAOEcAAClGwAApRsAAOEcAADgHAAApRsAAOAcAACmGwAAphsAAOAcAADfHAAAphsAAN8cAADeHAAAphsAAN4cAACnGwAApxsAAN4cAADdHAAApxsAAN0cAADcHAAApxsAANwcAACoGwAAqBsAANwcAADbHAAAqBsAANscAACpGwAAqRsAANscAADaHAAAqRsAANocAACqGwAAqhsAANocAADZHAAAqhsAANkcAACrGwAAqxsAANkcAABLHAAAqxsAAEscAACsGwAArBsAAEscAACtGwAArRsAAEscAACuGwAArhsAAEscAACvGwAArxsAAEscAACwGwAAsBsAAEscAACxGwAAsRsAAEscAACyGwAAshsAAEscAACzGwAA2RwAANgcAABLHAAASxwAANgcAADXHAAASxwAANccAADWHAAA1hwAANUcAABLHAAASxwAANUcAADUHAAAnBsAAJsbAABFHAAARRwAAJsbAACaGwAARRwAAJobAACZGwAAmRsAAJgbAABFHAAARRwAAJgbAACXGwAARRwAAJcbAACWGwAAlhsAAJUbAABFHAAAhRsAAIQbAABGHAAARhwAAIQbAACDGwAA";
+const DECO = { etat:'absent', verts:null, faces:null, nTri:0 };
+/* « Base transparente » (06/08) : les payloads LKIT des pièces d'atelier ont
+ * leurs triangles enroulés À L'ENVERS (volume signé mesuré NÉGATIF : bague
+ * −26,9 cm³, base −69,8 cm³, alors que la coque générée sort positive). Les
+ * normales pointent donc vers l'intérieur et l'élimination des faces de dos
+ * mangeait la paroi EXTÉRIEURE — on voyait le filet et les colonnettes au
+ * travers. Remède à la SOURCE, au décodage : si le volume signé est négatif,
+ * on échange deux indices de chaque face. Géométrie strictement identique
+ * (mêmes triangles, mêmes cotes) ; l'aperçu, l'export STL et le volume
+ * deviennent cohérents d'un coup. */
+function corrigerEnroulement(V, F){
+  let v6 = 0;
+  for(let i=0;i<F.length;i+=3){
+    const a=F[i]*3, b=F[i+1]*3, c=F[i+2]*3;
+    v6 += V[a]*(V[b+1]*V[c+2]-V[b+2]*V[c+1])
+        - V[a+1]*(V[b]*V[c+2]-V[b+2]*V[c])
+        + V[a+2]*(V[b]*V[c+1]-V[b+1]*V[c]);
+  }
+  if(v6 >= 0) return;
+  for(let i=0;i<F.length;i+=3){ const t=F[i+1]; F[i+1]=F[i+2]; F[i+2]=t; }
+}
+let _decoTris = null;
+function chargerDeco(){
+  if(DECO.etat !== 'absent') return;
+  try{
+    const bin = atob(BASE_DECO_B64);
+    const buf = new ArrayBuffer(bin.length);
+    const o8 = new Uint8Array(buf);
+    for(let i=0;i<bin.length;i++) o8[i] = bin.charCodeAt(i);
+    const dv = new DataView(buf);
+    if(String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3)) !== 'LKIT')
+      throw new Error('entête inattendu');
+    const nv = dv.getUint32(4,true), nf = dv.getUint32(8,true);
+    DECO.verts = new Float32Array(buf, 12, nv*3);
+    DECO.faces = new Uint32Array(buf, 12+nv*12, nf*3);
+    corrigerEnroulement(DECO.verts, DECO.faces);
+    DECO.nTri = nf; DECO.etat = 'ok';
+    /* Cotes MESUREES, jamais ecrites en dur : le substitut d'affichage s'en
+     * sert, et une cote figee redevient fausse a la piece suivante. */
+    {
+      const V = DECO.verts;
+      let z0 = Infinity, z1 = -Infinity, r2 = 0;
+      for(let i=0;i<V.length;i+=3){
+        const z = V[i+2]; if(z < z0) z0 = z; if(z > z1) z1 = z;
+        const d = V[i]*V[i] + V[i+1]*V[i+1]; if(d > r2) r2 = d;
+      }
+      DECO.zBasMm = +z0.toFixed(2);
+      DECO.zHautMm = +z1.toFixed(2);
+      DECO.diaMm = +(2*Math.sqrt(r2)).toFixed(2);
+    }
+  }catch(e){ DECO.etat = 'echec'; }
+}
+/* Le peintre trie par profondeur de CENTROÏDE : un grand triangle du mur
+ * extérieur de la bague a son centroïde plus loin que les petits triangles du
+ * filet derrière lui — il se dessine en premier et le filet apparaît PAR
+ * TRANSPARENCE. Remède d'affichage : subdiviser les grands triangles des
+ * pièces d'atelier (arête max ~8 mm) pour que les profondeurs se comparent à
+ * la même échelle. L'export n'est jamais subdivisé. */
+/* (La subdivision d'affichage 8 mm a vécu ici : elle atténuait le tri du
+ * peintre sans le corriger — remplacée par les substituts fermés ci-dessous.) */
+/* SUBSTITUTS D'AFFICHAGE — bague et base sont montrées SIMPLIFIÉES à l'écran,
+ * en permanence (06/08). La subdivision 8 mm ne suffisait pas : le tri du
+ * peintre par centroïde ne peut PAS ordonner un filet sub-millimétrique et des
+ * nervures internes derrière une paroi fine — à chaque angle rasant, l'intérieur
+ * « perçait » (vu trois fois : filet à travers le mur, base à travers le pied,
+ * blocs blancs sous le socle). Un anneau et un fût FERMÉS n'ont aucun intérieur
+ * à laisser fuir, et le budget passe de ~20 000 triangles à ~500 — réinvestis
+ * dans la finesse de la coque. L'export STL et le rendu Blender reçoivent
+ * toujours les pièces d'atelier RÉELLES.
+ * ⚠️ Rayon extérieur en retrait du Ø réel : au même rayon
+ * que le pied de l'abat-jour, les deux cylindres seraient coplanaires et
+ * scintilleraient — la famille de bugs qu'on vient d'éteindre. */
+/* Substituts d'affichage : le cache est indexe PAR NOMBRE DE SEGMENTS.
+ * ⚠️ Un cache simple les figeait a 48 segments, quel que soit l'abat-jour. */
+let _bagueProxy = {}, _decoProxy = {};
+function bagueProxy(segments){
+  /* ⚠️ MEME NOMBRE DE SEGMENTS QUE L'ABAT-JOUR, et meme phase (12/08, demande
+   * Baptiste). A 48 segments face a un abat-jour qui en a 360 depuis la
+   * lithophanie, les deux polygones se croisent : le tri du peintre ne peut pas
+   * departager une grosse facette de bague et les fines facettes du pied, et on
+   * voit des tirets sombres tout autour du joint. Avec le meme compte, les
+   * aretes tombent aux MEMES angles (buildTube et ringAt partent tous deux de
+   * theta=0) : plus aucun croisement possible.
+   * ⚠️ PAS DE PLANCHER. J'en avais pose un a 48 « pour que le bourrelet ne
+   * paraisse pas polygonal ». Il RECREAIT le defaut dans l'autre sens : a 14
+   * segments (style Facette), le pied de l'abat-jour descend a 58,50 mm au
+   * milieu de ses aretes alors qu'une bague a 48 segments reste a 59,32. La
+   * bague RESSORT de 0,79 mm une fois par facette, et on retrouve exactement 14
+   * tirets. Avec le meme compte, les deux polygones ont la MEME FORME : le
+   * retrait de 0,55 mm les separe partout, sans exception. Un bourrelet
+   * polygonal a cote d'un abat-jour polygonal est coherent ; un bourrelet lisse
+   * qui traverse le pied ne l'est pas. */
+  const N = Math.max(5, Math.round(segments || 48));
+  if(_bagueProxy[N]) return _bagueProxy[N];
+  /* V3 : seul le bourrelet z 0 → 4 se voit, le reste de la pièce est DANS
+   * l'abat-jour. Rayon 59,45 et non 60,00 : sur les 0,5 mm où l'abat-jour mord
+   * dans l'assise, les deux cylindres auraient exactement le même rayon
+   * (Ø104 de chaque côté — l'affleurement est voulu), et deux surfaces
+   * confondues sortent en tirets sombres avec le tri du peintre. 0,55 mm de
+   * retrait suffit (la corde d'un tube à 48 segments ne s'écarte que de
+   * 0,12 mm) et se lit comme un joint, ce qu'il est. */
+  /* ⚠️ VRAIE CAUSE DES TIRETS, trouvee en mesurant les deux pieces. Le pied de
+   * l'abat-jour est une COQUE CREUSE : a cette hauteur son mur va de 58,22 a
+   * 60,02 mm. Un substitut a 59,45 tombe donc AU MILIEU DU MUR, entre les deux
+   * peaux. Partout ou la peau interne se dessine, le substitut la traverse.
+   * Le retrait de 0,55 mm avait ete calcule du temps ou le pied etait plein.
+   * Remede : le substitut S'ARRETE sous le pied au lieu de s'y enfoncer. Le
+   * recouvrement de 0,5 mm existe pour la SOUDURE AU TRANCHAGE des pieces
+   * reelles ; a l'ecran il n'apporte rien et ne fait que creer ce conflit.
+   * Rayon ramene a 51,90 : le bourrelet retrouve son affleurement Ø104. */
+  chargerBaseKit();
+  const zB = (BASE_KIT.zBasMm != null) ? BASE_KIT.zBasMm : 0;
+  const rB = (BAGUE.diaExtMm / 2) - 0.10;
+  _bagueProxy[N] = buildTube(zB, BAGUE.assiseMm - 0.56, ()=>40, ()=>rB, N, 2, null, 10);
+  return _bagueProxy[N];
+}
+function decoProxy(segments){
+  // meme regle que bagueProxy : le compte suit l'abat-jour, sans plancher
+  const N = Math.max(5, Math.round(segments || 48));
+  if(_decoProxy[N]) return _decoProxy[N];
+  // fût plein (rayon intérieur quasi nul) : vue par en dessous, la base réelle
+  // a un plancher — le substitut ne doit pas montrer un tunnel à la place
+  /* Recale sur la piece reelle (V6) : la base part du plateau et seule la
+   * partie SOUS la bague se voit, le reste monte a l'interieur. On s'arrete
+   * 0,05 mm sous le bas de la bague pour ne pas confondre les deux plats, et
+   * on retire 0,10 mm au rayon pour la meme raison qu'ailleurs : deux
+   * surfaces confondues sortent en tirets sombres avec le tri du peintre. */
+  chargerDeco(); chargerBaseKit();
+  const zTable = (DECO.zBasMm != null) ? DECO.zBasMm : 0;
+  const zHaut  = (BASE_KIT.zBasMm != null) ? BASE_KIT.zBasMm : zTable + 5;
+  const rDeco  = ((DECO.diaMm || 104) / 2) - 0.10;
+  _decoProxy[N] = buildTube(zTable, zHaut - 0.05, ()=>0.5, ()=>rDeco, N, 2.7, null, 10);
+  return _decoProxy[N];
+}
+
+function trianglesDeco(){
+  if(_decoTris) return _decoTris;
+  chargerDeco();
+  if(DECO.etat !== 'ok') return [];
+  const V=DECO.verts, F=DECO.faces, out=[];
+  for(let i=0;i<F.length;i+=3){
+    const a=F[i]*3,b=F[i+1]*3,c=F[i+2]*3;
+    out.push([[V[a],V[a+1],V[a+2]],[V[b],V[b+1],V[b+2]],[V[c],V[c+1],V[c+2]]]);
+  }
+  _decoTris = out;
+  return out;
+}
+
+function chargerBaseKit(){
+  if(BASE_KIT.etat !== 'absent') return;
+  try{
+    const bin = atob(BASE_KIT_B64);
+    const buf = new ArrayBuffer(bin.length);
+    const o8 = new Uint8Array(buf);
+    for(let i=0;i<bin.length;i++) o8[i] = bin.charCodeAt(i);
+    const dv = new DataView(buf);
+    const magie = String.fromCharCode(dv.getUint8(0),dv.getUint8(1),dv.getUint8(2),dv.getUint8(3));
+    if(magie !== 'LKIT') throw new Error('entête inattendu « '+magie+' »');
+    const nv = dv.getUint32(4, true), nf = dv.getUint32(8, true);
+    BASE_KIT.verts = new Float32Array(buf, 12, nv*3);
+    BASE_KIT.faces = new Uint32Array(buf, 12 + nv*12, nf*3);
+    corrigerEnroulement(BASE_KIT.verts, BASE_KIT.faces);
+    BASE_KIT.nTri  = nf;
+    BASE_KIT.volMm3 = volumeIndexe(BASE_KIT.verts, BASE_KIT.faces);
+    /* Cotes MESUREES sur les sommets, jamais ecrites en dur : elles sont
+     * affichees a l'utilisateur, et une cote figee dans le code redevient
+     * fausse a la premiere piece suivante. */
+    {
+      const V = BASE_KIT.verts;
+      let z0 = Infinity, z1 = -Infinity, r2 = 0;
+      for(let i=0;i<V.length;i+=3){
+        const z = V[i+2]; if(z < z0) z0 = z; if(z > z1) z1 = z;
+        const d = V[i]*V[i] + V[i+1]*V[i+1]; if(d > r2) r2 = d;
+      }
+      BASE_KIT.hautMm = +(z1 - z0).toFixed(2);
+      BASE_KIT.diaMm  = +(2*Math.sqrt(r2)).toFixed(2);
+      BASE_KIT.zBasMm = +z0.toFixed(2);
+      BASE_KIT.zHautMm = +z1.toFixed(2);
+    }
+    BASE_KIT.etat = 'ok';
+    BASE_KIT.note = `${nv.toLocaleString('fr')} sommets · ${nf.toLocaleString('fr')} triangles · `
+                  + `${(BASE_KIT.volMm3/1000).toFixed(1)} cm³`;
+  }catch(e){
+    BASE_KIT.etat = 'echec';
+    BASE_KIT.note = e.message;
+  }
+}
+
+// Volume d'un maillage indexé (théorème de la divergence), sans le déplier en
+// tableaux de triangles : 356 632 triangles, on ne veut pas 1 M d'objets JS.
+/* Déplie le maillage indexé en triangles — uniquement pour l'AFFICHAGE, et
+ * seulement si on le demande : 356 632 triangles font plus d'un million de
+ * tableaux JS. L'export, lui, écrit directement depuis les tableaux typés. */
+let _baseTris = null;
+function trianglesBaseKit(){
+  if(_baseTris) return _baseTris;
+  if(BASE_KIT.etat !== 'ok') return [];
+  const V = BASE_KIT.verts, F = BASE_KIT.faces, out = [];
+  for(let i=0;i<F.length;i+=3){
+    const a=F[i]*3,b=F[i+1]*3,c=F[i+2]*3;
+    out.push([[V[a],V[a+1],V[a+2]],[V[b],V[b+1],V[b+2]],[V[c],V[c+1],V[c+2]]]);
+  }
+  _baseTris = out;
+  return out;
+}
+
+/* ── ÎLOTS DE DÉPART (« floating regions ») ───────────────────────────────
+ * Bambu Studio a signalé « floating regions » sur une lampe ajourée. Un îlot,
+ * au sens du trancheur, c'est un intervalle de matière dans une couche qui ne
+ * recouvre AUCUN intervalle de la couche d'en dessous : la buse pose du
+ * plastique dans le vide.
+ *
+ * ⚠️ Ne pas confondre avec « de la matière repart au-dessus d'un trou » : sur
+ * un ajourage, une nervure qui reprend au-dessus d'une cellule est tenue
+ * LATÉRALEMENT par ses voisines dans la même couche. Ma première mesure
+ * comptait ces reprises et annonçait 10 281 problèmes — il y en a 23.
+ * Le témoin qui valide la méthode : une coque pleine donne 0.
+ */
+function analyseIlots(tris, pasMm){
+  const pas = pasMm || 0.4, buse = 0.4;
+  let zMin = Infinity, zMax = -Infinity;
+  for(const t of tris) for(const v of t){ if(v[2]<zMin) zMin=v[2]; if(v[2]>zMax) zMax=v[2]; }
+  if(!isFinite(zMin)) return { ilots:0, larges:0, premierH:null };
+  // rangement par tranche : sans ça on relit les 56 000 triangles à chaque couche
+  const nb = Math.max(1, Math.ceil((zMax-zMin)/pas));
+  const seaux = Array.from({length:nb+1}, ()=>[]);
+  for(const t of tris){
+    const lo = Math.min(t[0][2],t[1][2],t[2][2]), hi = Math.max(t[0][2],t[1][2],t[2][2]);
+    const a = Math.max(0, Math.floor((lo-zMin)/pas)), b = Math.min(nb, Math.ceil((hi-zMin)/pas));
+    for(let k=a;k<=b;k++) seaux[k].push(t);
+  }
+  const rMoy = (()=>{ let s=0,n=0; for(const t of tris) for(const v of t){ s+=Math.hypot(v[0],v[1]); n++; } return n?s/n:40; })();
+  const inter = (z, k)=>{
+    const segs=[];
+    for(const [a,b,c] of seaux[k]){
+      const lo=Math.min(a[2],b[2],c[2]), hi=Math.max(a[2],b[2],c[2]);
+      if(lo>z || hi<z) continue;
+      const th=[a,b,c].map(v=>Math.atan2(v[1],v[0]));
+      let x=Math.min(...th), y=Math.max(...th);
+      if(y-x>Math.PI){ const t2=th.map(q=>q<0?q+2*Math.PI:q); x=Math.min(...t2); y=Math.max(...t2); }
+      segs.push([x,y]);
+    }
+    segs.sort((p,q)=>p[0]-q[0]);
+    const out=[];
+    for(const sg of segs){
+      if(out.length && sg[0] <= out[out.length-1][1]+1e-6) out[out.length-1][1]=Math.max(out[out.length-1][1],sg[1]);
+      else out.push([sg[0],sg[1]]);
+    }
+    return out;
+  };
+  let prev=null, ilots=0, larges=0, premierH=null;
+  for(let k=0;k<=nb;k++){
+    const z = zMin + k*pas + pas/2;
+    if(z > zMax) break;
+    const cur = inter(z, k);
+    if(prev){
+      for(const [lo,hi] of cur){
+        if(!prev.some(([a,b])=> hi>a && lo<b)){
+          ilots++;
+          if((hi-lo)*rMoy > buse){ larges++; if(premierH===null) premierH=z; }
+        }
+      }
+    }
+    prev=cur;
+  }
+  return { ilots, larges, premierH };
+}
+
+function volumeIndexe(V, F){
+  let v6 = 0;
+  for(let i=0;i<F.length;i+=3){
+    const a=F[i]*3, b=F[i+1]*3, c=F[i+2]*3;
+    const ax=V[a],ay=V[a+1],az=V[a+2];
+    const bx=V[b],by=V[b+1],bz=V[b+2];
+    const cx=V[c],cy=V[c+1],cz=V[c+2];
+    v6 += ax*(by*cz-bz*cy) - ay*(bx*cz-bz*cx) + az*(bx*cy-by*cx);
+  }
+  return Math.abs(v6)/6;
+}
+
+const TYPES = {
+  suspension: {
+    label: 'Suspension',
+    hint: "Suspension : le point du HAUT (h max) est le point de fixation — la douille y est logée, le câble descend du plafond. Le BAS du profil est l'ouverture de sortie de lumière : c'est lui qui doit être le plus large, sinon la lampe éclaire surtout le plafond.",
+    minHeightMm: 90, maxHeightMm: 220, maxRadiusMm: 100,
+    dispo: false,   // suspension retirée de l'offre le 05/08 — « pour le moment »
+    silhouettes: ['cloche','cone','ogive','diabolo'],
+    rules: { bottomWidest: true, minBottomRadiusMm: 40 },
+    // composition : une suspension peut être une grappe de plusieurs corps
+    compo: { maxBodies: 5, layouts: ['vertical','ligne','circulaire','imbrique','libre'], baseFirst: false,
+             note: "Une suspension se compose de 1 à 5 corps : empilés sur le même câble (vertical), alignés côte à côte (ligne) ou en couronne (circulaire). Chaque corps est un abat-jour imprimé séparément." },
+  },
+  poser: {
+    label: 'Lampe à poser',
+    hint: "Lampe à poser (précédent atelier « lampe Dune ») : le point du haut loge la douille, la base (h=0) pose sur la table, le câble sort par le côté de la base. L'assise est vérifiée pour de vrai — angle de basculement calculé sur le centre de gravité du maillage exporté.",
+    minHeightMm: 90, maxHeightMm: 252, maxRadiusMm: 115,
+    silhouettes: ['dune','galet','colonne','gradins','organiqueS','minimal','cubique','design','retro','baroque','artnouveau','artdeco'],
+    rules: { minTipAngleDeg: 25 },
+    // le 1er corps sert de BASE en ligne/couronne : les autres se posent dessus
+    compo: { maxBodies: 7, layouts: ['vertical','ligne','circulaire','imbrique','libre'], baseFirst: true,
+             note: "Une lampe à poser va de 1 à 7 corps : empilés (vertical), ou une BASE (corps 1) portant les autres alignés ou en couronne — réguliers si « symétrique », dispersés si « organique »." },
+  },
+  applique: {
+    label: 'Applique',
+    hint: "Applique : le volume en révolution devient la SAILLIE au mur, donc il est bridé court. La platine de fixation murale n'est PAS modélisée ici — elle est ajoutée par l'atelier lors de l'assemblage.",
+    minHeightMm: 50, maxHeightMm: 140, maxRadiusMm: 100,
+    dispo: false,   // applique retirée de l'offre le 05/08 — « pour le moment »
+    silhouettes: ['demiDome','ecope','disque'],
+    rules: { maxDepthMm: 140 },
+    compo: { maxBodies: 7, layouts: ['ligne','circulaire','vertical','imbrique','libre'], baseFirst: false,
+             note: "Une applique va de 1 à 7 corps, répétés le long du mur (ligne), en couronne, ou empilés. « Symétrique » = répétition régulière ; « organique » = espacements, échelles et rotations dispersés." },
+  },
+};
+
+// Silhouettes = points de contrôle normalisés [t = h/hauteur, k = rayon/rayon max].
+// Servent aux presets ET au tirage aléatoire (jitter appliqué sur k).
+const SILHOUETTES = {
+  cloche:   { label:'Cloche',     pts:[[0,1.00],[0.14,0.97],[0.45,0.85],[0.76,0.60],[1,0.30]] },
+  cone:     { label:'Cône évasé', pts:[[0,1.00],[0.34,0.76],[0.70,0.50],[1,0.26]] },
+  ogive:    { label:'Ogive',      pts:[[0,0.90],[0.20,1.00],[0.55,0.87],[0.80,0.60],[1,0.28]] },
+  diabolo:  { label:'Diabolo',    pts:[[0,1.00],[0.30,0.58],[0.55,0.50],[0.80,0.62],[1,0.32]] },
+  dune:     { label:'Dune',       pts:[[0,0.83],[0.15,1.00],[0.55,0.90],[0.82,0.55],[1,0.28]] },
+  galet:    { label:'Galet',      pts:[[0,0.66],[0.25,1.00],[0.60,0.93],[0.85,0.60],[1,0.30]] },
+  colonne:  { label:'Colonne',    pts:[[0,0.88],[0.10,0.96],[0.74,0.93],[0.90,0.68],[1,0.34]] },
+  gradins:  { label:'Gradins',    pts:[[0,1.00],[0.22,0.97],[0.29,0.85],[0.50,0.82],[0.57,0.69],[0.78,0.65],[0.85,0.50],[1,0.30]] },
+  demiDome: { label:'Demi-dôme',  pts:[[0,1.00],[0.30,0.95],[0.60,0.81],[0.85,0.57],[1,0.30]] },
+  ecope:    { label:'Écope',      pts:[[0,1.00],[0.25,0.87],[0.52,0.79],[0.76,0.64],[1,0.34]] },
+  disque:   { label:'Disque',     pts:[[0,1.00],[0.35,0.98],[0.70,0.90],[1,0.36]] },
+  /* Familles ajoutées le 05/08 (demande Baptiste) : huit caractères de plus.
+   * Ce sont des POINTS DE DÉPART éditables — pas des styles figés. Chaque
+   * profil est pensé pour le pied Ø104 (le bas est ré-ancré de toute façon)
+   * et pour un culot ≥ 22 mm en tête. */
+  organiqueS:{ label:'Organique',    pts:[[0,0.72],[0.28,1.00],[0.58,0.86],[0.84,0.54],[1,0.36]] },
+  minimal:   { label:'Minimaliste',  pts:[[0,0.80],[0.52,0.62],[1,0.44]] },
+  cubique:   { label:'Cubique',      pts:[[0,0.85],[0.70,0.85],[0.78,0.58],[1,0.55]] },
+  design:    { label:'Design',       pts:[[0,0.80],[0.18,0.96],[0.46,0.48],[0.75,0.88],[1,0.36]] },
+  retro:     { label:'Rétro 70s',    pts:[[0,0.56],[0.34,0.50],[0.52,0.64],[0.66,1.05],[0.86,0.94],[1,0.48]] },
+  baroque:   { label:'Baroque',      pts:[[0,0.90],[0.20,0.60],[0.38,0.94],[0.55,0.55],[0.72,0.88],[0.88,0.52],[1,0.40]] },
+  artnouveau:{ label:'Art nouveau',  pts:[[0,0.72],[0.30,0.44],[0.60,0.38],[0.84,0.58],[1,0.72]] },
+  artdeco:   { label:'Art déco',     pts:[[0,0.96],[0.20,0.96],[0.24,0.78],[0.44,0.78],[0.48,0.62],[0.68,0.62],[0.72,0.50],[1,0.46]] },
+};
+
+/* ============================================================================
+ * DÉCOUPE EN MODULES IMPRIMÉS (option multi-pièces) — la lampe est tranchée en
+ * N modules empilables, chacun imprimé séparément. La liaison est un COLLIER
+ * cylindrique solidaire du module bas, qui rentre dans le module du dessus :
+ * cotes reprises du précédent atelier (emboîtement Ø collier, jeu 0,3 mm au
+ * rayon). Plus cher : chaque module coûte un lancement machine de plus.
+ * ========================================================================== */
+const JOINT = {
+  mode: 'visse',           // 'visse' (filetage imprimé) ou 'emboite' (friction)
+  collarHeightMm: 12,      // hauteur du collier/filetage au-dessus du plan de coupe
+  collarWallMm: 1.6,       // épaisseur des manchons
+  clearanceMm: 0.3,        // jeu au rayon d'un emboîtement à friction
+  flangeMm: 2.0,           // hauteur de la collerette qui relie le manchon à la paroi
+  biteMm: 0.4,             // pénétration de la collerette DANS la paroi (soudure au tranchage)
+  maxModules: 4,
+  // Pas et profondeur choisis pour que les FLANCS du filet soient imprimables :
+  // le flanc montant est un porte-à-faux pour le mâle, le flanc descendant en est
+  // un pour la femelle — les deux doivent donc rester doux. atan(0.8/1.5) = 28°
+  // par rapport à la verticale. Avec 4 mm de pas et 0,9 mm de profondeur on était
+  // à 42°, et PrusaSlicer signalait « Loose extrusions » sur chaque couche du filet.
+  thread: {
+    pitchMm: 6.0,          // pas — 2 tours sur 12 mm, vissage rapide
+    depthMm: 0.8,          // profondeur du filet au rayon
+    clearanceMm: 0.35,     // jeu radial mâle/femelle (FDM, buse 0.4)
+  },
+};
+
+/* ============================================================================ */
+
+/* Un CORPS = un volume de révolution imprimé séparément, avec son propre profil,
+ * sa propre sculpture (torsion/courbure) et son échelle. Une lampe est une
+ * composition de 1 à 7 corps selon le type. */
+function newBody(shape){
+  return {
+    shape: shape || 'cloche',
+    profile: [],                              // [{h,r}] trié par h croissant
+    sculpt: { twistDegPerMm:0, bendDeg:0 },    // torsion (°/mm) et courbure (° au sommet)
+    scale: 1,                                  // échelle propre (cuite dans la géométrie)
+    rotDeg: 0, offsetXMm: 0, offsetYMm: 0, offsetZMm: 0,   // déplacement propre du corps
+    surface: null,                             // style de surface propre (null = celui commun)
+    color: null,                               // couleur propre (null = celle commune)
+    flipped: false,                            // true = tête en bas : le culot est en BAS (h=0)
+  };
+}
+
+/* ── Retournement « tête en bas » ─────────────────────────────────────────
+ * Le profil stocké EST l'orientation d'impression (h=0 = plateau). Retourner
+ * n'est donc pas un effet visuel : ça déplace l'extrémité qui porte le culot,
+ * et ça change les surplombs réellement imprimables (une forme qui évase vers
+ * le haut demande des supports ; la même retournée est auto-portante — c'est le
+ * précédent atelier « abat-jour sommet en bas »).
+ * ──────────────────────────────────────────────────────────────────────── */
+function mirrorProfile(prof){
+  const H = prof[prof.length-1].h;
+  return prof.slice().reverse().map(p=>({ h: H - p.h, r: p.r, conge: p.conge }));
+}
+// Extrémité qui porte le culot (rayon mini imposé) et extrémité ouverte (lumière).
+function socketEndIdx(b){ const bd=b||state.bodies[state.body]; return bd.flipped ? 0 : bd.profile.length-1; }
+function openEndIdx(b){ const bd=b||state.bodies[state.body]; return bd.flipped ? bd.profile.length-1 : 0; }
+function socketEndR(b){ const bd=b||state.bodies[state.body]; return bd.profile[socketEndIdx(bd)].r; }
+function openEndR(b){ const bd=b||state.bodies[state.body]; return bd.profile[openEndIdx(bd)].r; }
+
+let state = {
+  type: 'poser',
+  socket: 'USB_BAMBU',
+  /* La lampe de reference est TRANSLUCIDE et ALLUMEE (photo d'atelier du
+   * 11/08) : c'est la paroi diffusante qui fait le produit, pas un plastique
+   * opaque. Le rendu ne bascule en matiere translucide que si le materiau
+   * l'est (`translucide: state.material === 'PLA_T'`), d'ou ce defaut. */
+  material: 'PLA_T',
+  wall: 1.8,        // défaut atelier — cf. la note sous le sélecteur
+  color: COLORS[0],
+  selected: -1,
+  seed: null,        // graine du dernier tirage aléatoire (null si preset/édition manuelle)
+  bodies: [newBody('cloche')],
+  body: 0,           // corps en cours d'édition dans la coupe 2D
+  compo: { count:1, layout:'vertical', symmetric:true, spacingMm:120, ringRadiusMm:90, jeuImbricationMm:8 },
+  /* Sortie de câble — n'a de sens que pour un module basse tension (USB), où
+   * c'est un câble qui sort de la pièce et non un culot vissé. Le passage est
+   * PERCÉ DANS LE MAILLAGE : l'atelier ne perce rien après coup. */
+  cable: { on:true, diaMm:6.0, reculMm:22, angleDeg:180, platine:true },
+  // socle kit LED : le bas du profil se termine à ce Ø, et l'intérieur est équipé
+  socle: { on:true, diaMm: 99.5, montrer:true },
+  poser: { variante: 'monobloc' },
+  // couches combinables : une base + des reliefs additifs + un ajourage
+  // Lisse par defaut (14/08). Cout mesure avant application : ~56k triangles
+  // a l'export, apercu plafonne a 110 segments — sans rapport avec les 462k
+  // qui gelaient la page.
+  surface: { base:'lisse', smoothing:45,
+             /* ⚠️ DEFAUT ALIGNE SUR LA PIECE PUBLIEE (13/08, arbitrage Baptiste
+              * « ouvre sur la piece nervurée »). Le configurateur ouvrait sur une
+              * lampe a 14 segments SANS nervures (9 706 triangles) alors que
+              * l'affiche et les 50 vignettes de la gamme montrent la meme
+              * silhouette a 708 segments avec 118 nervures fines : deux objets
+              * visuellement differents, le visiteur ne retrouvait pas le produit
+              * qu'on lui vend. Ce sont les valeurs exactes de l'affiche. */
+             stries:false, strieCount:118, strieDepthMm:0.85, cross:false, pitchMm:22,
+             organique:false, orgAmpMm:2.4, orgPitchMm:40,
+             martele:false, martCount:22, martHMm:12, martDepthMm:1.2,
+             congeMm:0,
+             // 91 cellules ≈ 24 mm de côté : le motif se lit sans devenir une dentelle
+             ajour:false, voroCells:186, voroStrutMm:5.0, voroBandMm:14, voroVariant:1 },
+  split: { on:false, count:2 },   // découpe horizontale d'un corps en modules empilables
+  expert: false,
+  linkBodies: true,   // true = profil/style/sculpture communs ; false = chaque corps est réglé à part
+};
+// `state.profile` et `state.shape` = ceux du corps en cours d'édition : tout
+// l'éditeur 2D existant continue de fonctionner sans le savoir.
+Object.defineProperty(state,'profile',{ enumerable:false,
+  get(){ return state.bodies[state.body].profile; },
+  set(v){ state.bodies[state.body].profile = v; } });
+Object.defineProperty(state,'shape',{ enumerable:false,
+  get(){ return state.bodies[state.body].shape; },
+  set(v){ state.bodies[state.body].shape = v; } });
+/* LIEN ENTRE CORPS — c'est `state.linkBodies` qui décide, pas l'agencement :
+ *  · lié   : profil, style de surface et sculpture sont communs à tous les corps ;
+ *  · délié : chaque corps garde SON profil, SON style et SA sculpture, et les
+ *            réglages ne touchent que le corps sélectionné.
+ * (« Symétrique » ne concerne que la régularité de l'AGENCEMENT, pas les formes.) */
+function sculptTargets(){ return (state.linkBodies && !state.expert) ? state.bodies : [state.bodies[state.body]]; }
+/* ── Trous fonctionnels ───────────────────────────────────────────────────
+ * Une cote, pas un motif : ils sont percés dans le maillage livré, quelle que
+ * soit l'orientation, et ils traversent les bandes pleines.
+ *
+ * ⚠️ SEUL le passage de câble est dans la COQUE. Les perçages d'insert M3 n'y
+ * sont PAS : un insert laiton M3 fait 5 mm de long et la paroi 1,2 mm — il n'y
+ * aurait rien pour le tenir. Ils vont dans la platine (pièce épaisse), voir
+ * buildPlatineUSB(). Percer un Ø4 dans 1,2 mm de paroi ne donnerait qu'un trou
+ * traversant inutile, et un client le découvrirait à l'assemblage. */
+function trousCorps(bi){
+  /* Monde « bague partout » (06/08) : le câble sort de la BASE d'atelier, qui
+   * a son propre passage — l'abat-jour vissé n'a RIEN à percer (règle posée
+   * par Baptiste dès le socle réel : « il y a déjà un passage de câble »).
+   * Ce vestige perçait un Ø6 dans chaque abat-jour ET forçait le chemin
+   * maillage perforé — 152 anneaux au lieu de 33, l'ébauche ramait à 10 i/s. */
+  if(bagueActive()) return [];
+  const sock = SOCKETS[state.socket];
+  if(!sock || sock.type !== 'module' || !state.cable.on) return [];
+  if(bi !== socketEndBodyIdx()) return [];
+  /* Socle : la sortie de câble est EN BAS, dans la jupe. Sur la pièce de
+   * référence elle est à h=4,3 et débouche presque sur le dessous ; ici on la
+   * remonte pour qu'elle ne coupe pas la couronne plate du bas, sinon la pièce
+   * ne ferme plus. L'écart est annoncé dans l'interface. */
+  /* ⚠️ AUCUN TROU dans l'abat-jour quand la vraie base est là : elle porte
+   * DÉJÀ sa sortie de câble latérale (Ø≈8,4 à Y=−15,7 sur la pièce mesurée).
+   * En percer une seconde dans la peau ferait deux sorties pour un seul câble.
+   * L'abat-jour n'a donc rien à recevoir — il se fusionne, point. */
+  if(socleActif() && BASE_KIT.etat === 'ok') return [];
+  if(socleActif()){
+    const r = SOCLE.sortieDiaMm/2;
+    const vise = SOCLE.sortieHMm, mini = r + 2.5;
+    const h = Math.max(vise, mini);
+    return [{ angleDeg: state.cable.angleDeg, hMm: h, diaMm: SOCLE.sortieDiaMm,
+              role: 'sortie câble socle',
+              ajuste: (h > vise + 0.01) ? { de: vise, vers: h } : null }];
+  }
+  const body = state.bodies[bi];
+  if(!body || body.profile.length < 2) return [];
+  const pl = bodyPlacements()[bi] || {scale:1};
+  const prof = body.profile.map(p=>({h:p.h*pl.scale, r:p.r*pl.scale}));
+  const top = profileTopH(prof), r = Math.max(1, state.cable.diaMm/2);
+  // « recul » = distance depuis l'extrémité qui porte le module
+  const cotéHaut = !body.flipped;
+  let h = cotéHaut ? top - state.cable.reculMm : state.cable.reculMm;
+  // le trou ne doit croiser ni une couronne d'extrémité ni un plan de coupe :
+  // la couronne plate y serait interrompue et la pièce ne fermerait plus.
+  const marge = r + 3;
+  h = Math.max(marge, Math.min(top - marge, h));
+  for(const c of cutPlanesFor(prof)){
+    if(Math.abs(h - c) < marge) h = (h < c) ? c - marge : c + marge;
+  }
+  h = Math.max(marge, Math.min(top - marge, h));
+  /* La platine barrerait l'entrée du câble si le trou tombait dans sa bande :
+   * on le descend sous elle, côté ouverture, et on le DIT (renderCable) plutôt
+   * que de livrer une configuration fausse par défaut. */
+  let ajuste = null;
+  if(state.cable.platine){
+    const a = assisePlatine(bi, +state.wall);
+    const zb = a.h, zt = a.h + PLATINE.epaisMm;
+    if(h + r > zb && h - r < zt){
+      const vise = zb - r - 1;                        // juste sous l'anneau
+      ajuste = { de:h, vers: Math.max(marge, Math.min(top - marge, vise)) };
+      h = ajuste.vers;
+    }
+  }
+  return [{ angleDeg: state.cable.angleDeg, hMm: h, diaMm: state.cable.diaMm, role: 'câble', ajuste }];
+}
+// Corps qui porte la connexion : celui du haut en agencement vertical, sinon le 1ᵉʳ.
+function socketEndBodyIdx(){ return 0; }
+
+// Style de surface effectif d'un corps (pour mailler).
+function bodySurface(i){
+  const b = state.bodies[i];
+  const base = (!state.linkBodies && b && b.surface) ? b.surface : state.surface;
+  const tr = trousCorps(i);
+  return tr.length ? {...base, trous: tr} : base;
+}
+// Style de surface à MODIFIER quand on touche aux réglages.
+function bodySurfaceForEdit(){
+  if(state.linkBodies) return state.surface;
+  const b = state.bodies[state.body];
+  if(!b.surface) b.surface = {...state.surface};
+  return b.surface;
+}
+/* Couleur : même logique. Chaque corps étant imprimé séparément, une lampe
+ * multicolore ne demande AUCUNE imprimante multi-matière — juste une bobine
+ * différente par corps. C'est gratuit ici, contrairement à un objet monobloc. */
+function bodyColor(i){
+  const b = state.bodies[i];
+  return (!state.linkBodies && b && b.color) ? b.color : state.color;
+}
+function setBodyColor(c){
+  if(state.linkBodies || state.compo.count<2){
+    state.color = c;
+    state.bodies.forEach(b=>{ b.color = null; });
+  } else {
+    state.bodies[state.body].color = c;
+  }
+}
+function activeBodies(){ return state.bodies.slice(0, state.compo.count); }
+
+// Bornes ACTIVES = le plus contraignant entre le type de lampe et la machine.
+function bounds(){
+  const t = TYPES[state.type];
+  return {
+    maxH: Math.min(t.maxHeightMm, PRINT_BOUNDS.MAX_HEIGHT_MM),
+    minH: t.minHeightMm,
+    maxR: Math.min(t.maxRadiusMm, PRINT_BOUNDS.MAX_RADIUS_MM),
+  };
+}
+
+// Construit un profil concret depuis une silhouette normalisée.
+function profileFromSilhouette(name, H, Rmax, rng, jitter){
+  const S = SILHOUETTES[name] || SILHOUETTES.cloche;
+  const topMin = SOCKETS[state.socket].housingMinRadiusMm;
+  const pts = S.pts.map(([t,k])=>{
+    const j = (rng && jitter) ? 1 + (rng()*2-1)*jitter : 1;
+    return { h: t*H, r: Math.max(2, k*Rmax*j) };
+  });
+  pts[pts.length-1].r = Math.max(topMin, pts[pts.length-1].r); // le haut porte le culot
+  return pts;
+}
+
+/* ── DEUX LIMITES DE DESSIN, POSEES PAR L'ATELIER (12/08) ─────────────────
+ * Elles ne sont pas esthetiques, elles sont de FABRICATION.
+ *
+ * Ø60 MINIMUM. Sous 30 mm de rayon, la coque n'a plus la place de loger le
+ * module ni de laisser passer la lumiere, et un col trop etroit devient une
+ * cheminee qui piege la chaleur de la LED.
+ *
+ * 60 DEGRES MINIMUM entre deux segments. Un angle plus ferme cree une gorge en
+ * V que la buse ne peut pas remplir : le trancheur y laisse un vide, et la
+ * piece casse a cet endroit. C'est aussi la ou l'oeil voit un pli sale.
+ * On mesure l'angle INTERIEUR au sommet, dans le plan (rayon, hauteur). */
+const DIA_MIN_MM = 60, ANGLE_MIN_DEG = 60;
+
+function angleAuSommet(prof, i){
+  if(i <= 0 || i >= prof.length-1) return 180;      // les extremites n'ont pas d'angle
+  const a = prof[i-1], b = prof[i], c = prof[i+1];
+  const u = [a.r-b.r, a.h-b.h], v = [c.r-b.r, c.h-b.h];
+  const nu = Math.hypot(u[0],u[1]), nv = Math.hypot(v[0],v[1]);
+  if(nu < 1e-6 || nv < 1e-6) return 180;
+  const cos = Math.max(-1, Math.min(1, (u[0]*v[0]+u[1]*v[1])/(nu*nv)));
+  return Math.acos(cos)*180/Math.PI;
+}
+/* Le plus petit angle que ce point et ses deux voisins presentent : bouger un
+ * point referme aussi les angles d'a cote, les verifier tous les trois. */
+function angleMiniAutour(prof, i){
+  let m = 180;
+  for(const k of [i-1, i, i+1]) if(k>0 && k<prof.length-1) m = Math.min(m, angleAuSommet(prof, k));
+  return m;
+}
+
+function clampPoint(p, isSocketEnd){
+  const b = bounds();
+  p.h = Math.max(0, Math.min(b.maxH, p.h));
+  // ⚠️ Le plancher de l'atelier (Ø60) prime sur l'ancien minimum de 2 mm, qui
+  // n'etait qu'un garde-fou contre le rayon nul.
+  const minR = Math.max(DIA_MIN_MM/2,
+                        isSocketEnd ? SOCKETS[state.socket].housingMinRadiusMm : 2);
+  p.r = Math.max(minR, Math.min(b.maxR, p.r));
+  return p;
+}
+
+function normalizeProfile(){
+  // un état ancien peut porter un type retiré de l'offre : on retombe sur poser
+  if(TYPES[state.type] && TYPES[state.type].dispo === false) state.type = 'poser';
+  // Si une référence a été retirée du catalogue, un état ancien (preset,
+  // tirage, session précédente) pourrait encore la porter : on retombe sur la
+  // première disponible plutôt que de mailler pour une connexion qui n'est
+  // plus vendue.
+  if(SOCKETS[state.socket] && SOCKETS[state.socket].dispo === false){
+    state.socket = Object.keys(SOCKETS).find(k => SOCKETS[k].dispo !== false) || state.socket;
+  }
+  const b = bounds();
+  state.profile.sort((a,b2)=>a.h-b2.h);
+  // enforce min gap between consecutive heights
+  for(let i=1;i<state.profile.length;i++){
+    if(state.profile[i].h - state.profile[i-1].h < PRINT_BOUNDS.MIN_H_GAP_MM){
+      state.profile[i].h = state.profile[i-1].h + PRINT_BOUNDS.MIN_H_GAP_MM;
+    }
+  }
+  // rescale si dépassement (édition, ou changement de type plus bas de plafond)
+  if(state.profile[state.profile.length-1].h > b.maxH){
+    const scale = b.maxH / state.profile[state.profile.length-1].h;
+    state.profile.forEach(p=>p.h*=scale);
+  }
+  const se = socketEndIdx();
+  state.profile.forEach((p,i)=>clampPoint(p, i===se));
+  // plus aucun contrôle ne pilote la rotation propre d'un corps : un état
+  // ancien qui en porterait une (ex. -153°) serait ingérable — on la purge.
+  // Même sort pour les décalages d'une lampe à UN corps : ils ne servent
+  // qu'à séparer plusieurs corps, et une lampe vissée est centrée.
+  state.bodies.forEach(b=>{ if(b.rotDeg) b.rotDeg = 0; });
+  if(state.compo.count === 1 && state.bodies[0]){
+    const b0 = state.bodies[0];
+    b0.offsetXMm = b0.offsetYMm = b0.offsetZMm = 0;
+  }
+  /* Le socle impose le rayon de l'EXTRÉMITÉ basse : la peau descend jusqu'à
+   * Ø99,5 (ou le Ø réglé) au lieu de s'arrêter avant et de laisser un ressaut.
+   * On ne touche qu'au point du bas — le dessin au-dessus reste celui du client. */
+  if(socleActif() && state.profile.length){
+    const bas = state.profile[0];
+    // avec la vraie pièce c'est SA tranche qui impose le rayon, pas le curseur
+    const r = (BASE_KIT.etat === 'ok') ? SOCLE.trancheRExtMm : socleRayonMm();
+    if(Math.abs(bas.r - r) > 0.01) bas.r = r;
+  }
+  if(bagueActive() && state.profile.length){
+    // le pied de tout abat-jour à poser est le cercle Ø104 : la coupe 2D
+    // doit montrer la même chose que le maillage
+    const bas = state.profile[0], r = PIED.diaMm/2;
+    if(Math.abs(bas.r - r) > 0.01) bas.r = r;
+  }
+}
+
+// Corps LIÉS : un preset ou un tirage s'applique à tous les corps.
+// Corps DÉLIÉS (ou mode expert) : seul le corps en cours de dessin change.
+function propagateProfile(){
+  if(!state.linkBodies || state.expert) return;
+  const src = state.bodies[state.body];
+  state.bodies.forEach((b,i)=>{ if(i!==state.body){
+    b.profile = src.profile.map(p=>({h:p.h, r:p.r}));
+    b.shape = src.shape;
+  }});
+}
+
+function setPreset(name){
+  const b = bounds();
+  const cur = state.bodies[state.body];
+  state.shape = name;
+  state.seed = null;
+  // les silhouettes sont définies culot EN HAUT : si le corps est retourné, on
+  // mire le résultat pour rester dans son orientation
+  let prof = profileFromSilhouette(name, (b.minH+b.maxH)/2, b.maxR*0.72);
+  if(cur.flipped) prof = mirrorProfile(prof);
+  state.profile = prof;
+  state.selected = -1;
+  normalizeProfile();
+  propagateProfile();
+  renderAll();
+}
+
+/* ── Tirage aléatoire de forme ────────────────────────────────────────────
+ * PRNG déterministe (mulberry32) : la même graine redonne EXACTEMENT la même
+ * forme — la graine part dans le dossier de commande, donc l'atelier peut
+ * régénérer la pièce commandée. Le tirage est borné par le type de lampe et
+ * re-tiré tant qu'il viole une règle dure (surplomb > 55°, règles de type) ;
+ * si aucun candidat ne passe en 40 essais, on garde le moins mauvais et les
+ * avertissements restent affichés (jamais de silence).
+ * ────────────────────────────────────────────────────────────────────────── */
+function newSeed(){
+  return Math.floor(Math.random()*0xFFFFF).toString(16).toUpperCase().padStart(5,'0');
+}
+
+// Score de violation d'un candidat (0 = conforme). Sert à choisir le moins
+// mauvais quand aucun tirage ne passe toutes les règles.
+function candidateViolations(profile){
+  const r = TYPES[state.type].rules || {};
+  let v = 0;
+  for(let i=0;i<profile.length-1;i++){
+    const a = overhangDeg(profile[i], profile[i+1]);
+    if(a > OVERHANG.HARD_DEG) v += 3;
+    else if(a > OVERHANG.WARN_DEG) v += 1;
+  }
+  const rBottom = profile[0].r, rMax = Math.max(...profile.map(p=>p.r));
+  if(r.bottomWidest && rBottom < rMax - 0.5) v += 2;
+  if(r.minBottomRadiusMm && rBottom < r.minBottomRadiusMm) v += 2;
+  if(r.minTipAngleDeg){
+    // proxy géométrique rapide — l'angle réel est recalculé sur le maillage ensuite
+    const H = profile[profile.length-1].h;
+    if(Math.atan2(rBottom, H*0.62)*180/Math.PI < r.minTipAngleDeg) v += 2;
+  }
+  return v;
+}
+
+// Un tirage borné, pour UNE graine donnée. Ne touche à rien : renvoie la forme.
+function drawShape(seedStr){
+  const b = bounds();
+  const rng = mulberry32(hashSeed(seedStr));
+  const fams = TYPES[state.type].silhouettes;
+  let best = null;
+  for(let attempt=0; attempt<40; attempt++){
+    const fam = fams[Math.min(fams.length-1, Math.floor(rng()*fams.length))];
+    const H = b.minH + rng()*(b.maxH - b.minH);
+    const Rmax = b.maxR*(0.45 + rng()*0.5);
+    const cand = profileFromSilhouette(fam, H, Rmax, rng, 0.09);
+    const v = candidateViolations(cand);
+    if(!best || v < best.v) best = {cand, fam, v};
+    if(v === 0) break;
+  }
+  return best;
+}
+
+/* Tirage aléatoire.
+ *  · scope 'body' (défaut) : ne redessine QUE le corps en cours. Si les corps
+ *    étaient liés, on les délie — sinon « liés » serait un mensonge, les formes
+ *    venant de diverger. La case « Lier les corps » se décoche donc sous tes yeux.
+ *  · scope 'all' : chaque corps reçoit SON propre tirage, dérivé de la même
+ *    graine (graine-1, graine-2, …) donc l'ensemble reste reproductible. */
+function randomShape(seed, scope){
+  const base = String(seed || newSeed()).toUpperCase().replace(/[^0-9A-F]/g,'') || newSeed();
+  state.seed = base;
+  const n = state.compo.count;
+
+  if(scope === 'all' && n > 1){
+    state.linkBodies = false;
+    for(let i=0;i<n;i++){
+      const b = state.bodies[i];
+      const best = drawShape(base+'-'+i);
+      b.shape = best.fam;
+      b.profile = b.flipped ? mirrorProfile(best.cand) : best.cand;
+    }
+  } else {
+    if(state.linkBodies && n > 1 && !state.expert) state.linkBodies = false;
+    const cur = state.bodies[state.body];
+    const best = drawShape(n > 1 ? base+'-'+state.body : base);
+    cur.shape = best.fam;
+    cur.profile = cur.flipped ? mirrorProfile(best.cand) : best.cand;
+  }
+  state.selected = -1;
+  normalizeProfile();
+  renderAll();
+}
+
+/* ============================================================================
+ * ==GEOM-CORE-START==  (fonctions PURES, sans DOM — extraites telles quelles
+ * par le test node de l'atelier : test-geom.mjs)
+ *
+ * Le maillage exporté est une COQUE CREUSE réelle : surface extérieure +
+ * surface intérieure décalée de l'épaisseur de paroi, fermées par deux
+ * couronnes plates (bas et haut). Elle est ouverte en bas (sortie de lumière)
+ * et en haut (passage du culot) — donc c'est bien un abat-jour, pas un bloc
+ * plein, et son volume est CELUI QUI SERT AU PRIX.
+ *
+ * Gate de sécurité inchangé : cette fonction ne voit QUE le profil de la
+ * structure. Aucun alésage, filetage ou logement de douille n'est généré ici.
+ * ========================================================================== */
+
+/* Résolution par style. Le facetté doit VOIR ses facettes (peu de segments) ;
+ * les styles lisses doivent au contraire en avoir beaucoup, et la jauge de
+ * lissage pousse encore plus loin : plus de segments sur le tour ET des anneaux
+ * plus rapprochés sur la hauteur. */
+/* ── STYLE DE SURFACE : DES COUCHES, PAS UN CHOIX UNIQUE ──────────────────
+ * Les « styles » ne sont pas de même nature, il n'y a donc aucune raison qu'ils
+ * s'excluent :
+ *   · la BASE est une tessellation      → facetté ou lisse (l'un OU l'autre) ;
+ *   · les RELIEFS sont des déplacements radiaux → ils s'ADDITIONNENT ;
+ *   · l'AJOURAGE est une opération topologique  → il se superpose à tout.
+ * On peut donc demander « lisse + stries croisées + ajouré », ou « facetté +
+ * organique », etc. La résolution du maillage est alors le plus exigeant des
+ * besoins actifs.
+ * ──────────────────────────────────────────────────────────────────────── */
+const SURFACE_BASES = {
+  facette: { label:'Facetté (low poly)', smooth:false },
+  /* Subdivision DOUBLÉE (07/08) : à fort grossissement les facettes du maillage
+   * se voyaient encore. Segments et anneaux ×2 partout — sur la pièce exportée
+   * comme à l'écran. Le brouillon du geste, lui, ne bouge pas : c'est la passe
+   * de qualité qui encaisse. */
+  lisse:   { label:'Lisse',              smooth:true, segMin:192, segMax:400, stepMax:2.5, stepMin:0.8 },
+};
+/* Bornes du champ de sculpture. Elles ne sont pas décoratives : c'est ce qui
+ * garantit qu'une phrase — la sienne ou celle d'une IA — ne peut pas produire
+ * une lampe impossible. Amplitude par terme, somme totale, nombre de termes. */
+const CHAMP = { maxTermes: 6, ampMaxMm: 14, sommeMaxMm: 22, pasMm: 1.2 };
+const RELIEF_STEP = {
+  stries:    { stepMax:1.6, stepMin:0.55 },
+  organique: { stepMax:2.1, stepMin:0.60 },
+  martele:   { stepMax:1.75, stepMin:0.50 },
+};
+// Bornes du champ de martelage, à recalibrer si les constantes du hachage
+// changent (banc : scratchpad, 1er et 98e centile sur 100 000 échantillons).
+const MART_P1 = 0.436, MART_ETENDUE = 1.406;
+const hasRelief    = s => !!(s.stries || s.organique || s.martele || (s.champ && s.champ.length));
+/* Un ajourage Voronoï et un passage de câble sont le MÊME problème : percer une
+ * coque en la gardant étanche. On passe donc par le même chemin — découpe du
+ * contour sur un champ signé — au lieu d'inventer une seconde mécanique. */
+const isPerforated = s => !!s.ajour || !!(s.trous && s.trous.length);
+const isSmoothMesh = s => (s.base==='lisse') || hasRelief(s) || isPerforated(s);
+
+function styleLabel(s){
+  const parts = [SURFACE_BASES[s.base||'facette'].label];
+  if(s.stries)    parts.push(s.cross ? 'stries croisées (losanges)' : 'stries');
+  if(s.organique) parts.push('organique');
+  if(s.martele)   parts.push('martelé');
+  if(s.ajour)     parts.push('ajouré Voronoï');
+  return parts.join(' + ');
+}
+
+// Pas vertical entre anneaux : le plus fin des besoins actifs (0 = pas de resample).
+function styleStepMm(surf){
+  const t = Math.max(0, Math.min(1, (surf.smoothing==null?45:surf.smoothing)/100));
+  const lerp = c => c.stepMax + (c.stepMin - c.stepMax)*t;
+  const besoins = [];
+  if(surf.base==='lisse') besoins.push(lerp(SURFACE_BASES.lisse));
+  if(surf.stries)         besoins.push(lerp(RELIEF_STEP.stries));
+  if(surf.organique)      besoins.push(lerp(RELIEF_STEP.organique));
+  if(surf.martele)        besoins.push(lerp(RELIEF_STEP.martele));
+  // un champ de sculpture module le rayon en (θ,h) : il lui faut des anneaux
+  // serrés, sinon la forme sort en escalier
+  if(surf.champ && surf.champ.length) besoins.push(CHAMP.pasMm);
+  // Une image demande des anneaux SERRES : a 4 mm de pas, un visage devient
+  // une suite de bandes horizontales. 0,9 mm est le pas ou l'oeil cesse de
+  // voir les marches sur une piece de 250 mm.
+  if(EMBOSS.on && EMBOSS.data) besoins.push(0.9);
+  return besoins.length ? Math.min(...besoins) : 0;
+}
+
+/* FINESSE DU MAILLAGE EXPORTÉ — multiplie la résolution de la pièce livrée.
+ * Le sélecteur voisin (« facettes ») est un choix ESTHÉTIQUE qui ne concerne
+ * que le style Facetté : sur une surface lisse il ne changeait rien, alors
+ * qu'il se lisait comme le réglage de qualité. Celui-ci agit sur tous les
+ * styles — segments du tour ET pas des anneaux — et n'existe que pour
+ * l'export : l'aperçu garde son propre plafond, sinon il s'écroule. */
+function qualiteMaillage(){
+  const v = parseFloat(($('stlQualite')||{}).value);
+  return (v>0 && v<=2) ? v : 1;
+}
+// Résolution angulaire réellement utilisée : les stries fines et les surfaces
+// lisses exigent plus de segments que le réglage « facetté » du client.
+function angularSegments(surf, chosen){
+  // aucune couche active : la finesse est le choix assumé du client
+  if(!isSmoothMesh(surf)) return Math.max(3, chosen|0);
+  const t = Math.max(0, Math.min(1, (surf.smoothing==null?45:surf.smoothing)/100));
+  const L = SURFACE_BASES.lisse;
+  const q = qualiteMaillage();
+  // une base facettée garde SES facettes même sous un relief : on ne monte la
+  // résolution angulaire que si la base est lisse
+  if(surf.base !== 'lisse'){
+    // Base facettée : le nombre de facettes est un CHOIX esthétique, on n'y
+    // touche pas — l'arrondir à un multiple de 4 transformait un hexagone
+    // demandé en octogone (et la finesse ne doit pas le gonfler non plus).
+    // On ne le relève que si une strie ne serait pas résolue.
+    return Math.max(3, Math.max(chosen|0,
+      surf.stries  ? Math.round(surf.strieCount*6*q) : 0,
+      surf.martele ? Math.round(surf.martCount*5*q)  : 0));
+  }
+  let seg = Math.round((L.segMin + (L.segMax - L.segMin)*t) * q);
+  if(surf.stries)  seg = Math.max(seg, Math.round(surf.strieCount*12*q));
+  if(surf.martele) seg = Math.max(seg, Math.round(surf.martCount*10*q));
+  // et assez de segments pour résoudre le terme le plus lobé du champ
+  if(surf.champ) for(const t of surf.champ)
+    seg = Math.max(seg, Math.round(Math.max(6, (t.n||0)) * 9 * q));
+  // et beaucoup de segments : l'image fait le tour, donc sa largeur utile EST
+  // le nombre de segments. En dessous de 360 on perd les details du visage.
+  if(EMBOSS.on && EMBOSS.data) seg = Math.max(seg, Math.round(420 * q));
+  return Math.min(900, Math.max(24, Math.ceil(seg/4)*4));
+}
+
+/* ── AJOURAGE VORONOÏ ─────────────────────────────────────────────────────
+ * De vrais TROUS TRAVERSANTS, pas un relief : on découpe la coque cellule par
+ * cellule sur la grille (anneaux × segments), et chaque bord de trou est refermé
+ * par une paroi qui relie la face extérieure à la face intérieure — le maillage
+ * reste donc étanche et imprimable.
+ *   · les nervures sont les ARÊTES du diagramme de Voronoï (on garde la matière
+ *     là où deux graines sont à peu près à égale distance) ;
+ *   · aux deux extrémités une BANDE PLEINE est imposée (elle porte le culot en
+ *     haut et l'appui en bas) ;
+ *   · l'intégration bande↔ajourage n'est pas une coupure nette : la largeur des
+ *     nervures s'épaissit progressivement en approchant de la bande, si bien que
+ *     le motif se densifie et fond dans la bande.
+ * Économie de matière réelle = mesurée sur le maillage, elle descend dans le prix.
+ * ──────────────────────────────────────────────────────────────────────── */
+// PRNG déterministe, utilisé par l'ajourage ET le tirage de formes.
+function mulberry32(a){
+  return function(){
+    a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hashSeed(str){
+  let h = 2166136261 >>> 0;
+  for(let i=0;i<str.length;i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619) >>> 0; }
+  return h >>> 0;
+}
+
+let PERF_ACC = { cells:0, kept:0 };
+
+/* Graines indexées par cases (grille régulière sur la surface développée).
+ * Sans index, chaque cellule du maillage testerait TOUTES les graines : à 2000
+ * graines × ~30 000 cellules ça ferait 60 millions de distances par rendu. Avec
+ * l'index on ne teste que les cases voisines, en s'arrêtant dès que la 2ᵉ plus
+ * proche est garantie — le coût devient à peu près indépendant du nombre de
+ * graines. Coordonnées en mm développés (u = θ·rMoyen, périodique ; v = hauteur). */
+function buildVoroIndex(surf, rMean, H){
+  const K = Math.max(4, Math.min(4000, surf.voroCells|0));
+  const rng = mulberry32(hashSeed('voronoi|'+(surf.voroVariant||1)+'|'+K));
+  const W = Math.max(1, 2*Math.PI*rMean);
+  const seeds = new Array(K);
+  for(let k=0;k<K;k++) seeds[k] = { u: rng()*W, v: rng()*H };
+  const target = Math.max(2, Math.sqrt((W*H)/K) * 1.4);      // ~2 graines par case
+  const nu = Math.max(1, Math.min(256, Math.round(W/target)));
+  const nv = Math.max(1, Math.min(256, Math.round(H/target)));
+  const bw = W/nu, bh = H/nv;
+  const buckets = Array.from({length:nu*nv}, ()=>[]);
+  for(const s of seeds){
+    const iu = Math.min(nu-1, Math.max(0, Math.floor(s.u/bw)));
+    const iv = Math.min(nv-1, Math.max(0, Math.floor(s.v/bh)));
+    buckets[iv*nu+iu].push(s);
+  }
+  return {seeds, buckets, nu, nv, bw, bh, W, H, K, cellMm: Math.sqrt((W*H)/K)};
+}
+
+// Deux plus proches graines d'un point, via l'index.
+function voroD1D2(ix, u, v){
+  let d1=Infinity, d2=Infinity;
+  const iu0=Math.min(ix.nu-1,Math.max(0,Math.floor(u/ix.bw)));
+  const iv0=Math.min(ix.nv-1,Math.max(0,Math.floor(v/ix.bh)));
+  const step=Math.min(ix.bw, ix.bh), maxRing=Math.max(ix.nu, ix.nv);
+  for(let r=0;r<=maxRing;r++){
+    if(r>1 && d2 <= (r-1)*step) break;                        // le reste est forcément plus loin
+    for(let dv=-r; dv<=r; dv++){
+      const iv=iv0+dv; if(iv<0||iv>=ix.nv) continue;
+      for(let du=-r; du<=r; du++){
+        if(r>0 && Math.max(Math.abs(du),Math.abs(dv))!==r) continue;   // bord de l'anneau seulement
+        let iu=(iu0+du)%ix.nu; if(iu<0) iu+=ix.nu;                     // u est périodique
+        const arr=ix.buckets[iv*ix.nu+iu];
+        for(let i=0;i<arr.length;i++){
+          const s=arr[i];
+          let dU=Math.abs(u-s.u); if(dU>ix.W/2) dU=ix.W-dU;
+          const dV=v-s.v, dd=Math.sqrt(dU*dU+dV*dV);
+          if(dd<d1){ d2=d1; d1=dd; } else if(dd<d2){ d2=dd; }
+        }
+      }
+    }
+  }
+  return {d1,d2};
+}
+
+// Résolution du maillage imposée par la finesse du motif : une cellule doit être
+// couverte par plusieurs anneaux et plusieurs segments, sinon le motif se
+// désagrège au lieu de s'affiner.
+function voroResolution(surf, rMean, H){
+  const K = Math.max(4, Math.min(4000, surf.voroCells|0));
+  const W = Math.max(1, 2*Math.PI*rMean);
+  const cell = Math.sqrt((W*H)/K);
+  const stepMm = Math.max(0.9, Math.min(1.9, cell/3.2));
+  // Deux exigences : résoudre le MOTIF (cellules), et rendre la SILHOUETTE lisse
+  // (un segment ne doit pas dépasser ~1,7 mm d'arc, sinon les facettes verticales
+  // se voient — c'était le cas à 96 segments sur un Ø130).
+  const parMotif = W/(cell/3.2);
+  // 2,2 mm d'arc suffisent maintenant que l'ombrage est lissé : seule la
+  // SILHOUETTE (le contour contre le fond) trahit encore la tessellation.
+  const parSilhouette = W/2.2;
+  const segments = Math.max(128, Math.min(280, Math.ceil(Math.max(parMotif, parSilhouette)/4)*4));
+  return {stepMm, segments, cellMm:cell};
+}
+
+/* CHAMP d'ajourage, continu et signé : > 0 = matière, < 0 = trou, 0 = le bord
+ * exact du trou. C'est parce qu'il est CONTINU qu'on peut découper le contour
+ * là où il passe vraiment, au lieu de garder ou jeter des cellules entières —
+ * ce qui donnait des trous en escalier. */
+/* Trous fonctionnels : passage de câble et perçages du serre-câble. Ils sont
+ * soustraits du champ comme les cellules de Voronoï — donc bord refermé,
+ * maillage étanche, et ils traversent aussi bien une paroi pleine qu'un
+ * ajourage. Contrairement au motif, ils sont PERCÉS MÊME DANS LES BANDES
+ * PLEINES : c'est là qu'ils doivent être. */
+function champTrous(th, h, ctx){
+  if(!ctx.trous || !ctx.trous.length) return 1e6;
+  const TWO = Math.PI*2;
+  let f = 1e6;
+  for(const t of ctx.trous){
+    // Distance mesurée SUR LA SURFACE, au rayon local du trou et le long de la
+    // génératrice. Le déroulé au rayon moyen (celui du Voronoï) donnerait un
+    // trou elliptique sur un corps conique : mesuré 5,05 mm au lieu de 6,00.
+    let dth = Math.abs(th - t.th) % TWO; if(dth > Math.PI) dth = TWO - dth;
+    f = Math.min(f, Math.hypot(dth*t.rLoc, (h - t.h)*t.pente) - t.r);
+  }
+  return f;
+}
+
+function perfField(th, h, ctx){
+  const tr = champTrous(th, h, ctx);
+  if(tr < 0) return tr;                                        // un trou fonctionnel prime
+  if(h <= ctx.bandBottom || h >= ctx.bandTop) return Math.min(1e6, tr);  // bandes pleines imposées
+  const dBand = Math.min(h - ctx.bandBottom, ctx.bandTop - h);
+  const t = Math.min(1, dBand/ctx.transition);
+  const strutLocal = ctx.strut * (1 + 2.2*(1-t)*(1-t));       // fondu dans la bande
+  if(!ctx.ix.K) return Math.min(1e6, tr);                     // pas d'ajourage : seuls les trous percent
+  const {d1,d2} = voroD1D2(ctx.ix, (th/(2*Math.PI))*ctx.ix.W, h - ctx.h0);
+  return Math.min(strutLocal - (d2 - d1), tr);                // nervure ET trous
+}
+function perfKeep(th, h, ctx){ return perfField(th, h, ctx) > 0; }
+
+/* Grille angulaire : uniforme, plus une densification locale autour de chaque
+ * trou fonctionnel. Le pas local vise ~8 échantillons sur le diamètre du trou,
+ * ce qui suffit à le lire comme rond sans toucher au reste du tour. */
+function angularGrid(N, ctx){
+  const base = [];
+  for(let j=0;j<N;j++) base.push((j/N)*Math.PI*2);
+  if(!ctx.trous || !ctx.trous.length) return base;      // cas Voronoï pur : inchangé
+  const TWO = Math.PI*2, W = ctx.ix.W;
+  const wrap = a => ((a % TWO) + TWO) % TWO;
+  const add = [];
+  for(const t of ctx.trous){
+    const thc = wrap(t.th);
+    const span = (t.r*1.8) / t.rLoc;                    // un peu au-delà du bord
+    const step = (t.r/8)   / t.rLoc;                    // ≈ 16 pas sur le diamètre
+    for(let a=-span; a<=span+1e-12; a+=step) add.push(wrap(thc + a));
+  }
+  const all = base.concat(add).sort((a,b)=>a-b);
+  const minGap = Math.min(...ctx.trous.map(t=>(t.r/8)/t.rLoc/2), TWO/N/8);
+  const out = [];
+  for(const a of all){ if(!out.length || a - out[out.length-1] > minGap) out.push(a); }
+  // la couture : si le dernier échantillon touche presque 2π, il doublonne le 0
+  while(out.length > 1 && TWO - out[out.length-1] < minGap) out.pop();
+  return out;
+}
+
+/* ── PLATINE DE RACCORDEMENT (module USB) ─────────────────────────────────
+ * Pourquoi une pièce en plus plutôt que des perçages dans la coque :
+ *  · un insert laiton M3 mesure 5 mm de long, la paroi 1,2 mm — rien ne le tient ;
+ *  · les 2 vis du module Bambu sont à 14 mm de son axe, donc AU-DESSUS DU VIDE :
+ *    la couronne haute de la coque est un simple liseré de 1,2 mm à r ≥ 22 mm,
+ *    il n'y a littéralement pas de matière à cet endroit.
+ * La platine apporte les deux : de l'épaisseur, et de la matière au centre.
+ *
+ * Elle est faite de primitives fermées qui se CHEVAUCHENT (anneau + barre +
+ * bossages), jamais d'une découpe booléenne : c'est déjà la méthode des
+ * manchons de liaison, et le trancheur fusionne des volumes qui s'interpénètrent
+ * sans broncher. Chaque primitive est étanche prise seule.
+ */
+const PLATINE = { epaisMm:6.0, anneauMm:3.5, barreMm:17, brasMm:8.0, bossDiaMm:10.0, jeuMm:0.3 };
+
+function transTris(tris, dx, dy, dz){
+  return tris.map(t=>t.map(v=>[v[0]+dx, v[1]+dy, v[2]+dz]));
+}
+// Pavé droit fermé (12 triangles), orienté normales vers l'extérieur.
+function buildBox(x0,x1,y0,y1,z0,z1){
+  const V=(x,y,z)=>[x,y,z];
+  const a=V(x0,y0,z0),b=V(x1,y0,z0),c=V(x1,y1,z0),d=V(x0,y1,z0);
+  const e=V(x0,y0,z1),f=V(x1,y0,z1),g=V(x1,y1,z1),h=V(x0,y1,z1);
+  return [[a,c,b],[a,d,c],[e,f,g],[e,g,h],
+          [a,b,f],[a,f,e],[b,c,g],[b,g,f],
+          [c,d,h],[c,h,g],[d,a,e],[d,e,h]];
+}
+
+/* Hauteur d'assise : on descend depuis l'extrémité qui porte le module jusqu'à
+ * trouver un rayon intérieur qui accepte le disque du module. La platine se
+ * coince alors toute seule dans le cône — pas de gorge à imprimer. */
+/* Mémo : assisePlatine balaie 400 hauteurs, et trousCorps l'appelle à chaque
+ * fois que bodySurface() est demandé — soit des dizaines de fois par rendu. */
+let _assise = { cle:null, val:null };
+function assisePlatine(bi, wall){
+  const cle = bi+'|'+wall+'|'+state.socket+'|'+state.bodies[bi].flipped+'|'
+            + JSON.stringify(state.bodies[bi].profile)+'|'+JSON.stringify(state.compo);
+  if(_assise.cle === cle) return _assise.val;
+  const val = assisePlatineCalc(bi, wall);
+  _assise = { cle, val };
+  return val;
+}
+function assisePlatineCalc(bi, wall){
+  const body = state.bodies[bi];
+  const pl = bodyPlacements()[bi] || {scale:1};
+  const prof = body.profile.map(p=>({h:p.h*pl.scale, r:p.r*pl.scale}));
+  const inner = offsetMeridianInward(prof, wall).inner;
+  const sock = SOCKETS[state.socket];
+  const besoin = sock.platineDiaMm/2 + 1.5;           // disque du module + marge
+  const cotéHaut = !body.flipped;
+  const pts = cotéHaut ? inner.slice().reverse() : inner.slice();
+  /* La platine n'est pas un disque sans épaisseur : elle fait PLATINE.epaisMm de
+   * haut, et la coque se resserre sur cette hauteur. On la dimensionne donc sur
+   * le rayon intérieur MINI rencontré sur toute sa bande — mesuré : sans ça, le
+   * bord haut dépassait de la paroi et la pièce n'entrait pas. */
+  const rIntAt = (z)=>{
+    if(z <= inner[0].h) return inner[0].r;
+    for(let k=0;k<inner.length-1;k++){
+      if(z <= inner[k+1].h){
+        const d = inner[k+1].h - inner[k].h;
+        const u = d>1e-9 ? (z-inner[k].h)/d : 0;
+        return inner[k].r + u*(inner[k+1].r - inner[k].r);
+      }
+    }
+    return inner[inner.length-1].r;
+  };
+  const e = PLATINE.epaisMm;
+  const rMinBande = (h)=>{
+    let m = Infinity;
+    for(let z=h; z<=h+e+1e-9; z+=e/6) m = Math.min(m, rIntAt(z));
+    return m;
+  };
+  const h0 = inner[0].h, h1 = inner[inner.length-1].h - e;
+  const pas = Math.max(0.5, (h1-h0)/400);
+  let best = { h:h0, r:-1 };
+  for(let k=0;k<=400;k++){
+    const h = cotéHaut ? (h1 - k*pas) : (h0 + k*pas);   // on part de l'extrémité du module
+    if(h < h0 || h > h1) continue;
+    const r = rMinBande(h);
+    if(r > best.r) best = { h, r };
+    if(r >= besoin) return { h, rInt:r, ok:true, besoin };
+  }
+  return { h:best.h, rInt:best.r, ok:false, besoin };
+}
+
+/* ── Équipement intérieur du socle ────────────────────────────────────────
+ * Primitives fermées qui se chevauchent, comme les manchons de liaison et la
+ * platine USB : le trancheur fusionne, on ne fait AUCUN booléen dans le STL.
+ * Rappel du piège de la platine : on ne peut qu'AJOUTER de la matière — un
+ * perçage doit donc être le vide central d'un tube, jamais un trou « posé »
+ * sur du plein.
+ */
+function buildSocleMeshes(bi, wall, segments, sculpt, hRef){
+  const body = state.bodies[bi];
+  const pl = bodyPlacements()[bi] || {scale:1};
+  const prof = body.profile.map(p=>({h:p.h*pl.scale, r:p.r*pl.scale}));
+  const inner = offsetMeridianInward(prof, wall).inner;
+  const rIntAt = (z)=>{
+    if(z <= inner[0].h) return inner[0].r;
+    for(let k=0;k<inner.length-1;k++){
+      if(z <= inner[k+1].h){
+        const d = inner[k+1].h - inner[k].h;
+        const u = d>1e-9 ? (z-inner[k].h)/d : 0;
+        return inner[k].r + u*(inner[k+1].r - inner[k].r);
+      }
+    }
+    return inner[inner.length-1].r;
+  };
+  const seg = Math.max(48, Math.min(160, segments|0));
+  const z0 = SOCLE.solHMm, ep = SOCLE.planchierEpMm, z1 = z0 + ep;
+  // le plancher est dimensionné sur le rayon MINI de sa bande (même règle que
+  // la platine USB : la paroi bouge sur l'épaisseur de la pièce)
+  let rMin = Infinity;
+  for(let z=z0; z<=z1+1e-9; z+=ep/6) rMin = Math.min(rMin, rIntAt(z));
+  const R = Math.max(12, rMin - 0.3);
+  const tris = [];
+  tris.push(...buildTube(z0, z1, ()=>10, ()=>R, seg, ep/2, null, hRef));   // plancher ajouré au centre
+
+  const rTrou = SOCLE.ledTrouMm/2, rCol = SOCLE.colonneDiaMm/2;
+  const colonne = (cx, cy, hHaut)=>{
+    const t = buildTube(z1 - 1.0, hHaut, ()=>rTrou, ()=>rCol, seg, 2.0, null, hRef);
+    tris.push(...transTris(t, cx, cy, 0));
+  };
+  const eL = SOCLE.ledEntraxeMm/2;
+  colonne(-eL, 0, SOCLE.ledHautMm); colonne(eL, 0, SOCLE.ledHautMm);   // kit LED
+  const eS = SOCLE.serreEntraxeMm/2;
+  colonne(0, -eS, SOCLE.epauleHMm - 1); colonne(0, eS, SOCLE.epauleHMm - 1);  // serre-câble
+
+  const placees = tris.map(t=>t.map(v=>{
+    const [x,y] = sculptXY(v[0], v[1], v[2], sculpt, hRef);
+    return [x, y, v[2]];
+  }));
+  return { tris: placees, R, z0, z1, rMin };
+}
+
+/* ── BAGUE À VISSER (lampe à poser, option « base simple basse ») ─────────
+ * Cotes relevées sur « LED LAMPE abat jour visable pour lampe de table
+ * Module 1 BAGUE.obj » (groupe « BAGUE A FUSIONNER ABAT JOUR », 130 012
+ * sommets) et sur l'assemblage « …ALL.obj » (3 groupes : BASE Y −25→−10 Ø115,50,
+ * SUPPORT LED ET ABAT JOUR Y −10→+7,5 Ø99,50, BAGUE Y −10→0 Ø116,10).
+ *
+ * ⚠️ La bague se visse sur le COL Ø99,5 DU SUPPORT LED, pas sur la base : c'est
+ * le seul diamètre qui corresponde à son filet (crête Ø100,10).
+ *
+ * Filet mesuré sur une génératrice : crêtes à Y = −8,954 / −6,330 / −3,331 /
+ * −0,331 → pas 3,000 mm. Crête r = 50,050, fond r = 49,346 → profondeur 0,70 mm.
+ * Flancs à atan(0,70 / 1,50) = 25° de la verticale, donc imprimables (le filet
+ * des modules est à 28° et passe au trancheur).
+ */
+const BAGUE = {
+  /* BAGUE V2 (V6), mesuree le 14/08 : O104,000 x 20,700, 5 058 triangles,
+   31,5 cm3. ASSISE = couronne z=9,000 apres recalage (r 50,000 a 52,000,
+   640,3 mm2 mesures pour 641,0 theoriques) — l'anneau designe en bleu par
+   Baptiste. L'abat-jour s'y pose a O104 exterieur, paroi 1,8 mm. */
+  diaExtMm: 104.00, hautMm: 20.70, assiseMm: 9.00, assiseIntDiaMm: 100.00,
+  /* Ce sur quoi la lampe REPOSE VRAIMENT, releve sur la BASE P2 (V6) le 14/08.
+   * La regle n'a pas change depuis la V3 : le cercle porteur n'est pas le
+   * diametre le plus large, c'est la face la plus BASSE. Ici les deux se
+   * rejoignent presque — dessous plat de 5 791 mm2 a z=0, r 30,308 a 51,000,
+   * soit O102,0 — mais on continue d'annoncer la cote portante, pas la plus
+   * large : c'est elle qui fixe l'angle de basculement.
+   * Note : l'assise de l'abat-jour (O104) deborde de 1 mm de rayon au-dela de
+   * ce pied O102. C'est la piece reelle, on la reproduit, on ne la corrige pas. */
+  appuiRMm: 51.000, solZMm: 0.000,
+  /* ⚠️ Sur un filet FEMELLE la CRÊTE est le rayon le PLUS PETIT (la matière
+   * rentre vers l'axe) et le fond le plus grand. Les avoir pris à l'envers
+   * sortait une bague 0,7 mm trop large : elle ne mordait pas sur le col.
+   * Relevé sur la génératrice : rayon 49,346 → 50,050. */
+  creteRMm: 49.346,        // le plus petit — c'est lui qui mord
+  fondRMm:  50.050,
+  pasMm: 3.000,
+  /* ⚠️ JEU = 0, volontairement. La bague relevée est la pièce d'accouplement
+   * RÉELLE : son jeu est déjà dans les cotes, choisi à l'atelier. En rajouter
+   * un mangeait l'engagement — la crête ne mordait plus que de 0,15 mm sur le
+   * col Ø99,5 au lieu de 0,40. On reproduit la cote, on ne la « corrige » pas. */
+  jeuMm: 0.0,
+  source: "AUTRES/3D/LED LAMPE abat jour visable… Module 1 BAGUE.obj — mesuré le 05/08",
+};
+/* Bague filetée, fusionnée sous l'abat-jour. Corps de révolution dont la surface
+ * INTÉRIEURE porte l'hélice : mêmes primitives fermées que partout ailleurs, on
+ * ajoute de la matière, on n'en retire jamais. */
+function buildBagueAbatJour(segments, sculpt, hRef){
+  const N = Math.max(72, Math.min(220, (segments|0) * 2));
+  const rExt = BAGUE.diaExtMm / 2;
+  const z0 = 0, z1 = BAGUE.hautMm;
+  const pas = Math.max(0.25, BAGUE.hautMm / 60);
+  const rInt = (th, z)=>{
+    // hélice : la phase avance d'un tour par pas, et d'un tour par tour d'angle
+    const phase = z / BAGUE.pasMm - th / (2*Math.PI);
+    const creux = (BAGUE.fondRMm - BAGUE.creteRMm) * (1 - threadRise(phase));
+    return BAGUE.creteRMm + BAGUE.jeuMm + creux;
+  };
+  return buildTube(z0, z1, rInt, ()=>rExt, N, pas, sculpt, hRef);
+}
+
+function buildPlatineUSB(bi, wall, segments, sculpt, hRef){
+  const sock = SOCKETS[state.socket];
+  const a = assisePlatine(bi, wall);
+  /* Jeu : le jeu nominal, plus une marge liée à la flexion. Une platine est
+   * rigide, une coque fléchie ne l'est pas : mesuré 0,61 mm d'écart d'axe à 25°
+   * de flexion, donc on rend le jeu proportionnel. */
+  const bend = Math.abs((sculpt && sculpt.bendDeg) || 0);
+  const R = Math.max(8, a.rInt - PLATINE.jeuMm - bend*0.03);
+  // Construite À SA HAUTEUR D'ASSISE, puis passée dans la même sculpture que la
+  // coque : sinon une flexion décale la coque latéralement et la platine reste
+  // sur l'axe — elle sortirait à travers la paroi.
+  const e = PLATINE.epaisMm, z0 = a.h, z1 = a.h + e;
+  const seg = Math.max(48, Math.min(160, segments|0));
+  const tris = [];
+
+  /* ⚠️ ON NE PEUT QU'AJOUTER de la matière avec des primitives qui se
+   * chevauchent, jamais en RETIRER. Un bossage percé posé sur une barre pleine
+   * donne donc une barre pleine : le premier rendu Blender l'a montré, la
+   * platine n'avait aucun trou. La barre est donc découpée en TRONÇONS qui
+   * s'arrêtent avant chaque perçage, et ce sont les anneaux des bossages qui
+   * assurent la continuité. Le vide reste vide. */
+  const rTrou = sock.trouInsertMm/2;
+  const xs = [ -sock.entraxeVisMm/2, sock.entraxeVisMm/2 ];
+  const sc = sock.serreCable;
+  if(sc && state.cable.on){ xs.push(-sc.entraxeMm/2, sc.entraxeMm/2); }
+  xs.sort((a,b)=>a-b);
+  const demiBras = PLATINE.brasMm/2, demi = Math.max(demiBras, PLATINE.barreMm/2);
+  /* Le bossage doit déborder le bras, sinon le tronçon de barre laisse un
+   * ressaut à l'angle (vu au rendu). Il faut donc rBoss ≥ √(demiBras² + marge²).
+   * Garde-fou : il ne doit JAMAIS mordre sur le perçage voisin. */
+  let ecartMini = Infinity;
+  for(let k=0;k<xs.length-1;k++) ecartMini = Math.min(ecartMini, xs[k+1]-xs[k]);
+  const rBoss = Math.min(PLATINE.bossDiaMm/2, Math.max(0, ecartMini - rTrou - 0.3));
+  // anneau d'assise
+  tris.push(...buildTube(z0, z1, ()=>Math.max(2, R-PLATINE.anneauMm), ()=>R, seg, e/2, null, hRef));
+  // un anneau percé par trou (Ø extérieur bossage, Ø intérieur = trou d'insert)
+  for(const cx of xs){
+    tris.push(...transTris(buildTube(z0, z1, ()=>rTrou, ()=>rBoss, seg, e/2, null, hRef), cx, 0, 0));
+  }
+  // tronçons de barre : dans les intervalles LIBRES, en chevauchant les anneaux
+  const marge = rTrou + 0.5;                       // on s'arrête avant le perçage
+  const bornes = [ -(R - PLATINE.anneauMm/2), ...xs, (R - PLATINE.anneauMm/2) ];
+  for(let k=0;k<bornes.length-1;k++){
+    const a0 = (k===0)                 ? bornes[0]   : bornes[k]   + marge;
+    const a1 = (k===bornes.length-2)   ? bornes[k+1] : bornes[k+1] - marge;
+    if(a1 - a0 < 0.4) continue;                    // trous trop serrés : l'anneau suffit
+    tris.push(...buildBox(a0, a1, -demiBras, demiBras, z0, z1));
+  }
+  // ailettes larges au droit du serre-câble, pour qu'il ait de quoi s'appuyer
+  if(sc && state.cable.on && demi > demiBras){
+    const x0 = -sc.entraxeMm/2 - rBoss, x1 = sc.entraxeMm/2 + rBoss;
+    tris.push(...buildBox(x0, x1, -demi, -demiBras+0.2, z0, z1));
+    tris.push(...buildBox(x0, x1,  demiBras-0.2,  demi, z0, z1));
+  }
+  const placees = tris.map(t=>t.map(v=>{
+    const [x,y] = sculptXY(v[0], v[1], v[2], sculpt, hRef);
+    return [x, y, v[2]];
+  }));
+  return { tris: placees, seat:a, R, e };
+}
+
+/* Densification LOCALE du méridien autour des trous — le pendant vertical de
+ * angularGrid(). Sans elle, un trou de 6 mm n'est traversé que par 5 rangs et
+ * ressort 16 % trop petit (mesuré) ; avec un pas fin GLOBAL il ressort juste,
+ * mais le maillage triple pour un seul trou. On ne paie donc la finesse que là
+ * où le trou se trouve. */
+function densifierAutourDesTrous(prof, trous){
+  if(!trous || !trous.length) return prof;
+  const hs = prof.map(p=>p.h), out = hs.slice();
+  for(const t of trous){
+    const r = t.diaMm/2, pas = Math.max(0.25, r/8);
+    for(let h = t.hMm - r*2.0; h <= t.hMm + r*2.0 + 1e-9; h += pas) out.push(h);
+  }
+  const h0 = hs[0], h1 = hs[hs.length-1];
+  const uniq = out.filter(h=>h>=h0 && h<=h1).sort((a,b)=>a-b)
+                  .filter((h,i,a)=> i===0 || h-a[i-1] > 1e-6);
+  const rAt = (h)=>{
+    for(let k=0;k<prof.length-1;k++){
+      if(h <= prof[k+1].h){
+        const d = prof[k+1].h - prof[k].h;
+        const u = d>1e-9 ? (h-prof[k].h)/d : 0;
+        return prof[k].r + u*(prof[k+1].r - prof[k].r);
+      }
+    }
+    return prof[prof.length-1].r;
+  };
+  return uniq.map(h=>({h, r:rAt(h)}));
+}
+
+/* Rayon local et pente du méridien à une hauteur donnée — c'est la métrique de
+ * la surface à cet endroit, celle qui rend un trou vraiment rond. */
+function geomLocale(prof, h){
+  for(let k=0;k<prof.length-1;k++){
+    if(h <= prof[k+1].h || k === prof.length-2){
+      const dh = prof[k+1].h - prof[k].h;
+      const u  = dh>1e-9 ? Math.max(0,Math.min(1,(h-prof[k].h)/dh)) : 0;
+      const dr = prof[k+1].r - prof[k].r;
+      return { r: prof[k].r + u*dr,
+               pente: dh>1e-9 ? Math.hypot(1, dr/dh) : 1 };   // ds/dh
+    }
+  }
+  return { r: prof[prof.length-1].r, pente: 1 };
+}
+
+function buildPerforatedShell(profile, wallMm, segments, surf, sculpt, hRef){
+  const outerP = densifierAutourDesTrous(profile, surf.trous).map(p=>({h:p.h, r:p.r}));
+  const { inner } = offsetMeridianInward(outerP, wallMm);
+  const N = Math.max(12, segments|0), M = outerP.length;
+  if(M < 3) return buildShellMesh(profile, wallMm, segments, {...surf, ajour:false}, sculpt, hRef);
+  const H = outerP[M-1].h - outerP[0].h;
+  const band = Math.max(2, Math.min(H/2 - 2, surf.voroBandMm||12));
+  const rMean = outerP.reduce((s,p)=>s+p.r,0)/M;
+  const ix = surf.ajour ? buildVoroIndex(surf, rMean, Math.max(1,H))
+                       : { W: Math.max(1, 2*Math.PI*rMean), K: 0, cellMm: 0, seeds: [], buckets: [], nu:1, nv:1, bw:1, bh:1 };
+  const ctx = {
+    ix, H, h0: outerP[0].h, rMean,
+    trous: (surf.trous||[]).map(t=>{
+      const g = geomLocale(outerP, t.hMm);
+      return { th: ((t.angleDeg%360)+360)%360 * Math.PI/180, h: t.hMm, r: t.diaMm/2,
+               rLoc: Math.max(1, g.r), pente: g.pente };
+    }),
+    strut: Math.max(0.6, surf.voroStrutMm||2.4),
+    bandBottom: outerP[0].h + band, bandTop: outerP[M-1].h - band,
+    transition: Math.max(4, band*1.6),
+  };
+  PERF_ACC.cellMm = ctx.ix.cellMm;
+  const Hq = hRef || outerP[M-1].h;
+
+  /* Grille angulaire NON UNIFORME. Un trou de 6 mm sur un corps de 120 mm ne
+   * représente que 1,6 % du tour : le rendre rond en montant la résolution
+   * globale multiplierait le maillage par cinq pour trois trous. On densifie
+   * donc UNIQUEMENT la fenêtre angulaire qui contient chaque trou. Sans trou,
+   * la grille reste exactement uniforme — le Voronoï ne change pas d'un iota. */
+  const TH = angularGrid(N, ctx);
+  const NT = TH.length;
+  const thetaAt = (fj)=>{
+    const j0 = ((Math.floor(fj) % NT) + NT) % NT;
+    const t  = fj - Math.floor(fj);
+    if(t === 0) return TH[j0];                       // couture exacte, pas d'epsilon
+    const a = TH[j0], b = (j0+1 < NT) ? TH[j0+1] : TH[0] + 2*Math.PI;
+    return a + t*(b - a);
+  };
+
+  /* Un point de la surface, repéré en coordonnées de grille FRACTIONNAIRES :
+   * fi = position le long du méridien, fj = position sur le tour. C'est ce qui
+   * permet de placer un sommet AILLEURS qu'aux nœuds de la grille — donc de
+   * suivre le vrai bord du trou au lieu de l'escalier de la grille. */
+  const pt = (fi, fj, poly)=>{
+    const i0 = Math.max(0, Math.min(M-2, Math.floor(fi)));
+    const t  = Math.max(0, Math.min(1, fi - i0));
+    const h  = poly[i0].h + t*(poly[i0+1].h - poly[i0].h);
+    const r  = poly[i0].r + t*(poly[i0+1].r - poly[i0].r);
+    // fj = N doit redonner EXACTEMENT le sommet fj = 0 : sinon sin(2π) vaut
+    // −2,4e−16 et la couture du tour laisse deux sommets distincts.
+    const th = thetaAt(fj);
+    const rr = Math.max(0.4, r + surfaceDisplacement(surf, th, h));
+    const [x,y] = sculptXY(rr*Math.cos(th), rr*Math.sin(th), h, sculpt, Hq);
+    return [x,y,h];
+  };
+
+  // champ signé aux nœuds de la grille
+  const F = [];
+  for(let i=0;i<M;i++){
+    const row = new Float64Array(NT);
+    for(let j=0;j<NT;j++) row[j] = perfField(TH[j], outerP[i].h, ctx);
+    F.push(row);
+  }
+
+  const tris = [];
+  let cells = 0, kept = 0;
+
+  /* MARCHING TRIANGLES — chaque cellule est coupée en 4 triangles autour de son
+   * centre, et chaque triangle est découpé sur le contour f = 0. Le triangle
+   * lève toute ambiguïté (contrairement au carré, où deux coins opposés en
+   * matière peuvent se lire de deux façons), et les points de découpe ne
+   * dépendent que des deux valeurs aux extrémités de l'arête : deux triangles
+   * voisins les calculent donc à l'identique et le maillage reste étanche. */
+  const marche = (v0, v1, v2)=>{
+    const V = [v0,v1,v2], poly = [];
+    let nCut = 0;
+    for(let k=0;k<3;k++){
+      const a = V[k], b = V[(k+1)%3];
+      if(a.f > 0) poly.push(a);
+      if((a.f > 0) !== (b.f > 0)){
+        const t = a.f/(a.f - b.f);                       // position exacte du bord
+        poly.push({ fi: a.fi + t*(b.fi-a.fi), fj: a.fj + t*(b.fj-a.fj), cut:true });
+        nCut++;
+      }
+    }
+    if(poly.length < 3) return;
+    const n = poly.length;
+    const O = poly.map(p=>pt(p.fi, p.fj, outerP));
+    const I = poly.map(p=>pt(p.fi, p.fj, inner));
+    // face extérieure, face intérieure (enroulement inversé)
+    for(let k=1;k<n-1;k++){
+      tris.push([O[0],O[k],O[k+1]]);
+      tris.push([I[0],I[k+1],I[k]]);
+    }
+    /* Paroi du bord de trou. Sa direction ne peut PAS être déduite de l'ordre où
+     * les points de découpe ont été trouvés : selon le coin qui porte la matière,
+     * le contour est parcouru dans un sens ou dans l'autre, et un mur à l'envers
+     * ne referme rien (14 000 arêtes ouvertes, mesurées). On lit donc la direction
+     * sur le POLYGONE lui-même : l'arête dont les deux extrémités sont des points
+     * de découpe est le contour, dans le sens du polygone. */
+    if(nCut === 2){
+      for(let k=0;k<n;k++){
+        const a=poly[k], b=poly[(k+1)%n];
+        if(!a.cut || !b.cut) continue;
+        const Ao=O[k], Bo=O[(k+1)%n], Ai=I[k], Bi=I[(k+1)%n];
+        tris.push([Ao,Bi,Bo]); tris.push([Ao,Ai,Bi]);
+        break;
+      }
+    }
+  };
+
+  for(let i=0;i<M-1;i++){
+    for(let j=0;j<NT;j++){
+      cells++;
+      const j2 = (j+1)%NT;
+      const f00=F[i][j], f10=F[i][j2], f11=F[i+1][j2], f01=F[i+1][j];
+      // Chemin rapide : une cellule entièrement en matière ou entièrement en
+      // trou n'a aucun contour à découper. Elle représente la grande majorité
+      // des cellules — la traiter d'un bloc divise par deux le nombre de
+      // triangles et le temps de calcul. Ses arêtes de bord sont exactement
+      // celles de la découpe en 4, donc l'étanchéité est préservée.
+      if(f00<=0 && f10<=0 && f11<=0 && f01<=0) continue;
+      if(f00>0 && f10>0 && f11>0 && f01>0){
+        kept++;
+        const Ob=pt(i,j,outerP), Ob2=pt(i,j+1,outerP), Ot=pt(i+1,j,outerP), Ot2=pt(i+1,j+1,outerP);
+        const Ib=pt(i,j,inner),  Ib2=pt(i,j+1,inner),  It=pt(i+1,j,inner),  It2=pt(i+1,j+1,inner);
+        tris.push([Ob,Ob2,Ot2]); tris.push([Ob,Ot2,Ot]);
+        tris.push([Ib,It2,Ib2]); tris.push([Ib,It,It2]);
+        continue;
+      }
+      kept++;
+      const c00={fi:i,   fj:j,   f:f00}, c10={fi:i,   fj:j+1, f:f10};
+      const c11={fi:i+1, fj:j+1, f:f11}, c01={fi:i+1, fj:j,   f:f01};
+      const hm=(outerP[i].h+outerP[i+1].h)/2, thm=thetaAt(j+0.5);
+      const m={fi:i+0.5, fj:j+0.5, f:perfField(thm, hm, ctx)};
+      marche(c00,c10,m); marche(c10,c11,m); marche(c11,c01,m); marche(c01,c00,m);
+    }
+  }
+
+  // couronnes plates aux deux extrémités : les bandes y sont pleines par
+  // construction, l'anneau est donc complet
+  const outR0=[], inR0=[], outR1=[], inR1=[];
+  for(let j=0;j<NT;j++){
+    outR0.push(pt(0,j,outerP)); inR0.push(pt(0,j,inner));
+    outR1.push(pt(M-1,j,outerP)); inR1.push(pt(M-1,j,inner));
+  }
+  for(let j=0;j<NT;j++){
+    const j2=(j+1)%NT;
+    tris.push([outR0[j], inR0[j], outR0[j2]]);  tris.push([inR0[j], inR0[j2], outR0[j2]]);
+    tris.push([outR1[j], outR1[j2], inR1[j]]);  tris.push([inR1[j], outR1[j2], inR1[j2]]);
+  }
+  PERF_ACC.cells += cells; PERF_ACC.kept += kept;
+  return tris;
+}
+
+// Volume de la coque PLEINE équivalente (Pappus) — référence pour annoncer
+// l'économie de matière réelle de l'ajourage.
+function pappusShellVolMm3(profile, wallMm){
+  let lat = 0;
+  for(let i=0;i<profile.length-1;i++){
+    const rA = (profile[i].r+profile[i+1].r)/2;
+    const L = Math.hypot(profile[i+1].h-profile[i].h, profile[i+1].r-profile[i].r);
+    lat += 2*Math.PI*rA*L;
+  }
+  return lat*wallMm;
+}
+
+// Catmull-Rom sur la polyligne méridienne : lisse la silhouette SANS déplacer
+// les points de contrôle édités par le client (la courbe passe par eux).
+/* Pas vertical maximal imposé par la TORSION : si deux anneaux consécutifs
+ * tournent de plus de ~4°, les facettes entre eux coupent la matière (mesuré :
+ * −9 % de volume à 0,5 °/mm sur un profil à 5 points). On densifie donc les
+ * anneaux en fonction du vrillage, sans toucher à la silhouette. */
+function twistStepMm(sculpt){
+  const t = sculpt && Math.abs(sculpt.twistDegPerMm||0);
+  return t > 0.005 ? Math.max(1.5, 4/t) : 0;
+}
+
+/* Spline cubique NATURELLE : passe par tous les points et raccorde les courbures
+ * (C²). C'est la continuité de courbure qui fait qu'une surface lissée n'a plus
+ * d'arête visible — une simple continuité de tangente laisse un anneau net à
+ * chaque point de contrôle. Résolution du système tridiagonal en place. */
+function splineNaturelle(xs, ys){
+  const n = xs.length, y2 = new Array(n).fill(0), u = new Array(n).fill(0);
+  for(let i=1;i<n-1;i++){
+    const sig = (xs[i]-xs[i-1])/(xs[i+1]-xs[i-1]);
+    const p = sig*y2[i-1] + 2;
+    y2[i] = (sig-1)/p;
+    let t = (ys[i+1]-ys[i])/(xs[i+1]-xs[i]) - (ys[i]-ys[i-1])/(xs[i]-xs[i-1]);
+    u[i] = (6*t/(xs[i+1]-xs[i-1]) - sig*u[i-1])/p;
+  }
+  for(let k=n-2;k>=0;k--) y2[k] = y2[k]*y2[k+1] + u[k];
+  return function(x){
+    let lo=0, hi=n-1;
+    while(hi-lo > 1){ const k=(hi+lo)>>1; if(xs[k] > x) hi=k; else lo=k; }
+    const h = xs[hi]-xs[lo];
+    if(h <= 0) return ys[lo];
+    const a = (xs[hi]-x)/h, b = (x-xs[lo])/h;
+    return a*ys[lo] + b*ys[hi] + ((a*a*a-a)*y2[lo] + (b*b*b-b)*y2[hi])*(h*h)/6;
+  };
+}
+
+function resampleMeridian(profile, surf, stepOverrideMm){
+  const lisse = (surf.base === 'lisse');
+  /* CONGÉS EN TÊTE, une seule fois, pour TOUS les chemins. Ils étaient
+   * appliqués dans les branches — et le facetté sans relief (pas vertical = 0)
+   * sortait AVANT d'y passer : l'outil « congé du point » ne faisait rien. */
+  const globalConge = lisse ? (surf.congeMm||0) : 0;
+  if(globalConge > 0 || profile.some(p=>(p.conge||0) > 0))
+    profile = appliquerConges(profile, globalConge);
+  const step0 = stepOverrideMm > 0 ? stepOverrideMm : styleStepMm(surf);
+  // Base facettée : on densifie LINÉAIREMENT. Les anneaux se rapprochent (pour
+  // résoudre un relief ou un ajourage) mais la silhouette garde ses arêtes vives.
+  if(!lisse && step0 > 0 && profile.length >= 2){
+    const base0 = profile;
+    const out=[];
+    for(let i=0;i<base0.length-1;i++){
+      const n=Math.max(1, Math.ceil(Math.abs(base0[i+1].h-base0[i].h)/step0));
+      for(let k=0;k<n;k++){
+        const t=k/n;
+        out.push({ h: base0[i].h + t*(base0[i+1].h-base0[i].h),
+                   r: base0[i].r + t*(base0[i+1].r-base0[i].r) });
+      }
+    }
+    out.push({h:base0[base0.length-1].h, r:base0[base0.length-1].r});
+    return out;
+  }
+  if(!lisse || profile.length < 3 || step0 <= 0) return profile.map(p=>({h:p.h, r:p.r}));
+  /* LISSE = LE TRACÉ, tourné et finement maillé — plus une spline.
+   * La spline cubique naturelle utilisée avant (C²) passait par les points
+   * mais ONDULAIT entre eux : sur un profil à segments droits elle bombait la
+   * paroi, et Baptiste l'a vu — « lisse déforme trop ». En CAO, une révolution
+   * lisse suit l'esquisse ; les arrondis sont des CONGÉS qu'on ajoute
+   * explicitement, jamais une déformation implicite. On fait pareil :
+   *  · sans congé, chaque angle du tracé reste exactement un angle ;
+   *  · avec un rayon de congé, chaque angle vif est remplacé par un ARC
+   *    tangent aux deux segments (rayon réduit si la place manque).
+   * Le « lisse » visuel vient des normales par sommet et de la densité
+   * angulaire, pas d'un changement de silhouette. */
+  const base = profile;   // congés déjà appliqués en tête de fonction
+  const out=[];
+  for(let i=0;i<base.length-1;i++){
+    const n=Math.max(1, Math.ceil(Math.abs(base[i+1].h-base[i].h)/step0));
+    for(let k=0;k<n;k++){
+      const t=k/n;
+      out.push({ h: base[i].h + t*(base[i+1].h-base[i].h),
+                 r: Math.max(0.5, base[i].r + t*(base[i+1].r-base[i].r)) });
+    }
+  }
+  out.push({h:base[base.length-1].h, r:base[base.length-1].r});
+  return out;
+}
+
+/* Congés : remplace chaque angle intérieur du méridien par un arc tangent aux
+ * deux segments. Rayon demandé respecté quand la place existe, réduit sinon
+ * (jamais plus de 45 % du segment le plus court). Un angle presque plat
+ * (< 5° de déviation) est laissé tel quel — un congé n'y changerait rien. */
+function appliquerConges(profile, rayonMm){
+  const global_ = rayonMm || 0;
+  if(profile.length < 3) return profile;
+  if(global_ <= 0 && !profile.some(p=>(p.conge||0) > 0)) return profile;
+  const out=[{...profile[0]}];
+  for(let i=1;i<profile.length-1;i++){
+    const A=profile[i-1], P=profile[i], B=profile[i+1];
+    /* CONGÉ PAR POINT : chaque angle du dessin peut porter SON rayon (outil de
+     * la coupe 2D). Le curseur global du style « lisse » reste un défaut pour
+     * les points qui n'en ont pas. */
+    const rayonPoint = (P.conge !== undefined && P.conge !== null) ? P.conge : global_;
+    if(rayonPoint <= 0){ out.push({...P}); continue; }
+    const u={h:P.h-A.h, r:P.r-A.r}, v={h:B.h-P.h, r:B.r-P.r};
+    const lu=Math.hypot(u.h,u.r), lv=Math.hypot(v.h,v.r);
+    if(lu<1e-6 || lv<1e-6){ out.push({...P}); continue; }
+    u.h/=lu; u.r/=lu; v.h/=lv; v.r/=lv;
+    const cosDev = Math.max(-1, Math.min(1, u.h*v.h + u.r*v.r));
+    const dev = Math.acos(cosDev);                 // déviation au sommet
+    if(dev < Math.PI/36){ out.push({...P}); continue; }   // < 5° : quasi droit
+    const demi = (Math.PI - dev)/2;                // demi-angle intérieur
+    let t = rayonPoint / Math.tan(demi);           // longueur de tangence
+    const tMax = 0.45*Math.min(lu, lv);
+    let R = rayonPoint;
+    if(t > tMax){ t = tMax; R = t*Math.tan(demi); }
+    const P1={h:P.h-u.h*t, r:P.r-u.r*t};           // début de l'arc
+    const P2={h:P.h+v.h*t, r:P.r+v.r*t};           // fin de l'arc
+    // centre : sur la bissectrice, à R/sin(demi) du sommet
+    let bh=v.h-u.h, br=v.r-u.r;
+    const lb=Math.hypot(bh,br);
+    if(lb<1e-9){ out.push({...P}); continue; }
+    bh/=lb; br/=lb;
+    const C={h:P.h + bh*(R/Math.sin(demi)), r:P.r + br*(R/Math.sin(demi))};
+    const a1=Math.atan2(P1.r-C.r, P1.h-C.h);
+    let a2=Math.atan2(P2.r-C.r, P2.h-C.h);
+    let da=a2-a1;
+    while(da >  Math.PI) da-=2*Math.PI;
+    while(da < -Math.PI) da+=2*Math.PI;
+    const n=Math.max(2, Math.ceil(Math.abs(da)*R/0.4));   // ~0,4 mm d'arc
+    for(let k=0;k<=n;k++){
+      const a=a1+da*k/n;
+      out.push({h:C.h+R*Math.cos(a), r:Math.max(0.5, C.r+R*Math.sin(a))});
+    }
+  }
+  out.push({...profile[profile.length-1]});
+  // h doit rester strictement croissant (le reste du moteur le suppose)
+  for(let i=1;i<out.length;i++) if(out[i].h <= out[i-1].h) out[i].h = out[i-1].h + 1e-4;
+  return out;
+}
+
+// Déplacement radial du style de surface, appliqué IDENTIQUEMENT aux surfaces
+// intérieure et extérieure : l'épaisseur de paroi reste constante, donc la
+// pièce reste imprimable et la masse annoncée reste juste.
+/* Les reliefs s'ADDITIONNENT : c'est ce qui permet de strier ET d'onduler la
+ * même paroi. Le déplacement est appliqué à l'identique aux surfaces intérieure
+ * et extérieure, donc l'épaisseur reste constante quelle que soit la combinaison. */
+function surfaceDisplacement(surf, theta, h){
+  let d = 0;
+  /* FONDU DE PIED (lampe à poser) : sur les `hMm` derniers millimètres, le
+   * relief s'éteint en douceur pour que le bord bas soit un CERCLE parfait —
+   * c'est lui qui rejoint l'assise Ø104. smoothstep : ni cassure de pente en
+   * haut de la zone, ni relief résiduel en bas. */
+  let fondu = 1;
+  if(surf.fondu){
+    const t = (h - surf.fondu.h0) / surf.fondu.hMm;
+    if(t <= 0) return 0;
+    if(t < 1) fondu = t*t*(3 - 2*t);
+  }
+  if(surf.stries){
+    const a = (surf.strieDepthMm||0)/2;
+    const n = Math.max(2, surf.strieCount|0);
+    if(surf.cross){
+      // deux réseaux de stries croisés = losanges en volume (cos nθ · cos kh)
+      const k = 2*Math.PI/Math.max(8, surf.pitchMm);
+      d += a*Math.cos(n*theta)*Math.cos(k*h);
+    } else {
+      d += a*Math.cos(n*theta);
+    }
+  }
+  if(surf.organique){
+    // 3 harmoniques non commensurables : ondulation douce qui ne se répète jamais
+    const a = (surf.orgAmpMm||0)/2;
+    const k = 2*Math.PI/Math.max(20, surf.orgPitchMm||40);
+    d += a*(0.60*Math.sin(3*theta + 1.7*k*h)
+          + 0.30*Math.sin(5*theta - 1.1*k*h + 1.2)
+          + 0.25*Math.sin(2*theta + 0.6*k*h + 2.4));
+  }
+  if(surf.martele){
+    /* MARTELÉ : des FACETTES quasi planes ENFONCÉES dans la paroi, séparées par
+     * un réseau d'arêtes vives resté au niveau de la surface d'origine — un
+     * métal battu au marteau (photo de référence Baptiste, 06/08).
+     * Une graine jitterée par cellule d'une grille (tour × hauteur) ; chaque
+     * graine porte un PLAN incliné, et en un point on retient le max des plans
+     * voisins (3×3), retranché de la surface. L'intersection de deux plans
+     * voisins dessine une arête droite : c'est le réseau de polygones.
+     * ⚠️ Ce qui fait lire le martelage, c'est que chaque facette a sa PROPRE
+     * INCLINAISON — donc son propre éclairement. Une calotte bombée (1 − r²),
+     * même profonde, ne donne que des bosses molles toutes éclairées pareil.
+     * Déterministe (hachage sinusoïdal des indices) et bouclé sur le tour :
+     * la cellule n rejoint la cellule 0 sans couture. */
+    const n   = Math.max(6, surf.martCount|0);
+    const ch  = Math.max(4, surf.martHMm||12);
+    const amp = surf.martDepthMm||0;
+    const u = (theta/(2*Math.PI))*n, v = h/ch;
+    const iu = Math.floor(u), iv = Math.floor(v);
+    let best = -1e9;
+    for(let a2=-1;a2<=1;a2++) for(let b2=-1;b2<=1;b2++){
+      const ci = iu+a2, cj = iv+b2;
+      const cw = ((ci % n)+n)%n;                  // tour bouclé : pas de couture
+      const f = (a,b)=>{ const s=Math.sin(cw*a + cj*b)*43758.5453; return s - Math.floor(s); };
+      const du = u - (ci + 0.5 + 0.90*(f(127.1,311.7) - 0.5));
+      const dv = v - (cj + 0.5 + 0.90*(f(269.5,183.3) - 0.5));
+      /* Pente propre à la facette — c'est ELLE qui fait lire le martelage.
+       * Des facettes plates mais toutes parallèles renvoient la lumière de la
+       * même façon : on ne voit rien. Amplitude choisie pour que l'inclinaison
+       * approche 2·relief/largeur de facette, la pente qu'aurait un vrai coup
+       * de marteau (mesuré ensuite : 9,9° d'écart moyen entre voisines). */
+      const gx = (f(419.2,371.9) - 0.5)*2.8;
+      const gy = (f(53.7,241.3)  - 0.5)*2.8;
+      /* Le terme quadratique arbitre la FORME des cellules, la pente arbitre
+       * leur PLATITUDE — les deux tirent en sens inverse et le réglage se joue
+       * sur leur rapport (banc : six variantes rendues sous Blender, cf.
+       * scratchpad/sweep.mjs). Trop faible (0,22) les cellules s'alignent sur
+       * la grille et le relief lit « briques » ; trop fort (0,95) chaque
+       * facette se bombe et on retombe sur des bosses molles. 2,8 / 0,7 tient
+       * les deux : polygones irréguliers ET facettes planes à arête vive. */
+      const val = gx*du + gy*dv - 0.70*(du*du + dv*dv);
+      if(val > best) best = val;
+    }
+    /* SENS DU RELIEF : on FRAPPE la matière, on ne l'ajoute pas. Les facettes
+     * sont donc ENFONCÉES et le réseau d'arêtes reste au niveau de la surface
+     * d'origine — c'est ce qui distingue un martelage de coussins gonflés
+     * séparés par des rainures (première version, à l'envers). Conséquence
+     * utile : la silhouette dessinée dans la coupe 2D redevient l'ENVELOPPE de
+     * la pièce, plus rien ne dépasse du profil.
+     * Normalisation MESURÉE sur 4 configurations (1er et 98e centile du champ
+     * brut) : le curseur est donc bien la profondeur des coups, en mm. Le 1 %
+     * de points les plus hauts est ramené au niveau d'origine — ce sont les
+     * plats que l'outil n'a pas touchés entre deux coups. */
+    let x = (best + MART_P1) / MART_ETENDUE;
+    if(x < 0) x = 0;
+    d -= amp * x;
+  }
+  /* ── CHAMP DE SCULPTURE (10/08) ────────────────────────────────────────────
+   * Ce moteur n'a jamais été un moteur de révolution : le déplacement dépend de
+   * θ ET de h — les losanges sont un cos(nθ)·cos(kh), le martelé un Voronoï en
+   * (θ,h). Ce qui bornait les formes, c'était le CATALOGUE de champs, pas le
+   * noyau. On ouvre donc le catalogue : `surf.champ` est une liste de termes
+   * composables, que l'utilisateur — ou l'IA — assemble librement.
+   *
+   * Ce que ça rend possible : lobes, torsades, renflements à une hauteur
+   * donnée, bosses d'un seul côté, ondes, facettes. C'est-à-dire des formes
+   * franchement NON axisymétriques.
+   * ⚠️ Ce que ça ne rendra jamais possible sans un autre noyau : ce qui change
+   * la TOPOLOGIE — une anse, un bec, une pièce séparée. Le rayon reste une
+   * fonction de (θ,h) : une seule valeur par direction. Il faut le dire au
+   * client plutôt que de faire semblant d'avoir compris.
+   *
+   * Chaque terme est BORNÉ, et la somme est écrêtée juste après : le champ
+   * traverse ensuite le même tuyau que tout le reste (paroi constante,
+   * étanchéité, bornes d'impression). Une phrase ne peut pas fabriquer une
+   * lampe non imprimable. */
+  if(surf.champ && surf.champ.length){
+    const g = 2*Math.PI;
+    let c = 0;
+    for(const t of surf.champ.slice(0, CHAMP.maxTermes)){
+      const amp = Math.max(-CHAMP.ampMaxMm, Math.min(CHAMP.ampMaxMm, +t.amp || 0));
+      if(!amp) continue;
+      const n   = Math.max(0, Math.min(24, Math.round(t.n || 0)));       // lobes sur le tour
+      const ph  = (+t.phase || 0) * Math.PI/180;
+      const h0  = +t.h0 || 0, larg = Math.max(4, +t.largeur || 30);
+      switch(t.type){
+        case 'lobes':      c += amp*Math.cos(n*theta + ph); break;
+        case 'torsade':    c += amp*Math.cos(n*theta + ph + (+t.pas||0)*h*Math.PI/180); break;
+        case 'onde':       c += amp*Math.sin(g*h/Math.max(6,+t.pasMm||40) + ph); break;
+        case 'renflement': c += amp*Math.exp(-Math.pow((h-h0)/larg, 2)); break;
+        case 'bosse': {    // локalisée en hauteur ET en angle : un seul côté
+          let dt = ((theta - ph) % g + g + Math.PI) % g - Math.PI;
+          const eA = Math.exp(-Math.pow(dt/Math.max(0.15, (+t.ouverture||60)*Math.PI/180), 2));
+          c += amp * eA * Math.exp(-Math.pow((h-h0)/larg, 2));
+          break; }
+        case 'facettes': { // polygone adouci : |cos| replié sur n secteurs
+          const s = Math.abs(Math.cos((n||6)*(theta+ph)/2));
+          c += amp*(s - 0.6366);                                          // moyenne retirée
+          break; }
+      }
+    }
+    d += Math.max(-CHAMP.sommeMaxMm, Math.min(CHAMP.sommeMaxMm, c));
+  }
+  return d * fondu;
+}
+
+// Décale la méridienne vers l'INTÉRIEUR de la matière (offset de droites +
+// intersection = miter), pas une moyenne de normales qui amincirait la paroi
+// dans les angles. Les deux extrémités sont ramenées sur le plan de coupe pour
+// que les couronnes haute et basse soient plates (appui plateau propre).
+function offsetMeridianInward(profile, wall){
+  const n = profile.length;
+  const dirs = [], norms = [];
+  for(let i=0;i<n-1;i++){
+    const dr = profile[i+1].r-profile[i].r, dh = profile[i+1].h-profile[i].h;
+    const L = Math.hypot(dr,dh) || 1;
+    dirs.push({r:dr/L, h:dh/L});
+    norms.push({r:-dh/L, h:dr/L});   // normale rentrante
+  }
+  const inner = new Array(n);
+  let thinned = false;
+  for(let i=0;i<n;i++){
+    let pt;
+    if(i===0 || i===n-1){
+      const s = (i===0) ? 0 : n-2;
+      const A = { r: profile[i].r + wall*norms[s].r, h: profile[i].h + wall*norms[s].h };
+      // ramener sur le plan horizontal de l'extrémité
+      const t = Math.abs(dirs[s].h) > 1e-6 ? (profile[i].h - A.h)/dirs[s].h : 0;
+      pt = { r: A.r + t*dirs[s].r, h: profile[i].h };
+    } else {
+      const A = { r: profile[i].r + wall*norms[i-1].r, h: profile[i].h + wall*norms[i-1].h };
+      const B = { r: profile[i].r + wall*norms[i].r,   h: profile[i].h + wall*norms[i].h };
+      const d1 = dirs[i-1], d2 = dirs[i];
+      const den = d1.r*d2.h - d1.h*d2.r;
+      if(Math.abs(den) < 1e-6){ pt = {r:(A.r+B.r)/2, h:(A.h+B.h)/2}; }
+      else {
+        const t = ((B.r-A.r)*d2.h - (B.h-A.h)*d2.r)/den;
+        let cand = { r: A.r + t*d1.r, h: A.h + t*d1.h };
+        // limite de miter : pas de pic aberrant dans un angle très fermé
+        if(Math.hypot(cand.r-profile[i].r, cand.h-profile[i].h) > 3*wall) cand = {r:(A.r+B.r)/2, h:(A.h+B.h)/2};
+        pt = cand;
+      }
+    }
+    const maxR = profile[i].r - 0.2;
+    if(pt.r > maxR){ pt.r = maxR; }
+    if(pt.r < 0.8){ pt.r = 0.8; thinned = true; }   // rayon trop faible : paroi localement plus épaisse
+    inner[i] = pt;
+  }
+  // h intérieur strictement croissant, borné par les plans de coupe
+  const hBot = profile[0].h, hTop = profile[n-1].h;
+  for(let i=0;i<n;i++) inner[i].h = Math.max(hBot, Math.min(hTop, inner[i].h));
+  for(let i=1;i<n;i++) if(inner[i].h <= inner[i-1].h) inner[i].h = Math.min(hTop, inner[i-1].h + 0.01);
+  return { inner, thinned };
+}
+
+// Coupe le profil entre deux hauteurs (découpe en modules imprimés).
+function sliceProfile(profile, h0, h1){
+  const radiusAt = hh => {
+    if(hh <= profile[0].h) return profile[0].r;
+    for(let i=0;i<profile.length-1;i++){
+      if(hh <= profile[i+1].h){
+        const t = (hh-profile[i].h)/Math.max(1e-6, profile[i+1].h-profile[i].h);
+        return profile[i].r + t*(profile[i+1].r-profile[i].r);
+      }
+    }
+    return profile[profile.length-1].r;
+  };
+  const out = [{h:h0, r:radiusAt(h0)}];
+  profile.forEach(p=>{ if(p.h > h0+0.05 && p.h < h1-0.05) out.push({h:p.h, r:p.r}); });
+  out.push({h:h1, r:radiusAt(h1)});
+  return out;
+}
+
+/* SCULPTURE — torsion et courbure. Ce sont des transformations point-à-point
+ * continues appliquées après la révolution : la topologie est intacte (le
+ * maillage reste étanche) et le volume est conservé (rotation + cisaillement).
+ *  · torsion  : chaque anneau tourne de twistDegPerMm × hauteur → cannelures
+ *               qui s'enroulent, effet vrillé.
+ *  · courbure : décalage latéral parabolique → la pièce se penche/tord,
+ *               bendDeg = inclinaison atteinte au sommet.
+ * ATTENTION : la courbure ajoute un surplomb que l'analyse 2D du méridien ne
+ * voit pas — c'est signalé dans les avertissements. */
+function sculptXY(x, y, z, sc, hRef){
+  if(!sc) return [x,y];
+  let X=x, Y=y;
+  if(sc.twistDegPerMm){
+    const a = sc.twistDegPerMm*Math.PI/180*z, c=Math.cos(a), s=Math.sin(a);
+    X = x*c - y*s; Y = x*s + y*c;
+  }
+  if(sc.bendDeg && hRef>0){
+    const t = Math.max(0, Math.min(1, z/hRef));
+    X += Math.tan(sc.bendDeg*Math.PI/180) * hRef * 0.5 * t*t;
+  }
+  return [X,Y];
+}
+
+// Anneau de sommets à une hauteur donnée, déplacement de style + sculpture compris.
+/* ── LITHOPHANIE : une image dans l'epaisseur ─────────────────────────────
+ * « Embossage positif interieur » : la peau EXTERIEURE ne bouge pas, seule la
+ * peau interne s'enfonce. L'epaisseur locale vaut donc paroi + relief, jamais
+ * moins : la coque ne peut pas s'amincir, quelle que soit l'image. C'est ce
+ * qui rend la chose sure sur une paroi de 1,8 mm.
+ *
+ * Convention de lithophanie : le SOMBRE est EPAIS (il laisse passer moins de
+ * lumiere), le clair est mince. L'image n'apparait donc qu'allumee, et c'est
+ * exactement ce qu'on veut d'une lampe.
+ *
+ * ⚠️ 0,6 mm au maximum (borne posee par Baptiste). Au-dela, sur une paroi de
+ * 1,8 mm, on imprime une piece dont l'epaisseur varie du simple au double :
+ * le retrait du PLA n'est plus uniforme et la coque se voile.
+ */
+const EMBOSS = { on:false, ampMm:0.6, data:null, w:0, h:0, invert:false, nom:'' };
+const EMBOSS_AMP_MAX = 0.6;
+
+/* Luminance echantillonnee en (u,v), interpolee bilineairement : sans
+ * interpolation, un tour de 288 segments sur une image de 720 px donnerait des
+ * marches visibles a la lumiere. */
+function embossLum(u, v){
+  const E = EMBOSS;
+  if(!E.data) return 1;
+  u = u - Math.floor(u);                       // le tour boucle
+  v = Math.max(0, Math.min(1, v));
+  const x = u*(E.w-1), y = (1-v)*(E.h-1);      // v=0 en bas de la piece
+  const x0 = Math.floor(x), y0 = Math.floor(y);
+  const x1 = Math.min(E.w-1, x0+1), y1 = Math.min(E.h-1, y0+1);
+  const fx = x-x0, fy = y-y0;
+  const a = E.data[y0*E.w+x0], b = E.data[y0*E.w+x1];
+  const c = E.data[y1*E.w+x0], dd = E.data[y1*E.w+x1];
+  const l = (a*(1-fx)+b*fx)*(1-fy) + (c*(1-fx)+dd*fx)*fy;
+  return E.invert ? 1-l : l;
+}
+
+/* Enfoncement de la peau interne, en mm. Toujours >= 0. */
+function embossAt(theta, h, hRef){
+  const E = EMBOSS;
+  if(!E.on || !E.data || !hRef) return 0;
+  const u = theta/(Math.PI*2);
+  const l = embossLum(u, h/hRef);
+  return Math.max(0, Math.min(EMBOSS_AMP_MAX, E.ampMm)) * (1 - l);
+}
+
+function ringAt(r, h, segments, surf, sign, sculpt, hRef, embosse){
+  const ring = [];
+  for(let j=0;j<segments;j++){
+    const th = j/segments*Math.PI*2;
+    const d = surfaceDisplacement(surf, th, h);
+    // l'enfoncement ne s'applique QU'A la peau interne : la silhouette
+    // exterieure reste celle que le client a dessinee
+    const e = embosse ? embossAt(th, h, hRef) : 0;
+    const rr = Math.max(0.4, r + d*sign - e);
+    const [x,y] = sculptXY(rr*Math.cos(th), rr*Math.sin(th), h, sculpt, hRef);
+    ring.push([x, y, h]);
+  }
+  return ring;
+}
+
+/* Coque creuse : extérieur + intérieur + couronnes plates haut/bas.
+ * Renvoie des triangles bruts [[x,y,z]×3], normales sortantes (volume > 0). */
+function buildShellMesh(profile, wallMm, segments, surf, sculpt, hRef){
+  if(profile.length < 2) return [];
+  if(isPerforated(surf)) return buildPerforatedShell(profile, wallMm, segments, surf, sculpt, hRef);
+  const outerP = profile.map(p=>({h:p.h, r:p.r}));
+  const { inner } = offsetMeridianInward(outerP, wallMm);
+  const N = Math.max(3, segments|0);
+  const H = hRef || outerP[outerP.length-1].h;
+  const outR = outerP.map(p=>ringAt(p.r, p.h, N, surf, 1, sculpt, H));
+  const inR  = inner.map(p=>ringAt(p.r, p.h, N, surf, 1, sculpt, H, true));
+  const tris = [];
+
+  // surface extérieure — normale radiale sortante
+  for(let i=0;i<outR.length-1;i++){
+    for(let j=0;j<N;j++){
+      const j2=(j+1)%N;
+      const A=outR[i][j], B=outR[i][j2], C=outR[i+1][j2], D=outR[i+1][j];
+      tris.push([A,B,C]); tris.push([A,C,D]);
+    }
+  }
+  // surface intérieure — même quads, enroulement inversé (normale vers l'axe)
+  for(let i=0;i<inR.length-1;i++){
+    for(let j=0;j<N;j++){
+      const j2=(j+1)%N;
+      const A=inR[i][j], B=inR[i][j2], C=inR[i+1][j2], D=inR[i+1][j];
+      tris.push([A,C,B]); tris.push([A,D,C]);
+    }
+  }
+  // couronne basse (normale -Z) et couronne haute (normale +Z)
+  const last = outR.length-1;
+  for(let j=0;j<N;j++){
+    const j2=(j+1)%N;
+    const Ob=outR[0][j], Ob2=outR[0][j2], Ib=inR[0][j], Ib2=inR[0][j2];
+    tris.push([Ob, Ib, Ob2]); tris.push([Ib, Ib2, Ob2]);
+    const Ot=outR[last][j], Ot2=outR[last][j2], It=inR[last][j], It2=inR[last][j2];
+    tris.push([Ot, Ot2, It]); tris.push([It, Ot2, It2]);
+  }
+  return tris;
+}
+
+/* ── LIAISON ENTRE MODULES ────────────────────────────────────────────────
+ * Manchon générique : tube fermé dont les rayons intérieur ET extérieur sont des
+ * FONCTIONS de (θ, z). C'est ce qui permet de décrire d'un seul tenant — donc
+ * étanche, sans aucune union — un filetage hélicoïdal ET la collerette qui
+ * raccorde le manchon à la paroi de la coque.
+ * ──────────────────────────────────────────────────────────────────────── */
+function buildTube(z0, z1, rInFn, rOutFn, segments, stepMm, sculpt, hRef){
+  const N = Math.max(8, segments|0);
+  const n = Math.max(2, Math.ceil((z1-z0)/Math.max(0.2, stepMm)));
+  const zs = Array.from({length:n+1},(_,i)=> z0 + (z1-z0)*i/n);
+  const ring = (z, fn)=>{
+    const out=[];
+    for(let j=0;j<N;j++){
+      const th = j/N*Math.PI*2;
+      const r = Math.max(0.4, fn(th, z));
+      const [x,y] = sculptXY(r*Math.cos(th), r*Math.sin(th), z, sculpt, hRef);
+      out.push([x,y,z]);
+    }
+    return out;
+  };
+  const O = zs.map(z=>ring(z, rOutFn)), I = zs.map(z=>ring(z, rInFn));
+  const tris=[];
+  for(let i=0;i<zs.length-1;i++) for(let j=0;j<N;j++){
+    const j2=(j+1)%N;
+    tris.push([O[i][j],O[i][j2],O[i+1][j2]]); tris.push([O[i][j],O[i+1][j2],O[i+1][j]]);
+    tris.push([I[i][j],I[i+1][j2],I[i][j2]]); tris.push([I[i][j],I[i+1][j],I[i+1][j2]]);
+  }
+  const last=zs.length-1;
+  for(let j=0;j<N;j++){
+    const j2=(j+1)%N;
+    tris.push([O[0][j],I[0][j],O[0][j2]]);          tris.push([I[0][j],I[0][j2],O[0][j2]]);
+    tris.push([O[last][j],O[last][j2],I[last][j]]); tris.push([I[last][j],O[last][j2],I[last][j2]]);
+  }
+  return tris;
+}
+
+// Profil de filet trapézoïdal : montée / crête / descente / creux sur un pas.
+// Flancs à 45° : imprimable axe vertical, sans support.
+function threadRise(phase){
+  const p = phase - Math.floor(phase);
+  if(p < 0.25) return p*4;
+  if(p < 0.50) return 1;
+  if(p < 0.75) return (0.75-p)*4;
+  return 0;
+}
+
+/* Génère la liaison entre deux modules.
+ *  · mode « visse » : filetage hélicoïdal imprimé — manchon MÂLE sur le module
+ *    du bas, manchon FEMELLE taraudé sur celui du haut, même hélice décalée du
+ *    jeu radial. Aucune visserie, aucun insert : les corps se vissent l'un dans
+ *    l'autre.
+ *  · mode « emboite » : manchon lisse à friction (l'ancien collier).
+ * Dans les deux cas une COLLERETTE relie le manchon à la paroi en y pénétrant de
+ * `biteMm` : c'est ce qui garantit la soudure au tranchage. L'ancien collier
+ * n'avait que ce chevauchement en HAUTEUR — si la paroi s'écartait, il ne
+ * touchait rien et flottait dans le vide.
+ * `rJoint` = rayon intérieur DISPONIBLE le plus faible sur toute la hauteur de
+ * la liaison : le manchon femelle ne peut donc jamais percer la coque. */
+function buildJointMeshes(rJoint, hCut, segments, joint, sculpt, hRef, shellWallMm, rShellOuterAt){
+  const wall = joint.collarWallMm, H = joint.collarHeightMm, F = joint.flangeMm;
+  // Le gousset doit traverser TOUTE l'épaisseur de la coque, pas l'effleurer :
+  // avec 0,4 mm de pénétration PrusaSlicer voyait encore « Floating object part »
+  // sur l'assemblage (chaque pièce prise isolément passait, preuve que c'était
+  // bien l'ancrage qui manquait). En allant jusqu'à la surface extérieure, les
+  // deux volumes partagent une vraie matière commune.
+  const rWall = rJoint + Math.max(joint.biteMm, shellWallMm || joint.biteMm);
+  const t = joint.thread;
+  const seg = Math.max(48, Math.min(160, segments|0));
+  const visse = joint.mode === 'visse' && rJoint > 8;
+
+  /* Le manchon mâle est suspendu à la paroi : il n'a RIEN sous lui. Une simple
+   * collerette plate crée donc une face horizontale qui pend dans le vide —
+   * PrusaSlicer l'a signalée en clair sur le premier tranchage réel :
+   * « Floating object part, Floating bridge anchors, Long bridging extrusions ».
+   * On la remplace par un CÔNE À 45° qui part de la paroi et remonte vers le
+   * manchon : chaque couche repose sur celle du dessous, plus rien ne pend. */
+  /* Le cône doit ATTERRIR SUR LA PAROI, pas s'arrêter à côté. Or le manchon est
+   * dimensionné sur le rayon intérieur MINIMAL de toute la liaison — un minimum
+   * qui se produit en haut, là où la coque est la plus étroite — alors que le
+   * cône, lui, vit en bas, où la paroi est plus large. Sans cette correction il
+   * s'arrêtait à 0,1 mm d'elle et PrusaSlicer voyait « Floating object part ».
+   * On cherche donc la hauteur où un cône à 45° issu de l'âme du filet rencontre
+   * la surface EXTÉRIEURE de la coque (quelques itérations suffisent). */
+  const cone = (rTop)=>{
+    let z0 = hCut - Math.max(0.5, rWall - rTop);
+    for(let k=0;k<12;k++){
+      const cible = (rShellOuterAt ? rShellOuterAt(z0) : rWall);
+      z0 = hCut - Math.max(0.5, cible - rTop);
+    }
+    const rBas = rTop + (hCut - z0);
+    return { z0, taper: hCut - z0, rAt:(z)=> rBas - (z - z0) };
+  };
+
+  if(!visse){
+    const rOutC = Math.max(3, rJoint - joint.clearanceMm);
+    const rInC  = Math.max(1.5, rOutC - wall);
+    const K = cone(rOutC);
+    const male = buildTube(K.z0, hCut+H,
+      (th,z)=> Math.max(1.5, (z < hCut ? K.rAt(z) : rOutC) - wall),
+      (th,z)=> z < hCut ? K.rAt(z) : rOutC,
+      seg, 1.0, sculpt, hRef);
+    return { male, female:[], info:{
+      type: (joint.mode==='visse' ? 'emboîtement à friction (rayon trop faible pour un filetage)' : 'emboîtement à friction'),
+      diaMm:+(rOutC*2).toFixed(1), jeuMm:joint.clearanceMm, hauteurMm:H,
+      raccord:'cône 45° auto-portant' } };
+  }
+
+  const Rc   = rJoint - wall - t.depthMm - t.clearanceMm;   // âme du filet mâle
+  const rInM = Math.max(1.5, Rc - wall);
+  const phase = (th,z)=> (z - hCut)/t.pitchMm - th/(2*Math.PI);
+  const step  = Math.max(0.35, t.pitchMm/10);               // 10 anneaux par pas d'hélice
+
+  // MÂLE : cône 45° depuis la paroi, puis filet — rien ne pend dans le vide
+  const K = cone(Rc);
+  const male = buildTube(K.z0, hCut+H,
+    (th,z)=> Math.max(1.5, (z < hCut ? K.rAt(z) : Rc) - wall),
+    (th,z)=> z < hCut ? K.rAt(z) : Rc + t.depthMm*threadRise(phase(th,z)),
+    seg, Math.min(step, 0.5), sculpt, hRef);
+
+  // FEMELLE : même hélice, décalée du jeu radial ; collerette au-dessus du plan
+  const female = buildTube(hCut, hCut+H+1,
+    (th,z)=> Rc + t.clearanceMm + t.depthMm*threadRise(phase(th,z)),
+    (th,z)=> z < hCut+F ? rWall : Rc + t.clearanceMm + t.depthMm + wall,
+    seg, step, sculpt, hRef);
+
+  return { male, female, info:{
+    type:'filetage imprimé — les corps se vissent l\'un dans l\'autre',
+    diaMm:+((Rc + t.depthMm)*2).toFixed(1), pasMm:t.pitchMm,
+    tours:+(H/t.pitchMm).toFixed(1), jeuMm:t.clearanceMm, hauteurMm:H,
+    profondeurFiletMm:t.depthMm, raccord:'cône 45° auto-portant' } };
+}
+
+/* ── Mesures sur le maillage (théorème de la divergence) ─────────────────── */
+function meshVolumeMm3(tris){
+  let v=0;
+  for(const [a,b,c] of tris){
+    v += (a[0]*(b[1]*c[2]-b[2]*c[1]) - a[1]*(b[0]*c[2]-b[2]*c[0]) + a[2]*(b[0]*c[1]-b[1]*c[0]))/6;
+  }
+  return v;
+}
+function meshCentroid(tris){
+  let vol=0, cx=0, cy=0, cz=0;
+  for(const [a,b,c] of tris){
+    const dv = (a[0]*(b[1]*c[2]-b[2]*c[1]) - a[1]*(b[0]*c[2]-b[2]*c[0]) + a[2]*(b[0]*c[1]-b[1]*c[0]))/6;
+    vol += dv;
+    cx += dv*(a[0]+b[0]+c[0])/4; cy += dv*(a[1]+b[1]+c[1])/4; cz += dv*(a[2]+b[2]+c[2])/4;
+  }
+  if(Math.abs(vol) < 1e-9) return {x:0,y:0,z:0,vol:0};
+  return {x:cx/vol, y:cy/vol, z:cz/vol, vol};
+}
+/* Étanchéité : chaque arête orientée doit avoir exactement une jumelle inverse.
+ * Le comptage est INCRÉMENTAL — on alimente un registre commun tranche par
+ * tranche — parce que la passe complète coûte 1,7 s sur 190 000 triangles et
+ * 6,7 s sur 710 000, et qu'elle gelait l'onglet. ⚠️ Découper en comptages
+ * INDÉPENDANTS ne marche pas : chaque coupure inventerait des arêtes de bord.
+ * Un seul registre, plusieurs passages. */
+function edgeLedgerAdd(seen, tris, from, to){
+  // `+0` neutralise le zéro négatif : sans lui, -1e-16 s'écrit « -0.000 » et
+  // passerait pour un sommet différent de « 0.000 ».
+  const q3=v=>((Math.round(v*1000)/1000)+0).toFixed(3);
+  const key=(p,q)=>p.map(q3).join(',')+'|'+q.map(q3).join(',');
+  const fin = Math.min(to, tris.length);
+  for(let i=from;i<fin;i++){
+    const [a,b,c] = tris[i];
+    const ar = [[a,b],[b,c],[c,a]];
+    for(let e=0;e<3;e++){
+      const p=ar[e][0], q=ar[e][1];
+      const k=key(p,q), rk=key(q,p);
+      if(seen.get(rk)) seen.set(rk, seen.get(rk)-1);
+      else seen.set(k, (seen.get(k)||0)+1);
+    }
+  }
+}
+function edgeLedgerOpen(seen){
+  let open=0; seen.forEach(v=>{ if(v>0) open+=v; });
+  return open;
+}
+function meshOpenEdges(tris){
+  const seen = new Map();
+  edgeLedgerAdd(seen, tris, 0, tris.length);
+  return edgeLedgerOpen(seen);
+}
+// Angle de basculement : atan(rayon d'appui / hauteur du centre de gravité).
+function tipAngleDeg(tris, baseRadiusMm, hBottomMm){
+  const c = meshCentroid(tris);
+  const cgH = Math.max(0.1, c.z - hBottomMm);
+  return { deg: Math.atan2(baseRadiusMm, cgH)*180/Math.PI, cgHeightMm: cgH };
+}
+/* ==GEOM-CORE-END== */
+
+/* ── Editeur de profil (coupe 2D cotée) ─────────────────────────────────── */
+const pc = $('profileCanvas'), pctx = pc.getContext('2d');
+/* b = 46 et non 26 : il faut loger la reglette horizontale (trait,
+ * graduations, cotes) SOUS le dessin, sans recouvrir l'etiquette de
+ * l'axe de rotation. */
+const PAD = {l:64, r:16, t:14, b:46};
+// L'échelle de la coupe suit les bornes du TYPE de lampe : une applique (140 mm)
+// n'est pas dessinée à l'échelle d'une lampe à poser (250 mm).
+/* Axe de rotation AU CENTRE (06/08) : l'ancien axe était collé à gauche et le
+ * côté miroir sortait du canevas — on ne voyait que des chevrons tronqués dans
+ * la marge des cotes. Le rayon se lit désormais de part et d'autre de l'axe,
+ * et cliquer À GAUCHE ajoute le même point qu'à droite (|x-axe|). */
+function pAxisX(){ return PAD.l + (pc.width-PAD.l-PAD.r)/2; }
+function pDemiL(){ return (pc.width-PAD.l-PAD.r)/2; }
+function pMapX(r){ return pAxisX() + (r/bounds().maxR) * pDemiL(); }
+function pMapY(h){ return pc.height - PAD.b - (h/bounds().maxH) * (pc.height-PAD.t-PAD.b); }
+function pUnmapX(x){ return Math.min(bounds().maxR, Math.abs(x-pAxisX()) / pDemiL() * bounds().maxR); }
+function pUnmapY(y){ return Math.max(0,(pc.height-PAD.b-y) / (pc.height-PAD.t-PAD.b) * bounds().maxH); }
+
+// Pente du segment par rapport à la verticale (toujours positive) — sert à
+// décrire la forme, pas à juger l'imprimabilité.
+function segmentAngleDeg(p1,p2){
+  const dh=p2.h-p1.h, dr=p2.r-p1.r;
+  return Math.atan2(Math.abs(dr), Math.max(0.001,dh)) * 180/Math.PI;
+}
+
+/* SURPLOMB RÉEL — en FDM, seule une paroi qui S'ÉVASE en montant crée un
+ * porte-à-faux : chaque couche dépasse celle du dessous et imprime dans le vide.
+ * Une paroi qui se resserre est auto-portante, quelle que soit sa pente (c'est le
+ * précédent atelier : un abat-jour imprimé sommet en bas passe sans support).
+ * L'ancienne mesure utilisait |dr| et sanctionnait donc aussi les rétrécissements,
+ * ce qui rendait le retournement de la pièce sans effet sur le diagnostic. */
+function overhangDeg(p1,p2){
+  const dh=p2.h-p1.h, dr=p2.r-p1.r;
+  return dr <= 0 ? 0 : Math.atan2(dr, Math.max(0.001,dh)) * 180/Math.PI;
+}
+
+/* ── Palette de dessin ────────────────────────────────────────────────────
+ * La coupe 2D est un DESSIN TECHNIQUE : elle vit sur le papier, donc ses
+ * couleurs doivent suivre le thème. Elles étaient écrites en dur pour un fond
+ * noir ; au premier changement de thème elles mentaient.
+ * ⚠️ L'aperçu 3D et le rendu studio, eux, gardent leur fond propre : ce sont
+ * des PHOTOGRAPHIES, et une pièce claire sur fond clair ne se lit plus. Une
+ * photo posée sur une feuille, c'est cohérent ; un dessin sur fond noir au
+ * milieu d'une page crème, non. */
+const PAL = (()=>{ const s = getComputedStyle(document.documentElement);
+  const v = (n,d) => (s.getPropertyValue(n).trim() || d);
+  return { fond:      v('--canvas-fond', '#e9e6dd'),
+           grille:    v('--canvas-grille', 'rgba(22,22,22,.085)'),
+           grilleMaj: v('--canvas-grille-maj', 'rgba(22,22,22,.22)'),
+           texte:     v('--canvas-texte', '#6b6b63'),
+           acc:       v('--blue', '#2c4a38'),
+           trait:     v('--txt', '#161616'),
+           alerte:    v('--amber', '#8a5a12'),
+           mauvais:   v('--red', '#a33228'),
+           encreRgb:  {r:22,g:22,b:22} }; })();
+// teinte l'accent sans dupliquer sa valeur : #rrggbb -> rgba(r,g,b,a)
+const accA = a => { const h = PAL.acc.replace('#','');
+  const n = parseInt(h.length===3 ? h.split('').map(c=>c+c).join('') : h, 16);
+  return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
+
+function drawProfile(){
+  const w=pc.width,h=pc.height;
+  pctx.clearRect(0,0,w,h);
+  pctx.fillStyle=PAL.fond; pctx.fillRect(0,0,w,h);
+  const bH = bounds().maxH, axisX = pAxisX();
+  const MONO = '10px "SF Mono",ui-monospace,Menlo,monospace';
+
+  // Règle graduée : filets horizontaux discrets tous les 20 mm, graduations
+  // sur une réglette à gauche (mineure 10 mm, majeure 20 mm, cote tous les 40).
+  for(let hh=0; hh<=bH; hh+=20){
+    const y=pMapY(hh);
+    pctx.strokeStyle = (hh%40===0) ? PAL.grille : PAL.grille.replace(/[\d.]+\)$/,'.045)');
+    pctx.lineWidth=1;
+    pctx.beginPath(); pctx.moveTo(PAD.l,y); pctx.lineTo(w-PAD.r,y); pctx.stroke();
+  }
+  pctx.strokeStyle=PAL.grilleMaj; pctx.lineWidth=1;
+  pctx.beginPath(); pctx.moveTo(PAD.l-6,pMapY(0)); pctx.lineTo(PAD.l-6,pMapY(bH)); pctx.stroke();
+  for(let hh=0; hh<=bH; hh+=10){
+    const y=pMapY(hh), maj = hh%20===0;
+    pctx.strokeStyle = maj ? PAL.grilleMaj : PAL.grille;
+    pctx.beginPath(); pctx.moveTo(PAD.l-6,y); pctx.lineTo(PAD.l-6-(maj?7:4),y); pctx.stroke();
+  }
+  pctx.fillStyle=PAL.texte; pctx.font=MONO; pctx.textAlign='right';
+  for(let hh=0; hh<=bH; hh+=40){ pctx.fillText(hh+' mm', PAD.l-17, pMapY(hh)+3); }
+
+  /* REGLETTE HORIZONTALE (demande Baptiste) : le zero est SUR l'axe de
+   * rotation, et on lit le RAYON de part et d'autre.
+   * ⚠️ Elle repare une ambiguite reelle, pas un confort : les deux echelles du
+   * dessin NE SONT PAS EGALES — la verticale couvre maxH, l'horizontale maxR,
+   * rapport mesure 1,32. Une cote ne se deduit donc PAS en comparant deux
+   * longueurs a l'ecran d'un axe a l'autre, et un pied a O104 pouvait se lire
+   * O130 sur une capture. Meme convention que la reglette verticale :
+   * mineure 10 mm, majeure 20, cote tous les 40.
+   * Repartition verticale, police 10 px : trait a PAD.b-10 du bas,
+   * graduations sur 6 px, cotes 17 px sous le trait, etiquette de l'axe a 5 px
+   * du bord — sinon cotes et etiquette se chevauchent. */
+  {
+    const maxR = bounds().maxR, yR = h - PAD.b + 10;
+    pctx.strokeStyle = PAL.grilleMaj; pctx.lineWidth = 1;
+    pctx.beginPath(); pctx.moveTo(pMapX(-maxR), yR); pctx.lineTo(pMapX(maxR), yR); pctx.stroke();
+    for(let rr = 0; rr <= maxR; rr += 10){
+      const maj = rr % 20 === 0;
+      for(const s of (rr === 0 ? [0] : [-1, 1])){
+        const x = pMapX(s * rr);
+        pctx.strokeStyle = maj ? PAL.grilleMaj : PAL.grille;
+        pctx.beginPath(); pctx.moveTo(x, yR); pctx.lineTo(x, yR + (maj ? 6 : 3)); pctx.stroke();
+      }
+    }
+    pctx.fillStyle = PAL.texte; pctx.font = MONO; pctx.textAlign = 'center';
+    for(let rr = 0; rr <= maxR; rr += 40){
+      for(const s of (rr === 0 ? [0] : [-1, 1]))
+        pctx.fillText(String(rr), pMapX(s * rr), yR + 17);
+    }
+    pctx.textAlign = 'left';
+    pctx.fillText('mm', pMapX(maxR) + 6, yR + 17);
+  }
+
+  const pr = state.profile;
+  // LA FORME EN TRANSPARENCE : silhouette de révolution remplie des deux côtés
+  // de l'axe, congés compris — c'est le tracé RÉEL, la polyligne éditable reste
+  // dessinée par-dessus.
+  let forme = pr;
+  try{
+    const surf = bodySurface(state.body||0);
+    const g = (typeof isSmoothMesh==='function' && isSmoothMesh(surf)) ? (surf.congeMm||0) : 0;
+    if(g>0 || pr.some(p=>(p.conge||0)>0)) forme = appliquerConges(pr, g);
+  }catch(_){ forme = pr; }
+  if(forme.length>1){
+    const col = PAL.encreRgb;
+    pctx.beginPath();
+    forme.forEach((p,i)=>{ const x=pMapX(p.r), y=pMapY(p.h); if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y); });
+    for(let i=forme.length-1;i>=0;i--){
+      const p=forme[i]; pctx.lineTo(axisX-(pMapX(p.r)-axisX), pMapY(p.h));
+    }
+    pctx.closePath();
+    pctx.fillStyle=`rgba(${col.r},${col.g},${col.b},0.055)`;
+    pctx.fill();
+    pctx.strokeStyle=`rgba(${col.r},${col.g},${col.b},0.30)`;
+    pctx.lineWidth=1.5; pctx.stroke();
+  }
+
+  // Axe de rotation, au centre
+  pctx.strokeStyle=accA(.55); pctx.setLineDash([5,5]); pctx.lineWidth=1;
+  pctx.beginPath(); pctx.moveTo(axisX,PAD.t); pctx.lineTo(axisX,h-PAD.b+10); pctx.stroke();
+  pctx.setLineDash([]);
+  pctx.fillStyle=accA(.85); pctx.font=MONO; pctx.textAlign='center';
+  pctx.fillText('axe de rotation', axisX, h-5);
+
+  // Polyligne ÉDITABLE : trait plein à droite, miroir atténué à gauche
+  function pathSide(sign){
+    pctx.beginPath();
+    pr.forEach((p,i)=>{
+      const x = axisX + sign*(pMapX(p.r)-axisX), y=pMapY(p.h);
+      if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y);
+    });
+  }
+  pctx.lineWidth=1.5; pctx.globalAlpha=0.35;
+  pctx.strokeStyle=PAL.trait; pathSide(-1); pctx.stroke();
+  pctx.globalAlpha=1; pctx.lineWidth=2;
+  pathSide(1); pctx.stroke();
+
+  // Segments d'alerte (évasement) : des deux côtés, la droite en plus appuyé
+  for(let i=0;i<pr.length-1;i++){
+    const a=overhangDeg(pr[i],pr[i+1]);
+    const col = a>OVERHANG.HARD_DEG?PAL.mauvais:(a>OVERHANG.WARN_DEG?PAL.alerte:null);
+    if(col){
+      const x1=pMapX(pr[i].r), y1=pMapY(pr[i].h), x2=pMapX(pr[i+1].r), y2=pMapY(pr[i+1].h);
+      pctx.strokeStyle=col; pctx.lineWidth=4;
+      pctx.beginPath(); pctx.moveTo(x1,y1); pctx.lineTo(x2,y2); pctx.stroke();
+      pctx.globalAlpha=0.45; pctx.lineWidth=3;
+      pctx.beginPath(); pctx.moveTo(axisX-(x1-axisX),y1); pctx.lineTo(axisX-(x2-axisX),y2); pctx.stroke();
+      pctx.globalAlpha=1;
+    }
+  }
+
+  // Points éditables (côté droit)
+  pr.forEach((p,i)=>{
+    const x=pMapX(p.r), y=pMapY(p.h);
+    pctx.beginPath(); pctx.arc(x,y, i===state.selected?7:5,0,7);
+    pctx.fillStyle = i===state.selected ? PAL.acc : '#fbfaf6';
+    pctx.fill();
+    pctx.strokeStyle=PAL.trait, pctx.lineWidth=1.5; pctx.stroke();
+  });
+}
+
+let dragIdx=-1;
+function nearestPoint(x,y){
+  let best=-1,bd=14;
+  state.profile.forEach((p,i)=>{
+    const xr=pMapX(p.r), xl=pAxisX()-(xr-pAxisX());       // le point et son miroir
+    const dx=Math.min(Math.abs(xr-x), Math.abs(xl-x)), dy=pMapY(p.h)-y, d=Math.sqrt(dx*dx+dy*dy);
+    if(d<bd){bd=d;best=i;}
+  });
+  return best;
+}
+function canvasPos(e){
+  const rect=pc.getBoundingClientRect();
+  const sx=pc.width/rect.width, sy=pc.height/rect.height;
+  const cx = (e.touches?e.touches[0].clientX:e.clientX)-rect.left;
+  const cy = (e.touches?e.touches[0].clientY:e.clientY)-rect.top;
+  return {x:cx*sx, y:cy*sy};
+}
+pc.addEventListener('mousedown', e=>{
+  const {x,y}=canvasPos(e);
+  const idx = nearestPoint(x,y);
+  if(idx>=0){ state.selected=idx; dragIdx=idx; renderAll(); return; }
+  // add new point at clicked location if within drawing area
+  if(x>=PAD.l && x<=pc.width-PAD.r && y>=PAD.t && y<=pc.height-PAD.b){
+    const r = pUnmapX(x), h = pUnmapY(y);
+    const np = {h,r};
+    state.profile.push(np);
+    normalizeProfile();
+    state.selected = state.profile.findIndex(p=>p===np) ;
+    if(state.selected<0){ // np may have been mutated by sort ref stays same object though
+      state.selected = state.profile.indexOf(np);
+    }
+    renderAll();
+  }
+});
+window.addEventListener('mousemove', e=>{
+  if(dragIdx<0) return;
+  /* FILET : si le bouton a ete relache sans qu'on recoive le mouseup (bascule
+   * d'application en plein geste, relachement hors de la fenetre, dialogue
+   * systeme), dragIdx restait arme et le point CONTINUAIT de suivre la souris
+   * sans qu'aucun bouton soit enfonce : mesure 5,00 mm en rayon et 3,75 mm en
+   * hauteur pour un simple passage de souris. La cote changeait toute seule.
+   * e.buttons vaut 0 quand rien n'est enfonce : on referme le geste nous-memes. */
+  if(e.buttons === 0){ dragIdx=-1; normalizeProfile(); renderAll(); return; }
+  const {x,y}=canvasPos(e);
+  const p = state.profile[dragIdx];
+  /* On garde la derniere position VALIDE : plutot que d'interdire le geste, on
+   * laisse le point suivre la souris tant qu'il reste licite et on le retient
+   * des qu'il fermerait un angle. Le point colle alors a la limite au lieu de
+   * sauter, ce qui se lit comme une butee et non comme un bug. */
+  const avant = { r:p.r, h:p.h };
+  p.r = pUnmapX(x); p.h = pUnmapY(y);
+  clampPoint(p, dragIdx===socketEndIdx());
+  if(angleMiniAutour(state.profile, dragIdx) < ANGLE_MIN_DEG){ p.r = avant.r; p.h = avant.h; }
+  drawProfile(); // live drag feedback without full renumber to keep index stable
+});
+window.addEventListener('mouseup', ()=>{
+  if(dragIdx>=0){ dragIdx=-1; normalizeProfile(); renderAll(); }
+});
+// Tactile : même logique que la souris (sélection OU ajout de point) — l'ancienne
+// version renvoyait un MouseEvent sans coordonnées, donc on ne pouvait pas ajouter
+// de point au doigt.
+pc.addEventListener('touchstart', e=>{
+  e.preventDefault();
+  const {x,y}=canvasPos(e);
+  const idx=nearestPoint(x,y);
+  if(idx>=0){ state.selected=idx; dragIdx=idx; renderAll(); return; }
+  if(x>=PAD.l && x<=pc.width-PAD.r && y>=PAD.t && y<=pc.height-PAD.b){
+    const np={h:pUnmapY(y), r:pUnmapX(x)};
+    state.profile.push(np);
+    normalizeProfile();
+    state.selected=state.profile.indexOf(np);
+    renderAll();
+  }
+}, {passive:false});
+pc.addEventListener('touchmove', e=>{ e.preventDefault(); if(dragIdx<0) return;
+  const {x,y}=canvasPos(e); const p=state.profile[dragIdx];
+  const avant={r:p.r,h:p.h};                       // meme butee qu'a la souris
+  p.r=pUnmapX(x); p.h=pUnmapY(y); clampPoint(p, dragIdx===socketEndIdx());
+  if(angleMiniAutour(state.profile, dragIdx) < ANGLE_MIN_DEG){ p.r=avant.r; p.h=avant.h; }
+  drawProfile(); }, {passive:false});
+pc.addEventListener('touchend', ()=>{ if(dragIdx>=0){dragIdx=-1; normalizeProfile(); renderAll();} });
+
+$('addPoint').onclick=()=>{
+  const i=state.selected;
+  if(i<0 || i>=state.profile.length-1) return;
+  const a=state.profile[i], b=state.profile[i+1];
+  state.profile.splice(i+1, 0, { h:(a.h+b.h)/2, r:(a.r+b.r)/2 });
+  state.selected=i+1; state.seed=null;
+  normalizeProfile(); propagateProfile(); renderAll();
+};
+$('pointConge').oninput=e=>{
+  const i=state.selected;
+  if(i<=0 || i>=state.profile.length-1) return;
+  const v=parseFloat(e.target.value);
+  state.profile[i].conge = v>0 ? v : 0;
+  $('pointCongeVal').textContent = v>0 ? `R ${v.toFixed(1)} mm` : 'aucun (angle vif)';
+  renderSoon();
+};
+$('delPoint').onclick=()=>{
+  if(state.selected<0 || state.profile.length<=3) return;
+  state.profile.splice(state.selected,1);
+  state.selected=-1;
+  normalizeProfile();
+  renderAll();
+};
+
+/* ── Aperçu 3D (révolution du profil, wireframe/solide ombré) ───────────── */
+const vc = $('previewCanvas'), vctx = vc.getContext('2d');
+/* ⚠️ ON NE PASSE PLUS SOUS LA LAMPE (12/08, demande Baptiste). Le dessous
+ * d'un abat-jour est OUVERT : vu d'en bas on regarde dans un tube, on voit la
+ * couronne de fond par l'interieur et le disque noir de l'ouverture. Ce n'est
+ * pas un defaut de rendu, c'est la piece — mais ça ne se montre pas.
+ * EL_MIN a 3 degres et non 0 : a exactement 0 la camera est dans le plan de la
+ * couronne basse, qui se reduit alors a un trait et scintille. */
+/* ⚠️ SENS DE L'ELEVATION, MESURE et non suppose. En projetant le bord avant
+ * et le bord arriere de l'ouverture haute, on constate que view.el NEGATIF
+ * fait voir le DESSUS et POSITIF le DESSOUS. J'avais suppose l'inverse et pose
+ * un plancher a +3 degres : il forçait la camera SOUS la lampe, exactement le
+ * contraire de ce qui etait demande.
+ * Domaine autorise : de -80 degres (bien au-dessus) a -3 (au ras du plateau).
+ * -3 et non 0 : a zero la camera est dans le plan de la couronne basse, qui se
+ * reduit a un trait et scintille. */
+const EL_HAUT = -1.40, EL_BAS = -3 * Math.PI / 180;
+/* Vue de FACE par defaut : azimut 0, legerement au-dessus. L'ancien 0,7 rad
+ * (40 degres) presentait la lampe de trois quarts, ce qui deforme la
+ * silhouette qu'on est justement en train de dessiner. */
+/* zoom 0,80 : la piece respire dans la fenetre au lieu d'en toucher les
+ * bords. ⚠️ view.zoom ne sert QU'A l'apercu (drawPreview) : le rendu studio a
+ * son propre cadrage, il n'est pas touche. */
+const view = { az:0, el:-0.24, zoom:0.8, explode:0, spin:0 };
+function project3d(x,y,z){
+  // rotate around Y (azimuth) then tilt (elevation) — depth croissante = plus loin
+  const cx=Math.cos(view.az), sx=Math.sin(view.az);
+  let X = x*cx - z*sx, Z = x*sx + z*cx;
+  const ce=Math.cos(view.el), se=Math.sin(view.el);
+  let Y = y*ce - Z*se, Zd = y*se + Z*ce;
+  return {x:X, y:Y, depth:Zd};
+}
+
+/* ── Construction du maillage (cache) ─────────────────────────────────────
+ * Le maillage est reconstruit à chaque changement de paramètre, PAS pendant
+ * l'orbite : tourner la pièce ne fait que reprojeter les triangles en cache.
+ * ────────────────────────────────────────────────────────────────────────── */
+let MESH = { parts:[], preview:[], stats:{} };
+
+function profileTopH(prof){ const p=prof||state.profile; return p.length ? p[p.length-1].h : 0; }
+/* ⚠️ Les modules empilables, ce sont les CORPS — la liaison se fait à leur
+ * interface, pas en tranchant un corps au milieu. On ne tranche un corps que
+ * s'il est SEUL : là, c'est la seule façon de dépasser la hauteur du plateau. */
+function decoupeInterne(){
+  return state.split.on && !corpsEmpiles();
+}
+function corpsEmpiles(){
+  return state.compo.count > 1 && state.compo.layout === 'vertical';
+}
+function cutPlanesFor(prof){
+  const top = profileTopH(prof);
+  const n = decoupeInterne() ? Math.max(2, Math.min(JOINT.maxModules, state.split.count)) : 1;
+  return Array.from({length:n+1},(_,i)=> top*i/n);
+}
+function partLabel(i, n){
+  if(n===1) return 'monobloc';
+  if(i===0) return 'bas';
+  if(i===n-1) return 'haut';
+  return 'module '+(i+1);
+}
+
+/* ── Agencement des corps ─────────────────────────────────────────────────
+ * Rend, pour chaque corps actif, sa place dans l'assemblage : translation,
+ * rotation autour de l'axe vertical, et échelle. L'échelle est CUITE dans la
+ * géométrie (c'est une pièce physiquement différente) ; la translation et la
+ * rotation ne servent qu'à l'aperçu et au plan d'assemblage du dossier —
+ * chaque corps est exporté à son propre origine, prêt à poser sur le plateau.
+ * « Organique » = dispersion déterministe tirée de la graine : espacements,
+ * échelles et rotations irréguliers, mais reproductibles.
+ * ────────────────────────────────────────────────────────────────────────── */
+/* IMBRICATION (lampe à double peau) — on cherche la plus GRANDE réduction qui
+ * garde le corps intérieur entièrement dans la cavité du corps extérieur, avec
+ * le jeu demandé, sur toute la hauteur commune. On la cherche par dichotomie
+ * plutôt que de laisser l'utilisateur tâtonner au curseur : c'est une contrainte
+ * géométrique, elle a une réponse exacte.
+ * Un corps réduit de k voit sa hauteur réduite d'autant : à la cote z, son rayon
+ * vaut k·r(z/k) — c'est cette comparaison-là qu'il faut faire, pas celle des
+ * rayons maximaux.
+ * ────────────────────────────────────────────────────────────────────────── */
+function rayonProfilA(pr, h){
+  if(!pr.length) return 0;
+  if(h <= pr[0].h) return pr[0].r;
+  for(let k=0;k<pr.length-1;k++){
+    if(h <= pr[k+1].h){
+      const t=(h-pr[k].h)/Math.max(1e-6, pr[k+1].h-pr[k].h);
+      return pr[k].r + t*(pr[k+1].r-pr[k].r);
+    }
+  }
+  return pr[pr.length-1].r;
+}
+function echelleImbrication(profExt, echelleExt, profInt, jeu, wall){
+  const Hext = profExt[profExt.length-1].h * echelleExt;
+  const Hint = profInt[profInt.length-1].h;
+  const tient = (k)=>{
+    const h = Hint * k;
+    if(h > Hext) return false;                       // dépasse en hauteur
+    for(let s=0; s<=30; s++){
+      const z = h * s/30;
+      const rInt = k * rayonProfilA(profInt, (z/k));
+      const cav  = echelleExt * rayonProfilA(profExt, z/echelleExt) - wall;
+      if(rInt + jeu > cav) return false;
+      if(cav <= 0) return false;
+    }
+    return true;
+  };
+  let lo = 0.05, hi = 1.0;
+  if(tient(hi)) return hi;
+  for(let i=0;i<26;i++){
+    const mid = (lo+hi)/2;
+    if(tient(mid)) lo = mid; else hi = mid;
+  }
+  return lo;
+}
+
+function bodyPlacements(){
+  const c = state.compo, n = Math.max(1, c.count);
+  const cfg = TYPES[state.type].compo;
+  const baseFirst = !!cfg.baseFirst && n > 1 && c.layout !== 'vertical';
+  const rng = mulberry32(hashSeed('compo|'+(state.seed||'preset')+'|'+n+'|'+c.layout));
+  const out = [];
+  let stack = 0;
+  for(let i=0;i<n;i++){
+    const b = state.bodies[i] || newBody();
+    const j = c.symmetric ? 0 : (rng()*2-1);      // dispersion organique
+    const scale = (c.symmetric ? 1 : (1 + 0.22*j)) * (b.scale || 1);
+    const bodyH = profileTopH(b.profile) * scale;
+    let tx=0, ty=0, tz=0, rot=0;
+    if(c.layout === 'imbrique'){
+      // chaque corps se loge dans le précédent, à la même base
+      tx = 0; ty = 0; tz = 0;
+      if(i > 0){
+        const ext = state.bodies[i-1], pExt = out[i-1];
+        if(ext && ext.profile.length > 1 && b.profile.length > 1){
+          const k = echelleImbrication(ext.profile, pExt.scale, b.profile,
+                                       c.jeuImbricationMm, parseFloat(state.wall));
+          out.push({ tx:(b.offsetXMm||0), ty:(b.offsetYMm||0), tz:(b.offsetZMm||0),
+                     rot:(b.rotDeg||0), scale:k, bodyH: profileTopH(b.profile)*k,
+                     role:'peau '+(i+1), imbrique:true });
+          continue;
+        }
+      }
+    } else if(c.layout === 'libre'){
+      // tous les corps naissent au MÊME endroit : c'est le déplacement propre de
+      // chacun qui les sépare — ou pas, si on veut les faire se recouvrir
+      tx = 0; ty = 0; tz = 0;
+    } else if(c.layout === 'vertical'){
+      tz = stack; stack += bodyH;
+    } else if(c.layout === 'ligne'){
+      if(baseFirst && i===0){ tx=0; tz=0; }
+      else {
+        const k = baseFirst ? i-1 : i, m = baseFirst ? n-1 : n;
+        tx = (k - (m-1)/2) * c.spacingMm * (1 + 0.18*j);
+        tz = baseFirst ? profileTopH(state.bodies[0].profile) : 0;
+      }
+    } else { // circulaire
+      if(baseFirst && i===0){ tx=0; ty=0; tz=0; }
+      else {
+        const k = baseFirst ? i-1 : i, m = Math.max(1, baseFirst ? n-1 : n);
+        const a = k/m*Math.PI*2 + (c.symmetric ? 0 : 0.5*j);
+        const R = c.ringRadiusMm * (1 + 0.15*j);
+        tx = R*Math.cos(a); ty = R*Math.sin(a); rot = a*180/Math.PI;
+        tz = baseFirst ? profileTopH(state.bodies[0].profile) : 0;
+      }
+    }
+    out.push({ tx: tx + (b.offsetXMm||0), ty: ty + (b.offsetYMm||0), tz: tz + (b.offsetZMm||0),
+               rot: rot + (b.rotDeg||0), scale, bodyH,
+               role: (baseFirst && i===0) ? 'base' : (n>1 ? 'corps '+(i+1) : 'corps unique') });
+  }
+  return out;
+}
+
+// Résolution angulaire d'un corps : dépend de SON style de surface. Un motif
+// ajouré n'est jamais dégradé pour l'aperçu (les cellules tomberaient ailleurs).
+// Métriques approchées d'un corps, pour dimensionner la résolution du motif.
+function bodyMetrics(bi){
+  const b = state.bodies[bi] || state.bodies[0];
+  const pr = (b && b.profile.length) ? b.profile : [{h:0,r:50},{h:150,r:30}];
+  const rMean = pr.reduce((s,p)=>s+p.r,0)/pr.length;
+  return { rMean, H: Math.max(1, pr[pr.length-1].h - pr[0].h) };
+}
+function segFor(bi, mode){
+  const surf = bodySurface(bi);
+  const perf = isPerforated(surf);
+  if(perf){
+    const {rMean,H} = bodyMetrics(bi);
+    if(!surf.ajour){
+      // Trous fonctionnels seuls : la résolution du TOUR reste celle du style —
+      // angularGrid() ajoute ses échantillons uniquement dans la fenêtre du trou.
+      const chosenT = parseInt(($('stlSegments')||{}).value||'14',10);
+      const segT = angularSegments(surf, chosenT);
+      if(mode==='draft')   return Math.min(segT, 44);
+      return (mode==='preview') ? Math.min(segT, 76) : segT;
+    }
+    const seg = voroResolution(surf, rMean, H).segments;
+    // Depuis que le contour est découpé sur l'iso-ligne du champ, baisser la
+    // résolution de l'aperçu ne DÉPLACE plus les trous : elle ne fait qu'anguler
+    // un peu leur bord. On peut donc l'alléger sans mentir sur le fichier livré.
+    if(mode==='draft')   return Math.min(seg, 40);
+    return (mode==='preview') ? Math.min(seg, 100) : seg;
+  }
+  const chosen = parseInt(($('stlSegments')||{}).value||'14',10);
+  let seg = angularSegments(surf, chosen);
+  /* ⚠️ UNE IMAGE PASSE AVANT LE STYLE. Le style Facetté laisse le client
+   * choisir son nombre de facettes, 14 par defaut : une lithophanie y serait
+   * un tour de 14 colonnes, c'est-a-dire rien. Des qu'une image est chargee,
+   * la resolution angulaire est celle qu'exige l'image, pas celle du style.
+   * Mesure a l'origine du garde-fou : a 14 segments, l'image mesuree sur le
+   * maillage n'avait que 14 valeurs distinctes sur le tour. */
+  if(EMBOSS.on && EMBOSS.data) seg = Math.max(seg, 360);
+  // l'aperçu est plafonné pour rester fluide (invisible à cette taille) ; l'export
+  // garde la pleine résolution, et l'écart est affiché sous l'aperçu
+  if(mode==='draft')   return Math.min(seg, 36);
+  /* La PIÈCE a doublé de finesse (07/08), pas l'écran : à 288 segments la
+   * passe de qualité montait à 2,6 s, alors qu'un canevas de 640 px ne montre
+   * déjà plus les facettes au-delà de ~180. On plafonne donc l'aperçu, et
+   * l'écart aperçu/export reste affiché sous l'image, jamais caché. */
+  if(mode !== 'preview') return seg;
+
+  /* ⚠️ LE PLAFOND DOIT SUIVRE LE MOTIF, PAS ETRE UN NOMBRE EN DUR (13/08).
+   *
+   * Le plafond fixe de 152 etait un garde-fou ANTI-MOIRE. Il a fini par
+   * FABRIQUER le moire qu'il voulait eviter, des que le defaut est passe a 118
+   * nervures : 152 segments pour 118 nervures, c'est 1,29 echantillon par
+   * nervure, tres en dessous du seuil de Shannon qui en exige 2. Le repliement
+   * cree une frequence parasite de |152 - 118| = 34 ondulations sur le tour,
+   * soit ~17 sur la face avant ; l'audit en a compte 12 a l'ecran. Et comme la
+   * densite par pixel depend du rayon, le haut etroit resolvait ses nervures
+   * pendant que le ventre large restait lisse : un chapeau strie sur un tronc
+   * nu, qui ne ressemblait plus au produit vendu.
+   *
+   * On echantillonne donc a 3x le motif, soit une marge de 50 % au-dessus de
+   * Shannon. Le plafond dur reste, mais il devient une limite de PERFORMANCE
+   * assumee, plus une valeur qui decide du rendu a l'insu du motif.
+   *
+   * ⚠️ Cout accepte par Baptiste apres mesure : l'aperçu passe de 152 a 354
+   * segments pour 118 nervures, donc la passe de qualite se rallonge d'autant.
+   * Le vrai poids de la page reste le maillage d'EXPORT (708 segments,
+   * 462k triangles), lui n'a pas bouge. */
+  /* ⚠️ LEVEE DU PLAFOND : ESSAYEE, MESUREE, RETIREE (13/08).
+   *
+   * Porter le plafond a 3x le motif (354 segments pour 118 nervures) resolvait
+   * bien le moire : 3 echantillons par nervure au lieu de 1,29, nervures nettes
+   * du haut en bas. Mais l'apercu passait a 155 760 faces, que ce rasteriseur
+   * JavaScript trie et remplit une par une. Mesure sur la machine de Baptiste :
+   * passe de qualite 3,6 s puis 17,2 s, rendu studio 10,3 s, page gelee a
+   * chaque arret de souris. Retirer le sur-echantillonnage n'y a rien change :
+   * le cout est dans le NOMBRE DE FACES, pas dans les pixels.
+   *
+   * Une page qui gele 17 s est pire qu'un apercu imparfait. On revient donc au
+   * plafond fixe, et le moire reste present a l'ecran tant que le defaut est a
+   * 118 nervures. Ce n'est plus le meme enjeu depuis que le tunnel rend la
+   * VRAIE photo Blender joignable depuis le site : l'apercu n'est plus la
+   * seule image que le visiteur puisse obtenir.
+   *
+   * Les trois issues restent ouvertes et chiffrees : 48 nervures partout
+   * (l'apercu les resout deja), apercu lisse sans fausses nervures, ou
+   * rasteriseur en WebGL, pour qui 155 000 faces ne sont rien. */
+  return Math.min(seg, hasRelief(surf) ? 152 : 110);
+}
+// Pas vertical effectif : le plus fin des trois besoins (style, torsion, ajourage).
+// En mode aperçu on plafonne la finesse des styles continus — invisible sur un
+// canvas de 400 px, mais c'est ce qui garde l'orbite fluide. L'ajourage, lui,
+// n'est jamais dégradé : ses cellules tomberaient ailleurs.
+function effectiveStepMm(bi, surf, mode){
+  const b = state.bodies[bi];
+  const perf = isPerforated(surf);
+  const cand = [styleStepMm(surf), twistStepMm(b && b.sculpt)];
+  if(perf){
+    const {rMean,H} = bodyMetrics(bi);
+    if(surf.ajour) cand.push(voroResolution(surf, rMean, H).stepMm);
+  }
+  const pos = cand.filter(x=>x>0);
+  let step = pos.length ? Math.min(...pos) : 0;
+  // Finesse demandée pour la PIÈCE : anneaux resserrés d'autant (l'aperçu et
+  // l'ébauche gardent leurs planchers, imposés juste en dessous).
+  if(step > 0) step /= qualiteMaillage();
+  /* Plancher d'aperçu : la finesse des anneaux a doublé côté PIÈCE (07/08), et
+   * la reprendre telle quelle à l'écran faisait passer la passe de qualité de
+   * 0,26 s à 1,4 s — pour des anneaux déjà sous le pixel. L'aperçu garde donc
+   * son propre pas ; l'écart avec l'export est écrit sous l'image. */
+  if(mode==='preview' && step>0) step = Math.max(step, perf ? 2.4 : 1.7);
+  /* L'ébauche n'existe QUE pendant le geste : 5 mm d'anneau et 36 segments
+   * suffisent à juger la silhouette, et le budget passe sous ~6 000 triangles
+   * — mesuré : 105 ms → ~35 ms par image. La passe de qualité repasse 170 ms
+   * après le dernier geste avec la pleine résolution d'aperçu. */
+  if(mode==='draft'   && step>0) step = Math.max(step, perf ? 5.5 : 5.0);
+  /* ⚠️ MAILLAGE DE RENDU (13/08). Ce qui coute cher dans une photo distante
+   * n'est PAS le calcul, c'est le transport : mesure, 4,1 s de Blender pour
+   * 29,7 Mo de maillage a monter. On envoie donc un maillage allege.
+   *
+   * On allege la finesse VERTICALE, jamais l'angulaire : a 118 nervures il
+   * faut 6 segments par nervure, c'est exactement d'ou viennent les 708.
+   * Descendre l'angulaire casserait les nervures, alors que les anneaux, eux,
+   * sont bien plus serres que ce qu'une image de 640 px peut montrer.
+   *
+   * Le STL telecharge, le prix et les controles gardent la pleine resolution :
+   * seul ce qui part au moteur d'image est allege. */
+  if(mode==='rendu'   && step>0) step = Math.max(step, perf ? 3.0 : 2.6);
+  // Pas de forçage global pour les trous : buildPerforatedShell densifie
+  // localement le méridien autour de chacun (densifierAutourDesTrous).
+  return step;
+}
+
+/* Rayon intérieur au PIED et au SOMMET d'un corps, à son échelle d'assemblage :
+ * c'est ce qui borne le manchon commun à deux corps voisins. Le manchon doit
+ * tenir dans le plus étroit des deux, sinon il perce une paroi. */
+function interfaceRayonBas(bi, wall){
+  const b = state.bodies[bi]; if(!b || b.profile.length<2) return Infinity;
+  const pl = bodyPlacements()[bi] || {scale:1};
+  const prof = profilAvecJupe(b.profile.map(p=>({h:p.h*pl.scale, r:p.r*pl.scale})));
+  const inner = offsetMeridianInward(prof, wall).inner;
+  let m = Infinity;
+  for(let z=inner[0].h; z<=inner[0].h+12; z+=1){
+    for(let k=0;k<inner.length-1;k++){
+      if(z<=inner[k+1].h){ const d=inner[k+1].h-inner[k].h, u=d>1e-9?(z-inner[k].h)/d:0;
+        m=Math.min(m, inner[k].r+u*(inner[k+1].r-inner[k].r)); break; }
+    }
+  }
+  return m;
+}
+function interfaceRayonHaut(bi, wall){
+  const b = state.bodies[bi]; if(!b || b.profile.length<2) return Infinity;
+  const pl = bodyPlacements()[bi] || {scale:1};
+  const prof = profilAvecJupe(b.profile.map(p=>({h:p.h*pl.scale, r:p.r*pl.scale})));
+  const inner = offsetMeridianInward(prof, wall).inner;
+  const top = inner[inner.length-1].h;
+  let m = Infinity;
+  for(let z=top-12; z<=top; z+=1){
+    for(let k=0;k<inner.length-1;k++){
+      if(z<=inner[k+1].h){ const d=inner[k+1].h-inner[k].h, u=d>1e-9?(z-inner[k].h)/d:0;
+        m=Math.min(m, inner[k].r+u*(inner[k+1].r-inner[k].r)); break; }
+    }
+  }
+  return m;
+}
+
+function buildParts(segList, mode){
+  const wall = parseFloat(state.wall);
+  const places = bodyPlacements();
+  const topMin = SOCKETS[state.socket].housingMinRadiusMm;
+  const parts = [];
+  MESH.clamped = []; MESH.platine = null; MESH.socle = null; MESH.bague = null; MESH.liaisons = [];
+  places.forEach((pl, bi)=>{
+    const body = state.bodies[bi];
+    if(!body || body.profile.length < 2) return;
+    const surf = bodySurface(bi);
+    const segments = segList[bi];
+    // échelle cuite dans la géométrie
+    const prof = body.profile.map(p=>({ h:p.h*pl.scale, r:p.r*pl.scale, conge:p.conge ? p.conge*pl.scale : p.conge }));
+    if(prof[prof.length-1].r < topMin){       // le haut doit toujours loger le culot
+      MESH.clamped.push({ body:bi+1, from:+prof[prof.length-1].r.toFixed(1), to:topMin });
+      prof[prof.length-1].r = topMin;
+    }
+    let profJ = profilAvecJupe(prof, bi);
+    // le PIED : seulement la lampe à poser, et seulement le corps posé au sol
+    if(state.type === 'poser' && bi === socketEndBodyIdx()){
+      profJ = appliquerPied(profJ);
+    }
+    const surfPied = (state.type === 'poser' && bi === socketEndBodyIdx())
+      ? { ...surf, fondu: { h0: profJ[0].h, hMm: PIED.transitionMm } }
+      : surf;
+    const hRef = profileTopH(profJ);
+    const base = resampleMeridian(profJ, surfPied, effectiveStepMm(bi, surf, mode));
+    const cuts = cutPlanesFor(profJ);   // la jupe fait partie de la pièce à découper
+    const n = cuts.length-1;
+    const slices = Array.from({length:n},(_,i)=> (n===1) ? base : sliceProfile(base, cuts[i], cuts[i+1]));
+    const inners = slices.map(sp=>offsetMeridianInward(sp, wall).inner);
+    const rAt = (poly, z)=>{
+      if(z <= poly[0].h) return poly[0].r;
+      for(let k=0;k<poly.length-1;k++){
+        if(z <= poly[k+1].h){
+          const t=(z-poly[k].h)/Math.max(1e-6, poly[k+1].h-poly[k].h);
+          return poly[k].r + t*(poly[k+1].r-poly[k].r);
+        }
+      }
+      return poly[poly.length-1].r;
+    };
+    // Liaisons : le manchon est dimensionné sur le rayon intérieur MINI rencontré
+    // sur toute sa hauteur, de part et d'autre du plan de coupe — il ne peut donc
+    // jamais percer la coque, même si la paroi se resserre juste au-dessus.
+    const joints = [];
+    for(let i=0;i<n-1;i++){
+      const hCut = cuts[i+1];
+      let rMin = Infinity;
+      for(let z=hCut-12; z<=hCut+JOINT.collarHeightMm+1; z+=1){
+        rMin = Math.min(rMin, rAt(z<hCut ? inners[i] : inners[i+1], z));
+      }
+      // rayon EXTÉRIEUR de la coque à une hauteur donnée, sous le plan de coupe :
+      // c'est là que le gousset du manchon doit venir mordre.
+      const rOutAt = (z)=> rAt(inners[i], z) + wall;
+      joints.push(buildJointMeshes(rMin, hCut, segments, JOINT, body.sculpt, hRef, wall, rOutAt));
+    }
+    const meshes = slices.map(sp=>buildShellMesh(sp, wall, segments, surfPied, body.sculpt, hRef));
+    joints.forEach((J,i)=>{
+      meshes[i]   = meshes[i].concat(J.male);
+      meshes[i+1] = meshes[i+1].concat(J.female);
+    });
+    /* LIAISON ENTRE CORPS. Deux corps empilés se touchent : le manchon MÂLE
+     * coiffe le sommet du corps du bas, le FEMELLE est taraudé sous le corps
+     * du haut. Chaque corps reste imprimé à part et se visse à son voisin. */
+    if(state.split.on && corpsEmpiles()){
+      const rInt = (poly, z)=> rAt(poly, z);
+      if(bi < places.length-1){                       // mâle au sommet
+        const top = profileTopH(profJ);
+        let rMin = Infinity;
+        for(let z=top-12; z<=top; z+=1) rMin = Math.min(rMin, rInt(inners[n-1], z));
+        const rSuiv = interfaceRayonBas(bi+1, wall);
+        rMin = Math.min(rMin, rSuiv);
+        const rOutAt = (z)=> rInt(inners[n-1], Math.min(z, top)) + wall;
+        const J = buildJointMeshes(rMin, top, segments, JOINT, body.sculpt, hRef, wall, rOutAt);
+        meshes[n-1] = meshes[n-1].concat(J.male);
+        MESH.liaisons.push({ entre:[bi+1, bi+2], rMin:+rMin.toFixed(2), ...J.info });
+      }
+      if(bi > 0){                                     // femelle sous la base
+        let rMin = Infinity;
+        for(let z=0; z<=12; z+=1) rMin = Math.min(rMin, rInt(inners[0], z));
+        rMin = Math.min(rMin, interfaceRayonHaut(bi-1, wall));
+        const rOutAt = (z)=> rInt(inners[0], Math.max(0, z)) + wall;
+        const J = buildJointMeshes(rMin, 0, segments, JOINT, body.sculpt, hRef, wall, rOutAt);
+        meshes[0] = meshes[0].concat(J.female);
+      }
+    }
+    /* FUSION AVANT EXPORT. Le socle kit LED et la bague ne sont pas des pièces
+     * à part : ils s'impriment d'un seul tenant avec le corps du bas. Les
+     * laisser dans des STL séparés obligeait l'atelier à les recombiner à la
+     * main — et un client qui n'ouvre qu'un fichier imprimait une lampe sans
+     * son support. Ils vont donc dans le MÊME maillage (primitives qui se
+     * chevauchent, le trancheur fusionne). */
+    if(socleActif() && bi === socketEndBodyIdx()){
+      /* Quand la VRAIE base est chargée, on ne génère plus l'équivalent : deux
+       * planchers superposés, ce serait de la matière payée en double. La vraie
+       * pièce n'entre pas dans l'aperçu (356 632 triangles écraseraient le
+       * rendu logiciel) — elle est écrite directement dans le STL. C'est la
+       * SEULE exception à « l'aperçu montre les triangles du STL », et elle est
+       * annoncée dans l'interface. */
+      const reelle = (BASE_KIT.etat === 'ok');
+      /* ⚠️ RÉGRESSION CORRIGÉE : quand la vraie pièce se chargeait, je cessais
+       * de générer l'équivalent — l'aperçu ne montrait alors plus RIEN à
+       * l'intérieur, et sélectionner « monobloc » ne se voyait pas. L'aperçu
+       * garde donc toujours un socle à afficher ; c'est seulement à l'EXPORT
+       * que l'équivalent s'efface devant la vraie pièce d'atelier. */
+      if(reelle){
+        // « il faut juste fusionner » : la pièce d'atelier apporte tout —
+        // plancher, colonnettes, serre-câble, sortie de câble. On ne génère
+        // plus rien : ni plancher, ni colonnettes, ni trou de câble.
+        MESH.socle = { reelle:true, nTri:BASE_KIT.nTri, volMm3:BASE_KIT.volMm3 };
+        /* Coût MESURÉ de l'affichage : 1,8 s une fois (dépliage en tableaux JS,
+         * mis en cache), puis ≈40 ms par image — mon extrapolation à 1 s par
+         * image était fausse, la plupart des triangles sont cachés ou hors
+         * champ. On ne l'impose quand même pas : la pièce est DANS l'abat-jour,
+         * on ne l'aperçoit que par l'ouverture du bas. */
+        if(state.socle.montrer && mode === 'preview'){
+          meshes[0] = meshes[0].concat(trianglesBaseKit());
+        }
+      } else {
+        const S = buildSocleMeshes(bi, wall, segments, body.sculpt, hRef);
+        MESH.socle = { R:S.R, z0:S.z0, z1:S.z1, fusionne:true, reelle:false };
+        meshes[0] = meshes[0].concat(S.tris);
+      }
+    }
+    if(bagueActive() && bi === socketEndBodyIdx()){
+      chargerBaseKit();          // décodage unique, mis en cache
+      if(BASE_KIT.etat === 'ok'){
+        // LA VRAIE BAGUE V2, telle quelle — 5 596 triangles, elle tient dans
+        // l'aperçu comme dans l'export, aucune reconstruction
+        MESH.bague = { diaExtMm: BAGUE.diaExtMm, hautMm: BAGUE.hautMm, assiseMm: BAGUE.assiseMm, reelle: true, nTri: BASE_KIT.nTri, volMm3: BASE_KIT.volMm3 };
+        meshes[0] = meshes[0].concat(
+          // l'export ET le maillage de rendu recoivent la VRAIE bague V2 ;
+          // l'ecran (brouillon ET qualite) recoit le substitut ferme, cf. le
+          // commentaire de bagueProxy(). Une PHOTO doit montrer la vraie piece :
+          // c'est le substitut, envoye par erreur, qui donnerait un pied faux.
+          (mode === 'export' || mode === 'rendu') ? trianglesBaseKit() : bagueProxy(segments));
+      } else {
+        // secours si le décodage échoue : reconstruction paramétrique, avec
+        // avertissement (renderPoser) — ne pas lancer de série avec ça
+        const B = buildBagueAbatJour(segments, body.sculpt, hRef);
+        MESH.bague = { diaExtMm: BAGUE.diaExtMm, hautMm: BAGUE.hautMm, pasMm: BAGUE.pasMm, reelle: false };
+        meshes[0] = meshes[0].concat(B);
+      }
+    }
+    for(let i=0;i<n;i++){
+      const lbl = (places.length>1 ? pl.role : '') + (n>1 ? (places.length>1?' · ':'')+partLabel(i,n) : '');
+      parts.push({ tris:meshes[i], h0:cuts[i], h1:cuts[i+1], index:i, nslice:n,
+                   joint: joints[i]||null, body:bi, xf:pl, perfore:isPerforated(surf),
+                   refVolMm3:pappusShellVolMm3(slices[i], wall), label: lbl || 'monobloc' });
+    }
+    // platine du module USB : une seule, sur le corps qui porte la connexion
+    // ⚠️ Pas de platine avec la bague : le module LED se monte sur le SUPPORT
+    // d'atelier, qui porte déjà ses fixations. En générer une serait une pièce
+    // en double, payée par le client et inutile.
+    if(!socleActif() && !bagueActive() && SOCKETS[state.socket].type === 'module'
+       && state.cable.platine && bi === socketEndBodyIdx()){
+      const P = buildPlatineUSB(bi, wall, segments, body.sculpt, hRef);
+      MESH.platine = { seat:P.seat, R:P.R };
+      parts.push({ tris: P.tris, h0:P.seat.h, h1:P.seat.h+P.e,
+                   index:0, nslice:1, joint:null, body:bi, xf:pl, perfore:false,
+                   refVolMm3:0, platine:true, label:'platine USB' });
+    }
+  });
+  return parts;
+}
+
+// Place un sommet dans l'assemblage (aperçu + empreinte au sol), écartement des
+// modules empilés compris.
+function placeVertex(v, xf, extraZ){
+  const a = (xf.rot||0)*Math.PI/180, c=Math.cos(a), s=Math.sin(a);
+  return [ v[0]*c - v[1]*s + xf.tx, v[0]*s + v[1]*c + xf.ty, v[2] + xf.tz + (extraZ||0) ];
+}
+
+/* ── Lissage de l'APERÇU ──────────────────────────────────────────────────
+ * L'aperçu des reliefs (stries, losanges, organique) est maillé bien plus
+ * grossièrement que l'export (2 mm contre 0,8, 76 segments contre 200) :
+ * le motif est SOUS-ÉCHANTILLONNÉ et sort moucheté — c'est de l'aliasing,
+ * pas un défaut de la pièce. Remède demandé par Baptiste : une ou plusieurs
+ * passes de lissage AVANT l'affichage. Un lissage laplacien sur le maillage
+ * d'aperçu (jamais sur l'export) filtre exactement ce bruit-là.
+ * Les sommets sont soudés par position, la couture du tour se recolle donc
+ * d'elle-même ; la coque étant fermée, il n'y a pas de bord à préserver. */
+function lisserApercu(tris, passes){
+  if(!tris.length) return tris;
+  const cle = v => (v[0].toFixed(3)+','+v[1].toFixed(3)+','+v[2].toFixed(3));
+  const index = new Map(), pos = [];
+  const idx = new Int32Array(tris.length*3);
+  let n = 0, k = 0;
+  for(const t of tris) for(const v of t){
+    const c = cle(v);
+    let i = index.get(c);
+    if(i === undefined){ i = pos.length; index.set(c, i); pos.push([v[0], v[1], v[2]]); }
+    idx[k++] = i;
+  }
+  // adjacence par arêtes
+  const vois = Array.from({length: pos.length}, ()=>new Set());
+  for(let t=0; t<idx.length; t+=3){
+    const a=idx[t], b=idx[t+1], c=idx[t+2];
+    vois[a].add(b); vois[a].add(c);
+    vois[b].add(a); vois[b].add(c);
+    vois[c].add(a); vois[c].add(b);
+  }
+  let cur = pos;
+  for(let p=0; p<passes; p++){
+    const nxt = cur.map((v,i)=>{
+      const N = vois[i]; if(!N.size) return v;
+      let x=0,y=0,z=0;
+      for(const j of N){ x+=cur[j][0]; y+=cur[j][1]; z+=cur[j][2]; }
+      const s = N.size;
+      // 50 % soi-même / 50 % la moyenne des voisins : filtre doux, l'aperçu
+      // ne doit pas fondre, juste perdre son mouchetis
+      return [ (v[0]+x/s)/2, (v[1]+y/s)/2, (v[2]+z/s)/2 ];
+    });
+    cur = nxt;
+  }
+  const out = new Array(tris.length);
+  for(let t=0; t<tris.length; t++){
+    out[t] = [cur[idx[t*3]], cur[idx[t*3+1]], cur[idx[t*3+2]]];
+  }
+  return out;
+}
+
+function rebuildMesh(){
+  const n = Math.max(1, state.compo.count);
+  const segsExport  = Array.from({length:n},(_,i)=>segFor(i,'export'));
+  const segsPreview = Array.from({length:n},(_,i)=>segFor(i,'preview'));
+  /* ⚠️ L'aperçu réutilise le maillage d'export quand les résolutions coïncident.
+   * Mais si on demande à VOIR la pièce d'atelier, les deux diffèrent : elle est
+   * dans l'aperçu et pas dans l'export (où elle est écrite directement depuis
+   * ses tableaux typés). Il faut donc forcer une construction séparée. */
+  const montreBase = !!(state.socle && state.socle.montrer) && BASE_KIT.etat === 'ok' && socleActif();
+  /* Avec la bague V2, l'aperçu utilise une version SUBDIVISÉE de la pièce
+   * (tri du peintre) : il ne peut donc jamais partager le maillage d'export. */
+  const same = !montreBase
+    && !(bagueActive() && BASE_KIT.etat === 'ok')
+    && segsExport.every((v,i)=>v===segsPreview[i])
+    && Array.from({length:n}).every((_,i)=>effectiveStepMm(i,bodySurface(i),'export')===effectiveStepMm(i,bodySurface(i),'preview'));
+  PERF_ACC = { cells:0, kept:0 };
+  MESH.parts   = buildParts(segsExport, 'export');
+  const perfExport = { ...PERF_ACC };
+  /* ⚠️ CAUSE RACINE DES TIRETS SOMBRES AUTOUR DU PIED, trouvee le 12/08 en
+   * remontant la chaine. Quand l'export et l'apercu tombent sur le MEME nombre
+   * de segments — ce qui arrive des qu'on est en style Facette, le defaut —
+   * l'apercu n'etait pas reconstruit : il POINTAIT sur le maillage d'export.
+   * Or celui-ci contient la VRAIE bague et son filetage interne, que le tri du
+   * peintre ne sait pas ordonner derriere le pied. D'ou les tirets.
+   * Tout le travail precedent sur le nombre de segments du substitut etait donc
+   * sans effet dans ce cas : le substitut n'etait pas utilise du tout.
+   * Des qu'une bague est presente, l'apercu est donc TOUJOURS reconstruit, pour
+   * qu'il recoive le substitut ferme. Le partage de maillage reste acquis
+   * partout ailleurs, ou il ne coute rien. */
+  MESH.preview = (same && !bagueActive()) ? MESH.parts : buildParts(segsPreview, 'preview');
+  /* MAILLAGE D'ÉBAUCHE — le coût de l'aperçu est dans le CALCUL par triangle
+   * (projection, normale, tri en profondeur), pas dans le remplissage : mesuré,
+   * diviser la résolution d'affichage par 4 ne gagnait que 14 %. Le seul vrai
+   * levier est donc d'avoir MOINS DE TRIANGLES pendant le geste. On prépare une
+   * ébauche, utilisée uniquement tant qu'on tourne ou qu'on règle un curseur ;
+   * dès qu'on relâche, la passe de qualité reprend le maillage complet. */
+  /* ⚠️ Le lissage laplacien positionnel a été RETIRÉ (06/08) : il déplaçait
+   * les sommets et donc DÉFORMAIT la forme affichée — « lisse déforme trop la
+   * forme de la lampe ». Le moucheté qu'il masquait était de l'aliasing du
+   * relief : le vrai remède est plus de résolution d'aperçu (ci-dessous) et
+   * l'ombrage par normales, qui ne touche jamais aux positions. */
+  /* La base d'atelier, à l'écran seulement : ajoutée à l'APERÇU, jamais à
+   * MESH.parts — le STL téléchargé et le devis ne la voient pas. */
+  if(bagueActive()){
+    const dt = trianglesDeco();
+    if(dt.length){
+      // substitut fermé aussi en qualité — la vraie base part au rendu Blender,
+      // jamais à l'écran (cf. bagueProxy : le peintre ne sait pas trier ses
+      // nervures internes derrière le pied)
+      const deco = { tris: decoProxy(Math.max(...segsPreview)), decor:true, label:'base (visuel seulement)', body:0,
+                     xf:{tx:0,ty:0,tz:0,rot:0,scale:1}, perfore:false, socle:false,
+                     bague:false, platine:false };
+      MESH.preview = [...MESH.preview, deco];
+    }
+  }
+  const trisApercu = MESH.preview.reduce((a,p)=>a+p.tris.length,0);
+  if(trisApercu > 14000){
+    const segsDraft = Array.from({length:n},(_,i)=>segFor(i,'draft'));
+    MESH.draft = buildParts(segsDraft, 'draft');
+    if(bagueActive() && trianglesDeco().length){
+      MESH.draft = [...MESH.draft, { tris: decoProxy(Math.max(...segsDraft)), decor:true, label:'base (ébauche)',
+        body:0, xf:{tx:0,ty:0,tz:0,rot:0,scale:1}, perfore:false }];
+    }
+  } else {
+    MESH.draft = MESH.preview;
+  }
+  /* Îlots de départ : seulement pour un ajourage (une coque pleine n'en a
+   * jamais — vérifié, le témoin donne 0) et seulement sur le maillage
+   * d'export, celui qui part au trancheur. */
+  MESH.ilots = null;
+  if(Array.from({length:n}).some((_,i)=>isPerforated(bodySurface(i)))){
+    const t0 = performance.now();
+    const tous = MESH.parts.flatMap(p=>p.tris);
+    MESH.ilots = { ...analyseIlots(tous, 0.4), ms: Math.round(performance.now()-t0) };
+  }
+  const segExport = Math.max(...segsExport), segPreview = Math.max(...segsPreview);
+  const volMm3 = MESH.parts.reduce((s,p)=>s+meshVolumeMm3(p.tris), 0);
+  const tris   = MESH.parts.reduce((s,p)=>s+p.tris.length, 0);
+  /* ⚠️ EMPILEMENT (09/08) : la stabilité n'était calculée que sur le corps du
+   * BAS. Sur une lampe à modules empilés, tout ce qui est au-dessus est
+   * précisément ce qui fait monter le centre de gravité — mesuré, l'angle
+   * annonçait 34,8° de 1 à 7 modules, c'est-à-dire qu'il ne mesurait rien.
+   * Une pile est UN SEUL objet qui bascule : on prend donc tous les corps.
+   * En revanche, posés en ligne ou en couronne, les corps touchent le sol
+   * chacun de leur côté : là, chacun bascule pour son compte et on garde le
+   * plus défavorable. */
+  const empile = state.compo.count <= 1 || state.compo.layout === 'vertical';
+  const ground = empile
+    ? MESH.parts
+    : MESH.parts.filter(p=>Math.abs(p.xf.tz)<0.01 && p.index===0);
+  const groundTris = ground.flatMap(p=>p.tris);
+  /* ⚠️ Et les triangles sont en coordonnées LOCALES : chaque module part de
+   * z=0. Les passer tels quels au centre de gravité revenait à empiler sept
+   * modules… tous posés au sol. Le centre de gravité ne bougeait pas d'un
+   * millimètre (mesuré : 65 mm pour 1 module comme pour 7, sur 1,2 m de haut).
+   * On combine donc les centres de gravité PARTIE PAR PARTIE, chacun remis à
+   * sa place : c'est exact et ça coûte O(pièces) au lieu de recopier
+   * 1,3 million de triangles. Le volume d'une pièce à l'échelle e vaut e³ fois
+   * son volume local. */
+  const cgAssemblage = ()=>{
+    let sx=0, sy=0, sz=0, sv=0;
+    for(const p of ground){
+      const c = meshCentroid(p.tris);
+      if(!c.vol) continue;
+      const w = placeVertex([c.x, c.y, c.z], p.xf, 0);
+      const v = c.vol * Math.pow(p.xf.scale || 1, 3);
+      sx += w[0]*v; sy += w[1]*v; sz += w[2]*v; sv += v;
+    }
+    return sv ? {x:sx/sv, y:sy/sv, z:sz/sv} : {x:0, y:0, z:0};
+  };
+  /* ⚠️ La lampe ne repose PAS sur le pied de l'abat-jour : sous lui il y a la
+   * bague puis la base d'atelier, et c'est le dessous de CELLE-CI qui touche la
+   * table — Ø102,391 à z −5,400 (relevé sur l'assemblage P1+P2). Prendre le
+   * rayon du profil donnait un cercle d'appui de 60 mm au lieu de 51,2 et une
+   * hauteur de centre de gravité amputée de 5,4 mm : l'angle de basculement
+   * sortait 15 % trop favorable. On mesure la lampe MONTÉE, telle qu'elle est
+   * posée. La masse de la base n'est pas comptée dans le centre de gravité —
+   * l'ignorer va dans le sens prudent, elle ne ferait que l'abaisser. */
+  const surBase = bagueActive() && DECO.etat === 'ok';
+  const groundR = surBase ? BAGUE.appuiRMm
+    : (ground.length ? Math.max(...ground.map(p=>Math.hypot(p.xf.tx,p.xf.ty) + (state.bodies[p.body].profile[0].r*p.xf.scale))) : 1);
+  let tip = {deg:0, cgHeightMm:0};
+  if(groundTris.length){
+    const cg = cgAssemblage();
+    const cgH = Math.max(0.1, cg.z - (surBase ? BAGUE.solZMm : 0));
+    tip = { deg: Math.atan2(groundR, cgH)*180/Math.PI, cgHeightMm: cgH };
+  }
+  // boîte englobante de l'assemblage (cadrage de l'aperçu + empreinte)
+  let bb={minX:1e9,maxX:-1e9,minY:1e9,maxY:-1e9,minZ:1e9,maxZ:-1e9};
+  MESH.preview.forEach(p=>p.tris.forEach(t=>t.forEach(v=>{
+    const w=placeVertex(v,p.xf,0);
+    bb.minX=Math.min(bb.minX,w[0]); bb.maxX=Math.max(bb.maxX,w[0]);
+    bb.minY=Math.min(bb.minY,w[1]); bb.maxY=Math.max(bb.maxY,w[1]);
+    bb.minZ=Math.min(bb.minZ,w[2]); bb.maxZ=Math.max(bb.maxZ,w[2]);
+  })));
+  if(bb.maxX<bb.minX) bb={minX:0,maxX:1,minY:0,maxY:1,minZ:0,maxZ:1};
+  // économie de matière de l'ajourage : volume réel vs coque pleine équivalente
+  const refVol = MESH.parts.reduce((s,p)=>s+(p.refVolMm3||0), 0);
+  const perfParts = MESH.parts.filter(p=>p.perfore);
+  const perf = perfParts.length ? {
+    cells: perfExport.cells, kept: perfExport.kept, cellMm: perfExport.cellMm||0,
+    refVolMm3: refVol,
+    savedPct: refVol>0 ? Math.max(0, (1 - volMm3/refVol)*100) : 0,
+  } : null;
+  MESH.stats = { volMm3, tris, segExport, segPreview, tip, bodies:bodyPlacements().length,
+                 bbox:bb, perf, openEdges:null };
+}
+/* ── OMBRAGE LISSE (normales aux sommets) ─────────────────────────────────
+ * Le modèle est paramétrique : profil + révolution + champs de déplacement. La
+ * triangulation n'est qu'un moyen de l'AFFICHER et de l'exporter — elle ne doit
+ * pas se voir. Or en ombrage plat chaque triangle prend le ton de son propre
+ * plan : les deux triangles d'un même quad reçoivent deux tons différents, ce qui
+ * dessine un damier sur toute la surface, quelle que soit la finesse du maillage.
+ * On calcule donc une normale par SOMMET (moyenne des faces qui s'y rejoignent),
+ * exactement comme un CAO affiche une surface analytique. Un seuil d'angle
+ * préserve les arêtes vives : bords de trous, facettes assumées du mode low poly,
+ * parois de manchon.
+ * ──────────────────────────────────────────────────────────────────────── */
+function faceNormal(t){
+  const [a,b,c]=t;
+  const e1=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], e2=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+  let nx=e1[1]*e2[2]-e1[2]*e2[1], ny=e1[2]*e2[0]-e1[0]*e2[2], nz=e1[0]*e2[1]-e1[1]*e2[0];
+  const l=Math.hypot(nx,ny,nz)||1;
+  return [nx/l,ny/l,nz/l];
+}
+function smoothNormals(part, seuilDeg){
+  if(part.__vn) return part.__vn;
+  const K = v => (Math.round(v[0]*50))+','+(Math.round(v[1]*50))+','+(Math.round(v[2]*50));
+  const acc = new Map(), faces = new Array(part.tris.length);
+  part.tris.forEach((t,i)=>{
+    const n = faceNormal(t); faces[i]=n;
+    for(const v of t){
+      const k=K(v), a=acc.get(k);
+      if(a){ a[0]+=n[0]; a[1]+=n[1]; a[2]+=n[2]; } else acc.set(k,[n[0],n[1],n[2]]);
+    }
+  });
+  acc.forEach(a=>{ const l=Math.hypot(a[0],a[1],a[2])||1; a[0]/=l; a[1]/=l; a[2]/=l; });
+  const cosMin = Math.cos(seuilDeg*Math.PI/180);
+  // une normale PAR SOMMET (et non une par triangle) : c'est ce qui permet de
+  // faire varier la lumière À L'INTÉRIEUR du triangle, comme un rendu Gouraud
+  const out = part.tris.map((t,i)=>{
+    const f=faces[i];
+    return t.map(v=>{
+      const a=acc.get(K(v));
+      // trop loin du plan de la face = arête vive : on garde la normale de face
+      return (a[0]*f[0]+a[1]*f[1]+a[2]*f[2]) < cosMin ? f : a;
+    });
+  });
+  part.__vn = out;
+  part.__fn = faces;
+  return out;
+}
+
+function drawPreview(hq){
+  /* ⚠️ SUR-ECHANTILLONNAGE RENDU CONDITIONNEL (13/08). Lever le plafond de
+   * l'apercu a 354 segments a resolu le moire des 118 nervures, mais la passe
+   * de qualite est passee a 3 593 ms de fil principal GELE, mesure. Le cout
+   * n'est pas dans la geometrie (la passe rapide reste a 56 ms) : il est dans
+   * le double echantillonnage, qui quadruple le nombre de pixels a couvrir.
+   * Au-dela de ~15 000 faces la piece est deja si finement facettee que le
+   * crenelage ne se voit plus : le SS n'achete plus rien et ne coute que du
+   * gel. On le retire dans ce cas precis, jamais en dessous. */
+  const SS = (hq && (MESH.preview||[]).reduce((n,p)=>n+p.tris.length,0) < 15000) ? 2 : 1;
+  const w=vc.width*SS, h=vc.height*SS;
+  const off = hq ? document.createElement('canvas') : null;
+  if(off){ off.width=w; off.height=h; }
+  const ctx = off ? off.getContext('2d') : vctx;
+  // la passe de qualité est dessinée deux fois plus grande puis réduite : c'est
+  // ce sur-échantillonnage qui lisse les bords en escalier, sans rien changer au modèle
+  const blit = ()=>{ if(off){ vctx.clearRect(0,0,vc.width,vc.height); vctx.drawImage(off,0,0,vc.width,vc.height); } };
+  ctx.clearRect(0,0,w,h);
+  if(hq){
+    // fond de studio : dégradé vertical + halo derrière le sujet
+    const g=ctx.createLinearGradient(0,0,0,h);
+    // ⚠️ Le fond de l'apercu suit desormais le VERT de l'application, pas un
+    // noir de visionneuse 3D. Il est peint ici et non en CSS : le canvas
+    // repeint son fond a chaque image, une couleur CSS serait recouverte.
+    g.addColorStop(0,'#35553f'); g.addColorStop(1,'#22392c');
+    ctx.fillStyle=g; ctx.fillRect(0,0,w,h);
+    const pool=ctx.createRadialGradient(w/2,h*0.36,10,w/2,h*0.36,w*0.55);
+    pool.addColorStop(0,'rgba(210,230,215,.10)'); pool.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=pool; ctx.fillRect(0,0,w,h);
+  } else {
+    ctx.fillStyle='#2c4a38'; ctx.fillRect(0,0,w,h);
+  }
+  const parts = hq ? MESH.preview : (MESH.draft || MESH.preview);
+  if(!parts || !parts.length || state.profile.length<2){ blit(); return; }
+
+  const bb = MESH.stats.bbox || {minX:-50,maxX:50,minY:-50,maxY:50,minZ:0,maxZ:200};
+  const gap = view.explode * 45;                       // écartement vertical des modules
+  const spanXY = Math.max(1, Math.max(bb.maxX-bb.minX, bb.maxY-bb.minY));
+  const midZ = (bb.minZ+bb.maxZ)/2;
+  const totalH = Math.max(1, (bb.maxZ-bb.minZ) + gap*Math.max(0,parts.length-1));
+  const scale = Math.min((w-70)/(spanXY*1.15), (h-70)/totalH) * 0.94 * view.zoom;
+  const cx=w/2, cy=h*0.52;
+  const L = {x:0.35, y:0.62, z:-0.70};                 // lumière en repère vue (z<0 = vers la caméra)
+  const cols = state.bodies.map((_,i)=>hexToRgb(bodyColor(i)));
+
+  const faces=[];
+  parts.forEach((part,pi)=>{
+    const dz = gap*pi;
+    const rotA = (part.xf.rot||0)*Math.PI/180, rc=Math.cos(rotA), rs=Math.sin(rotA);
+    // low poly assumé = ombrage plat ; tout le reste = normales lissées
+    const lisse = isSmoothMesh(bodySurface(part.body||0));
+    /* Seuil d'arête vive : le test compare la normale MOYENNÉE à celle de la
+     * face, donc le seuil vaut la MOITIÉ du pli conservé — 42° ne garde net
+     * qu'un pli de plus de 84°, et les sillons d'un martelage (mesurés : 10°
+     * de pli médian entre facettes voisines) partaient en bouillie. Sur une
+     * surface martelée on descend à 3,5° : le pas du maillage (2,5° entre
+     * segments, soit 1,25° au test) reste lissé, mais les sillons tranchent.
+     * C'est ce qui fait lire des facettes plates au lieu de bosses molles. */
+    const VN = lisse ? smoothNormals(part, bodySurface(part.body||0).martele ? 3.5 : 42) : null;
+    const FN = VN ? part.__fn : null;
+    // éclairement d'une normale, dans le repère de la vue
+    const ecl = (nx,ny,nz)=>{
+      const rnx = nx*rc - ny*rs, rny = nx*rs + ny*rc;
+      const rn = project3d(rnx, nz, rny);
+      const d = rn.x*L.x + rn.y*L.y + rn.depth*L.z;
+      // plage volontairement plus large que 0-1 : c'est la courbe filmique qui
+      // ramène le haut, au lieu de couper net à blanc
+      return { depth: rn.depth, shade: Math.max(0.20, 0.20 + 1.05*Math.max(0,d)),
+               n: {x:rn.x, y:rn.y, z:rn.depth} };
+    };
+    part.tris.forEach((tri, ti)=>{
+      const [a,b,c] = tri;
+      let fn;
+      if(FN){ fn = FN[ti]; }
+      else {
+        const e1=[b[0]-a[0], b[1]-a[1], b[2]-a[2]];
+        const e2=[c[0]-a[0], c[1]-a[1], c[2]-a[2]];
+        let nx=e1[1]*e2[2]-e1[2]*e2[1], ny=e1[2]*e2[0]-e1[0]*e2[2], nz=e1[0]*e2[1]-e1[1]*e2[0];
+        const nl=Math.hypot(nx,ny,nz)||1; fn=[nx/nl,ny/nl,nz/nl];
+      }
+      const face = ecl(fn[0],fn[1],fn[2]);
+      if(face.depth >= 0) return;                      // face de dos : jamais dessinée
+      const P = [a,b,c].map(v=>{
+        const wv = placeVertex(v, part.xf, dz);
+        const p = project3d(wv[0], wv[2]-midZ, wv[1]);
+        return {sx: cx+p.x*scale, sy: cy-p.y*scale, depth:p.depth};
+      });
+      let sh = face.shade, sh3 = null, nv3 = null;
+      if(VN){
+        const v = VN[ti];
+        const e0=ecl(v[0][0],v[0][1],v[0][2]), e1=ecl(v[1][0],v[1][1],v[1][2]), e2=ecl(v[2][0],v[2][1],v[2][2]);
+        const s0=e0.shade, s1=e1.shade, s2=e2.shade;
+        nv3=[e0.n,e1.n,e2.n];
+        sh = (s0+s1+s2)/3;
+        // dégradé seulement là où l'écart se VOIT : ailleurs un aplat suffit et
+        // coûte dix fois moins cher
+        if(Math.max(s0,s1,s2) - Math.min(s0,s1,s2) > 0.05) sh3 = [s0,s1,s2];
+      }
+      faces.push({P, depth:(P[0].depth+P[1].depth+P[2].depth)/3, shade:sh, sh3, nv3, nv:face.n, pi,
+                  body:part.body||0, tint:(part.body||0)+part.index});
+    });
+  });
+  faces.sort((f1,f2)=>f2.depth-f1.depth);
+
+  if(hq && faces.length){
+    // sol + ombre de contact : c'est ce qui pose l'objet au lieu de le laisser flotter
+    let bas=0, gx=0, n=0;
+    faces.forEach(f=>f.P.forEach(P=>{ if(P.sy>bas) bas=P.sy; gx+=P.sx; n++; }));
+    const cxo=gx/n, gy=Math.min(h-6*SS, bas);
+    /* ⚠️ SOL RETIRE (14/08, demande Baptiste : « un bandeau blanchatre apparait
+     * sur le bas, enleve-le »). Ce degrade clair traversait toute la largeur
+     * sous la piece pour figurer un sol ; sur le fond vert de cette fenetre il
+     * ne se lit pas comme un sol mais comme une BANDE en travers de l'image.
+     * L'ombre de contact ci-dessous est CONSERVEE : c'est elle qui pose
+     * l'objet, sans elle la piece flotterait. */
+    const rr=Math.max(40*SS, (w*0.22));
+    const sh=ctx.createRadialGradient(cxo,gy,4,cxo,gy,rr);
+    sh.addColorStop(0,'rgba(0,0,0,.60)'); sh.addColorStop(0.55,'rgba(0,0,0,.20)'); sh.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.save(); ctx.translate(cxo,gy); ctx.scale(1,0.18); ctx.translate(-cxo,-gy);
+    ctx.fillStyle=sh; ctx.beginPath(); ctx.arc(cxo,gy,rr,0,7); ctx.fill(); ctx.restore();
+  }
+
+  faces.forEach(f=>{
+    const col = cols[f.body] || cols[0];
+    const k = (f.tint%2 ? 0.93 : 1);                   // corps et modules discernables
+    const s = f.shade * k;
+    const teinte = hq
+      ? (v,n)=> shadeFace(n || f.nv, col, FINISHES[RENDER.finish], RENDER.lit, APERCU_CONTRASTE)
+      : (v)=> `rgb(${tonemap(col.r*v)},${tonemap(col.g*v)},${tonemap(col.b*v)})`;
+    let fill = teinte(s, f.nv);
+    if(f.sh3){
+      // Dégradé linéaire entre le sommet le plus sombre et le plus clair :
+      // approximation d'un ombrage Gouraud, ce qui efface la limite entre deux
+      // triangles voisins — c'est elle qui donnait l'aspect « facetté ».
+      let iMin=0,iMax=0;
+      for(let i=1;i<3;i++){ if(f.sh3[i]<f.sh3[iMin]) iMin=i; if(f.sh3[i]>f.sh3[iMax]) iMax=i; }
+      const g = ctx.createLinearGradient(f.P[iMin].sx, f.P[iMin].sy, f.P[iMax].sx, f.P[iMax].sy);
+      g.addColorStop(0, teinte(f.sh3[iMin]*k, f.nv3 && f.nv3[iMin]));
+      g.addColorStop(1, teinte(f.sh3[iMax]*k, f.nv3 && f.nv3[iMax]));
+      fill = g;
+    }
+    ctx.beginPath();
+    ctx.moveTo(f.P[0].sx,f.P[0].sy); ctx.lineTo(f.P[1].sx,f.P[1].sy); ctx.lineTo(f.P[2].sx,f.P[2].sy);
+    ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    ctx.strokeStyle = fill; ctx.lineWidth = SS; ctx.stroke();   // supprime les coutures d'anticrénelage
+  });
+
+  /* Mention incrustee RETIREE (12/08, demande Baptiste). Elle empietait sur la
+   * piece et repetait ce que le bandeau de cotes dit deja proprement. */
+  blit();
+}
+/* RAFFINEMENT PROGRESSIF — pendant qu'on tourne ou qu'on règle un curseur, on
+ * dessine la passe rapide (aplats, pas de sur-échantillonnage) pour rester
+ * fluide ; 170 ms après le dernier geste, la passe de qualité repasse par-dessus
+ * avec l'éclairage 3 points, le spéculaire, le sol et le double échantillonnage.
+ * Aucun changement de géométrie : c'est le MÊME maillage, mieux éclairé. */
+let hqTimer=null;
+function apercuProgressif(){
+  drawPreview(false);
+  clearTimeout(hqTimer);
+  hqTimer = setTimeout(()=>{ if(!view.spin) drawPreview(true); }, 170);
+}
+
+function hexToRgb(hex){
+  const v=parseInt(hex.slice(1),16);
+  return {r:(v>>16)&255, g:(v>>8)&255, b:v&255};
+}
+
+/* ── Orbite complète : azimut + élévation + zoom molette + rotation auto ── */
+let rotDrag=false, lastX=0, lastY=0;
+function syncViewInputs(){
+  const e=$('vElev'), z=$('vZoom');
+  if(e) e.value = Math.round(-view.el*180/Math.PI);   // le curseur compte vers le HAUT
+  if(z) z.value = Math.round(view.zoom*100);
+}
+vc.addEventListener('mousedown', e=>{ rotDrag=true; lastX=e.clientX; lastY=e.clientY;
+  document.body.classList.add('tourne'); e.preventDefault(); });
+window.addEventListener('mousemove', e=>{
+  if(!rotDrag) return;
+  /* Meme filet que dans l'editeur de profil : sans lui, un mouseup perdu
+   * laissait la piece tourner au simple passage de la souris (mesure : 1,6 rad
+   * de derive, soit 92°, pour un deplacement sans bouton). */
+  if(e.buttons === 0){ rotDrag=false; apercuProgressif(); return; }
+  view.az += (e.clientX-lastX)*0.01;
+  /* signe NEGATIF (14/08, Baptiste) : descendre la souris faisait passer la
+   * camera sous la piece, ce qui se lit a l'envers du geste attendu. */
+  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el - (e.clientY-lastY)*0.008));
+  lastX=e.clientX; lastY=e.clientY;
+  syncViewInputs(); apercuProgressif();
+});
+/* ⚠️ L'ORBITE NE DECLENCHE PLUS DE RENDU (12/08, demande Baptiste : « il ne
+ * doit pas y avoir le rendu si la souris s'arrete, juste la visualisation 3D »).
+ * C'est aussi devenu SANS OBJET : depuis que la photo se prend en camera fixe,
+ * tourner l'apercu ne change plus rien a l'image studio. On relancait donc un
+ * calcul de plusieurs secondes pour reproduire exactement la meme photo.
+ * Cette fenetre est un visualiseur : on la manipule, elle ne coute rien. */
+window.addEventListener('mouseup', ()=>{ document.body.classList.remove('tourne');
+  if(rotDrag){ rotDrag=false; apercuProgressif(); } });
+// Le zoom se règle UNIQUEMENT au curseur (#vZoom) : pas de molette, pas de
+// pincement à deux doigts — sur trackpad le pincement déclenchait un zoom
+// parasite pendant qu'on essayait simplement de faire défiler la page.
+vc.addEventListener('touchstart', e=>{ rotDrag=true; lastX=e.touches[0].clientX; lastY=e.touches[0].clientY; }, {passive:true});
+// au doigt il n'y a pas de curseur : la classe ne sert qu'a la souris
+vc.addEventListener('touchmove', e=>{
+  if(!rotDrag) return;
+  view.az += (e.touches[0].clientX-lastX)*0.01;
+  // meme sens qu'a la souris : c'est le meme geste
+  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el - (e.touches[0].clientY-lastY)*0.008));
+  lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
+  syncViewInputs(); apercuProgressif();
+}, {passive:true});
+window.addEventListener('touchend', ()=>{ if(rotDrag){ rotDrag=false; apercuProgressif(); } });
+
+/* ════════════════════════════════════════════════════════════════════════
+ * RENDU STUDIO — « photo produit » calculée en local, hors ligne.
+ * Même maillage que le STL : rien n'est embelli côté géométrie, seul
+ * l'éclairage change. Éclairage 3 points + spéculaire Blinn-Phong + Fresnel,
+ * ombre de contact, reflet au sol. Aucune dépendance, aucune donnée envoyée.
+ * ════════════════════════════════════════════════════════════════════════ */
+const FINISHES = {
+  mat:         { label:'Mat (PLA brut)',      spec:0.05, shin:6,  fres:0.20, trans:0.00 },
+  satine:      { label:'Satiné',              spec:0.20, shin:22, fres:0.42, trans:0.00 },
+  brillant:    { label:'Brillant (verni)',    spec:0.55, shin:75, fres:0.70, trans:0.00 },
+  translucide: { label:'Translucide diffusant', spec:0.16, shin:26, fres:0.50, trans:0.75 },
+};
+const BACKDROPS = {
+  /* PAPIER : la piece SEULE sur le fond creme de la page, sans faux sol ni
+   * faux reflet. C'est la scene du rendu live : elle doit pouvoir s'afficher
+   * partout, y compris sur le site public ou Blender n'existe pas. Un decor
+   * imite mal fait est ce qui faisait juger l'apercu « pas le bon rendu » ;
+   * sans decor, il ne reste que la geometrie, qui est exacte. */
+  papier: { label:'Papier', top:'#efede6', bot:'#efede6', floor:'#efede6', pool:'rgba(0,0,0,0)', dark:false, nu:true },
+  jour:   { label:'Pièce de jour', top:'#eceaec', bot:'#d8d5d1', floor:'#b98b5a', pool:'rgba(255,255,255,.45)', dark:false, piece:true },
+  studio: { label:'Studio sombre', top:'#17171a', bot:'#050506', floor:'#0a0a0c', pool:'rgba(255,255,255,.09)', dark:true },
+  clair:  { label:'Studio clair',  top:'#f4f4f6', bot:'#dcdce1', floor:'#e8e8ec', pool:'rgba(255,255,255,.85)', dark:false },
+  chaud:  { label:'Ambiance chaude', top:'#2b1d14', bot:'#0c0806', floor:'#150e09', pool:'rgba(255,186,110,.16)', dark:true },
+};
+/* Défauts alignés sur la photo de référence de Baptiste (05/08) : une pièce
+ * de jour, lampe ÉTEINTE, matière mate — pas le plateau sombre à halo chaud
+ * qui « ne correspond pas à la demande ». */
+/* ⚠️ `lit` EST LA SEULE VERITE. Au chargement, TROIS sources se
+ * contredisaient : cet objet disait « allumee », le bouton segmente portait la
+ * classe `on` sur « eteinte », et la case #rLit etait `checked`. Le premier
+ * rendu suivait l'objet, l'interface montrait le contraire. Le markup ne porte
+ * plus d'etat : il est SYNCHRONISE depuis ici au demarrage (voir syncLit).
+ * Eteinte par defaut, demande de Baptiste : au redemarrage, bouton eteint ET
+ * rendu eteint. */
+/* ⚠️ LA FINITION DU RENDU DOIT SUIVRE LA MATIERE (13/08, « le rendu ne
+ * fonctionne pas »). Le defaut etait 'mat', dont la transparence vaut 0, alors
+ * que la matiere par defaut est PLA_T, translucide. Le moteur dessinait donc
+ * une piece OPAQUE : teinte mesuree (183,181,177) sur fond papier (239,237,230),
+ * du gris, pour un produit vendu et CHIFFRE comme translucide diffusant. Rien
+ * ne reliait `state.material` a `RENDER.finish` : deux sources de verite qui se
+ * contredisaient, exactement comme les trois desynchronisations du matin.
+ * `choisie` retient un choix EXPLICITE du client : tant qu'il n'a pas touche au
+ * selecteur, la finition suit la matiere ; des qu'il l'a fait, on ne la lui
+ * reprend plus. */
+const FINITION_DE_MATIERE = { PLA_T:'translucide', PLA:'mat', PETG:'satine' };
+const RENDER = { finish:'translucide', bg:'papier', lit:false, base:'blanc',
+                 choisie:false, lastURL:null, ms:0 };
+/* La finition TRANSPARENTE est retiree (13/08, Baptiste : « il ne doit pas y
+ * avoir cette base grise brillante »). Mesuree, elle sortait a 188 quand
+ * l'abat-jour est a 222 : une rondelle grise et reflechissante, exactement
+ * ce qu'il ne veut pas. Restent trois finitions assumees. */
+const BASE_FINITIONS = ['blanc','noir','bois'];
+
+/* Pose la finition depuis la matiere. Retourne true si elle a change, pour que
+ * l'appelant sache s'il doit relancer un rendu. */
+function finitionSuitMatiere(){
+  if(RENDER.choisie) return false;
+  const voulue = FINITION_DE_MATIERE[state.material] || 'mat';
+  if(RENDER.finish === voulue) return false;
+  RENDER.finish = voulue;
+  return true;
+}
+
+/* Applique RENDER.lit aux DEUX commandes. Appelee au demarrage et a chaque
+ * bascule : deux commandes pour un seul etat ne peuvent plus diverger. */
+function syncLit(){
+  document.querySelectorAll('#litSeg button').forEach(x=>
+    x.classList.toggle('on', (x.dataset.lit === '1') === RENDER.lit));
+  const rl = document.getElementById('rLit');
+  if(rl) rl.checked = RENDER.lit;
+}
+
+// Faces projetées à une résolution arbitraire (indépendant de l'aperçu live).
+function sceneFaces(W, H){
+  /* L'aperçu LISSÉ, pas le maillage d'export : sur un relief fin, l'export à
+   * pleine résolution crée un moiré à l'écran (sous-échantillonnage pixel).
+   * Le fichier livré reste l'export — seule l'image utilise le maillage doux. */
+  const parts = (MESH.preview && MESH.preview.length) ? MESH.preview : MESH.parts;
+  const bb = MESH.stats.bbox || {minX:-50,maxX:50,minY:-50,maxY:50,minZ:0,maxZ:200};
+  const spanXY = Math.max(1, Math.max(bb.maxX-bb.minX, bb.maxY-bb.minY));
+  const totalH = Math.max(1, bb.maxZ-bb.minZ);
+  /* ⚠️ CADRAGE : la lampe occupait 72 % de la hauteur, centrée à 60 % — son
+   * pied tombait donc à 96 % de l'image et le plateau n'existait plus qu'en
+   * une bande de quelques pixels. Un objet posé sur RIEN ne lit pas comme une
+   * photo. On lui laisse de l'air : 62 % de la hauteur, centrée à 52 %, ce qui
+   * dégage ~19 % de table sous elle et autant de mur au-dessus. */
+  const scale = Math.min((W*0.78)/spanXY, (H*0.62)/totalH);
+  const cx = W/2, cy = H*0.52, midZ = (bb.minZ+bb.maxZ)/2;
+  const faces = [];
+  let groundY = -1e9, footR = 0;
+  parts.forEach(part=>{
+    const a2=(part.xf.rot||0)*Math.PI/180, rc=Math.cos(a2), rs=Math.sin(a2);
+    for(const [a,b,c] of part.tris){
+      const e1=[b[0]-a[0],b[1]-a[1],b[2]-a[2]], e2=[c[0]-a[0],c[1]-a[1],c[2]-a[2]];
+      let nx=e1[1]*e2[2]-e1[2]*e2[1], ny=e1[2]*e2[0]-e1[0]*e2[2], nz=e1[0]*e2[1]-e1[1]*e2[0];
+      const nl=Math.hypot(nx,ny,nz)||1; nx/=nl; ny/=nl; nz/=nl;
+      const rnx=nx*rc-ny*rs, rny=nx*rs+ny*rc;
+      const N = project3d(rnx, nz, rny);
+      if(N.depth >= 0) continue;
+      const P=[a,b,c].map(v=>{
+        const w=placeVertex(v, part.xf, 0);
+        const p=project3d(w[0], w[2]-midZ, w[1]);
+        const sy=cy-p.y*scale;
+        if(sy>groundY) groundY=sy;
+        footR=Math.max(footR, Math.hypot(w[0],w[1])*scale);
+        return {sx:cx+p.x*scale, sy, depth:p.depth};
+      });
+      faces.push({P, n:{x:N.x,y:N.y,z:N.depth}, depth:(P[0].depth+P[1].depth+P[2].depth)/3, body:part.body||0});
+    }
+  });
+  faces.sort((f1,f2)=>f2.depth-f1.depth);
+  /* On RECALE la ligne de sol à 80 % de la hauteur, au lieu d'espérer qu'elle
+   * y tombe. La projection est en perspective : le point le plus bas ne se
+   * déduit pas de la boîte englobante, il faut l'avoir projeté pour le savoir.
+   * Un décalage vertical après coup coûte une passe et garantit le même
+   * cadrage pour toutes les formes — la table est toujours là, la lampe est
+   * toujours posée. */
+  const cible = H*0.80, dy = cible - groundY;
+  if(isFinite(dy) && Math.abs(dy) > 0.5){
+    for(const f of faces) for(const p of f.P) p.sy += dy;
+    groundY = cible;
+  }
+  return {faces, cx, cy:cy+dy, groundY, footR, scale};
+}
+
+/* COMPRESSION DES HAUTES LUMIÈRES (tone mapping filmique).
+ * Les trois sources, le spéculaire, le Fresnel et l'émissif s'additionnent : la
+ * somme dépasse largement le maximum affichable. Écrêter à 255 transformait
+ * 37,8 % des pixels en blanc pur — toute la forme s'y perdait, c'est le « cramé ».
+ * Cette courbe écrase progressivement le haut de la plage au lieu de la couper :
+ * les hautes lumières gardent leur modelé, les ombres respirent. */
+function tonemap(v){
+  const x = Math.max(0, v)/255;
+  const y = (x*(2.51*x + 0.03))/(x*(2.43*x + 0.59) + 0.14);
+  return Math.max(0, Math.min(255, Math.round(y*255)));
+}
+
+/* Contraste de la fenetre 3D. 1 = formule d'origine. Au-dessus, les ombres
+ * descendent et la face eclairee ne bouge pas. Ne s'applique qu'a
+ * drawPreview : le rendu studio garde sa colorimetrie. */
+/* 1,70 et non 1,45 : mesure sur la courbe d'eclairement, l'ecart entre
+ * l'ombre et la lumiere ne faisait que 26,9 niveaux a 1,00 (d'ou l'aspect
+ * plat), 49,6 a 1,45 et 70,4 a 1,70. Baptiste trouvait les ombres trop
+ * claires : 1,45 restait timide, l'ombre y tombait a 165 seulement. */
+const APERCU_CONTRASTE = 1.70;
+
+function shadeFace(n, base, fin, lit, contraste){
+  // repère vue : la caméra regarde vers +depth décroissant, V = (0,0,-1)
+  const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
+  const KEY={x:0.42,y:0.72,z:-0.55}, FILL={x:-0.65,y:0.12,z:-0.40}, RIM={x:-0.15,y:0.35,z:0.90};
+  const nk=1/Math.hypot(KEY.x,KEY.y,KEY.z), nf=1/Math.hypot(FILL.x,FILL.y,FILL.z), nr=1/Math.hypot(RIM.x,RIM.y,RIM.z);
+  const dK=Math.max(0, dot(n,{x:KEY.x*nk,y:KEY.y*nk,z:KEY.z*nk}));
+  const dF=Math.max(0, dot(n,{x:FILL.x*nf,y:FILL.y*nf,z:FILL.z*nf}));
+  const dR=Math.max(0, dot(n,{x:RIM.x*nr,y:RIM.y*nr,z:RIM.z*nr}));
+  /* ⚠️ TRANSLUCIDITE DANS L'ECLAIREMENT, pas seulement dans le halo (13/08,
+   * « le rendu ne fonctionne pas »). `fin.trans` n'entrait que dans `glow`, et
+   * `glow` n'entrait que lampe ALLUMEE : une coque de 1,8 mm que la lumiere
+   * traverse etait donc eclairee comme un bloc opaque des qu'elle etait eteinte.
+   * Mesure : teinte moyenne 183 pour une matiere a 232, soit 21 % trop sombre,
+   * et la piece se lisait GRISE alors qu'elle est blanche sur toutes les photos
+   * Blender du site.
+   *
+   * Correctif physique et non cosmetique : la lumiere ENROULE autour d'un corps
+   * diffusant, elle ne s'arrete pas au terminateur. On remonte donc le plancher
+   * et on adoucit la chute, en baissant d'autant les poids directs pour ne pas
+   * cramer la face eclairee.
+   *
+   * A trans = 0 la formule redonne EXACTEMENT l'ancienne (w = 0, enroule(d) = d) :
+   * le PLA opaque et le PETG ne bougent pas d'un pixel. */
+  const t = fin.trans;                        // 0 = opaque · 0,75 = PLA diffusant
+  const w = 0.85 * t;
+  const enroule = d => (d + w) / (1 + w);
+  let lum = (0.16 + 0.34*t)
+            + (1.00 - 0.42*t) * enroule(dK)
+            + (0.32 - 0.10*t) * enroule(dF);
+  /* Contraste : on ancre le MAXIMUM et on tire le reste vers le bas. Les
+   * ombres foncent, la face eclairee garde exactement sa valeur. */
+  if(contraste && contraste !== 1){
+    const lumMax = (0.16 + 0.34*t) + (1.00 - 0.42*t) + (0.32 - 0.10*t);
+    lum = Math.max(0, lumMax - (lumMax - lum) * contraste);
+  }
+  // spéculaire Blinn-Phong (vecteur médian entre lumière et caméra)
+  const Hv={x:KEY.x*nk+0, y:KEY.y*nk+0, z:KEY.z*nk-1};
+  const hl=1/Math.hypot(Hv.x,Hv.y,Hv.z);
+  const spec = fin.spec*Math.pow(Math.max(0, dot(n,{x:Hv.x*hl,y:Hv.y*hl,z:Hv.z*hl})), fin.shin);
+  const fres = fin.fres*Math.pow(1-Math.min(1,Math.abs(n.z)), 3);
+  // contre-jour + émissif quand la lampe est allumée (chaud, en périphérie)
+  const glow = lit ? (0.35*dR + fin.trans*0.55*Math.pow(1-Math.min(1,Math.abs(n.z)),1.6)) : 0.22*dR;
+  const r = base.r*lum + 255*spec + 235*fres*0.5 + 255*glow*0.55;
+  const g = base.g*lum + 255*spec + 240*fres*0.5 + 205*glow*0.55;
+  const b = base.b*lum + 255*spec + 255*fres*0.5 + 150*glow*0.55;
+  return `rgb(${tonemap(r)},${tonemap(g)},${tonemap(b)})`;
+}
+
+function renderStudio(){
+  const cv=$('renderCanvas'), ctx=cv.getContext('2d');
+  const W=cv.width, H=cv.height;
+  const t0=performance.now();
+  const bg=BACKDROPS[RENDER.bg], fin=FINISHES[RENDER.finish];
+  /* ⚠️ CAMERA FIXE, comme pour le rendu Blender. sceneFaces projette avec
+   * `view`, c'est-a-dire l'ORBITE de l'apercu 3D : faire tourner la coque
+   * basculait la photo avec elle, jusqu'a la regarder PAR EN DESSOUS (on
+   * voyait le disque noir du fond ouvert). Une photo de catalogue se prend
+   * d'un point de vue arrete ; c'est l'objet qui change, pas l'objectif.
+   * On pose donc l'orbite le temps de la projection, et on la rend ensuite
+   * intacte a l'apercu 3D, qui doit rester manipulable. */
+  const orbite = { az: view.az, el: view.el };
+  view.az = RENDU_CAM.vue * Math.PI / 180;
+  /* ⚠️ SIGNE. RENDU_CAM.hauteurVue est exprimee dans la convention de BLENDER
+   * (positif = au-dessus) parce qu'elle part aussi au moteur telle quelle.
+   * La projection du navigateur, elle, compte a l'ENVERS : negatif = au-dessus
+   * (mesure en projetant l'ouverture haute). Sans ce signe, l'apercu se prenait
+   * SOUS la lampe et montrait le disque noir du fond ouvert — la meme erreur
+   * que sur l'orbite, a un endroit que je n'avais pas repris. */
+  view.el = -RENDU_CAM.hauteurVue * Math.PI / 180;
+  let faces, cx, groundY, footR;
+  try { ({faces, cx, groundY, footR} = sceneFaces(W,H)); }
+  finally { view.az = orbite.az; view.el = orbite.el; }
+
+  const gy=Math.min(H-8, groundY);
+  if(bg.piece){
+    /* SCÈNE DE PIÈCE — c'est le SEUL rendu que verront les visiteurs du site
+     * public : une page en HTTPS ne peut pas appeler le moteur Blender local.
+     * Un dégradé gris ne vend pas une lampe. On peint donc ce que montre la
+     * photo de référence : mur sombre et chaud, plateau de bois veiné, lumière
+     * de fenêtre. Tout est du dessin 2D — aucun coût, aucune dépendance. */
+    const mur = ctx.createLinearGradient(0,0,0,gy);
+    mur.addColorStop(0,'#31343a'); mur.addColorStop(0.72,'#40403f'); mur.addColorStop(1,'#4c4640');
+    ctx.fillStyle=mur; ctx.fillRect(0,0,W,gy);
+    const halo = ctx.createRadialGradient(W*0.30, gy*0.20, 10, W*0.30, gy*0.20, W*0.66);
+    halo.addColorStop(0,'rgba(255,238,208,.20)'); halo.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=halo; ctx.fillRect(0,0,W,gy);
+
+    const bois = ctx.createLinearGradient(0,gy,0,H);
+    bois.addColorStop(0,'#7d5228'); bois.addColorStop(0.30,'#a87340'); bois.addColorStop(1,'#63401d');
+    ctx.fillStyle=bois; ctx.fillRect(0,gy,W,H-gy);
+    /* Veines : l'écartement CROÎT vers le bas — c'est la perspective d'un
+     * plateau vu de trois quarts. Des lignes régulières auraient lu « rayures ».
+     * Motif déterministe : la même lampe donne toujours la même image. */
+    ctx.save(); ctx.beginPath(); ctx.rect(0,gy,W,H-gy); ctx.clip();
+    let y = gy + 1.5, pas = Math.max(1.2, (H-gy)/90);
+    for(let i=0; y < H; i++){
+      ctx.globalAlpha = 0.05 + 0.10*(((i*37)%11)/11);
+      ctx.strokeStyle = (i%3===0) ? '#4e2f13' : '#c58f55';
+      ctx.lineWidth = Math.max(0.8, pas*0.30);
+      ctx.beginPath(); ctx.moveTo(0,y+((i*53)%7)*0.12); ctx.lineTo(W,y-((i*29)%5)*0.12); ctx.stroke();
+      pas *= 1.055; y += pas;
+    }
+    ctx.globalAlpha=1; ctx.restore();
+    // lumière rasante sur le plateau, du même côté que le halo
+    const lum = ctx.createRadialGradient(W*0.34, gy+(H-gy)*0.30, 8, W*0.34, gy+(H-gy)*0.30, W*0.55);
+    lum.addColorStop(0,'rgba(255,225,180,.16)'); lum.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=lum; ctx.fillRect(0,gy,W,H-gy);
+  } else if(bg.nu){
+    // fond PLAT : rien d'autre que le papier. Pas de degrade, pas de halo,
+    // pas de sol — c'est ce qui distingue une piece detouree d'un decor rate.
+    ctx.fillStyle=bg.top; ctx.fillRect(0,0,W,H);
+  } else {
+    // fond : dégradé vertical + halo de lumière derrière le sujet
+    const g=ctx.createLinearGradient(0,0,0,H); g.addColorStop(0,bg.top); g.addColorStop(1,bg.bot);
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    const pool=ctx.createRadialGradient(cx,H*0.34,10,cx,H*0.34,W*0.55);
+    pool.addColorStop(0,bg.pool); pool.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=pool; ctx.fillRect(0,0,W,H);
+    const fl=ctx.createLinearGradient(0,gy,0,H); fl.addColorStop(0,bg.floor); fl.addColorStop(1,bg.bot);
+    ctx.fillStyle=fl; ctx.fillRect(0,gy,W,H-gy);
+  }
+
+  const cols=state.bodies.map((_,i)=>hexToRgb(bodyColor(i)));
+  const paint=(f,alpha)=>{
+    ctx.globalAlpha=alpha;
+    ctx.fillStyle=shadeFace(f.n, cols[f.body]||cols[0], fin, RENDER.lit);
+    ctx.beginPath();
+    ctx.moveTo(f.P[0].sx,f.P[0].sy); ctx.lineTo(f.P[1].sx,f.P[1].sy); ctx.lineTo(f.P[2].sx,f.P[2].sy);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle=ctx.fillStyle; ctx.lineWidth=1; ctx.stroke();
+  };
+
+  /* Reflet au sol : seulement s'il Y A un sol. Sur papier il n'y en a pas,
+   * et un reflet sans surface qui le porte, c'est exactement ce qui faisait
+   * lire « rendu rate » — on voyait meme le fil de fer du maillage dedans. */
+  if(!bg.nu){
+    ctx.save();
+    ctx.beginPath(); ctx.rect(0,gy,W,H-gy); ctx.clip();
+    ctx.translate(0, 2*gy); ctx.scale(1,-1);
+    // le bois est mat : un reflet de miroir y serait faux, on le réduit
+    faces.forEach(f=>paint(f, bg.piece ? 0.09 : 0.16));
+    ctx.restore();
+    ctx.globalAlpha=1;
+    const fade=ctx.createLinearGradient(0,gy,0,H); fade.addColorStop(0,'rgba(0,0,0,0)');
+    fade.addColorStop(1, bg.piece ? 'rgba(99,64,29,.92)' : bg.bot);
+    ctx.fillStyle=fade; ctx.fillRect(0,gy,W,H-gy);
+  }
+
+  // ombre de contact
+  const sh=ctx.createRadialGradient(cx,gy,4,cx,gy,Math.max(40,footR*1.5));
+  // sur papier l'ombre POSE la piece sans faire croire a un sol : deux fois
+  // plus legere, sinon elle se lit comme une flaque
+  const o1 = bg.nu ? 'rgba(0,0,0,.30)' : 'rgba(0,0,0,.62)';
+  const o2 = bg.nu ? 'rgba(0,0,0,.10)' : 'rgba(0,0,0,.22)';
+  sh.addColorStop(0,o1); sh.addColorStop(0.55,o2); sh.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.save(); ctx.translate(cx,gy); ctx.scale(1,0.20); ctx.translate(-cx,-gy);
+  ctx.fillStyle=sh; ctx.beginPath(); ctx.arc(cx,gy,Math.max(40,footR*1.5),0,7); ctx.fill();
+  ctx.restore();
+
+  // halo chaud si la lampe est allumée
+  if(RENDER.lit){
+    const c2=(faces.length?faces[faces.length-1].P[0].sy:H/2);
+    const bl=ctx.createRadialGradient(cx,c2,10,cx,c2,W*0.30);
+    bl.addColorStop(0,'rgba(255,196,120,.20)'); bl.addColorStop(1,'rgba(255,180,100,0)');
+    ctx.fillStyle=bl; ctx.fillRect(0,0,W,H);
+  }
+
+  faces.forEach(f=>paint(f,1));
+  ctx.globalAlpha=1;
+
+  // mention honnête, incrustée dans l'image exportée
+  ctx.fillStyle = bg.dark ? 'rgba(255,255,255,.34)' : 'rgba(0,0,0,.38)';
+  ctx.font='16px -apple-system,sans-serif';
+  ctx.fillText('Aperçu navigateur · géométrie exacte, éclairage stylisé · Lampe Designer · DELIGNY R&D', 18, H-18);
+
+  RENDER.ms=Math.round(performance.now()-t0);
+  RENDER.lastURL=cv.toDataURL('image/png');
+  $('rDownload').disabled=false;
+  const info=$('renderInfo');
+  info.innerHTML='';
+  const d=document.createElement('div'); d.className='line ok';
+  d.textContent=`Rendu ${W}×${H} calculé en ${RENDER.ms} ms sur ${faces.length} faces visibles · finition ${fin.label} · ${BACKDROPS[RENDER.bg].label}`
+    + (state.compo.count>1?` · ${state.compo.count} corps aux couleurs propres`:'');
+  info.appendChild(d);
+  return RENDER.lastURL;
+}
+
+/* ── Pont AI Engine (fal img2img) ─────────────────────────────────────────
+ * On NE met AUCUNE clé dans cette page : elle est publique et statique. Le
+ * rendu AI passe par le moteur GENERAL DESIGN STUDIO qui tourne en local
+ * (python3 server.py, port 4555) et qui détient la clé côté serveur. Absent =
+ * bouton désactivé et explication, jamais de promesse en l'air.
+ * Doctrine maison : l'AI ne fabrique QUE des pixels, jamais la géométrie —
+ * le STL exporté n'est pas touché par ce rendu.
+ * ──────────────────────────────────────────────────────────────────────── */
+const AI = { base:'http://127.0.0.1:4555', ok:null, busy:false, note:'', moteur:'fidele' };
+
+/* MOTEUR DE RENDU, DISTINCT DE « AI » (13/08).
+ *
+ * Jusqu'ici tout passait par AI.base : le rendu Blender comme les fonctions
+ * qui appellent un LLM. Or le tunnel n'ouvre QU'UNE route, /api/blender, via
+ * une passerelle qui refuse les 52 autres. Confondre les deux ferait croire
+ * a la page que le concierge et l'analyse d'image sont revenus, alors qu'ils
+ * repondraient 404.
+ *
+ * `distant` retient qu'on parle a la machine de Baptiste A TRAVERS Internet :
+ * on ne lance alors JAMAIS le rendu live, qui se relance a chaque geste et
+ * saturerait le tunnel comme il avait sature le debit local. Seul le bouton
+ * explicite declenche un calcul. */
+const MOTEUR = { base: AI.base, distant:false, ok:null };
+
+/* L'adresse du moteur n'est pas codee en dur : une adresse de tunnel rapide
+ * CHANGE a chaque redemarrage. Elle est publiee dans moteur.json, a cote de la
+ * page, donc la mettre a jour ne demande pas de retoucher ce fichier de
+ * 750 Ko. Absence du fichier = pas de moteur, ce qui est le cas nominal. */
+async function detecterMoteurDistant(){
+  try{
+    const r = await fetch('lampe-3d-studio/moteur.json', {cache:'no-store'});
+    if(!r.ok) return false;
+    const j = await r.json();
+    const u = String(j.base || '').trim().replace(/\/+$/,'');
+    // HTTPS strict, hote seul, aucun chemin : on ne se laisse pas rediriger
+    // vers une origine choisie par le contenu du fichier.
+    if(!/^https:\/\/[a-z0-9.-]+$/i.test(u)) return false;
+    /* 15 s et non 5 : au chargement, la construction du maillage sature le fil
+     * principal et la reponse ne peut pas etre traitee a temps. Mesure : la
+     * sonde repond en 150 ms page au repos, et expirait au demarrage. */
+    const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 15000);
+    const s = await fetch(u + '/sante', {signal:ctl.signal});
+    clearTimeout(to);
+    if(!s.ok) return false;
+    MOTEUR.base = u; MOTEUR.distant = true; MOTEUR.ok = true;
+    return true;
+  }catch(e){ return false; }
+}
+
+/* Duree lisible : « 1 min 24 s » plutot que « 84 s ». Au-dela d'une minute,
+ * des secondes seules ne se lisent plus. */
+function duree(s){
+  s = Math.max(0, Math.round(s));
+  return s < 60 ? `${s} s` : `${Math.floor(s/60)} min ${String(s%60).padStart(2,'0')} s`;
+}
+
+/* RENDU PAR FILE D'ATTENTE. On depose, puis on demande l'avancement toutes les
+ * deux secondes. Rend la meme forme de reponse que l'ancien appel direct, pour
+ * que l'appelant n'ait pas a savoir par quel chemin l'image est arrivee.
+ *
+ * ⚠️ AUCUN POURCENTAGE. Blender ne remonte pas d'avancement fiable par ce
+ * canal : afficher « 63 % » serait un chiffre invente. On montre le temps
+ * ECOULE, et une estimation quand la passerelle en a une, tiree de la mediane
+ * de ses rendus precedents. */
+async function rendreParFile(corps, entetes, info){
+  const dire = (t) => { if(info) info.innerHTML = `<div class="line warn">${t}</div>`; };
+  let rep;
+  try{
+    rep = await fetch(MOTEUR.base + '/jobs', {method:'POST', headers:entetes, body:corps});
+  }catch(e){ return {ok:false, note:'moteur injoignable : ' + e.message}; }
+  let d;
+  try{ d = await rep.json(); }
+  catch(e){ return {ok:false, note:'réponse illisible du moteur'}; }
+  if(!d || !d.job_id) return {ok:false, note:(d && d.note) || 'dépôt refusé'};
+
+  const t0 = performance.now();
+
+  /* CACHE. La passerelle deduplique par empreinte : si exactement cette lampe
+   * a deja ete rendue, elle repond DONE tout de suite. On sert alors l'image
+   * sans attendre un cycle de sondage, et sans relancer un calcul. */
+  if(d.status === 'DONE'){
+    try{
+      const r = await (await fetch(`${MOTEUR.base}/jobs/${d.job_id}/result`)).json();
+      if(r && r.image) return {ok:true, image:r.image, ms:Math.round(performance.now()-t0), cache:true};
+    }catch(e){ /* le cache a peut-etre expire : on retombe sur le sondage */ }
+  }
+
+  const estim = d.estimation_s ? ` · environ ${duree(d.estimation_s)} d'après les rendus précédents` : '';
+  dire(`Calcul de ton rendu…${estim}`);
+
+  /* Plafond de securite. Le delai du moteur est de 15 min cote passerelle ;
+   * on laisse un peu plus avant d'abandonner l'attente, sans jamais tenir de
+   * requete ouverte pendant ce temps. */
+  const LIMITE_MS = 16 * 60 * 1000;
+  while(performance.now() - t0 < LIMITE_MS){
+    await new Promise(r => setTimeout(r, 2000));
+    let e;
+    try{
+      e = await (await fetch(`${MOTEUR.base}/jobs/${d.job_id}`, {cache:'no-store'})).json();
+    }catch(err){ continue; }              // un accroc reseau ne doit pas tout perdre
+    if(e.status === 'QUEUED'){
+      dire(`En file d'attente${e.devant ? `, ${e.devant} rendu${e.devant>1?'s':''} devant toi` : ''}…`);
+    } else if(e.status === 'RENDERING'){
+      const att = e.estimation_s ? ` · environ ${duree(e.estimation_s)} attendues` : '';
+      dire(`Calcul de ton rendu · ${duree(e.elapsed_s)} écoulées${att}`);
+    } else if(e.status === 'DONE'){
+      try{
+        const r = await (await fetch(`${MOTEUR.base}/jobs/${d.job_id}/result`)).json();
+        if(r && r.image) return {ok:true, image:r.image, ms:Math.round(performance.now()-t0)};
+        return {ok:false, note:(r && r.note) || 'image introuvable'};
+      }catch(err){ return {ok:false, note:'image illisible : ' + err.message}; }
+    } else if(e.status === 'FAILED'){
+      return {ok:false, note: e.erreur || 'le moteur a échoué'};
+    }
+  }
+  return {ok:false, note:"le rendu dépasse le délai d'attente"};
+}
+
+function aiPrompt(){
+  const b=state.bodies[state.body];
+  const surf=bodySurface(state.body);
+  const mat={PLA:'matte PLA',PLA_T:'translucent diffusing PLA',PETG:'satin PETG'}[state.material];
+  const tex=[];
+  tex.push(surf.base==='lisse' ? 'smooth continuous surface' : 'faceted low-poly surface');
+  if(surf.stries)    tex.push(surf.cross?'crossed diamond fluting in relief':'vertical fluting');
+  if(surf.organique) tex.push('organic rippled surface');
+  if(surf.ajour)     tex.push('voronoi perforated lattice shell');
+  const texture=tex.join(', ');
+  const kind={suspension:'pendant lamp',poser:'table lamp',applique:'wall sconce'}[state.type];
+  // Kontext est un moteur d'ÉDITION : on lui donne un ordre, pas une description.
+  // Dire ce qu'il ne doit PAS toucher est ce qui garde la géométrie intacte —
+  // l'ancien prompt descriptif laissait le modèle réinventer la pièce.
+  if(AI.moteur !== 'creatif'){
+    return `Turn this 3D viewport render into a professional product photograph. `
+      + `Keep the object EXACTLY as it is: same silhouette, same proportions, same ${texture}, `
+      + `same openings and same hole pattern, pixel-aligned. Change only the material and the light: `
+      + `${mat} surface with fine 3D-printing layer lines, warm LED glow from inside, `
+      + `soft studio key light with rim light, seamless neutral backdrop, subtle floor reflection. `
+      + `Do not add, remove or reshape any part. No text, no logo, no watermark.`;
+  }
+  return `professional product photography of a 3D printed ${kind}, ${mat}, ${texture}, `
+    + `${state.compo.count>1?state.compo.count+' stacked bodies, ':''}warm LED glow from inside, `
+    + `seamless studio backdrop, soft key light and rim light, subtle floor reflection, `
+    + `50mm lens, sharp focus, high detail, `
+    + `clean empty background, absolutely no text, no lettering, no logo, no watermark, no caption`;
+}
+
+/* ── RENDU PHOTO BLENDER ──────────────────────────────────────────────────
+ * Ferme la boucle : plus besoin d'exporter les STL puis de lancer le script à la
+ * main. On envoie au moteur local les pièces AVEC leur position d'assemblage
+ * (le studio a déjà décidé où va chaque corps — Blender ne doit pas les
+ * replacer), et il renvoie une photo de la géométrie réelle.
+ * Le rendu prend 15 à 40 s : c'est du calcul, pas une attente réseau.
+ * ────────────────────────────────────────────────────────────────────────── */
+async function rendreBlender(live, sigAttendue){
+  const enLive = live === true;                     // onclick passe l'évènement, pas un booléen
+  const info = $('blInfo'), out = $('blOut'), bouton = $('blGo');
+  if(!MESH.parts.length) return;
+  if(!enLive){
+    bouton.disabled = true;
+    info.innerHTML = '<div class="line warn">Rendu Blender en cours… quelques secondes en EEVEE, jusqu\'à une minute et demie en Cycles. La page reste utilisable.</div>';
+  }
+  try{
+    // chaque pièce est exportée AVEC sa transformation d'assemblage : c'est la
+    // lampe montée qu'on veut voir, pas les pièces posées à plat côte à côte
+    // la base d'atelier part dans le RENDU (photo de la lampe montée), en plus
+    // des pièces réelles — elle n'est toujours pas dans le STL téléchargé
+    /* MAILLAGE DE RENDU, construit A LA DEMANDE (13/08).
+     *
+     * Mesure qui a tout decide : le rendu Blender prend 4,1 s, mais l'envoi du
+     * maillage d'export pesait 29,7 Mo, d'ou 172 s d'aller-retour par le
+     * tunnel. Le gout n'est pas dans le calcul, il est dans le transport.
+     *
+     * On envoie donc un maillage a anneaux plus espaces (mode 'rendu'), en
+     * gardant la PLEINE resolution angulaire : a 118 nervures il faut 6
+     * segments par nervure, c'est exactement d'ou viennent les 708, et les
+     * rogner casserait le relief. Les anneaux, eux, sont bien plus serres que
+     * ce qu'une image de 640 px sait montrer.
+     *
+     * Il est construit ICI et pas dans rebuildMesh : sinon chaque geste
+     * paierait un troisieme maillage dont on ne se sert qu'au moment d'une
+     * photo. Le STL telecharge, le prix et les controles gardent la pleine
+     * resolution : seule l'image change de source. */
+    const nCorps = Math.max(1, state.compo.count);
+    const partsRendu = buildParts(
+      Array.from({length:nCorps}, (_,i)=>segFor(i,'rendu')), 'rendu');
+    const avecDeco = bagueActive() ? [...partsRendu, { tris: trianglesDeco(), label:'base atelier (rendu seulement)', xf:{tx:0,ty:0,tz:0,rot:0,scale:1} }] : partsRendu;
+    /* L'index doit etre calcule sur la liste REELLEMENT ENVOYEE : le filtre
+     * ci-dessous ecarte les pieces vides, donc un index pris sur `avecDeco`
+     * designerait le mauvais module des qu'une piece est vide. */
+    const envoyes = avecDeco.filter(p=>p.tris.length);
+    /* La base d'atelier est PLEINE : le PLA translucide la rendait grise et
+     * metallique alors qu'elle est blanche. On la signale au moteur pour qu'il
+     * lui donne la meme teinte en opaque, et elle se fond dans la lampe. */
+    const modulesOpaques = envoyes
+      .map((p,i)=> /^base atelier/.test(p.label||'') ? i : -1)
+      .filter(i=> i >= 0);
+    /* On garde les maillages en BINAIRE. Le base64 les gonfle de 33 % et,
+     * pire, il abime la compression : mesure, gzip rend 3,2 sur un STL brut
+     * mais seulement 2,4 sur le meme STL passe en base64. On ne convertit
+     * donc qu'au dernier moment, et seulement pour le chemin local. */
+    const tampons = envoyes.map(p=>{
+      const tris = p.tris.map(t=>t.map(v=>placeVertex(v, p.xf, 0)));
+      return trianglesToSTLBinary(tris, p.label);
+    });
+    const enBase64 = buf => {
+      let bin=''; const oct=new Uint8Array(buf);
+      for(let i=0;i<oct.length;i+=8192) bin += String.fromCharCode.apply(null, oct.subarray(i,i+8192));
+      return btoa(bin);
+    };
+    const t0 = performance.now();
+    // MOTEUR.base et non AI.base : en local les deux coincident, mais depuis le
+    // site public c'est le tunnel, qui n'ouvre que cette route.
+    const params = ({ modules_opaques: modulesOpaques,
+        base_finition: BASE_FINITIONS.includes(RENDER.base) ? RENDER.base : 'blanc',
+        /* Le mode LIVE rend LA MÊME IMAGE que la photo — même décor, même
+         * matière — mais en EEVEE, plus petit et moins échantillonné. Mesuré :
+         * 16 échantillons en 520 px suffisent, l'écart avec Cycles ne se voit
+         * pas à cette taille (les 15 s du premier essai étaient le démarrage à
+         * froid de Blender, pas le calcul). On ne montre plus un aperçu qui ne
+         * ressemble pas au résultat. */
+        /* ⚠️ TROIS PROFILS, PAS DEUX (14/08). Le rendu que Baptiste demande est
+         * CELUI DU MODE LIVE : 520 x 650 a 16 echantillons, calcule en 4,1 s.
+         * J'envoyais au moteur DISTANT le profil lourd, 1200 x 1500 a 96 : 5,3
+         * fois plus de pixels et 6 fois plus d'echantillons, une trentaine de
+         * fois plus de travail. D'ou les 287 s de mediane, pour une image qu'il
+         * n'avait pas demandee.
+         * Le profil distant vise donc entre les deux : assez fin pour un ecran
+         * moderne, assez leger pour une attente supportable. Le profil lourd
+         * reste accessible en local, ou l'attente ne coute rien. */
+        largeur: enLive ? 520 : (MOTEUR.distant ? 760 : 1200),
+        hauteur: enLive ? 650 : (MOTEUR.distant ? 950 : 1500),
+        // 24 echantillons a distance : 1,5 fois le mode live, tres loin des 96
+        // du profil lourd. C'est la moitie du cout total, l'autre etant les pixels.
+        samples: enLive ? 16 : (MOTEUR.distant ? 24 : parseInt($('blSamples').value,10)),
+        // EEVEE impose a distance : Cycles trace les rayons un par un et c'est
+        // lui qui faisait exploser la duree.
+        moteur: enLive ? 'eevee' : (MOTEUR.distant ? 'eevee' : $('blMoteur').value),
+        /* PLASTIQUE TRANSPARENT INCOLORE (09/08, demande Baptiste) : la couleur
+         * du filament ne teinte pas le rendu, la matière est translucide neutre.
+         * `diffusion translucide` = transmission diffuse, le bon modèle d'une
+         * paroi de 1,8 mm — ce n'est pas du verre. */
+        couleur: 'F4F2EE', diffusion: 'translucide',
+        fond: (RENDER.bg === 'clair' || RENDER.bg === 'papier') ? 'clair' : 'sombre',
+        allumee: RENDER.lit, translucide: state.material === 'PLA_T',
+        couche: parseFloat(($('blCouche')||{value:'0.20'}).value),
+        buse: 0.40,
+        fini: ($('blFini')||{value:'mat'}).value,
+        zoom: enLive ? 1 : parseFloat(($('blZoom')||{value:'1'}).value),
+        cible: 0.58,
+        scene: enLive ? 'environnement' : ($('blScene')||{value:'environnement'}).value,
+        // un trou de service n'a rien à faire au premier plan d'une photo :
+        // on donne son angle au moteur, il tourne la pièce pour le cacher
+        trou: (SOCKETS[state.socket] && SOCKETS[state.socket].type==='module'
+               && state.cable.on && trousCorps(socketEndBodyIdx()).length)
+              ? state.cable.angleDeg : null,
+        /* FOND PHOTOGRAPHIQUE : la piece est COMPOSEE dans une vraie scene
+         * d'atelier, pas posee sur un decor calcule. Deux images, une par etat
+         * de l'interrupteur : la nuit a sa propre lumiere, on ne l'obtient pas
+         * en assombrissant le jour.
+         * Le cadrage est MESURE sur la reference de Baptiste : la lampe y
+         * occupe 48,5 % de la hauteur du cadre. A recul 1.15 on releve 48 %. */
+        fond_image: RENDER.lit ? 'verriere-nuit.png' : 'verriere-jour.png',
+        /* Feuillage au PREMIER PLAN, par-dessus la lampe : c'est lui qui donne
+         * la profondeur. Sa version nuit existe aussi — une plante eclairee par
+         * une lampe allumee n'a pas la meme couleur qu'en plein jour, et la
+         * reteinter apres coup se verrait. */
+        plante_image: RENDER.lit ? 'plante-nuit.png' : 'plante-jour.png',
+        /* Descendue sur le plateau (12/08) : a -0,06 la base tombait a 72 % de
+         * la hauteur, c'est-a-dire sur le BORD ARRIERE de la table, et la lampe
+         * semblait posee dans le vide derriere. Trois cadrages rendus et
+         * compares (-0,10 / -0,14 / -0,18) : a -0,18 la base tombe a 80 %,
+         * franchement sur le bois. Mesure sur l'image, pas jugee a l'oeil. */
+        /* Remontee de 5 % (12/08). Conversion etablie par trois rendus
+         * mesures : 0,01 de cadrage vaut 1 % de la hauteur du cadre
+         * (-0,10 -> base a 72 %, -0,14 -> 76 %, -0,18 -> 80 %). Donc -0,13
+         * pour ramener la base de 80 a 75 %.
+         * Puis redescendue de 1 % (12/08) : -0,14. Reglage applique d'apres la
+         * conversion, verifiee deux fois (4,9 % mesures pour 5 % vises) — un
+         * point de cadrage est sous le bruit de ma methode de mesure, un rendu
+         * de controle n'aurait rien prouve de plus. */
+        /* Decalee d'un point vers la GAUCHE (12/08) : -0,02. Elle serrait les
+         * pots a droite ; ce point lui rend de l'air sans la coller au
+         * feuillage. Si c'est l'autre sens qui etait voulu, il suffit de
+         * repasser a 0,00. */
+        recul: 1.15, cadre_x: -0.02, cadre_y: -0.14,
+        transparence: enLive ? 0.80 : parseFloat(($('blTransp')||{value:'0.7'}).value),
+        paroi: parseFloat(state.wall),
+        flou: 4.5,
+        /* CAMÉRA FIXE — comme la photo de référence. Elle suivait l'orbite de
+         * l'aperçu 3D : chaque rotation refaisait une image sous un autre angle,
+         * et le rendu ne ressemblait jamais deux fois au même produit. Une photo
+         * de catalogue se prend d'un point de vue arrêté ; c'est l'objet qui
+         * change, pas l'objectif. La lampe étant un corps de révolution, seule
+         * l'élévation compte vraiment : 10°, un peu au-dessus du plateau, comme
+         * sur IMG_7106. L'orbite continue de piloter l'aperçu 3D, elle. */
+        vue: RENDU_CAM.vue, hauteur_vue: RENDU_CAM.hauteurVue });
+
+    /* ENVOI. Deux chemins, parce que les deux destinataires ne savent pas lire
+     * la meme chose.
+     *
+     * LOCAL : JSON avec les maillages en base64, exactement comme avant. Le
+     * serveur du studio n'a pas a changer, et sur une boucle 127.0.0.1 il n'y
+     * a rien a gagner a comprimer.
+     *
+     * DISTANT : conteneur BINAIRE, puis gzip. Mesures qui ont conduit la :
+     * l'aller-retour par le tunnel prenait 172 s pour 4,1 s de calcul, tout
+     * etait dans la montee. Le maillage de rendu a divise par 2,17, le gzip
+     * par 2,4 seulement — parce qu'on comprimait du base64. En binaire pur on
+     * retire les 33 % de surcharge ET on rend au gzip son vrai ratio.
+     *
+     * Format du conteneur, volontairement trivial :
+     *   [4 octets] longueur de l'en-tete, entier non signe, petit-boutiste
+     *   [en-tete]  JSON des parametres + `tailles`, la longueur de chaque STL
+     *   [donnees]  les STL bruts, bout a bout, dans l'ordre
+     * La passerelle le retraduit en JSON+base64 : le moteur ne voit AUCUN
+     * changement, donc rien de ce qui est deja prouve n'est remis en jeu. */
+    let corps, entetes;
+    if(MOTEUR.distant){
+      const entete = new TextEncoder().encode(JSON.stringify(
+        { ...params, tailles: tampons.map(b => b.byteLength) }));
+      const tete = new Uint8Array(4);
+      new DataView(tete.buffer).setUint32(0, entete.length, true);
+      const brut = new Blob([tete, entete, ...tampons]);
+      if(typeof CompressionStream === 'function'){
+        try{
+          corps = await new Response(
+            brut.stream().pipeThrough(new CompressionStream('gzip'))).blob();
+          entetes = {'Content-Type':'application/octet-stream', 'Content-Encoding':'gzip'};
+        }catch(e){
+          // une optimisation ne doit jamais empecher le service de fonctionner
+          corps = brut; entetes = {'Content-Type':'application/octet-stream'};
+        }
+      } else {
+        corps = brut; entetes = {'Content-Type':'application/octet-stream'};
+      }
+    } else {
+      corps = JSON.stringify({ stls: tampons.map(enBase64), ...params });
+      entetes = {'Content-Type':'application/json'};
+    }
+    /* ENVOI. Deux protocoles, et ce n'est pas un caprice.
+     *
+     * LOCAL : une requete, une reponse. La boucle 127.0.0.1 n'a pas de delai
+     * d'expiration, garder la requete ouverte ne coute rien.
+     *
+     * DISTANT : FILE D'ATTENTE. Mesure du 14/08 : un rendu de 134 s a ete
+     * CALCULE puis JETE par le transport, Cloudflare ayant coupe la connexion
+     * (« Incoming request ended abruptly »), la passerelle ayant ecrit dans un
+     * tuyau ferme. Un essai de 42 s passait, celui de 134 s non : le seuil est
+     * autour de 100 s. Tenir une requete ouverte pendant le calcul est donc
+     * une impasse, pas une optimisation manquante. On depose un travail, on
+     * recoit un identifiant en quelques millisecondes, et on demande
+     * l'avancement toutes les deux secondes. Chaque echange dure une fraction
+     * de seconde : la duree du calcul n'a plus de rapport avec le transport. */
+    const j = MOTEUR.distant
+      ? await rendreParFile(corps, entetes, info)
+      : await (await fetch(MOTEUR.base+'/api/blender',
+          {method:'POST', headers:entetes, body:corps})).json();
+    if(!j.ok){ info.innerHTML = `<div class="line bad">${j.note||'échec du rendu'}</div>`; }
+    else{
+      BL_LIVE.derniereMs = j.ms;
+      /* ⚠️ LA PHOTO DOIT ALLER DANS L'EMPLACEMENT VISIBLE (14/08).
+       * Mesure sur le site public : le rendu aboutissait et l'image etait bien
+       * dans le document, mais rangee dans `blOut`, qui vit dans une etape
+       * REPLIEE. L'emplacement du haut gardait l'apercu navigateur : la bonne
+       * image existait sans jamais s'afficher. Le chemin live, lui, ecrit dans
+       * blLiveImg et bascule la source. On fait pareil ici. */
+      if(j.image){
+        const vis = $('blLiveImg');
+        if(vis){
+          vis.src = j.image;
+          vis.style.display = '';
+          const cv = $('renderCanvas'); if(cv) cv.style.display = 'none';
+          majSourceRendu('blender');
+        }
+      }
+      info.innerHTML = enLive
+        ? `<div class="line ok">Rendu studio — Blender EEVEE, image en ${(j.ms/1000).toFixed(1)} s (620 px).</div>`
+        : `<div class="line ok">Rendu Blender en ${(j.ms/1000).toFixed(1)} s — `
+          + `${MESH.parts.length} pièce(s), géométrie exacte, aucune IA.</div>`;
+      // en live, l'image RECOUVRE la troisième vue ; à la demande, elle va dans
+      // la carte Rendu avec son bouton de téléchargement
+      if(enLive){
+        /* ⚠️ COURSE ETAT / IMAGE. Basculer allume-eteint pendant un calcul
+         * laissait l'image PRECEDENTE s'afficher a l'arrivee : le bouton
+         * disait « eteinte » et la photo montrait la lampe allumee, le temps
+         * du rendu suivant. Une image qui ne decrit plus l'etat courant est
+         * pire qu'une absence d'image — elle se lit comme la verite.
+         * On compare donc la signature demandee a la signature ACTUELLE : si
+         * l'etat a bouge depuis le lancement, on jette l'image et on laisse le
+         * decompte, le rendu suivant est deja en route. */
+        if(sigAttendue && sigAttendue !== signatureRendu()){
+          console.info('[rendu] image perimee ignoree (l\'etat a change pendant le calcul)');
+          return;
+        }
+        const im = $('blLiveImg');
+        if(im){ im.src = j.image; const w=document.getElementById('renduAttente');
+                if(w) w.hidden = true; majSourceRendu('blender'); }
+      } else {
+        out.innerHTML = `<img src="${j.image}" style="width:100%;border-radius:14px;margin-top:10px" alt="Rendu Blender de la lampe">
+          <div class="row-btn"><a class="btn pri" href="${j.image}" download="lampe-rendu.png">⬇ Télécharger le PNG</a></div>`;
+      }
+    }
+  }catch(e){
+    info.innerHTML = `<div class="line bad">Moteur local injoignable (${e.name}). Il tourne bien sur le port 4555 ?</div>`;
+  }
+  if(!enLive) bouton.disabled = false;
+}
+
+/* ── LIVE EEVEE (06/08) — « je veux un rendu live en EEVEE » ─────────────────
+ * Une image Blender EEVEE se recalcule TOUTE SEULE après chaque geste : on
+ * attend 900 ms de calme (fin du geste), on rend en 620 px / 32 éch. / scène
+ * studio (~4-8 s, lancement de Blender compris), et si la forme a rebougé
+ * pendant le calcul on relance UNE fois à la fin — jamais de file d'attente
+ * qui s'accumule. Ce n'est pas du 30 i/s et on ne le prétend pas : la carte
+ * affiche le temps réel de chaque image. */
+// `on` passe à vrai dès que le moteur local répond (detectAI) : les trois vues
+// sont demandées ensemble, la troisième n'a pas à être réclamée.
+/* Point de vue ARRÊTÉ du rendu photo. Relevé sur IMG_7106 : objectif un peu
+ * au-dessus du plateau, objet vu de trois quarts. La lampe est un corps de
+ * révolution, donc l'azimut ne change presque rien — c'est l'élévation qui
+ * fait la photo. Fixe = deux lampes différentes sont comparables. */
+const RENDU_CAM = { vue: 35, hauteurVue: 10 };
+const BL_LIVE = { on:false, busy:false, pending:false, timer:null, derniereMs:0, signature:null };
+function planifierLive(){
+  /* ⚠️ LE MOTEUR DISTANT COMPTE AUSSI (14/08). La condition exigeait
+   * AI.ok === true, or sur le site public AI.ok est FAUX : les fonctions LLM y
+   * sont coupees a dessein. Le moteur de rendu etait pourtant joignable, mais
+   * la planification l'ignorait et ne repartait jamais. Consequence visible :
+   * on changeait la forme et la photo restait celle de la lampe precedente,
+   * sous un titre annoncant un apercu navigateur. */
+  if(!BL_LIVE.on || (AI.ok !== true && !MOTEUR.distant)) return;
+  /* Plus d'attente a distance : chaque rendu monte ~3,75 Mo par le tunnel, on
+   * ne veut pas en declencher un a chaque point deplace. Le dedoublonnage par
+   * empreinte cote passerelle protege les repetitions exactes. */
+  const attente = MOTEUR.distant ? 3000 : 900;
+  clearTimeout(BL_LIVE.timer);
+  BL_LIVE.timer = setTimeout(lancerLive, attente);
+  compteARebours('attente', attente);
+}
+/* Tout ce qui change RÉELLEMENT l'image. La caméra étant fixe, tourner
+ * l'aperçu 3D n'y figure pas — et c'est le but : sans cette signature, chaque
+ * orbite relançait 3 à 10 s de calcul pour reproduire la MÊME image. */
+function signatureRendu(){
+  const s = MESH.stats || {};
+  // ⚠️ RENDER.lit en fait partie : sans lui, basculer éteinte/allumée ne
+  // relancerait rien et le bouton n'aurait aucun effet visible.
+  return [s.tris, Math.round(s.volMm3||0), state.wall, state.material,
+          bodyColor(0), styleLabel(state.surface), RENDER.lit ? 'on' : 'off',
+          ($('blTransp')||{value:''}).value, MESH.parts.length].join('|');
+}
+async function lancerLive(){
+  if(BL_LIVE.busy){ BL_LIVE.pending = true; return; }
+  const sig = signatureRendu();
+  const dejaUneImage = !!($('blLiveImg') && $('blLiveImg').getAttribute('src'));
+  if(dejaUneImage && sig === BL_LIVE.signature){
+    arreterRebours(); majSourceRendu('blender');   // rien n'a bougé : on garde l'image
+    return;
+  }
+  BL_LIVE.busy = true;
+  // estimation = durée RÉELLE de la dernière image (7 s au premier lancement)
+  compteARebours('rendu', BL_LIVE.derniereMs || 7000);
+  try{ await rendreBlender(true, sig); BL_LIVE.signature = sig; }
+  finally{
+    BL_LIVE.busy = false;
+    if(BL_LIVE.pending){ BL_LIVE.pending = false; lancerLive(); }
+  }
+}
+
+async function detectAI(){
+  // Une page servie en HTTPS ne peut PAS appeler http://127.0.0.1 : le navigateur
+  // bloque le contenu mixte. Inutile d'essayer et de laisser croire à une panne —
+  // sur le site public le rendu AI est structurellement indisponible.
+  if(location.protocol === 'https:'){
+    AI.ok=false; AI.mixed=true; renderAIBlock();
+    /* Le rendu photo, lui, peut revenir : si un tunnel publie l'adresse d'un
+     * moteur en HTTPS, la passerelle le rend joignable depuis cette page. Les
+     * fonctions LLM restent coupees (AI.ok reste faux) : la passerelle ne les
+     * relaie pas, les proposer serait mentir. */
+    /* SECONDE TENTATIVE. Un demarrage lent ne doit pas condamner le moteur
+     * pour toute la visite : si la premiere sonde echoue, on retente une fois
+     * la page calmee. */
+    let vu = await detecterMoteurDistant();
+    if(!vu){ await new Promise(r=>setTimeout(r, 8000)); vu = await detecterMoteurDistant(); }
+    if(vu){
+      renderBlenderBlock();
+      /* ⚠️ UNE PHOTO, AUTOMATIQUEMENT, UNE SEULE FOIS (14/08).
+       *
+       * Le moteur etait joignable, le bouton etait la, et pourtant Baptiste
+       * voyait toujours l'apercu navigateur : rien ne se declenchait sans
+       * clic, et le bouton est dans une autre carte, plus bas. La bonne image
+       * existait mais ne s'affichait jamais d'elle-meme.
+       *
+       * On en calcule donc UNE au chargement. Pas de rendu live a distance :
+       * il se relance a chaque geste et saturerait le tunnel comme il avait
+       * sature le debit local. Les modifications suivantes se reprennent au
+       * bouton, ce qui laisse le visiteur dessiner sans rien consommer.
+       *
+       * Cout assume : une photo par visite, bornee par le debit de la
+       * passerelle (6/min/adresse). C'est du temps CPU sur la machine de
+       * l'atelier, et c'est le prix de montrer le vrai produit. */
+      /* On active la planification au lieu de lancer UN rendu isole : c'est
+       * elle qui fera la premiere photo, et surtout toutes les suivantes quand
+       * la forme changera. Un rendu unique laissait une image perimee des la
+       * premiere modification. */
+      BL_LIVE.on = true;
+      const c = document.getElementById('blLive'); if(c) c.checked = true;
+      setTimeout(()=>{ if(MESH.parts.length) lancerLive(); }, 400);
+    }
+    return;
+  }
+  try{
+    const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),1200);
+    const r=await fetch(AI.base+'/api/status',{signal:ctl.signal});
+    clearTimeout(to);
+    AI.ok = r.ok;
+  }catch(e){ AI.ok=false; }
+  renderAIBlock();
+  renderConcierge();
+  /* Le moteur est là : la troisième vue passe d'office en Blender. On ne fait
+   * pas cocher une case pour obtenir ce qui a été demandé — la case reste, elle
+   * sert à COUPER. Sur le site public (HTTPS), AI.ok est faux et la vue garde
+   * le rendu du navigateur, ce qui est écrit sous l'image. */
+  if(AI.ok === true && !BL_LIVE.on){
+    BL_LIVE.on = true;
+    /* ⚠️ La carte a ete construite AVANT cette ligne, en recopiant BL_LIVE.on
+     * qui valait encore false : la case disait « off » pendant que le rendu
+     * live tournait. On la remet d'accord avec l'etat au lieu d'esperer que
+     * l'ordre d'appel se maintienne. */
+    const c = document.getElementById('blLive');
+    if(c) c.checked = true;
+    lancerLive();
+  }
+  majSourceRendu('canvas');
+}
+
+function renderBlenderBlock(){
+  const box=$('blenderBlock'); if(!box) return;
+  // Un moteur distant joignable suffit : le rendu photo n'a pas besoin des
+  // fonctions IA, et la passerelle ne relaie que lui.
+  if(MOTEUR.distant && MOTEUR.ok){ /* on tombe dans la branche active */ }
+  else if(AI.mixed || AI.ok === false){
+    box.innerHTML = `<div class="disc-small"><b>Rendu photo Blender — moteur local requis.</b><br>
+      Ce rendu calcule une vraie photo de TA géométrie, sans aucune IA : mêmes triangles que le STL,
+      matériau PLA, éclairage trois points, ombre portée. Il tourne sur ta machine via le moteur
+      General Design Studio (port 4555) et Blender. ${AI.mixed
+        ? "Cette page étant servie en HTTPS, le navigateur interdit d'appeler la machine locale : ouvre-la en local."
+        : "Lance le moteur (<code>python3 server.py</code>) pour l'activer."}</div>`;
+    return;
+  }
+  if(AI.ok !== true && !(MOTEUR.distant && MOTEUR.ok)) return;
+  box.innerHTML = `<div class="disc-small"><b>📷 Rendu photo Blender — la géométrie réelle, sans IA.</b>
+    Mêmes triangles que le STL exporté, matériau PLA, éclairage trois points, ombre de contact.
+    Rien ne sort de ta machine et rien n'est inventé : c'est la pièce qui sera imprimée.</div>
+    <div class="row-btn" style="align-items:center">
+      <button class="btn pri" id="blGo">📷 Calculer le rendu photo</button>
+      <label style="font-size:12.5px;color:var(--dim2)">Moteur
+        <select id="blMoteur" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="eevee" selected>EEVEE — rapide (~7 s)</option>
+          <option value="cycles">Cycles — qualité (35 s à 1 min 20)</option>
+        </select></label>
+      <label style="font-size:12.5px;color:var(--dim2)">Échantillons
+        <select id="blSamples" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="48">48 — brouillon</option>
+          <option value="96" selected>96 — courant</option>
+          <option value="192">192 — boutique</option>
+        </select></label>
+      <label style="font-size:12.5px;color:var(--dim2)">Couche imprimée
+        <select id="blCouche" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="0.12">0,12 mm — fine</option>
+          <option value="0.20" selected>0,20 mm — courante</option>
+          <option value="0.28">0,28 mm — rapide</option>
+          <option value="0">lisse (pièce idéalisée)</option>
+        </select></label>
+      <label style="font-size:12.5px;color:var(--dim2)">Filament
+        <select id="blFini" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="mat" selected>PLA mat</option>
+          <option value="satine">PLA satiné</option>
+          <option value="soie">filament soie</option>
+        </select></label>
+      <label style="font-size:12.5px;color:var(--dim2)">Décor
+        <select id="blScene" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="environnement" selected>Environnement réel — packshot d'ambiance</option>
+          <option value="allumee">Lampe allumée — réglage atelier</option>
+          <option value="studio">Studio — fond neutre, catalogue</option>
+        </select></label>
+      <label style="font-size:12.5px;color:var(--dim2)">Translucidité
+        <select id="blTransp" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="0">opaque</option>
+          <option value="0.35">laiteux</option>
+          <option value="0.7" selected>plastique transparent incolore</option>
+          <option value="1">au maximum du PLA</option>
+        </select></label>
+      <label style="font-size:12.5px;color:var(--dim2)">Cadrage
+        <select id="blZoom" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
+          <option value="1" selected>pièce entière</option>
+          <option value="2">détail — on voit les strates</option>
+          <option value="4">macro — surface</option>
+        </select></label>
+      <label style="font-size:12.5px;color:var(--dim2);display:flex;gap:7px;align-items:center;cursor:pointer">
+        <input type="checkbox" id="blLive" style="accent-color:var(--blue)">
+        🎥 Live EEVEE — se recalcule après chaque geste (≈4-8 s par image, scène studio)</label>
+    </div>
+    <div class="hint" style="margin-top:6px">La hauteur de couche est celle du trancheur : le relief des strates
+    est à la vraie cote (période mesurée exacte au banc d'essai). À 0,20 mm sur une pièce de 155 mm, une strate
+    fait moins d'un pixel — c'est le cadrage <b>détail</b> qui les montre.</div>
+    <div class="hint" id="blNote" style="margin-top:6px;color:var(--acc)"></div>
+    <div class="warnbox" id="blInfo"></div>
+    <div id="blOut"></div>`;
+  $('blGo').onclick = ()=>rendreBlender(false);
+  const liveCk = $('blLive');
+  if(liveCk){
+    liveCk.checked = BL_LIVE.on;                    // l'état survit au re-rendu de la carte
+    liveCk.onchange = e=>{ BL_LIVE.on = e.target.checked; if(BL_LIVE.on) lancerLive(); };
+  }
+  /* EEVEE approxime la diffusion sous la surface : sur un abat-jour translucide
+   * il la rend GRANULEUSE (constaté). Le décor d'ambiance et la translucidité
+   * demandent donc Cycles — on bascule le sélecteur pour que ce soit visible,
+   * jamais en douce. */
+  const exigeCycles = ()=>{
+    const sc  = $('blScene') ? $('blScene').value : 'studio';
+    const env = (sc === 'environnement') || (sc === 'allumee');
+    const tr  = $('blTransp') && parseFloat($('blTransp').value) > 0;
+    const note = $('blNote');
+    // La note se calcule à part : si le moteur est DÉJÀ sur Cycles, il n'y a rien
+    // à basculer, mais la raison affichée doit quand même être la bonne.
+    const bascule = (env || tr) && $('blMoteur').value !== 'cycles';
+    if(bascule) $('blMoteur').value = 'cycles';
+    if(note){
+      note.textContent = env
+        ? (bascule ? 'Moteur passé sur Cycles : ' : 'Cycles requis : ')
+          + (sc === 'allumee'
+             ? "l'ampoule est DANS la lampe, il faut les rebonds pour que la lumière traverse la paroi."
+             : "le décor d'ambiance a besoin de la profondeur de champ et des rebonds — comptez 1 à 2 min.")
+        : (tr ? (bascule ? 'Moteur passé sur Cycles : ' : 'Cycles requis : ')
+                + "EEVEE rend la translucidité granuleuse."
+              : '');
+    }
+  };
+  ['blScene','blTransp'].forEach(id=>{ const el=$(id); if(el) el.onchange = exigeCycles; });
+  exigeCycles();
+}
+
+function renderAIBlock(){
+  renderBlenderBlock();
+  const box=$('aiBlock'); if(!box) return;
+  if(AI.ok===null){ box.innerHTML='<div class="hint">Recherche du moteur AI local…</div>'; return; }
+  if(AI.mixed){
+    box.innerHTML = `<div class="disc-small"><b>Rendu AI — indisponible depuis le site public.</b><br>
+      Cette page est servie en <b>HTTPS</b> ; le navigateur interdit d'appeler le moteur local
+      (<code>http://127.0.0.1:4555</code>) depuis une page sécurisée. Ce n'est pas une panne, c'est une règle
+      du navigateur. Ouvre la même page <b>en local</b> (le cockpit, sur <code>127.0.0.1:4567</code>) avec le
+      moteur General Design Studio lancé, et le rendu AI apparaîtra. Le <b>rendu studio ci-dessus fonctionne
+      partout et hors ligne</b> — c'est lui qui montre la géométrie exacte.</div>`;
+    return;
+  }
+  if(!AI.ok){
+    box.innerHTML = `<div class="disc-small"><b>Rendu AI (type KeyShot) — moteur local non détecté.</b><br>
+      Ce configurateur est une page statique : <b>aucune clé d'API n'y est stockée</b>, il ne peut donc pas appeler
+      un service d'image tout seul. Le rendu AI passe par le moteur <b>General Design Studio</b> lancé sur ta machine
+      (<code>python3 server.py</code>, port 4555), qui détient la clé côté serveur. Le rendu studio ci-dessus, lui,
+      fonctionne partout et hors ligne.</div>`;
+    return;
+  }
+  box.innerHTML = `<div class="disc-small"><b>Moteur AI local détecté (General Design Studio, port 4555).</b>
+    Le rendu studio ci-dessus est envoyé au moteur d'image <b>fal</b> en img2img : l'image part chez un service externe,
+    la géométrie non — <b>l'AI ne produit que des pixels, le STL exporté n'est jamais modifié</b>. Chaque appel est facturé
+    sur ta clé.</div>
+    <div class="seg" id="aiMoteur" style="margin-top:10px">
+      <button data-m="fidele" class="on">🎯 Fidèle — édition guidée</button>
+      <button data-m="creatif">🎨 Créatif — réinterprète</button>
+    </div>
+    <div class="hint" id="aiMoteurNote"></div>
+    <div class="row-btn"><button class="btn pri" id="aiGo">✨ Calculer le rendu AI</button>
+    <label id="aiStrengthWrap" style="font-size:12.5px;color:var(--dim2);display:none;align-items:center;gap:6px">Liberté du modèle
+      <input type="range" id="aiStrength" min="20" max="70" step="5" value="45" style="accent-color:var(--blue)">
+      <b id="aiStrengthVal">45 %</b></label></div>
+    <div class="warnbox" id="aiInfo"></div>
+    <div id="aiOut"></div>`;
+  $('aiStrength').oninput = e=>{ $('aiStrengthVal').textContent = e.target.value+' %'; };
+  $('aiGo').onclick = aiRender;
+  const majMoteur = ()=>{
+    document.querySelectorAll('#aiMoteur button').forEach(b=>b.classList.toggle('on', b.dataset.m===AI.moteur));
+    $('aiStrengthWrap').style.display = AI.moteur==='creatif' ? 'flex' : 'none';
+    $('aiMoteurNote').textContent = AI.moteur==='fidele'
+      ? "Édition guidée : le modèle repart de l'image et ne change QUE la matière et la lumière. C'est le mode à utiliser avant impression — ce que tu vois est ce que tu imprimeras."
+      : "Réinterprétation libre : plus beau, mais le modèle redessine l'objet — trous, silhouette et proportions peuvent changer. À réserver à une image d'ambiance, jamais à une validation avant impression.";
+  };
+  document.querySelectorAll('#aiMoteur button').forEach(b=>{
+    b.onclick = ()=>{ AI.moteur = b.dataset.m; majMoteur(); };
+  });
+  majMoteur();
+}
+
+async function aiRender(){
+  if(AI.busy) return;
+  const info=$('aiInfo'), out=$('aiOut');
+  const img = RENDER.lastURL || renderStudio();
+  AI.busy=true;
+  info.innerHTML='<div class="line warn">Rendu AI en cours (fal img2img)…</div>';
+  try{
+    const r=await fetch(AI.base+'/api/render',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ image:img, prompt:aiPrompt(), moteur:AI.moteur,
+        strength: parseInt($('aiStrength').value,10)/100, steps:30, guidance:3.5 })});
+    const j=await r.json();
+    if(!j.ok){ info.innerHTML=`<div class="line bad">Rendu AI indisponible : ${j.note||'réponse inattendue'}</div>`; }
+    else{
+      info.innerHTML=`<div class="line ok">Rendu AI reçu de ${j.provider} en ${(j.ms/1000).toFixed(1)} s — image seulement, géométrie inchangée.</div>
+        <div class="line warn">Ce que l'AI peut inventer : reflets, arrière-plan, et parfois du faux texte en bas d'image. La pièce qui sera imprimée est celle du STL, pas celle-ci.</div>`;
+      out.innerHTML=`<img src="${j.image}" style="width:100%;border-radius:14px;margin-top:10px" alt="Rendu AI de la lampe configurée">
+        <div class="row-btn"><a class="btn pri" href="${j.image}" target="_blank" rel="noopener" download="rendu-ai-lampe.jpg">⬇ Ouvrir / télécharger l'image</a></div>
+        <div class="hint">Prompt envoyé : <i>${aiPrompt()}</i></div>`;
+    }
+  }catch(e){
+    info.innerHTML=`<div class="line bad">Moteur AI injoignable (${e.name}). Le moteur local a-t-il été arrêté ?</div>`;
+    AI.ok=false;
+  }
+  AI.busy=false;
+}
+
+/* ── Tableau de points + warnings ────────────────────────────────────── */
+function renderTable(){
+  const tb = $('ptsTable').querySelector('tbody');
+  tb.innerHTML='';
+  state.profile.forEach((p,i)=>{
+    let cls = i===state.selected?'sel':'';
+    let angTxt='—';
+    if(i<state.profile.length-1){
+      const a=overhangDeg(p,state.profile[i+1]);
+      angTxt = a>0 ? a.toFixed(0)+'°' : 'auto-portant';
+      if(a>OVERHANG.HARD_DEG) cls+=' bad'; else if(a>OVERHANG.WARN_DEG) cls+=' warn';
+    }
+    const tr=document.createElement('tr'); tr.className=cls.trim();
+    const mark = i===socketEndIdx() ? ` (culot ${state.socket})` : (i===openEndIdx() ? ' (ouverture)' : '');
+    tr.innerHTML = `<td>${i+1}${mark}</td><td>${p.h.toFixed(0)}</td><td>${p.r.toFixed(1)}</td><td>${angTxt}</td>`;
+    tb.appendChild(tr);
+  });
+  $('delPoint').disabled = !(state.selected>=0 && state.profile.length>3);
+  const ap=$('addPoint');
+  if(ap) ap.disabled = !(state.selected>=0 && state.selected<state.profile.length-1);
+  const fld=$('pointCongeField');
+  if(fld){
+    // un congé n'a de sens que sur un point INTÉRIEUR (un angle entre 2 segments)
+    const ok = state.selected>0 && state.selected<state.profile.length-1;
+    fld.style.display = ok ? '' : 'none';
+    if(ok){
+      const v = state.profile[state.selected].conge || 0;
+      $('pointConge').value = v;
+      $('pointCongeVal').textContent = v>0 ? `R ${v.toFixed(1)} mm` : 'aucun (angle vif)';
+    }
+  }
+}
+
+function renderWarnings(){
+  const box=$('warnbox'); box.innerHTML='';
+  const lines=[];
+  let hasHard=false, hasWarn=false;
+  /* Les deux limites d'atelier sont SIGNALEES et pas seulement empechees : un
+   * profil charge (preset, graine, etat ancien) peut les enfreindre sans qu'on
+   * l'ait dessine. Empecher le geste ne suffit donc pas, il faut le dire. */
+  for(let i=1;i<state.profile.length-1;i++){
+    const ang = angleAuSommet(state.profile, i);
+    if(ang < ANGLE_MIN_DEG){
+      hasHard = true;
+      lines.push(['bad', `Point ${i+1} : angle de ${ang.toFixed(0)}° (minimum ${ANGLE_MIN_DEG}°) — la buse ne remplit pas une gorge aussi fermée, la pièce casserait là.`]);
+    }
+  }
+  const rMin = Math.min(...state.profile.map(p=>p.r));
+  if(rMin < DIA_MIN_MM/2 - 0.01){
+    hasHard = true;
+    lines.push(['bad', `Diamètre minimum ${(rMin*2).toFixed(0)} mm (minimum ${DIA_MIN_MM} mm) — sous cette cote le module n'entre plus et le col piège la chaleur de la LED.`]);
+  }
+  for(let i=0;i<state.profile.length-1;i++){
+    const a=overhangDeg(state.profile[i],state.profile[i+1]);
+    if(a>OVERHANG.HARD_DEG){ hasHard=true; lines.push(['bad', `Segment ${i+1}→${i+2} : la paroi s'évase de ${a.toFixed(0)}° en montant (> ${OVERHANG.HARD_DEG}°) — support d'impression nécessaire, ou retourne la pièce tête en bas.`]); }
+    else if(a>OVERHANG.WARN_DEG){ hasWarn=true; lines.push(['warn', `Segment ${i+1}→${i+2} : évasement de ${a.toFixed(0)}° (${OVERHANG.WARN_DEG}-${OVERHANG.HARD_DEG}°) — passe, mais sous-face striée attendue.`]); }
+  }
+  /* Message « Aucun surplomb » RETIRE (14/08, demande Baptiste). C'etait la
+   * ligne du cas favorable, poussee seulement quand ni surplomb dur ni
+   * avertissement n'etaient detectes. Les ALERTES, elles, sont intactes :
+   * surplombs > 55°, courbure, surplomb reel du maillage lisse. */
+  // la sculpture ajoute un surplomb que le méridien 2D ne montre pas
+  const sc = state.bodies[state.body].sculpt;
+  if(Math.abs(sc.bendDeg) >= 1){
+    const tot = Math.abs(sc.bendDeg);
+    lines.push([tot>25?'bad':'warn', `Courbure ${sc.bendDeg.toFixed(0)}° : ajoute jusqu'à ${tot.toFixed(0)}° d'inclinaison au sommet, EN PLUS des surplombs du profil ci-dessus — support probable au-delà de 25°.`]);
+  }
+  if(Math.abs(sc.twistDegPerMm) >= 0.02){
+    lines.push(['ok', `Torsion ${sc.twistDegPerMm.toFixed(2)} °/mm : ${(Math.abs(sc.twistDegPerMm)*profileTopH()).toFixed(0)}° de vrillage sur la hauteur — n'ajoute pas de surplomb (rotation pure).`]);
+  }
+  lines.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+}
+
+/* ── Sockets UI ───────────────────────────────────────────────────────── */
+function socketsDispo(){
+  return Object.entries(SOCKETS).filter(([,s])=>s.dispo !== false);
+}
+function renderSockets(){
+  const el=$('socketList'); el.innerHTML='';
+  socketsDispo().forEach(([key,s])=>{
+    const div=document.createElement('label');
+    div.className='socket-opt'+(state.socket===key?' on':'');
+    div.innerHTML = `<input type="radio" name="socket" value="${key}" ${state.socket===key?'checked':''}>
+      <div><div class="t">${s.label} <span class="tag ${s.measured?'measured':'standard'}">${s.measured?'MESURÉ ATELIER':'STANDARD PUBLIÉ'}</span></div>
+      <div class="d">${s.type==='module'
+        ? `${s.visM3} vis M3 (inserts laiton), entraxe ${s.entraxeVisMm} mm · platine Ø${s.platineDiaMm} mm · `
+          + `passage câble USB Ø${s.cableDiaMm} mm · décharge de traction obligatoire · `
+          + `rayon mini point de fixation ${s.housingMinRadiusMm} mm · ${s.tensionV} V, ≤${s.maxWattageW} W`
+        : `Alésage ${s.boreDiaMm}mm · épaulement Ø${s.shoulderDiaMm}mm · rayon mini point de fixation ${s.housingMinRadiusMm}mm · LED ≤${s.maxWattageW}W`
+      }<br>${s.source}</div></div>`;
+    div.querySelector('input').onchange=()=>{ state.socket=key; normalizeProfile(); renderAll(); };
+    el.appendChild(div);
+  });
+  if(socketsDispo().length === 1){
+    const d=document.createElement('div'); d.className='hint'; d.style.marginTop='8px';
+    d.textContent = "Une seule connexion proposée : le module USB 5 V. Les culots secteur E14 et E27 ne sont "
+      + "plus au catalogue — leurs cotes restent dans le moteur, mais aucune lampe vendue n'est reliée au secteur.";
+    el.appendChild(d);
+  }
+}
+
+/* Ce que la pièce doit prévoir pour la connexion choisie, et le régime de
+ * sécurité qui s'applique VRAIMENT. Un module USB 5 V n'est pas du secteur :
+ * garder l'avertissement « assemblage par un professionnel » serait faux, et un
+ * avertissement faux abîme ceux qui sont vrais. */
+function renderConnexion(){
+  const box=$('connexionBox'); if(!box) return;
+  const s=SOCKETS[state.socket], lignes=[];
+  if(s.type === 'module'){
+    const c = state.cable;
+    lignes.push(['ok', `${s.tensionV} V par USB : très basse tension de sécurité. Pas de secteur dans la lampe, `
+      + `donc pas d'intervention d'un professionnel de l'électricité — le montage se fait à la main, deux vis.`]);
+    lignes.push(['ok', `Cotes RELEVÉES sur les maillages du module et du serre-câble : module Ø${fr(s.platineDiaMm,2)} × `
+      + `${fr(s.epaisseurMm,2)} mm, 2 perçages Ø${fr(s.trouInsertMm,2)} à ${fr(s.entraxeVisMm,2)} mm d'entraxe ; `
+      + `serre-câble ${s.serreCable.emprise}, 2 perçages Ø${fr(s.serreCable.trouMm,2)} à `
+      + `${fr(s.serreCable.entraxeMm,2)} mm ; gorge de câble ${fr(s.cableLargeurMm,2)} × ${fr(s.cableEpaisseurMm,2)} mm `
+      + `(câble PLAT, pas rond).`]);
+    if(c.on) lignes.push(['ok', `Le passage de câble Ø${fr(c.diaMm,1)} mm est PERCÉ DANS LE MAILLAGE livré `
+      + `— rien à percer à l'atelier. Il traverse la bande pleine et le bord est refermé, la pièce reste étanche.`]);
+    else     lignes.push(['warn', `Passage de câble désactivé : la pièce sort pleine et le câble devra être percé à l'atelier.`]);
+    if(c.platine) lignes.push(['ok', `Platine de raccordement générée comme pièce séparée : elle porte les 4 trous `
+      + `d'insert M3 (2 pour le module à ${s.entraxeVisMm} mm, 2 pour le serre-câble à ${s.serreCable.entraxeMm} mm) `
+      + `et vient se coincer dans le cône de la coque.`]);
+    else lignes.push(['warn', `Sans platine, il n'y a AUCUN trou d'insert dans le fichier : ni le module ni le serre-câble `
+      + `n'ont de point de fixation.`]);
+    lignes.push(['warn', `Pourquoi les inserts ne sont pas dans la coque : un insert laiton M3 fait 5 mm de long et la `
+      + `paroi ${(+state.wall).toFixed(1)} mm — il n'aurait rien pour tenir. Et les 2 vis du module sont à `
+      + `${(s.entraxeVisMm/2).toFixed(0)} mm de son axe, donc au-dessus du VIDE de l'ouverture. `
+      + `C'est la platine qui apporte l'épaisseur et la matière au centre.`]);
+  } else {
+    lignes.push(['warn', `Culot ${state.socket} : la lampe est reliée au SECTEUR. L'assemblage électrique est `
+      + `réalisé par un professionnel ou l'atelier, jamais par le client. Douille marquée CE, `
+      + `décharge de traction, connexions démontables donc inspectables.`]);
+    lignes.push(['ok', `LED ≤ ${s.maxWattageW} W réels, jamais halogène ni incandescent : le PLA ramollit vers 55 °C.`]);
+  }
+  box.innerHTML='';
+  lignes.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+}
+
+/* ── Sortie de câble ──────────────────────────────────────────────────── */
+const fr = (v,d)=>Number(v).toFixed(d).replace('.',',');
+
+/* ── Montage de la lampe à poser ──────────────────────────────────────── */
+function renderPoser(){
+  const card=$('poserCard'); if(!card) return;
+  const dispo = state.type==='poser' && SOCKETS[state.socket] && SOCKETS[state.socket].type==='module';
+  card.style.display = dispo ? '' : 'none';
+  if(!dispo) return;
+  const list=$('poserList'); list.innerHTML='';
+  const box=$('poserBox'); box.innerHTML=''; const L=[];
+  if(MESH.bague && MESH.bague.reelle){
+    L.push(['ok', `Bague V3 fusionnée sous l'abat-jour, telle quelle : Ø${fr(BAGUE.diaExtMm,1)} × ${fr(BAGUE.hautMm,1)} mm, `
+      + `${BASE_KIT.nTri.toLocaleString('fr')} triangles, ${(BASE_KIT.volMm3/1000).toFixed(1)} cm³. `
+      + `Elle porte le col fileté qui reçoit le module — c'est le seul montage.`]);
+    L.push(['ok', `L'abat-jour se pose sur l'ASSISE de la bague : la couronne plate à ${fr(BAGUE.assiseMm,1)} mm du sol, `
+      + `de Ø${fr(BAGUE.assiseIntDiaMm,1)} à Ø${fr(BAGUE.diaExtMm,1)}. Le bourrelet Ø${fr(BAGUE.diaExtMm,1)} reste visible sur ${fr(BAGUE.assiseMm,1)} mm — c'est lui, `
+      + `le pied de la lampe ; le reste de la pièce monte à l'intérieur de la peau.`]);
+  } else if(MESH.bague){
+    L.push(['bad', `Bague V3 non décodée (${BASE_KIT.note||'?'}) : reconstruction paramétrique de secours `
+      + `Ø${fr(BAGUE.diaExtMm,2)} — ne lance PAS de série avec ce fichier.`]);
+  }
+  L.push(['ok', `PIED : l'abat-jour se termine par un cercle extérieur Ø${fr(PIED.diaMm,1)} mm — la forme, `
+    + `même complexe, fond son relief et rejoint ce cercle sur les ${PIED.transitionMm} derniers mm.`]);
+  /* ⚠️ RÈGLE POSÉE PAR BAPTISTE : rien de l'emmanchement ne dépasse Ø104. On la
+   * MESURE sur le maillage construit, pas sur les constantes qui l'ont produit —
+   * une constante juste ne prouve pas que la pièce livrée l'est, et c'est
+   * exactement ce qui m'a manqué pour lire trois captures d'affilée. */
+  {
+    const LIMITE = 104.0;
+    let rBague = 0, rPied = 0;
+    const P = MESH.parts && MESH.parts[0];
+    if(P && P.tris) for(const t of P.tris) for(const q of t){
+      const v = placeVertex(q, P.xf, 0);
+      const d = Math.hypot(v[0], v[1]);
+      if(v[2] <= BAGUE.assiseMm + 0.01){ if(d > rBague) rBague = d; }
+      else if(v[2] <= BAGUE.assiseMm + 1.0){ if(d > rPied) rPied = d; }
+    }
+    const dB = 2*rBague, dP = 2*rPied;
+    if(dB > 0){
+      const trop = Math.max(dB, dP) - LIMITE;
+      L.push(trop > 0.05
+        ? ['warn', `⚠️ Ø${fr(LIMITE,0)} DÉPASSÉ de ${fr(trop,2)} mm : emmanchement mesuré `
+            + `Ø${fr(dB,2)}, pied de l'abat-jour Ø${fr(dP,2)}. La lampe ne se monterait pas `
+            + `sur la base d'atelier.`]
+        : ['ok', `Emmanchement mesuré sur le maillage : bague Ø${fr(dB,2)}, pied de l'abat-jour `
+            + `Ø${fr(dP,2)} — sous la limite de Ø${fr(LIMITE,0)}.`]);
+    }
+  }
+  L.push(['ok', `La BASE d'atelier (Ø${fr(DECO.diaMm||104,1)} × ${fr(DECO.zHautMm||18.2,1)} mm, mesurée) apparaît à l'écran et dans les rendus `
+    + `pour montrer la lampe montée. Le STL téléchargé, lui, ne contient QUE l'abat-jour et sa bague : `
+    + `la base n'est pas à imprimer, elle vient de l'atelier.`]);
+  L.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+}
+
+/* ── Socle ────────────────────────────────────────────────────────────── */
+function renderSocle(){
+  const card=$('socleCard'); if(!card) return;
+  const dispo = state.type==='poser' && SOCKETS[state.socket] && SOCKETS[state.socket].type==='module';
+  card.style.display = dispo ? '' : 'none';
+  if(!dispo) return;
+  $('socleOn').checked = state.socle.on;
+  $('socleDia').value = state.socle.diaMm;
+  $('socleDiaTxt').textContent = fr(state.socle.diaMm,1);
+  $('socleParams').style.opacity = state.socle.on ? 1 : 0.45;
+  $('socleDia').disabled = !state.socle.on;
+
+  if(baseKitUtile() && BASE_KIT.etat === 'absent') chargerBaseKit();
+  const rowM = $('socleMontrerRow');
+  if(rowM){
+    rowM.style.display = (BASE_KIT.etat === 'ok' && state.socle.on) ? '' : 'none';
+    $('socleMontrer').checked = !!state.socle.montrer;
+  }
+  const box=$('socleBox'); box.innerHTML=''; const L=[];
+  if(state.socle.on){
+    if(BASE_KIT.etat === 'ok'){
+      L.push(['ok', `Pièce d'atelier fusionnée à l'abat-jour : ${BASE_KIT.note}. Version allégée fournie `
+        + `par l'atelier — 6 664 triangles au lieu de 356 632, pour 0,03 % d'écart de volume `
+        + `(107,383 contre 107,419 cm³). Les cotes d'assise sont identiques au centième.`]);
+      L.push(['ok', `Maillage EMBARQUÉ dans la page — aucune requête, aucun serveur : le studio reste `
+        + `un fichier unique qui marche hors ligne.`]);
+      L.push(['warn', `Utiliser la pièce sans la modifier FIGE son Ø à ${fr(BASE_KIT.diaMm,2)} mm : `
+        + `le réglage de diamètre ci-dessous ne la fait plus varier, c'est l'abat-jour qui s'aligne sur elle.`]);
+    } else if(BASE_KIT.etat === 'echec'){
+      L.push(['bad', `Pièce d'atelier NON chargée (${BASE_KIT.note}). Le studio génère à la place un `
+        + `équivalent fonctionnel — plancher et colonnettes aux cotes relevées — mais ce n'est PAS `
+        + `ta pièce. Ne lance pas de série avec ce fichier.`]);
+    }
+    const R2 = socleRayonMm();
+    L.push(['ok', `Jupe droite Ø${fr(2*R2,1)} mm sur ${fr(SOCLE.jupeHMm,1)} mm, puis le dessin repris `
+      + `EXACTEMENT au même rayon : la peau descend d'un seul trait jusqu'à l'extrémité, aucun ressaut. `
+      + `La lampe est donc ${fr(SOCLE.jupeHMm,1)} mm plus haute que le profil dessiné.`]);
+    if(Math.abs(R2 - state.socle.diaMm/2) > 0.01)
+      L.push(['warn', `Ø ramené de ${fr(state.socle.diaMm,1)} à ${fr(2*R2,1)} mm : borné par le type de lampe `
+        + `et par le plateau d'impression (${PRINT_BOUNDS.PLATE_XY_MM} mm).`]);
+    // on n'alerte que si l'écart vaut plus d'un périmètre : 1,8 contre 2,0 ne
+    // change rien de structurel, le signaler serait du bruit.
+    if(Math.abs(+state.wall - SOCLE.paroiRefMm) > 0.35)
+      L.push(['warn', `Paroi réglée à ${fr(+state.wall,1)} mm ; l'assemblage de référence est à `
+        + `${fr(SOCLE.paroiRefMm,1)} mm — soit ${Math.round(Math.abs(+state.wall-SOCLE.paroiRefMm)/0.4)} périmètre(s) d'écart.`]);
+    if(MESH.socle && !MESH.socle.reelle) L.push(['ok', `Plancher Ø${fr(2*MESH.socle.R,1)} mm à h = ${MESH.socle.z0}–${MESH.socle.z1} mm, `
+      + `2 colonnettes kit LED (entraxe ${fr(SOCLE.ledEntraxeMm,2)} mm, perçage Ø${fr(SOCLE.ledTrouMm,2)}) `
+      + `montant à h = ${SOCLE.ledHautMm} mm, et 2 bossages serre-câble (entraxe ${fr(SOCLE.serreEntraxeMm,2)} mm).`]);
+    const tr = trousCorps(0)[0];
+    if(tr && tr.ajuste) L.push(['warn', `Sortie de câble remontée de h ${fr(tr.ajuste.de,1)} à ${fr(tr.ajuste.vers,1)} mm : `
+      + `à la cote de la pièce d'origine, le trou coupait la couronne plate du dessous et la pièce ne fermait plus. `
+      + `Sur la pièce d'origine c'est une encoche ouverte sous la jupe, pas un trou fermé.`]);
+    const rMini = SOCLE.ledEntraxeMm/2 + SOCLE.colonneDiaMm/2 + 4;
+    if(state.socle.diaMm/2 < rMini)
+      L.push(['bad', `Ø trop petit : il faut au moins Ø${fr(2*rMini,0)} mm pour loger les colonnettes du kit LED `
+        + `(entraxe ${fr(SOCLE.ledEntraxeMm,2)} mm).`]);
+    if(MESH.socle && MESH.socle.reelle){
+      L.push(['ok', `Source : ${SOCLE.source.split('—')[0].trim()} — c'est le maillage d'atelier lui-même qui part `
+        + `dans le fichier, nervures et évidements compris.`]);
+    } else {
+      L.push(['warn', `Cotes reprises de ${SOCLE.source}. L'intérieur généré est fonctionnel (plancher, colonnettes, `
+        + `perçages) — il ne reprend pas les nervures ni les évidements de la pièce d'origine.`]);
+    }
+  }
+  L.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+}
+
+function renderCable(){
+  const card=$('cableCard'); if(!card) return;
+  const s=SOCKETS[state.socket], mod = s.type==='module' && !bagueActive();
+  card.style.display = mod ? '' : 'none';
+  if(!mod) return;
+  const c=state.cable;
+  $('cableOn').checked = c.on;
+  $('cablePlatine').checked = c.platine;
+  $('cableDia').value = c.diaMm;      $('cableDiaTxt').textContent = c.diaMm.toFixed(1).replace('.',',');
+  $('cableRecul').value = c.reculMm;  $('cableReculTxt').textContent = c.reculMm;
+  $('cableAng').value = c.angleDeg;   $('cableAngTxt').textContent = c.angleDeg;
+  $('cableParams').style.opacity = c.on ? 1 : 0.45;
+  ['cableDia','cableRecul','cableAng'].forEach(id=>{ $(id).disabled = !c.on; });
+
+  const box=$('cableBox'); box.innerHTML='';
+  const L=[];
+  const tr = trousCorps(socketEndBodyIdx())[0];
+  if(c.on && tr){
+    L.push(['ok', `Passage percé à h = ${tr.hMm.toFixed(0)} mm sur le corps ${socketEndBodyIdx()+1}, à ${c.angleDeg}° — `
+      + `largeur utile mesurée sur le maillage ≈ ${fr(c.diaMm*0.998,2)} mm, le câble plat `
+      + `${fr(s.cableLargeurMm,2)} × ${fr(s.cableEpaisseurMm,2)} mm passe.`]);
+    L.push(['ok', `Le trou est écarté d'office des couronnes d'extrémité et des plans de coupe : sinon la couronne plate `
+      + `serait interrompue et la pièce ne fermerait plus.`]);
+    if(tr.ajuste) L.push(['warn', `Trou descendu de h ${tr.ajuste.de.toFixed(0)} à ${tr.ajuste.vers.toFixed(0)} mm : `
+      + `au recul demandé, il tombait dans la bande de la platine, qui aurait barré l'arrivée du câble.`]);
+  }
+  if(c.platine && MESH.platine){
+    const P=MESH.platine;
+    if(P.seat.ok) L.push(['ok', `Platine Ø${fr(2*P.R,1)} mm × ${fr(PLATINE.epaisMm,1)} mm, assise à h = ${P.seat.h.toFixed(0)} mm `
+      + `— c'est la première hauteur où la coque accepte le disque Ø${fr(s.platineDiaMm,1)} du module.`]);
+    else L.push(['bad', `Le corps est trop étroit pour le module : il faudrait un rayon intérieur de `
+      + `${fr(P.seat.besoin,1)} mm et le maximum atteint est ${fr(P.seat.rInt,1)} mm. `
+      + `Élargis le corps, ou ce module ne rentre pas.`]);
+    if(P.seat.ok){
+      L.push(['ok', `Le module se visse SOUS la platine, LED vers l'ouverture : au-dessus, la coque s'est déjà `
+        + `resserrée sous le Ø${fr(s.platineDiaMm,1)} du disque. Les 4 trous sont traversants, l'insert `
+        + `s'enfonce donc par la face qu'on veut.`]);
+      // l'anneau d'assise ne doit pas barrer l'arrivée du câble
+      if(c.on && tr){
+        const hb = tr.hMm - tr.diaMm/2, ht = tr.hMm + tr.diaMm/2;
+        if(ht > P.seat.h && hb < P.seat.h + PLATINE.epaisMm){
+          L.push(['bad', `L'anneau de la platine (h ${P.seat.h.toFixed(0)} → ${(P.seat.h+PLATINE.epaisMm).toFixed(0)} mm) `
+            + `passe juste devant le trou de câble (h ${hb.toFixed(0)} → ${ht.toFixed(0)} mm) : le câble buterait dessus. `
+            + `Change le recul d'au moins ${Math.ceil(ht - P.seat.h)} mm.`]);
+        }
+      }
+    }
+  }
+  L.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+}
+
+/* ── Swatches ─────────────────────────────────────────────────────────── */
+function renderSwatches(){
+  const el=$('swatches'); el.innerHTML='';
+  const cur = bodyColor(state.body);
+  COLORS.forEach(c=>{
+    const s=document.createElement('div'); s.className='swatch'+(cur===c?' on':'');
+    s.style.background=c;
+    s.onclick=()=>{ setBodyColor(c); renderAll(); };
+    el.appendChild(s);
+  });
+  const lbl=$('colorScope');
+  if(lbl){
+    const multi = state.compo.count>1;
+    lbl.textContent = !multi ? ''
+      : (state.linkBodies
+          ? '— corps liés : la couleur s\'applique à tous.'
+          : `— s'applique au corps ${state.body+1} seulement. Chaque corps étant imprimé à part, une bobine différente par corps suffit : aucune imprimante multi-matière nécessaire.`);
+  }
+}
+
+/* ── Prix / specs — calculés sur le MAILLAGE RÉELLEMENT EXPORTÉ ───────────
+ * Le volume vient du théorème de la divergence appliqué aux triangles de la
+ * coque (colliers d'emboîtement compris) : le devis et le fichier livré
+ * décrivent la même pièce. L'ancienne version supposait une coque alors que
+ * le STL exporté était un solide plein — écart ×21 sur la masse.
+ * ──────────────────────────────────────────────────────────────────────── */
+function computeSpecs(){
+  const nParts = Math.max(1, MESH.parts.length);
+  // la vraie base n'est pas dans MESH.parts (elle n'entre que dans le STL),
+  // mais c'est de la matière imprimée : elle doit être facturée.
+  const volBase = (MESH.socle && MESH.socle.reelle) ? MESH.socle.volMm3 : 0;
+  const volumeCm3 = ((MESH.stats.volMm3||0) + volBase)/1000 * GEOMETRY_CONFIG.INTERNAL_STRUCTURE_FACTOR;
+  const density = PRICE_CONFIG.MATERIAL_DENSITY_G_CM3[state.material];
+  const massG = volumeCm3*density;
+  const printHours = Math.max(0.4, volumeCm3/PRICE_CONFIG.PRINT_CM3_PER_HOUR);
+  const materialCost = massG/1000*PRICE_CONFIG.MATERIAL_COST_EUR_PER_KG[state.material];
+  const setupCost = (nParts-1)*PRICE_CONFIG.PART_SETUP_EUR;         // un lancement machine par module en plus
+  const machineCost = printHours*PRICE_CONFIG.HOURLY_RATE_EUR + setupCost;
+  const socketCost = PRICE_CONFIG.SOCKET_KIT_EUR[state.socket];
+  const jointCost = (nParts-1)*PRICE_CONFIG.JOINT_HARDWARE_EUR;      // visserie de liaison par plan de coupe
+  const subtotal = machineCost+materialCost+socketCost+PRICE_CONFIG.BASE_HARDWARE_EUR+jointCost;
+  const price = Math.max(PRICE_CONFIG.MIN_PRICE_EUR, subtotal*PRICE_CONFIG.MARGIN_MULTIPLIER);
+  return {volumeCm3, massG, printHours, materialCost, machineCost, socketCost, jointCost, setupCost,
+          hardwareCost:PRICE_CONFIG.BASE_HARDWARE_EUR, price, nParts};
+}
+
+function renderPrice(){
+  const s = computeSpecs();
+  window.__lastSpecs = s;
+  $('s-vol').innerHTML = s.volumeCm3.toFixed(1)+'<small> cm³</small>';
+  $('s-time').innerHTML = s.printHours.toFixed(1)+'<small> h</small>';
+  $('s-mass').innerHTML = s.massG.toFixed(0)+'<small> g</small>';
+  $('s-price').innerHTML = s.price.toFixed(0)+'<small> €</small>';
+  $('s-breakdown').innerHTML = [
+    ['Machine/temps atelier'+(s.nParts>1?` (${s.nParts} lancements)`:''), s.machineCost.toFixed(2)+' €'],
+    ['Matière ('+MATERIALS[state.material]+')', s.materialCost.toFixed(2)+' €'],
+    ['Kit culot '+state.socket, s.socketCost.toFixed(2)+' €'],
+    ['Visserie/câble/passe-câble', s.hardwareCost.toFixed(2)+' €'],
+    ...(s.nParts>1?[[`Liaison des modules (${s.nParts-1} plan${s.nParts>2?'s':''} de coupe)`, s.jointCost.toFixed(2)+' €']]:[]),
+    ['Marge atelier ×'+PRICE_CONFIG.MARGIN_MULTIPLIER, ''],
+  ].map(([k,v])=>`<div><span>${k}</span><span>${v}</span></div>`).join('');
+}
+
+/* ── Bornes UI (dépendent du type de lampe) ──────────────────────────── */
+function renderBounds(){
+  // le bloc « Bornes actives » a été retiré de l'affichage (05/08) : ses
+  // éléments n'existent plus, la fonction ne fait donc plus rien
+  if(!$('bType')) return;
+  const b = bounds();
+  $('bType').textContent = TYPES[state.type].label;
+  $('bMaxH').textContent = b.maxH;
+  $('bMaxR').textContent = b.maxR;
+  $('bMinTop').textContent = SOCKETS[state.socket].housingMinRadiusMm;
+}
+
+/* ── Presets pilotés par le type de lampe ────────────────────────────── */
+function renderPresets(){
+  const row = $('presetRow'); if(!row) return;
+  row.innerHTML = '';
+  TYPES[state.type].silhouettes.forEach(name=>{
+    const b = document.createElement('button');
+    b.className = 'btn' + (state.shape===name && !state.seed ? ' pri' : '');
+    b.textContent = SILHOUETTES[name].label;
+    b.onclick = ()=> setPreset(name);
+    row.appendChild(b);
+  });
+  const si = $('seedInput');
+  if(si && document.activeElement !== si) si.value = state.seed || '';
+  // avec plusieurs corps, le tirage vise le corps courant ; le second bouton
+  // permet de tirer tous les corps d'un coup
+  const multi = state.compo.count > 1;
+  const ra = $('randomAll'); if(ra) ra.style.display = multi ? '' : 'none';
+  const rs = $('randomShape');
+  if(rs){
+    rs.textContent = multi ? `🎲 Forme aléatoire (corps ${state.body+1})` : '🎲 Forme aléatoire';
+    rs.title = multi ? 'Ne redessine que le corps sélectionné — délie les corps si besoin' : '';
+  }
+
+  const fi = $('flipInfo');
+  if(fi){
+    const b = state.bodies[state.body];
+    const scope = (state.linkBodies && !state.expert && state.compo.count>1) ? ' (tous les corps liés)' : '';
+    fi.textContent = b.flipped
+      ? `Tête en bas : le sommet du dessin est contre le plateau${scope}.`
+      : ``;   // orientation normale : rien à dire — plus de culot dans le produit
+  }
+}
+
+/* ── Style de surface ─────────────────────────────────────────────────── */
+function renderSurface(){
+  const seg = $('surface-seg'); if(!seg) return;
+  const s = bodySurfaceForEdit();
+  // le compte de facettes ne veut rien dire hors du style Facetté : on le cache
+  const fr = $('facetteRow');
+  if(fr) fr.style.display = (s.base === 'facette') ? '' : 'none';
+
+  // Lien entre corps : visible seulement s'il y a plusieurs corps
+  const linkBox = $('linkRow');
+  if(linkBox){
+    linkBox.style.display = state.compo.count>1 ? '' : 'none';
+    linkBox.className = 'socket-opt'+(state.linkBodies?' on':'');
+    $('linkOn').checked = state.linkBodies;
+    $('linkText').textContent = state.linkBodies
+      ? 'Corps liés — profil, style et sculpture communs à tous les corps.'
+      : `Corps indépendants — tout ce qui suit ne touche QUE le corps ${state.body+1} (change de corps dans la carte 2 ou 5).`;
+  }
+
+  // BASE : facetté ou lisse — l'un ou l'autre
+  seg.innerHTML='';
+  Object.entries(SURFACE_BASES).forEach(([k,v])=>{
+    const b=document.createElement('button');
+    b.textContent = v.label;
+    if((s.base||'facette')===k) b.className='on';
+    b.onclick = ()=>{ bodySurfaceForEdit().base=k; renderAll(); };
+    seg.appendChild(b);
+  });
+
+  const box = $('surfaceParams'); box.innerHTML='';
+  const addSlider = (label, key, min, max, step, fmt)=>{
+    const f=document.createElement('div'); f.className='field';
+    f.innerHTML = `<label>${label} : <b>${fmt(s[key])}</b></label>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${s[key]}" style="width:100%;accent-color:var(--blue)">`;
+    f.querySelector('input').oninput = e=>{ s[key] = parseFloat(e.target.value); renderSoon(); };
+    box.appendChild(f);
+  };
+  // COUCHE : case à cocher + ses réglages, dépliés seulement si elle est active
+  const addCouche = (cle, titre, desc, params)=>{
+    const l=document.createElement('label'); l.className='socket-opt'+(s[cle]?' on':'');
+    l.style.marginTop='10px';
+    l.innerHTML = `<input type="checkbox" ${s[cle]?'checked':''}>
+      <div><div class="t">${titre}</div><div class="d">${desc}</div></div>`;
+    l.querySelector('input').onchange = e=>{ bodySurfaceForEdit()[cle]=e.target.checked; renderAll(); };
+    box.appendChild(l);
+    if(s[cle]) params();
+  };
+
+  if(s.base==='lisse'){
+    addSlider('Lissage — densité du maillage','smoothing',0,100,1,v=>{
+      const sg=angularSegments(s,14), st=styleStepMm(s);
+      return `${v.toFixed(0)} % · ${sg} segments, anneaux tous les ${st.toFixed(1)} mm`;
+    });
+    const note=document.createElement('div'); note.className='hint';
+    note.textContent = "Lisse suit le TRACÉ : la silhouette est exactement celle de la coupe 2D, "
+      + "tournée et finement maillée. Un angle du tracé reste un angle — l'arrondir, c'est le congé ci-dessous.";
+    box.appendChild(note);
+    addSlider('Congés sur les angles vifs','congeMm',0,20,0.5,v=>
+      v>0 ? `R ${v.toFixed(1)} mm — réduit là où la place manque` : 'aucun — les angles restent vifs');
+  }
+
+  addCouche('stries', 'Stries en relief',
+    "Cannelures creusées dans la paroi, à l'identique dedans et dehors : l'épaisseur ne change pas.",
+    ()=>{
+      /* ⚠️ BORNES ELARGIES (13/08). Le defaut est passe a 118 nervures de
+       * 0,85 mm, celles de l'affiche et de la gamme. Avec les anciennes bornes
+       * (6-48 et 0,4-4) le curseur aurait affiche 48 et 0,9 pour un etat a 118
+       * et 0,85 : encore une commande qui ment sur ce qui est chiffre, comme les
+       * quatre desynchronisations trouvees aujourd'hui. Le pas descend a 0,05 mm
+       * pour que 0,85 soit ATTEIGNABLE et pas seulement affichable. */
+      addSlider('Nombre de stries sur le tour','strieCount',6,160,1,v=>v);
+      addSlider('Profondeur du relief','strieDepthMm',0.4,4,0.05,v=>v.toFixed(2)+' mm');
+      const f=document.createElement('label'); f.className='socket-opt'+(s.cross?' on':'');
+      f.innerHTML = `<input type="checkbox" ${s.cross?'checked':''}>
+        <div><div class="t">Croiser deux réseaux → losanges en volume</div>
+        <div class="d">Le relief devient un damier de losanges bombés (cos nθ · cos kh), pas de simples rainures.</div></div>`;
+      f.querySelector('input').onchange = e=>{ bodySurfaceForEdit().cross = e.target.checked; renderAll(); };
+      box.appendChild(f);
+      if(s.cross) addSlider('Pas des losanges en hauteur','pitchMm',10,90,1,v=>v.toFixed(0)+' mm');
+    });
+
+  addCouche('organique', 'Ondulation organique',
+    "Trois ondulations de fréquences non commensurables : le relief ne se répète jamais exactement. Effet galet.",
+    ()=>{
+      addSlider("Amplitude de l'ondulation",'orgAmpMm',0.4,6,0.1,v=>v.toFixed(1)+' mm');
+      addSlider("Échelle du relief",'orgPitchMm',20,120,1,v=>v.toFixed(0)+' mm');
+    });
+
+  addCouche('martele', 'Martelé — facettes enfoncées',
+    "Comme un métal battu au marteau : chaque coup enfonce une facette plane, et le réseau d'arêtes reste au niveau de la surface d'origine. Le relief est dans la pièce imprimée, pas seulement à l'écran — et rien ne dépasse du profil dessiné.",
+    ()=>{
+      addSlider('Facettes sur le tour','martCount',8,40,1,v=>v);
+      addSlider('Hauteur des facettes','martHMm',6,30,1,v=>v.toFixed(0)+' mm');
+      addSlider('Profondeur des coups','martDepthMm',0.3,3,0.1,v=>v.toFixed(1)+' mm');
+    });
+
+  addCouche('ajour', 'Ajourage Voronoï — vrais trous traversants',
+    "La paroi ne garde que les nervures du diagramme de Voronoï. Bandes pleines imposées en haut (culot) et en bas (appui), avec un fondu progressif. C'est ce qui économise le plus de matière.",
+    ()=>{
+      // échelle logarithmique : réglage fin de 8 à 2000 cellules sur une seule course
+      /* Base a 186 et non 8 : c'est la butee GAUCHE demandee. L'echelle reste
+       logarithmique, seule son origine bouge. */
+    const toCells = t => Math.round(186*Math.pow(2000/186, t/100));
+      const toSlider = c => Math.round(100*Math.log(Math.max(186,c)/186)/Math.log(2000/186));
+      const f=document.createElement('div'); f.className='field';
+      f.innerHTML = `<label>Densité : <b>${s.voroCells} cellules</b> <span class="dim" id="voroCellSize"></span></label>
+        <input type="range" min="0" max="100" step="1" value="${toSlider(s.voroCells)}" style="width:100%;accent-color:var(--blue)">`;
+      f.querySelector('input').oninput = e=>{ s.voroCells = toCells(parseFloat(e.target.value)); renderSoon(); };
+      box.appendChild(f);
+      addSlider('Largeur des nervures','voroStrutMm',5,7,0.1,v=>v.toFixed(1)+' mm');
+      addSlider('Bande pleine aux extrémités','voroBandMm',14,40,1,v=>v.toFixed(0)+' mm');
+      const row=document.createElement('div'); row.className='row-btn';
+      const b=document.createElement('button');
+      b.className='btn pri'; b.textContent='🎲 Autre motif';
+      b.onclick=()=>{ s.voroVariant=(s.voroVariant||1)+1; renderAll(); };
+      row.appendChild(b);
+      const tag=document.createElement('span');
+      tag.className='seed'; tag.style.width='auto'; tag.textContent='motif n°'+(s.voroVariant||1);
+      row.appendChild(tag);
+      box.appendChild(row);
+      const pf=MESH.stats.perf;
+      if(pf){
+        const cs=$('voroCellSize');
+        if(cs) cs.textContent = `— cellules d'environ ${pf.cellMm.toFixed(1)} mm`;
+        const info=document.createElement('div'); info.className='warnbox';
+        const d=document.createElement('div'); d.className='line ok';
+        d.textContent = `Matière économisée : ${pf.savedPct.toFixed(0)} % — ${(MESH.stats.volMm3/1000).toFixed(1)} cm³ au lieu de ${(pf.refVolMm3/1000).toFixed(1)} cm³ pour la même coque pleine. Le prix suit.`;
+        info.appendChild(d);
+        const add=(cl,t)=>{ const w=document.createElement('div'); w.className='line '+cl; w.textContent=t; info.appendChild(w); };
+        if(s.voroStrutMm < 1.6)
+          add('warn', `Nervures de ${s.voroStrutMm.toFixed(1)} mm : très fines pour une buse 0,4 mm (2 périmètres = 0,8 mm). En dessous de 1,6 mm la pièce devient fragile et le trancheur peut sauter des parois.`);
+        if(pf.cellMm < s.voroStrutMm*2.2)
+          add('warn', `Cellules de ${pf.cellMm.toFixed(1)} mm pour des nervures de ${s.voroStrutMm.toFixed(1)} mm : le motif se referme (${(100*pf.kept/Math.max(1,pf.cells)).toFixed(0)} % de paroi conservée). Affine les nervures ou baisse la densité.`);
+        if(MESH.stats.tris > 120000)
+          add('warn', `${(MESH.stats.tris/1000).toFixed(0)}k triangles : fichier lourd et aperçu ralenti. C'est le prix d'un motif très fin.`);
+        box.appendChild(info);
+      }
+    });
+
+  $('surfaceHint').textContent = styleLabel(s) + ' — ' + (isSmoothMesh(s)
+    ? `maillage ${angularSegments(s,14)} segments` + (styleStepMm(s)>0?`, anneaux tous les ${styleStepMm(s).toFixed(1)} mm`:'')
+    : 'facettes brutes, le plus léger en fichier et le plus rapide à imprimer')
+    + '. Les couches se combinent : les reliefs s\'additionnent, l\'ajourage se superpose.';
+  renderSculpt();
+}
+
+/* ── Sculpture : torsader / tordre ────────────────────────────────────────
+ * Réglages communs à tous les corps, sauf en mode expert où ils ne touchent
+ * que le corps en cours d'édition.
+ * ──────────────────────────────────────────────────────────────────────── */
+function renderSculpt(){
+  const box=$('sculptParams'); if(!box) return;
+  box.innerHTML='';
+  const cur = state.bodies[state.body].sculpt;
+  const title=document.createElement('div');
+  title.className='lbl'; title.style.marginTop='4px';
+  title.innerHTML = 'Sculpture'+((state.linkBodies && !state.expert)
+    ? ' <small>appliquée à tous les corps (liés)</small>'
+    : ` <small>corps ${state.body+1} uniquement</small>`);
+  box.appendChild(title);
+  const add=(label,key,min,max,step,fmt)=>{
+    const f=document.createElement('div'); f.className='field';
+    f.innerHTML=`<label>${label} : <b>${fmt(cur[key])}</b></label>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${cur[key]}" style="width:100%;accent-color:var(--blue)">`;
+    f.querySelector('input').oninput=e=>{
+      const v=parseFloat(e.target.value);
+      sculptTargets().forEach(b=>{ b.sculpt[key]=v; });
+      renderSoon();
+    };
+    box.appendChild(f);
+  };
+  /* L'échelle vivait dans le « mode expert », retiré le 07/08 : c'est un
+   * réglage de forme comme les deux autres, il n'avait rien à faire derrière
+   * une case à cocher. Elle porte sur le CORPS, pas sur sa sculpture — d'où le
+   * setter à part. */
+  (function(){
+    const b0 = state.bodies[state.body];
+    const f=document.createElement('div'); f.className='field';
+    const fmt = v => (Math.round(v*100)/100).toString().replace('.', ',');
+    f.innerHTML=`<label>Échelle du corps : <b>${fmt(b0.scale||1)} ×</b></label>
+      <input type="range" min="0.35" max="2.2" step="0.01" value="${b0.scale||1}" style="width:100%;accent-color:var(--blue)">`;
+    f.querySelector('input').oninput=e=>{
+      const v=parseFloat(e.target.value);
+      sculptTargets().forEach(b=>{ b.scale=v; });
+      renderSoon();
+    };
+    box.appendChild(f);
+  })();
+  add('Torsion (vrillage autour de l\'axe)','twistDegPerMm',-1.2,1.2,0.02,v=>v.toFixed(2)+' °/mm');
+  add('Courbure (inclinaison au sommet)','bendDeg',-35,35,1,v=>v.toFixed(0)+' °');
+  const rz=document.createElement('button');
+  rz.className='btn danger'; rz.style.marginTop='4px'; rz.textContent='Réinitialiser la sculpture';
+  rz.onclick=()=>{ sculptTargets().forEach(b=>{ b.scale=1; b.sculpt.twistDegPerMm=0; b.sculpt.bendDeg=0; }); renderAll(); };
+  box.appendChild(rz);
+  const n=document.createElement('div'); n.className='hint';
+  n.textContent = "La torsion enroule les cannelures autour de l'axe, la courbure penche la pièce. Les deux conservent l'épaisseur de paroi et l'étanchéité du maillage. La courbure ajoute un surplomb que l'analyse du profil 2D ne voit pas — il est signalé dans les avertissements.";
+  box.appendChild(n);
+}
+
+/* ── Composition : nombre de corps, agencement, symétrie ─────────────────── */
+const LAYOUT_LABELS = { vertical:'Empilés (vertical)', ligne:'Alignés (ligne)',
+                        circulaire:'En couronne (circulaire)', imbrique:'Imbriqués (double peau)',
+                        libre:'Libre — superposables' };
+function renderCompo(){
+  const cfg = TYPES[state.type].compo;
+  const c = state.compo;
+  c.count = Math.max(1, Math.min(cfg.maxBodies, c.count));
+  if(!cfg.layouts.includes(c.layout)) c.layout = cfg.layouts[0];
+  while(state.bodies.length < c.count) state.bodies.push(newBodyLike(state.bodies.length));
+  if(state.body >= c.count) state.body = c.count-1;
+
+  $('compoHint').textContent = cfg.note;
+  $('bodyCount').max = cfg.maxBodies;
+  $('bodyCount').value = c.count;
+  $('bodyCountVal').textContent = c.count + (c.count>1?' corps':' corps');
+  $('bodyCountMax').textContent = `(maxi ${cfg.maxBodies} pour une ${TYPES[state.type].label.toLowerCase()})`;
+
+  const seg=$('layout-seg'); seg.innerHTML='';
+  cfg.layouts.forEach(l=>{
+    const b=document.createElement('button');
+    b.textContent=LAYOUT_LABELS[l];
+    if(c.layout===l) b.className='on';
+    b.onclick=()=>{ c.layout=l; renderAll(); };
+    seg.appendChild(b);
+  });
+  $('layoutField').style.display = c.count>1 ? '' : 'none';
+
+  const par=$('compoParams'); par.innerHTML='';
+  if(c.count>1){
+    const sym=document.createElement('label');
+    sym.className='socket-opt'+(c.symmetric?' on':'');
+    sym.innerHTML=`<input type="checkbox" ${c.symmetric?'checked':''}>
+      <div><div class="t">${c.symmetric?'Symétrique / répétitif':'Organique / libre'}</div>
+      <div class="d">${c.symmetric
+        ? 'Corps identiques, espacements réguliers — répétition nette.'
+        : 'Échelles, espacements et rotations dispersés à partir de la graine : irrégulier mais reproductible à l\'identique.'}</div></div>`;
+    sym.querySelector('input').onchange=e=>{ c.symmetric=e.target.checked; renderAll(); };
+    par.appendChild(sym);
+    const add=(label,key,min,max,unit)=>{
+      const f=document.createElement('div'); f.className='field';
+      f.innerHTML=`<label>${label} : <b>${c[key].toFixed(0)} ${unit}</b></label>
+        <input type="range" min="${min}" max="${max}" step="1" value="${c[key]}" style="width:100%;accent-color:var(--blue)">`;
+      f.querySelector('input').oninput=e=>{ c[key]=parseFloat(e.target.value); renderSoon(); };
+      par.appendChild(f);
+    };
+    if(c.layout==='ligne') add('Écartement entre corps','spacingMm',40,300,'mm');
+    if(c.layout==='circulaire') add('Rayon de la couronne','ringRadiusMm',40,260,'mm');
+    if(c.layout==='imbrique'){
+      add("Jeu entre les peaux",'jeuImbricationMm',2,40,'mm');
+      const n=document.createElement('div'); n.className='hint';
+      n.textContent = "Chaque corps est réduit automatiquement pour se loger dans le précédent avec ce jeu, "
+        + "sur toute la hauteur commune — la réduction est calculée, pas réglée à la main. "
+        + "Deux pièces distinctes qui se glissent l'une dans l'autre : la peau extérieure filtre, "
+        + "l'intérieure diffuse. Un jeu généreux laisse passer l'air, ce qui est utile au-dessus d'une LED.";
+      par.appendChild(n);
+    }
+  }
+
+  // onglets de corps : c'est ici qu'on choisit LEQUEL on dessine. Rendus DEUX
+  // fois — au-dessus de l'éditeur de profil (carte 2) et ici — parce que c'est
+  // dans la carte 2 qu'on a besoin de changer de corps sans remonter la page.
+  [$('bodyTabs'), $('bodyTabsTop')].forEach(tabs=>{
+    if(!tabs) return;
+    tabs.innerHTML='';
+    if(c.count<2) return;
+    const lbl=document.createElement('span');
+    lbl.style.cssText='font-size:12px;color:var(--dim2);align-self:center;margin-right:4px';
+    lbl.textContent = state.linkBodies ? 'Corps à dessiner (liés) :' : 'Corps à dessiner (indépendants) :';
+    tabs.appendChild(lbl);
+    for(let i=0;i<c.count;i++){
+      const b=document.createElement('button');
+      b.className='btn'+(state.body===i?' pri':'');
+      const nm=(cfg.baseFirst && i===0 && c.layout!=='vertical') ? 'Base' : 'Corps '+(i+1);
+      const own=(!state.linkBodies && state.bodies[i] && state.bodies[i].surface) ? ' •' : '';
+      b.textContent=nm+own;
+      b.title = own ? 'Ce corps a son propre style de surface' : '';
+      b.onclick=()=>{ state.body=i; state.selected=-1; renderAll(); };
+      tabs.appendChild(b);
+    }
+    const copy=document.createElement('button');
+    copy.className='btn'; copy.textContent='⧉ Copier ce corps sur tous';
+    copy.title='Recopie profil, style de surface et sculpture du corps courant sur tous les autres';
+    copy.onclick=()=>{
+      const src=state.bodies[state.body];
+      state.bodies.forEach((b,i)=>{ if(i!==state.body){
+        b.profile=src.profile.map(p=>({h:p.h,r:p.r})); b.shape=src.shape;
+        b.sculpt={...src.sculpt};
+        b.surface = src.surface ? {...src.surface} : null;
+      }});
+      renderAll();
+    };
+    tabs.appendChild(copy);
+  });
+
+  // Déplacement du corps sélectionné — accessible sans mode expert, parce que
+  // c'est le geste de composition de base dès qu'on a plus d'un corps.
+  if(c.count>1){
+    const b=state.bodies[state.body];
+    const titre=document.createElement('div');
+    titre.className='lbl'; titre.style.marginTop='12px';
+    titre.innerHTML = `Déplacer le corps ${state.body+1} <small>— s'ajoute à la position donnée par l'agencement</small>`;
+    par.appendChild(titre);
+    const axe=(label,cle,min,max)=>{
+      const f=document.createElement('div'); f.className='field';
+      f.innerHTML=`<label>${label} : <b>${(b[cle]||0).toFixed(0)} mm</b></label>
+        <input type="range" min="${min}" max="${max}" step="1" value="${b[cle]||0}" style="width:100%;accent-color:var(--blue)">`;
+      f.querySelector('input').oninput=e=>{ b[cle]=parseFloat(e.target.value); renderSoon(); };
+      par.appendChild(f);
+    };
+    axe('Gauche ↔ droite','offsetXMm',-200,200);
+    axe('Avant ↔ arrière','offsetYMm',-200,200);
+    axe('Bas ↔ haut','offsetZMm',-200,200);
+    const raz=document.createElement('button');
+    raz.className='btn'; raz.textContent='⌖ Recentrer ce corps';
+    raz.onclick=()=>{ b.offsetXMm=b.offsetYMm=b.offsetZMm=0; renderAll(); };
+    par.appendChild(raz);
+  }
+
+  const box=$('compoBox'); box.innerHTML='';
+  const places=bodyPlacements();
+  const lines=[];
+  if(c.count===1){
+    lines.push(['ok','Un seul corps : la lampe est un volume unique.']);
+  } else {
+    places.forEach((pl,i)=>{
+      lines.push(['ok', `${pl.role} : hauteur ${pl.bodyH.toFixed(0)} mm · échelle ×${pl.scale.toFixed(2)}`
+        + ` · position (x ${pl.tx.toFixed(0)}, y ${pl.ty.toFixed(0)}, z ${pl.tz.toFixed(0)}) mm`
+        + (pl.rot ? ` · rotation ${pl.rot.toFixed(0)}°` : '')]);
+    });
+    const bb=MESH.stats.bbox;
+    if(bb) lines.push(['ok', `Encombrement de l'assemblage : ${(bb.maxX-bb.minX).toFixed(0)} × ${(bb.maxY-bb.minY).toFixed(0)} × ${(bb.maxZ-bb.minZ).toFixed(0)} mm — chaque corps est imprimé séparément, seule SA taille doit tenir sur le plateau.`]);
+    lines.push(['warn', `${MESH.parts.length} pièces à imprimer, donc autant de lancements machine : le prix suit.`]);
+    interferences(places).forEach(l=>lines.push(l));
+  }
+  (MESH.clamped||[]).forEach(cl=>{
+    lines.push(['warn', `Corps ${cl.body} : rayon du point haut remonté de ${cl.from} à ${cl.to} mm pour loger le culot ${state.socket}.`]);
+  });
+  // L'échelle du mode expert s'applique APRÈS les bornes du profil : un corps
+  // agrandi peut dépasser le plafond du type, voire la course Z de la machine.
+  const b = bounds();
+  places.forEach((pl,i)=>{
+    if(pl.bodyH > PRINT_BOUNDS.PLATE_Z_MM)
+      lines.push(['bad', `Corps ${i+1} : ${pl.bodyH.toFixed(0)} mm de haut — au-delà de la course Z de la machine (${PRINT_BOUNDS.PLATE_Z_MM} mm). Réduis l'échelle ou découpe ce corps en modules.`]);
+    else if(pl.bodyH > b.maxH + 0.5)
+      lines.push(['warn', `Corps ${i+1} : ${pl.bodyH.toFixed(0)} mm de haut — au-delà du plafond conseillé pour une ${TYPES[state.type].label.toLowerCase()} (${b.maxH} mm). Imprimable, mais hors gabarit du type.`]);
+    const rMax = Math.max(...(state.bodies[i].profile.map(p=>p.r)), 0)*pl.scale;
+    if(rMax*2 > PRINT_BOUNDS.PLATE_XY_MM)
+      lines.push(['bad', `Corps ${i+1} : Ø${(rMax*2).toFixed(0)} mm — ne tient pas sur le plateau ${PRINT_BOUNDS.PLATE_XY_MM}×${PRINT_BOUNDS.PLATE_XY_MM} mm.`]);
+  });
+  lines.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+}
+
+/* INTERFÉRENCE ENTRE CORPS — dès qu'on peut les déplacer librement, deux corps
+ * peuvent se retrouver au même endroit. Trois cas, et il faut les distinguer :
+ *  · disjoints            → rien à signaler ;
+ *  · EMBOÎTÉS avec du jeu → un corps tient entièrement dans la cavité de l'autre.
+ *    C'est une vraie lampe à double peau, parfaitement imprimable (deux pièces
+ *    qui se glissent l'une dans l'autre) ;
+ *  · qui SE TRAVERSENT    → les parois se croisent. Deux pièces imprimées à part
+ *    ne peuvent pas s'assembler ainsi : c'est un défaut, pas un style.
+ * ────────────────────────────────────────────────────────────────────────── */
+function rayonExterieurA(corps, place, zMonde){
+  const pr = corps.profile;
+  if(!pr.length) return 0;
+  const h = (zMonde - place.tz) / (place.scale || 1);
+  if(h < pr[0].h || h > pr[pr.length-1].h) return null;   // hors de la pièce
+  for(let k=0;k<pr.length-1;k++){
+    if(h <= pr[k+1].h){
+      const t=(h-pr[k].h)/Math.max(1e-6, pr[k+1].h-pr[k].h);
+      return (pr[k].r + t*(pr[k+1].r-pr[k].r)) * (place.scale||1);
+    }
+  }
+  return pr[pr.length-1].r * (place.scale||1);
+}
+
+function interferences(places){
+  const wall = parseFloat(state.wall), n = places.length, out = [];
+  for(let i=0;i<n;i++) for(let j=i+1;j<n;j++){
+    const A=state.bodies[i], B=state.bodies[j], pa=places[i], pb=places[j];
+    if(!A || !B || A.profile.length<2 || B.profile.length<2) continue;
+    const d = Math.hypot(pa.tx-pb.tx, pa.ty-pb.ty);
+    const z0 = Math.max(pa.tz, pb.tz);
+    const z1 = Math.min(pa.tz+pa.bodyH, pb.tz+pb.bodyH);
+    if(z1 <= z0){ continue; }                       // hauteurs disjointes
+    let croisent=false, aDansB=true, bDansA=true, jeuMini=Infinity, penetration=0;
+    for(let k=0;k<=24;k++){
+      const z = z0 + (z1-z0)*k/24;
+      const ra = rayonExterieurA(A, pa, z), rb = rayonExterieurA(B, pb, z);
+      if(ra===null || rb===null) continue;
+      const cavA = ra - wall, cavB = rb - wall;      // rayons intérieurs
+      const bDansCavA = (d + rb) < cavA;
+      const aDansCavB = (d + ra) < cavB;
+      const disjoints = d > (ra + rb);
+      if(!bDansCavA) bDansA = false;
+      if(!aDansCavB) aDansB = false;
+      if(!bDansCavA && !aDansCavB && !disjoints){
+        croisent = true;
+        penetration = Math.max(penetration, (ra + rb) - d);
+      }
+      if(bDansCavA) jeuMini = Math.min(jeuMini, cavA - (d + rb));
+      if(aDansCavB) jeuMini = Math.min(jeuMini, cavB - (d + ra));
+    }
+    if(croisent){
+      out.push(['bad', `Corps ${i+1} et ${j+1} se TRAVERSENT sur ${(z1-z0).toFixed(0)} mm de hauteur `
+        + `(${penetration.toFixed(1)} mm d'interpénétration). Imprimés séparément, ils ne pourront pas être assemblés : `
+        + `écarte-les, ou emboîte-en un complètement dans l'autre.`]);
+    } else if(bDansA || aDansB){
+      const dedans = bDansA ? j+1 : i+1, dehors = bDansA ? i+1 : j+1;
+      out.push(['ok', `Corps ${dedans} entièrement logé dans le corps ${dehors} — double peau, `
+        + `jeu mini ${jeuMini.toFixed(1)} mm. Deux pièces distinctes qui se glissent l'une dans l'autre : imprimable.`]);
+    }
+  }
+  return out;
+}
+
+// Nouveau corps : reprend la silhouette du corps 1 (composition cohérente par
+// défaut), variée si l'agencement est organique.
+function newBodyLike(i){
+  const src = state.bodies[0];
+  const b = newBody(src ? src.shape : 'cloche');
+  if(src){
+    b.profile = src.profile.map(p=>({h:p.h, r:p.r}));
+    b.sculpt = {...src.sculpt};
+  }
+  // corps déliés : le nouveau corps naît avec sa propre silhouette, sinon il
+  // est le clone du premier
+  if(!state.linkBodies){
+    const rng = mulberry32(hashSeed('body'+i+(state.seed||'')));
+    const fams = TYPES[state.type].silhouettes;
+    const fam = fams[Math.min(fams.length-1, Math.floor(rng()*fams.length))];
+    const bb = bounds();
+    b.shape = fam;
+    b.profile = profileFromSilhouette(fam, bb.minH + rng()*(bb.maxH-bb.minH), bb.maxR*(0.4+rng()*0.5), rng, 0.08);
+  }
+  return b;
+}
+
+/* ── Mode expert : paramètres par corps ──────────────────────────────────── */
+function renderExpert(){
+  const row=$('expertRow'), box=$('expertParams');
+  if(!row) return;
+  $('expertOn').checked = state.expert;
+  row.className='socket-opt'+(state.expert?' on':'');
+  box.innerHTML='';
+  if(!state.expert) return;
+  const b = state.bodies[state.body];
+  const head=document.createElement('div');
+  head.className='lbl'; head.style.marginTop='10px';
+  head.innerHTML=`Corps ${state.body+1} sur ${state.compo.count} <small>— chaque corps garde ses propres valeurs</small>`;
+  box.appendChild(head);
+  const add=(label,obj,key,min,max,step,unit)=>{
+    const f=document.createElement('div'); f.className='field';
+    f.innerHTML=`<label>${label} : <b>${(obj[key]||0).toFixed(2).replace(/\.00$/,'')} ${unit}</b></label>
+      <input type="range" min="${min}" max="${max}" step="${step}" value="${obj[key]||0}" style="width:100%;accent-color:var(--blue)">`;
+    f.querySelector('input').oninput=e=>{ obj[key]=parseFloat(e.target.value); renderSoon(); };
+    box.appendChild(f);
+  };
+  add('Échelle du corps', b,'scale', 0.35, 2.2, 0.01, '×');
+  add('Torsion', b.sculpt,'twistDegPerMm', -1.2, 1.2, 0.02, '°/mm');
+  add('Courbure', b.sculpt,'bendDeg', -35, 35, 1, '°');
+  /* Rotation et décalages retirés du panneau expert (05/08, « ne met pas ») :
+   * une lampe vissée sur sa base est centrée par construction — tourner ou
+   * décaler le corps ne faisait que désaligner la bague. Les déplacements
+   * multi-corps restent dans leur propre panneau. */
+  const hh=document.createElement('div'); hh.className='hint';
+  hh.textContent = "L'échelle est cuite dans la géométrie exportée (c'est une pièce physiquement différente) ; rotation et décalages ne servent qu'au plan d'assemblage — chaque corps est exporté à son propre origine, posé à plat.";
+  box.appendChild(hh);
+  const resetB=document.createElement('button');
+  resetB.className='btn danger'; resetB.textContent='Réinitialiser ce corps';
+  resetB.onclick=()=>{ const keep=b.profile, k2=b.shape; Object.assign(b,newBody(k2)); b.profile=keep; renderAll(); };
+  box.appendChild(resetB);
+}
+
+/* ── Découpe en modules imprimés ──────────────────────────────────────── */
+function renderSplit(){
+  const on=$('splitOn'), cf=$('splitCountField'), box=$('splitBox');
+  if(!on) return;
+  on.checked = state.split.on;
+  $('splitToggleRow').className = 'socket-opt'+(state.split.on?' on':'');
+  cf.style.display = state.split.on ? '' : 'none';
+  document.querySelectorAll('#joint-seg button').forEach(b=>b.classList.toggle('on', b.dataset.mode===JOINT.mode));
+  $('splitCount').value = state.split.count;
+  $('splitCountVal').textContent = state.split.count;
+  box.innerHTML='';
+  const lines=[];
+  if(!state.split.on){
+    lines.push(['ok', `Pièce monobloc : 1 seule impression, hauteur ${profileTopH().toFixed(0)} mm (course Z de l'Ender-3 S1 : ${PRINT_BOUNDS.PLATE_Z_MM} mm).`]);
+  } else {
+    MESH.parts.forEach((p,i)=>{
+      const collar = p.joint
+        ? ` · ${p.joint.info.type} Ø${p.joint.info.diaMm} mm sur ${p.joint.info.hauteurMm} mm`
+          + (p.joint.info.pasMm ? ` (pas ${p.joint.info.pasMm} mm, ${p.joint.info.tours} tours)` : '')
+        : '';
+      lines.push(['ok', `Module ${i+1} — ${p.label} : h ${p.h0.toFixed(0)}→${p.h1.toFixed(0)} mm (${(p.h1-p.h0).toFixed(0)} mm)${collar}`]);
+    });
+    lines.push(['warn', `Surcoût : ${MESH.parts.length-1} lancement(s) machine supplémentaire(s) + visserie de liaison — visible dans le détail du prix.`]);
+    lines.push(['warn', `Le manchon est un corps distinct dont la collerette pénètre de ${JOINT.biteMm} mm dans la paroi : c'est cette pénétration qui garantit la soudure au tranchage. L'union est faite par le trancheur, elle n'est pas booléenne dans le STL.`]);
+    if(JOINT.mode==='visse')
+      lines.push(['ok', `Filetage imprimé : pas ${JOINT.thread.pitchMm} mm, ${(JOINT.collarHeightMm/JOINT.thread.pitchMm).toFixed(1)} tours, jeu ${JOINT.thread.clearanceMm} mm au rayon, flancs à 45° (auto-portants). Aucune visserie ni insert : les modules se vissent l'un dans l'autre.`]);
+  }
+  lines.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+}
+
+/* ── Vérifications sur le maillage exporté ───────────────────────────── */
+let checkTimer=null, CHECK_JETON=0;
+function renderChecks(){
+  const box=$('checksbox'); if(!box) return;
+  const s=MESH.stats, pr=state.profile, lines=[];
+  if(!pr.length) return;
+  // Poids annoncé AVANT de cliquer : à finesse ×2 le fichier passe de 9 à 35 Mo,
+  // et c'est le genre de surprise qu'on doit à son client d'éviter.
+  const prevu = $('stlPrevu');
+  if(prevu){
+    const mo = (s.tris*50 + 84*MESH.parts.length) / (1024*1024);
+    const q = qualiteMaillage();
+    prevu.innerHTML = `À l'export : <b>${s.tris.toLocaleString('fr')}</b> triangles · <b>${mo.toFixed(1)} Mo</b> · `
+      + `${s.segExport} segments sur le tour`
+      + (q !== 1 ? ` · finesse <b>${q === 0.5 ? '÷2' : '×'+String(q).replace('.',',')}</b>` : '')
+      + (mo > 20 ? ` — <span style="color:var(--amber)">fichier lourd : le trancheur mettra un moment à l'ouvrir</span>` : '');
+  }
+  lines.push(['ok', `Maillage exporté : ${s.tris} triangles · ${(s.volMm3/1000).toFixed(1)} cm³ de matière · ${MESH.parts.length>1?MESH.parts.length+' pièces à imprimer':'1 pièce'} · paroi ${state.wall} mm`]);
+  /* Îlots de départ — c'est ce que Bambu Studio appelle « floating regions ».
+   * On le dit AVANT le tranchage, avec un chiffre, plutôt que de laisser le
+   * client découvrir un bandeau orange. */
+  if(MESH.ilots){
+    const I = MESH.ilots;
+    if(I.larges === 0){
+      lines.push(['ok', `Aucun îlot de départ : à chaque couche, la matière repose sur celle d'en dessous. `
+        + `Le trancheur ne signalera pas de « floating regions ». (analyse ${I.ms} ms)`]);
+    } else {
+      lines.push(['warn', `${I.larges} îlot(s) de départ plus larges que la buse`
+        + (I.premierH!=null ? `, le premier à h = ${I.premierH.toFixed(1)} mm` : '')
+        + ` : à ces endroits la matière commence en l'air. C'est ce que Bambu Studio appelle `
+        + `« floating regions ». Ça s'imprime — les couches suivantes rattrapent sur les nervures `
+        + `voisines — mais on peut voir un léger affaissement au départ.`]);
+      lines.push(['ok', `Deux leviers pour les réduire : épaissir les nervures, ou baisser le nombre de `
+        + `cellules. Le compte ci-dessus se met à jour à chaque réglage — essaie et regarde.`]);
+      lines.push(['warn', `Analyse faite tous les 0,4 mm : elle peut manquer un îlot qui apparaît et se `
+        + `referme à l'intérieur de deux couches de 0,2 mm. C'est un plancher, pas un compte exact.`]);
+    }
+  }
+  if(s.perf){
+    lines.push(['ok', `Ajourage Voronoï : ${s.perf.savedPct.toFixed(0)} % de matière en moins que la coque pleine `
+      + `(${(s.volMm3/1000).toFixed(1)} au lieu de ${(s.perf.refVolMm3/1000).toFixed(1)} cm³) — ${(100*s.perf.kept/Math.max(1,s.perf.cells)).toFixed(0)} % de la paroi conservée en nervures. `
+      + `Chaque trou est refermé par son bord : le maillage reste étanche.`]);
+    lines.push(['warn', "Une coque ajourée est plus souple qu'une coque pleine : si la lampe porte la douille en tête, garde une bande pleine généreuse en haut (réglage « bande pleine »)."]);
+  }
+  const r = TYPES[state.type].rules||{};
+  const body = state.bodies[state.body];
+  /* Le tableau du panneau 2 analyse les POINTS DE CONTRÔLE. Quand la silhouette
+   * est lissée, la courbe réellement exportée peut s'évaser plus fort entre deux
+   * points que les points ne le laissent croire — vérifié au tranchage : un
+   * segment annoncé à 22° partait en réalité à 56° près de la base. On mesure
+   * donc aussi le surplomb sur le profil RÉELLEMENT maillé. */
+  const surfCur = bodySurface(state.body);
+  const maillee = resampleMeridian(pr, surfCur, effectiveStepMm(state.body, surfCur, 'export'));
+  let maxReel = 0, maxCtrl = 0;
+  for(let i=0;i<maillee.length-1;i++) maxReel = Math.max(maxReel, overhangDeg(maillee[i], maillee[i+1]));
+  for(let i=0;i<pr.length-1;i++) maxCtrl = Math.max(maxCtrl, overhangDeg(pr[i], pr[i+1]));
+  if(maxReel > OVERHANG.WARN_DEG && maxReel > maxCtrl + 3){
+    lines.push([maxReel>OVERHANG.HARD_DEG?'bad':'warn',
+      `Surplomb réel du maillage : ${maxReel.toFixed(0)}° alors que les points de contrôle n'annoncent que ${maxCtrl.toFixed(0)}° — c'est le lissage qui creuse l'évasement entre deux points. C'est ce chiffre-là que verra le trancheur.`]);
+  }
+  const rOpen = openEndR(body), rMax = Math.max(...pr.map(p=>p.r));
+  const where = body.flipped ? 'haute' : 'basse';
+  if(body.flipped)
+    lines.push(['ok', `Tête en bas : le culot ${state.socket} est contre le plateau (h=0) et l'ouverture de lumière est en haut — la lampe éclaire vers le plafond, et les surplombs analysés ci-dessus sont bien ceux de cette orientation.`]);
+  if(r.bottomWidest && rOpen < rMax-0.5)
+    lines.push(['warn', `Ouverture ${where} Ø${(rOpen*2).toFixed(0)} mm plus étroite que le ventre Ø${(rMax*2).toFixed(0)} mm : la lumière sortira surtout par l'autre extrémité.`]);
+  if(r.minBottomRadiusMm && rOpen < r.minBottomRadiusMm)
+    lines.push(['warn', `Ouverture ${where} Ø${(rOpen*2).toFixed(0)} mm sous le Ø${(r.minBottomRadiusMm*2).toFixed(0)} mm conseillé pour une suspension.`]);
+  if(r.minTipAngleDeg){
+    const t=s.tip.deg;
+    const cl = t>=r.minTipAngleDeg ? 'ok' : (t>=r.minTipAngleDeg-8 ? 'warn' : 'bad');
+    lines.push([cl, `Assise : basculement à ${t.toFixed(0)}° (centre de gravité à ${s.tip.cgHeightMm.toFixed(0)} mm, appui Ø${(pr[0].r*2).toFixed(0)} mm) — mini conseillé ${r.minTipAngleDeg}°. Calculé sur la coque seule : douille, câble et lest éventuel ne sont pas comptés.`]);
+  }
+  if(r.maxDepthMm)
+    lines.push(['ok', `Saillie au mur : ${profileTopH().toFixed(0)} mm (plafond ${r.maxDepthMm} mm pour une applique).`]);
+  lines.push([ s.openEdges===null ? 'warn' : (s.openEdges===0 ? 'ok' : 'bad'),
+    s.openEdges===null ? 'Étanchéité du maillage : vérification en cours…'
+    : s.openEdges===0 ? 'Maillage étanche : chaque arête porte exactement deux faces — imprimable sans réparation.'
+    : `Maillage NON étanche : ${s.openEdges} arête(s) ouverte(s) — signale-le à l'atelier.` ]);
+  box.innerHTML='';
+  lines.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
+  if(s.openEdges===null){
+    /* ⚠️ Cette vérification est en O(triangles) avec des clés texte : mesurée à
+     * 1,7 s sur 190 000 triangles et 6,7 s sur 710 000 (finesse ×2). Elle
+     * tournait d'un bloc dans un setTimeout — donc l'onglet GELAIT plusieurs
+     * secondes après chaque modification. On la découpe en tranches de
+     * 40 000 triangles rendues à la boucle d'affichage entre chacune : le
+     * résultat est le même, à la milliseconde près, mais l'interface répond. */
+    clearTimeout(checkTimer);
+    checkTimer = setTimeout(()=>{
+      const jeton = ++CHECK_JETON;               // une modification annule la passe en cours
+      const parts = MESH.parts;
+      let ip = 0, it = 0, ouvertes = 0, seen = new Map();
+      const suite = ()=>{
+        if(jeton !== CHECK_JETON) return;         // périmée : une autre passe a démarré
+        /* Budget par tranche : 20 ms quand quelqu'un regarde (l'interface doit
+         * répondre), sans limite quand l'onglet est masqué — là il n'y a
+         * personne à gêner, et les minuteurs y sont bridés à ~1 s : découper
+         * en 300 tranches ferait durer la vérification plusieurs MINUTES. */
+        const budget = document.hidden ? Infinity : 20;
+        const t0 = performance.now();
+        while(ip < parts.length && performance.now()-t0 < budget){
+          const tris = parts[ip].tris;
+          edgeLedgerAdd(seen, tris, it, it+20000);
+          it += 20000;
+          if(it >= tris.length){ ouvertes += edgeLedgerOpen(seen); seen = new Map(); ip++; it = 0; }
+        }
+        /* ⚠️ setTimeout et pas requestAnimationFrame : dans un onglet en
+         * arrière-plan rAF ne se déclenche PAS, et la vérification restait
+         * bloquée sur « en cours… » pour toujours. Un minuteur, lui, tourne
+         * toujours — au ralenti, mais il tourne. */
+        if(ip < parts.length){ setTimeout(suite, 0); return; }
+        MESH.stats.openEdges = ouvertes;
+        renderChecks(); renderHud();
+      };
+      suite();
+    }, 120);
+  }
+}
+
+/* ── Master render ────────────────────────────────────────────────────── */
+let renderQueued=false;
+function renderSoon(){
+  if(renderQueued) return;
+  renderQueued=true;
+  requestAnimationFrame(()=>{ renderQueued=false; renderAll(); });
+}
+// La liste des corps doit être alignée sur le compteur AVANT de mailler,
+// sinon un corps ajouté n'apparaîtrait qu'au rendu suivant.
+function syncBodies(){
+  const cfg = TYPES[state.type].compo;
+  state.compo.count = Math.max(1, Math.min(cfg.maxBodies, state.compo.count));
+  if(!cfg.layouts.includes(state.compo.layout)) state.compo.layout = cfg.layouts[0];
+  while(state.bodies.length < state.compo.count) state.bodies.push(newBodyLike(state.bodies.length));
+  if(state.body >= state.compo.count) state.body = state.compo.count-1;
+}
+/* Épure (06/08) : le studio explique beaucoup — c'est voulu, mais 30 notes de
+ * 4 lignes rendent la colonne illisible. Les notes longues (>170 caractères)
+ * se replient sur 2 lignes avec un fondu, un clic les déplie. RIEN n'est
+ * supprimé. Jamais dans un <label> : le clic y actionne la case à cocher. */
+function epurerNotes(){
+  document.querySelectorAll('.hint, .disc-small').forEach(el=>{
+    if(el.dataset.epure !== undefined) return;          // déjà traité (idempotent)
+    if(el.closest('label') || el.closest('#blInfo')){ el.dataset.epure='0'; return; }
+    if((el.textContent||'').trim().length > 170){
+      el.dataset.epure='1'; el.classList.add('clamp');
+      el.title='Cliquer pour déplier / replier';
+      el.addEventListener('click', ()=>el.classList.toggle('open'));
+    } else el.dataset.epure='0';
+  });
+}
+/* ⚠️ TROIS DESYNCHRONISATIONS TROUVEES A L'AUDIT, meme famille que
+ * l'interrupteur : l'etat initial etait ecrit dans le MARKUP en plus de
+ * l'objet. Le markup ne decide plus, il est ecrit DEPUIS l'etat.
+ *   · #type-seg  : « Suspension » portait la classe `on` alors que l'etat vaut
+ *     « poser ». Pire, suspension est retiree de l'offre donc son bouton est
+ *     masque : le seul bouton visible ne paraissait PAS selectionne.
+ *   · #material  : aucune option `selected`, le navigateur affichait donc
+ *     « PLA » pendant que l'etat, l'apercu, le rendu ET LE PRIX partaient en
+ *     PLA translucide. C'est le plus grave : le selecteur mentait sur ce qui
+ *     etait chiffre.
+ * (le troisieme, #blLive, est traite dans detectAI) */
+function syncEtatUI(){
+  document.querySelectorAll('#type-seg button').forEach(b=>
+    b.classList.toggle('on', b.dataset.v === state.type));
+  const m = document.getElementById('material');
+  if(m && m.value !== state.material) m.value = state.material;
+  const bs = document.getElementById('rBase');
+  if(bs && bs.value !== RENDER.base) bs.value = RENDER.base;
+  // la finition suit la matiere tant que le client n'a pas tranche lui-meme
+  finitionSuitMatiere();
+  const fs = document.getElementById('rFinish');
+  if(fs && fs.value !== RENDER.finish) fs.value = RENDER.finish;
+}
+
+function renderAll(){
+  syncBodies();
+  syncEtatUI();
+  rebuildMesh();
+  drawProfile();
+  apercuProgressif();
+  renderTable();
+  renderWarnings();
+  renderSockets();
+  renderConnexion();
+  renderPoser();
+  renderSocle();
+  renderCable();
+  renderSwatches();
+  renderPresets();
+  renderSurface();
+  renderCompo();
+  renderExpert();
+  renderSplit();
+  renderChecks();
+  renderPrice();
+  renderBounds();
+  renderHud();
+  const ex=$('vExplodeWrap'); if(ex) ex.style.display = MESH.parts.length>1 ? '' : 'none';
+  $('type-hint').textContent = TYPES[state.type].hint;
+  epurerNotes();                                    // replie les notes longues (cartes re-rendues comprises)
+  studioSoon();                                     // 3e vue : aperçu immédiat puis Blender
+}
+
+/* ── Socle : commandes ────────────────────────────────────────────────── */
+{
+  const on=$('socleOn');
+  if(on) on.onchange = e=>{ state.socle.on = e.target.checked; normalizeProfile(); renderAll(); };
+  const d=$('socleDia');
+  if(d) d.oninput = e=>{ state.socle.diaMm = parseFloat(e.target.value); normalizeProfile(); renderSoon(); };
+  const m=$('socleMontrer');
+  if(m) m.onchange = e=>{ state.socle.montrer = e.target.checked; renderAll(); };
+}
+
+/* ── Sortie de câble : commandes ──────────────────────────────────────── */
+{
+  const c = ()=>state.cable;
+  const on = $('cableOn');       if(on)  on.onchange  = e=>{ c().on = e.target.checked; renderAll(); };
+  const pl = $('cablePlatine');  if(pl)  pl.onchange  = e=>{ c().platine = e.target.checked; renderAll(); };
+  const bind = (id, key, f)=>{ const el=$(id); if(el) el.oninput = e=>{ c()[key] = f(e.target.value); renderSoon(); }; };
+  bind('cableDia',   'diaMm',    parseFloat);
+  bind('cableRecul', 'reculMm',  parseFloat);
+  bind('cableAng',   'angleDeg', parseFloat);
+}
+
+/* ── Type toggle — le type re-borne le profil existant ─────────────────── */
+document.querySelectorAll('#type-seg button').forEach(b=>{
+  if(TYPES[b.dataset.v] && TYPES[b.dataset.v].dispo === false){
+    b.style.display='none';                  // « pour le moment » : on masque, on ne supprime pas
+    return;
+  }
+  b.onclick=()=>{
+    document.querySelectorAll('#type-seg button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    state.type=b.dataset.v;
+    // le profil courant est ramené dans les bornes du nouveau type (jamais effacé)
+    if(!TYPES[state.type].silhouettes.includes(state.shape) && !state.seed){
+      setPreset(TYPES[state.type].silhouettes[0]);
+      return;
+    }
+    normalizeProfile();
+    renderAll();
+  };
+});
+
+/* ── LAMPE COMPLÈTE TIRÉE AU SORT ─────────────────────────────────────────
+ * Tout vient d'UNE graine : nombre de corps, agencement, silhouette de chaque
+ * corps, style de surface, reliefs, sculpture. La même graine redonne donc la
+ * même lampe — c'est ce qui permet à l'atelier de refabriquer une pièce vue une
+ * fois, et au client de la retrouver.
+ * Ce qui n'est PAS tiré au sort, et pourquoi : le type de lampe (c'est ton
+ * besoin, pas un hasard), le culot et la paroi (sécurité et solidité), la
+ * découpe en modules (elle change le prix). L'agencement « libre » est écarté :
+ * sans déplacement, il poserait tous les corps au même endroit et ils se
+ * traverseraient.
+ * ────────────────────────────────────────────────────────────────────────── */
+function lampeAleatoire(graine){
+  const base = String(graine || newSeed()).toUpperCase().replace(/[^0-9A-F]/g,'') || newSeed();
+  state.seed = base;
+  const rng = mulberry32(hashSeed('lampe|'+base));
+  const tire = (liste)=> liste[Math.min(liste.length-1, Math.floor(rng()*liste.length))];
+  const entre = (a,b)=> a + rng()*(b-a);
+  const cfg = TYPES[state.type].compo;
+
+  // Nombre de corps : pondéré vers 1-3. Une lampe reste une lampe ; sept corps
+  // sont possibles mais ne doivent pas sortir une fois sur deux.
+  const poids = [1,1,1,2,2,2,3,3,4,5,6,7].filter(n=>n<=cfg.maxBodies);
+  state.compo.count = tire(poids);
+  state.compo.layout = tire(cfg.layouts.filter(l=>l!=='libre'));
+  state.compo.symmetric = rng() > 0.35;
+  state.compo.jeuImbricationMm = Math.round(entre(5,18));
+  state.linkBodies = state.compo.symmetric && rng() > 0.4;
+  state.expert = false;
+  syncBodies();
+
+  // Style de surface : une base, puis des couches qui peuvent se cumuler
+  const s = state.surface;
+  s.base = rng() > 0.32 ? 'lisse' : 'facette';
+  s.smoothing = Math.round(entre(35, state.compo.count >= 3 ? 65 : 95));
+  s.stries = rng() < 0.45;
+  s.strieCount = Math.round(entre(8, state.compo.count >= 3 ? 22 : 34));
+  s.strieDepthMm = +entre(0.8,3.0).toFixed(1);
+  s.cross = s.stries && rng() < 0.5;
+  s.pitchMm = Math.round(entre(16,60));
+  s.organique = rng() < 0.30;
+  s.orgAmpMm = +entre(1.0,4.0).toFixed(1);
+  s.orgPitchMm = Math.round(entre(28,90));
+  s.ajour = rng() < 0.35;
+  s.voroCells = Math.round(entre(186,420));   // jamais sous la butee gauche
+  s.voroStrutMm = +entre(2.0,4.5).toFixed(1);
+  s.voroBandMm = Math.round(entre(8,22));
+  s.voroVariant = 1 + Math.floor(rng()*999);
+  state.bodies.forEach(b=>{ b.surface = null; });   // le style est commun au tirage
+
+  // Sculpture : discrète. Une torsion franche est belle une fois sur trois, pas
+  // à chaque tirage — et la courbure ajoute du surplomb, donc on la borne.
+  const torsion = rng() < 0.35 ? +entre(-0.35,0.35).toFixed(2) : 0;
+  const courbure = rng() < 0.22 ? Math.round(entre(-14,14)) : 0;
+
+  // Silhouettes : une par corps si les corps sont déliés, une seule sinon
+  const b0 = bounds();
+  state.bodies.forEach((corps,i)=>{
+    if(i >= state.compo.count) return;
+    corps.sculpt = { twistDegPerMm: torsion, bendDeg: courbure };
+    corps.scale = 1; corps.rotDeg = 0;
+    corps.offsetXMm = corps.offsetYMm = corps.offsetZMm = 0;
+    if(state.linkBodies && i > 0) return;            // les corps liés partagent la forme
+    const meilleur = drawShape(base + '-corps' + i);
+    corps.shape = meilleur.fam;
+    corps.profile = corps.flipped ? mirrorProfile(meilleur.cand) : meilleur.cand;
+  });
+  if(state.linkBodies){
+    const src = state.bodies[0];
+    state.bodies.forEach((b,i)=>{ if(i){ b.profile = src.profile.map(p=>({h:p.h,r:p.r})); b.shape = src.shape; } });
+  }
+  state.body = 0;
+  state.selected = -1;
+  normalizeProfile();
+
+  /* L'écartement ne peut pas être tiré au hasard : il dépend de la taille des
+   * corps, qu'on ne connaît qu'une fois les silhouettes tirées. Sinon on sort
+   * des lampes impossibles — mesuré sur la graine 70B49 : 4 corps de 120 mm
+   * espacés de 80 mm, soit 39,8 mm d'interpénétration. On le calcule donc, puis
+   * on VÉRIFIE, et on écarte jusqu'à ce que plus rien ne se traverse. */
+  const actifs = state.bodies.slice(0, state.compo.count);
+  const D = 2 * Math.max(...actifs.map(b=>Math.max(...b.profile.map(p=>p.r))));
+  const n = Math.max(2, state.compo.count);
+  state.compo.spacingMm = Math.round(D + entre(10, 70));
+  state.compo.ringRadiusMm = Math.round(Math.max(D*0.55, (D + entre(10,60)) / (2*Math.sin(Math.PI/n))));
+  for(let essai=0; essai<12; essai++){
+    if(!interferences(bodyPlacements()).some(([niveau])=>niveau==='bad')) break;
+    state.compo.spacingMm = Math.round(state.compo.spacingMm * 1.15 + 6);
+    state.compo.ringRadiusMm = Math.round(state.compo.ringRadiusMm * 1.15 + 6);
+  }
+  renderAll();
+}
+
+/* ── Retourner tête en bas ────────────────────────────────────────────── */
+$('flipShape').onclick = ()=>{
+  const targets = (state.linkBodies && !state.expert) ? state.bodies : [state.bodies[state.body]];
+  targets.forEach(b=>{ b.profile = mirrorProfile(b.profile); b.flipped = !b.flipped; });
+  state.selected = -1;
+  normalizeProfile();
+  renderAll();
+};
+
+/* ── Tirage aléatoire / graine ────────────────────────────────────────── */
+$('randomLamp').onclick  = ()=> lampeAleatoire();
+$('randomShape').onclick = ()=> randomShape(undefined, 'body');
+$('randomAll').onclick   = ()=> randomShape(undefined, 'all');
+$('seedApply').onclick   = ()=> randomShape($('seedInput').value.trim() || undefined, state.compo.count>1 && !state.linkBodies ? 'all' : 'body');
+$('seedInput').onkeydown = e=>{ if(e.key==='Enter') $('seedApply').onclick(); };
+
+/* ── Contrôles de vue ─────────────────────────────────────────────────── */
+$('vElev').oninput  = e=>{ view.el = Math.max(EL_HAUT, Math.min(EL_BAS, -parseFloat(e.target.value)*Math.PI/180)); apercuProgressif(); };
+$('vZoom').oninput  = e=>{ view.zoom = parseFloat(e.target.value)/100; apercuProgressif(); };
+$('vExplode').oninput = e=>{ view.explode = parseFloat(e.target.value)/100; apercuProgressif(); };
+$('vReset').onclick = ()=>{ view.az=0; view.el=-0.24; view.zoom=0.8; syncViewInputs(); apercuProgressif(); };
+$('vTurn').onclick  = e=>{
+  if(view.spin){ cancelAnimationFrame(view.spin); view.spin=0; e.target.textContent='▶ Tourner'; apercuProgressif(); return; }
+  e.target.textContent='⏸ Arrêter';
+  const step=()=>{ view.az+=0.003; drawPreview(false); view.spin=requestAnimationFrame(step); };  // 4× plus lent
+  view.spin=requestAnimationFrame(step);
+};
+
+/* ── Onglets du visualiseur + bandeau d'état ──────────────────────────────
+ * Les visuels sont collés en haut d'écran (position:sticky) : on édite le
+ * profil en voyant la coque, le prix et l'étanchéité sans jamais descendre.
+ * ──────────────────────────────────────────────────────────────────────── */
+/* ── Rendu studio permanent ───────────────────────────────────────────────
+ * Les onglets ont disparu : la troisième vue est toujours là et se refait
+ * toute seule. Deux moteurs, dans cet ordre :
+ *   · le rendu CANVAS, immédiat (72 ms mesurés) — il donne l'image tout de
+ *     suite, et c'est le seul disponible sur le site public (une page servie
+ *     en HTTPS ne peut pas appeler le moteur local) ;
+ *   · le rendu BLENDER, quelques secondes, qui vient le RECOUVRIR quand il
+ *     arrive. On écrit lequel des deux on regarde — jamais de doute.
+ * Déclencheurs : toute modification du modèle, et l'arrêt de la souris après
+ * une orbite (c'est la caméra qui a changé, donc l'image aussi). */
+let studioTimer = null;
+function studioSoon(delai){
+  clearTimeout(studioTimer);
+  studioTimer = setTimeout(()=>{
+    const blenderDispo = (AI.ok === true) && BL_LIVE.on;
+    const img = $('blLiveImg');
+    const dejaRendu = !!(img && img.getAttribute('src'));
+    /* ⚠️ On NE REMPLACE PLUS l'image Blender par l'aperçu du navigateur à
+     * chaque modification : les deux ne se ressemblent pas (l'un est une pièce
+     * dans une pièce, l'autre un aplat stylisé), et pendant les ~3 s de calcul
+     * c'est l'aplat qu'on voyait — « le rendu n'est pas le bon ». La dernière
+     * image Blender RESTE affichée pendant que la suivante se calcule.
+     * L'aperçu du navigateur ne sert plus qu'à deux choses : la toute première
+     * image, et le site public où le moteur local est injoignable. */
+    if(!blenderDispo || !dejaRendu){
+      try{ renderStudio(); }catch(e){}
+      majSourceRendu('canvas');
+    } else {
+      majSourceRendu('attente');
+    }
+    planifierLive();
+  }, delai === undefined ? 260 : delai);
+}
+/* Compte à rebours de l'attente. Deux phases, annoncées telles quelles :
+ *   · « dans X s » — le délai de calme avant de lancer (on ne rend pas pendant
+ *     que la main bouge encore) ;
+ *   · « encore ~X s » — le calcul lui-même, estimé sur la DURÉE RÉELLE de la
+ *     dernière image et non sur une promesse ronde. Si ça déborde, on cesse de
+ *     promettre et on affiche le temps écoulé : mieux vaut un chiffre qui monte
+ *     qu'un compte à rebours qui ment. */
+let RENDU_TIC = null, RENDU_CIBLE = 0, RENDU_PHASE = '', RENDU_DEBUT = 0;
+function compteARebours(phase, ms){
+  RENDU_PHASE = phase; RENDU_CIBLE = performance.now() + ms; RENDU_DEBUT = performance.now();
+  const peindre = ()=>{
+    const n = $('vueRenduNote'); if(!n) return;
+    const reste = (RENDU_CIBLE - performance.now())/1000;
+    // le decompte s'ecrit AUSSI en grand dans le cartouche, a la place de
+    // l'image : c'est lui qu'on regarde pendant l'attente, pas la note
+    const att = $('renduAttente');
+    if(att && !att.hidden){
+      att.textContent = RENDU_PHASE === 'attente'
+        ? (reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s` : 'Lancement du rendu…')
+        : (reste > 0.05 ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
+                        : `Rendu Blender — ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s`);
+    }
+    if(RENDU_PHASE === 'attente'){
+      n.textContent = reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s…` : 'Lancement du rendu…';
+    } else if(RENDU_PHASE === 'rendu'){
+      n.textContent = reste > 0.05
+        ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
+        : `Rendu Blender — ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s écoulées`;
+    }
+  };
+  peindre();
+  if(!RENDU_TIC) RENDU_TIC = setInterval(peindre, 100);
+}
+function arreterRebours(){
+  if(RENDU_TIC){ clearInterval(RENDU_TIC); RENDU_TIC = null; }
+  RENDU_PHASE = '';
+}
+function majSourceRendu(src){
+  const t = $('vueRenduSrc'), n = $('vueRenduNote'), img = $('blLiveImg');
+  if(!t) return;
+  if(src === 'blender'){
+    arreterRebours();
+    if(img) img.style.display = '';
+    // l'image Blender REMPLACE l'apercu, elle ne se pose pas dessus : sinon le
+    // canvas transparait par les bords si l'image porte de l'alpha
+    const cvR = $('renderCanvas'); if(cvR) cvR.style.display = 'none';
+    const att = $('renduAttente'); if(att) att.hidden = true;
+    t.innerHTML = '<span style="color:var(--green)">— Blender, géométrie réelle</span>';
+    if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s · point de vue fixe. Se refait à chaque modification.`;
+  } else if(src === 'attente'){
+    /* ⚠️ PENDANT LE CALCUL, PAS D'IMAGE (12/08, demande Baptiste : « je ne veux
+     * pas d'image, juste un decompte a la place »). L'ancienne image restait
+     * affichee et donnait a croire qu'elle etait a jour, alors qu'elle decrit
+     * une piece qu'on vient de modifier. Un cartouche vide avec le decompte
+     * ment moins qu'une photo perimee. */
+    if(img) img.style.display = 'none';
+    const cvR = $('renderCanvas'); if(cvR) cvR.style.display = 'none';
+    const att = $('renduAttente'); if(att) att.hidden = false;
+    t.innerHTML = '<span style="color:var(--amber)">— Blender, calcul en cours…</span>';
+  } else {
+    /* ⚠️ DEUX CHEMINS MENAIENT ICI, ET UN SEUL AVAIT ETE TRAITE. Quand un
+     * rendu Blender est EN VOL, on arrivait dans cette branche (libelle
+     * « apercu, Blender en cours… ») et l'apercu du navigateur s'affichait
+     * quand meme, alors que Baptiste a demande de ne jamais le voir, pas meme
+     * pendant l'attente. Le decompte n'etait pose que sur la branche
+     * « attente ». Ici c'est le meme besoin : pendant le calcul, RIEN d'autre
+     * que le decompte. */
+    const dejaBlender = !!(img && img.getAttribute('src'));
+    const att = $('renduAttente');
+    const cvR = $('renderCanvas');
+    if(BL_LIVE.busy){
+      if(img) img.style.display = 'none';
+      if(cvR) cvR.style.display = 'none';
+      if(att) att.hidden = false;
+    } else {
+      /* ⚠️ PAS D'APERCU NAVIGATEUR DANS CETTE ZONE quand un moteur de rendu est
+       * joignable (14/08, demande Baptiste : « je veux une image blanche »).
+       * Avant l'arrivee de la photo on y voyait la lampe grise facettee de
+       * l'apercu, qui ne ressemble pas au produit. Le cartouche d'attente,
+       * neutre, prend sa place : il ne montre rien plutot que de montrer autre
+       * chose. L'apercu ne reste visible que s'il n'y a AUCUN moteur, ou il est
+       * la seule image possible. */
+      const moteurDispo = (AI.ok === true) || MOTEUR.distant;
+      if(img) img.style.display = dejaBlender ? '' : 'none';
+      if(cvR) cvR.style.display = (dejaBlender || moteurDispo) ? 'none' : '';
+      if(att) att.hidden = dejaBlender || !moteurDispo;
+    }
+    t.innerHTML = BL_LIVE.busy
+      ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
+      : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
+    /* ⚠️ DEUX PUBLICS, DEUX PHRASES. « Le rendu photo Blender demande le
+     * moteur local » decrit un manque : sur le site public, ou Blender n'a
+     * jamais eu a exister, ça se lit comme une panne alors que tout va bien.
+     * Un visiteur n'a pas a connaitre notre tuyauterie. On ne parle du moteur
+     * que la ou son absence est VRAIMENT une anomalie : a l'atelier. */
+    const atelier = ['127.0.0.1','localhost',''].includes(location.hostname)
+                    || location.hostname.endsWith('.local');
+    if(n) n.textContent = (AI.ok === true)
+      ? "Point de vue fixe, comme une photo. Se refait à chaque modification."
+      : (atelier
+          ? "Le moteur local ne répond pas : le rendu photo Blender est indisponible."
+          : "Calculé dans ton navigateur à partir de la géométrie exacte, point de vue fixe.");
+  }
+}
+
+function renderHud(){
+  const el=$('hud'); if(!el) return;
+  const s=MESH.stats, sp=window.__lastSpecs||computeSpecs();
+  const seal = s.openEdges===null ? ['warn','vérif…'] : (s.openEdges===0 ? ['ok','étanche'] : ['bad',s.openEdges+' trous']);
+  const cells=[
+    ['Prix estimé', `${sp.price.toFixed(0)}<small> €</small>`, ''],
+    ['Matière', `${sp.massG.toFixed(0)}<small> g · ${sp.volumeCm3.toFixed(0)} cm³</small>`, ''],
+    ['À imprimer', `${MESH.parts.length}<small> pièce${MESH.parts.length>1?'s':''} · ${s.bodies||1} corps</small>`, ''],
+    ['Maillage', `${seal[1]}<small> · ${(s.tris/1000).toFixed(1)}k tri</small>`, seal[0]],
+  ];
+  el.innerHTML = cells.map(([k,v,cl])=>`<div><div class="k">${k}</div><div class="v ${cl}">${v}</div></div>`).join('');
+}
+
+/* ── Rendu studio ─────────────────────────────────────────────────────── */
+(function initRenderControls(){
+  const f=$('rFinish'), b=$('rBg');
+  Object.entries(FINISHES).forEach(([k,v])=>{ const o=document.createElement('option'); o.value=k; o.textContent=v.label; if(k===RENDER.finish) o.selected=true; f.appendChild(o); });
+  Object.entries(BACKDROPS).forEach(([k,v])=>{ const o=document.createElement('option'); o.value=k; o.textContent=v.label; if(k===RENDER.bg) o.selected=true; b.appendChild(o); });
+  f.onchange=e=>{
+    RENDER.finish=e.target.value;
+    RENDER.choisie=true;          // choix EXPLICITE : la matiere ne le reprend plus
+    if(RENDER.lastURL) renderStudio();
+  };
+  b.onchange=e=>{ RENDER.bg=e.target.value; if(RENDER.lastURL) renderStudio(); };
+  /* Finition de la base. Le <select> est ECRIT DEPUIS L'ETAT, jamais l'inverse :
+   * c'est la lecon des trois desynchronisations trouvees ce matin, ou le markup
+   * portait un etat initial que l'objet ne partageait pas. */
+  const bs=$('rBase');
+  if(bs){
+    bs.value = RENDER.base;
+    bs.onchange = e=>{
+      RENDER.base = BASE_FINITIONS.includes(e.target.value) ? e.target.value : 'blanc';
+      if(RENDER.lastURL) renderStudio();
+    };
+  }
+  // l'interrupteur de la carte Rendu et celui sous l'image sont le MÊME état
+  $('rLit').onchange=e=>{
+    RENDER.lit=e.target.checked;
+    syncLit();                       // une seule fonction pose les deux commandes
+    studioSoon(60);
+  };
+  $('rRender').onclick=()=>renderStudio();
+  $('rDownload').onclick=()=>{
+    if(!RENDER.lastURL) return;
+    const a=document.createElement('a');
+    a.href=RENDER.lastURL; a.download=`rendu-lampe-${state.type}-${Date.now()}.png`;
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  };
+})();
+
+/* ── Composition & expert ─────────────────────────────────────────────── */
+$('bodyCount').oninput = e=>{ state.compo.count = parseInt(e.target.value,10); renderSoon(); };
+$('expertOn').onchange = e=>{ state.expert = e.target.checked; renderAll(); };
+$('linkOn').onchange   = e=>{
+  state.linkBodies = e.target.checked;
+  // en reliant, on aligne tout de suite les corps sur celui qu'on dessine :
+  // sinon la case « liés » serait cochée sur des corps encore différents
+  if(state.linkBodies){ state.bodies.forEach(b=>{ b.surface=null; }); propagateProfile(); }
+  renderAll();
+};
+
+/* ── Découpe en modules ───────────────────────────────────────────────── */
+$('splitOn').onchange    = e=>{ state.split.on = e.target.checked; renderAll(); };
+$('splitCount').oninput  = e=>{ state.split.count = parseInt(e.target.value,10); renderSoon(); };
+document.querySelectorAll('#joint-seg button').forEach(b=>{
+  b.onclick = ()=>{ JOINT.mode = b.dataset.mode; renderAll(); };
+});
+
+/* ── material / wall ──────────────────────────────────────────────────── */
+$('material').onchange = e=>{
+  state.material = e.target.value;
+  // changer de matiere change ce que la piece EST : la photo doit suivre,
+  // sinon on chiffre un PLA translucide et on en montre un opaque.
+  if(finitionSuitMatiere() && RENDER.lastURL) renderStudio();
+  renderAll();
+};
+$('wall').onchange = e=>{ state.wall=e.target.value; renderAll(); };
+
+/* ── Dossier de fabrication ───────────────────────────────────────────── */
+function buildDossier(){
+  const s = window.__lastSpecs || computeSpecs();
+  const sock = SOCKETS[state.socket];
+  return {
+    generated_at: new Date().toISOString(),
+    produit: "Custom 3D Lamp Studio — dossier de commande/specs (PAS un fichier de fabrication prêt à imprimer)",
+    type_lampe: state.type,
+    forme: {
+      silhouette: state.shape,
+      silhouette_label: (SILHOUETTES[state.shape]||{}).label || state.shape,
+      graine_aleatoire: state.seed,   // même graine + même type + même culot = même forme, reproductible par l'atelier
+      note: state.seed
+        ? "Forme issue du tirage aléatoire borné : rejouer cette graine dans le configurateur régénère exactement ce profil."
+        : "Forme issue d'un preset ou d'une édition manuelle des points — le profil ci-dessous fait foi.",
+    },
+    corps_lies: state.linkBodies,
+    ajourage: MESH.stats.perf ? {
+      type: 'Voronoï — trous traversants, bords refermés (maillage étanche)',
+      cellules: state.surface.voroCells, nervures_mm: state.surface.voroStrutMm,
+      bande_pleine_mm: state.surface.voroBandMm, motif_no: state.surface.voroVariant,
+      matiere_economisee_pct: +MESH.stats.perf.savedPct.toFixed(0),
+      volume_coque_pleine_cm3: +(MESH.stats.perf.refVolMm3/1000).toFixed(1),
+      note: "Les bandes pleines des extrémités sont imposées (culot en haut, appui en bas) ; les nervures s'épaississent progressivement en approchant des bandes pour s'y fondre. Même n° de motif = même ajourage.",
+    } : null,
+    style_surface: {
+      couches: { base: state.surface.base, stries: !!state.surface.stries,
+                 organique: !!state.surface.organique, ajoure: !!state.surface.ajour },
+      label: styleLabel(state.surface),
+      styles_par_corps: state.linkBodies ? null : state.bodies.slice(0,state.compo.count).map((b,i)=>({
+        corps:i+1, label: styleLabel(bodySurface(i)) })),
+      stries_sur_le_tour: state.surface.stries ? state.surface.strieCount : null,
+      profondeur_stries_mm: state.surface.stries ? state.surface.strieDepthMm : null,
+      croise_losanges: state.surface.stries ? state.surface.cross : null,
+      pas_losanges_mm: (state.surface.stries && state.surface.cross) ? state.surface.pitchMm : null,
+      organique_amplitude_mm: state.surface.organique ? state.surface.orgAmpMm : null,
+      organique_echelle_mm: state.surface.organique ? state.surface.orgPitchMm : null,
+      martele_facettes_tour: state.surface.martele ? state.surface.martCount : null,
+      martele_hauteur_facette_mm: state.surface.martele ? state.surface.martHMm : null,
+      martele_profondeur_coups_mm: state.surface.martele ? state.surface.martDepthMm : null,
+      segments_angulaires: MESH.stats.segExport,
+      note: "Le relief est appliqué à l'identique sur les faces intérieure et extérieure : l'épaisseur de paroi reste constante.",
+    },
+    composition: {
+      nombre_de_corps: state.compo.count,
+      agencement: state.compo.layout,
+      agencement_label: LAYOUT_LABELS[state.compo.layout],
+      regularite: state.compo.symmetric ? 'symétrique / répétitif' : 'organique / dispersé (tiré de la graine, reproductible)',
+      base_portante: !!(TYPES[state.type].compo.baseFirst && state.compo.count>1 && state.compo.layout!=='vertical'),
+      ecartement_mm: state.compo.layout==='ligne' ? state.compo.spacingMm : null,
+      rayon_couronne_mm: state.compo.layout==='circulaire' ? state.compo.ringRadiusMm : null,
+      encombrement_assemblage_mm: MESH.stats.bbox ? {
+        x:+(MESH.stats.bbox.maxX-MESH.stats.bbox.minX).toFixed(0),
+        y:+(MESH.stats.bbox.maxY-MESH.stats.bbox.minY).toFixed(0),
+        z:+(MESH.stats.bbox.maxZ-MESH.stats.bbox.minZ).toFixed(0) } : null,
+      corps: bodyPlacements().map((pl,i)=>{
+        const b=state.bodies[i];
+        return { corps:i+1, role:pl.role, silhouette:(SILHOUETTES[b.shape]||{}).label||b.shape,
+          orientation: b.flipped ? 'tête en bas — culot en BAS (h=0)' : 'normale — culot en HAUT',
+          couleur: bodyColor(i),
+          culot_a_h_mm: b.flipped ? 0 : +pl.bodyH.toFixed(1),
+          hauteur_mm:+pl.bodyH.toFixed(1), echelle:+pl.scale.toFixed(3),
+          position_mm:{x:+pl.tx.toFixed(1), y:+pl.ty.toFixed(1), z:+pl.tz.toFixed(1)},
+          rotation_deg:+pl.rot.toFixed(1),
+          torsion_deg_par_mm:+(b.sculpt.twistDegPerMm||0).toFixed(3),
+          courbure_deg:+(b.sculpt.bendDeg||0).toFixed(1),
+          profil_mm: b.profile.map(p=>({hauteur:+(p.h*pl.scale).toFixed(1), rayon:+(p.r*pl.scale).toFixed(1)})) };
+      }),
+      interferences: interferences(bodyPlacements()).map(([niveau, texte])=>({niveau, texte})),
+      note: "Chaque corps est un STL séparé, exporté à son propre origine et posé à plat : seule la taille d'UN corps doit tenir sur le plateau. Position et rotation ci-dessus = plan d'assemblage, à réaliser à l'atelier.",
+    },
+    sculpture: {
+      note: "Torsion et courbure sont des transformations continues appliquées après la révolution : maillage étanche et épaisseur de paroi conservées. La courbure ajoute un surplomb non visible sur le profil 2D.",
+    },
+    modules_imprimes: {
+      multi_pieces: state.split.on,
+      nombre: MESH.parts.length,
+      liaison: state.split.on ? (MESH.parts.find(p=>p.joint) ? MESH.parts.find(p=>p.joint).info_liaison || MESH.parts.find(p=>p.joint).joint.info.type : null) : null,
+      sens_de_montage: (state.split.on && JOINT.mode==='visse') ? "visser le module du haut sur celui du bas (filet à droite)" : null,
+      decoupe: MESH.parts.map((p,i)=>({
+        module: i+1, role: p.label,
+        h_de_mm: +p.h0.toFixed(1), h_a_mm: +p.h1.toFixed(1),
+        liaison: p.joint ? p.joint.info : null,
+        fichier_stl: MESH.parts.length===1 ? 'fichier unique' : `${i+1} sur ${MESH.parts.length}`,
+      })),
+    },
+    maillage_exporte: {
+      type: "coque creuse, ouverte en bas et en haut",
+      triangles: MESH.stats.tris,
+      volume_matiere_cm3: +((MESH.stats.volMm3||0)/1000).toFixed(1),
+      etanche: MESH.stats.openEdges===0 ? true : (MESH.stats.openEdges===null ? 'non vérifié' : false),
+      angle_basculement_deg: +MESH.stats.tip.deg.toFixed(1),
+      centre_gravite_hauteur_mm: +MESH.stats.tip.cgHeightMm.toFixed(1),
+      note: "Volume et masse du devis sont calculés sur CE maillage (théorème de la divergence), pas sur une approximation.",
+    },
+    profil_mm: state.profile.map(p=>({hauteur:+p.h.toFixed(1), rayon:+p.r.toFixed(1)})),
+    hauteur_totale_mm: +state.profile[state.profile.length-1].h.toFixed(1),
+    rayon_max_mm: +Math.max(...state.profile.map(p=>p.r)).toFixed(1),
+    connexion: { ref: state.socket, ...sock,
+      // Ce qui est DÉJÀ dans le fichier livré, distingué de ce qui reste à faire :
+      // c'est la ligne que l'atelier lit en premier.
+      genere_dans_le_maillage: sock.type === 'module'
+        ? [ state.cable.on ? `passage de câble Ø${state.cable.diaMm} mm percé dans la coque` : null,
+            state.cable.platine ? `platine de raccordement : 4 trous d'insert M3 Ø${sock.trouInsertMm} mm `
+              + `(${sock.entraxeVisMm} mm pour le module, ${sock.serreCable.entraxeMm} mm pour le serre-câble)` : null,
+          ].filter(Boolean)
+        : [],
+      quincaillerie_a_fournir: sock.type === 'module'
+        ? [`${sock.visM3} inserts laiton M3 + 2 vis M3 (module)`,
+           `2 inserts laiton M3 + 2 vis M3 (serre-câble ${sock.serreCable.emprise})`,
+           'module lampe USB Bambu Lab', 'serre-câble imprimé « Bloque Cable VF 2 »']
+        : ['douille marquée CE', 'câble + décharge de traction'],
+      a_prevoir_dans_la_piece: sock.type === 'module'
+        ? (state.cable.on && state.cable.platine
+            ? "rien à percer : passage de câble et trous d'insert sont dans les fichiers"
+            : "⚠️ une partie des perçages est désactivée dans la configuration — voir genere_dans_le_maillage")
+        : "logement de douille percé par l'atelier, décharge de traction, connexions démontables",
+      regime_electrique: sock.type === 'module'
+        ? `${sock.tensionV} V USB — très basse tension de sécurité, pas de secteur dans la lampe`
+        : "secteur — assemblage électrique par un professionnel obligatoire" },
+    culot: { ref: state.socket, ...sock },
+    materiau: MATERIALS[state.material],
+    epaisseur_paroi_mm: +state.wall,
+    couleur: state.compo.count>1 && !state.linkBodies
+      ? state.bodies.slice(0,state.compo.count).map((b,i)=>`corps ${i+1} : ${bodyColor(i)}`).join(' · ')
+      : state.color,
+    imprimante_cible: { modele: "Creality Ender-3 S1 (vérifié atelier)", plateau_mm: `${PRINT_BOUNDS.PLATE_XY_MM}×${PRINT_BOUNDS.PLATE_XY_MM}×${PRINT_BOUNDS.PLATE_Z_MM}`, buse_mm: 0.4 },
+    estimation: { volume_cm3: +s.volumeCm3.toFixed(1), masse_g: +s.massG.toFixed(0), temps_impression_h: +s.printHours.toFixed(1), prix_eur: +s.price.toFixed(0) },
+    securite: sock.type === 'module'
+      ? `${sock.tensionV} V par USB : très basse tension de sécurité, aucun secteur dans la lampe — le montage se fait à la main, sans électricien. LED du module uniquement, jamais d'ampoule ajoutée.`
+      : "Assemblage électrique réalisé par un professionnel/l'atelier, jamais par le client. LED ≤7W réels, jamais halogène/incandescent. Culot standard du commerce marqué CE.",
+    avertissement: "Dossier de commande/specs indicatif, PAS un fichier STL/3D prêt à imprimer. Dimensions et prix à valider par l'atelier avant fabrication.",
+  };
+}
+function download(filename, content, mime){
+  const blob=new Blob([content],{type:mime});
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=filename;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+}
+
+/* ── Export du maillage réel ─────────────────────────────────────────────
+ * Le STL exporté est EXACTEMENT le maillage affiché dans l'aperçu et pesé
+ * dans le prix : une coque creuse d'épaisseur paroi, ouverte en bas et en
+ * haut. En option multi-pièces, un fichier PAR MODULE (collier d'emboîtement
+ * inclus dans le module du dessous).
+ *
+ * Gate de sécurité inchangé : aucune géométrie de culot/alésage/filetage
+ * n'est générée — SOCKETS ne sert qu'à borner le rayon mini du point haut,
+ * le perçage réel du logement est fait par le professionnel qui assemble.
+ * ──────────────────────────────────────────────────────────────────── */
+function triangleNormal(v1,v2,v3){
+  const e1=[v2[0]-v1[0], v2[1]-v1[1], v2[2]-v1[2]];
+  const e2=[v3[0]-v1[0], v3[1]-v1[1], v3[2]-v1[2]];
+  let nx=e1[1]*e2[2]-e1[2]*e2[1];
+  let ny=e1[2]*e2[0]-e1[0]*e2[2];
+  let nz=e1[0]*e2[1]-e1[1]*e2[0];
+  const len=Math.hypot(nx,ny,nz)||1;
+  return [nx/len, ny/len, nz/len];
+}
+
+// Export STL binaire standard : header 80 octets + uint32 nb triangles, puis par triangle
+// normale (3×float32) + 3 sommets (3×float32 chacun) + attribut uint16 (=0) = 50 octets/triangle.
+function trianglesToSTLBinary(tris, label){
+  const n = tris.length;
+  const buf = new ArrayBuffer(84 + n*50);
+  const dv = new DataView(buf);
+  const header = ('Custom 3D Lamp Studio - '+(label||'lampe')+' - profil de revolution').slice(0,79);
+  for(let i=0;i<80;i++) dv.setUint8(i, i<header.length?header.charCodeAt(i):0);
+  dv.setUint32(80, n, true);
+  let o=84;
+  for(const [v1,v2,v3] of tris){
+    const [nx,ny,nz] = triangleNormal(v1,v2,v3);
+    dv.setFloat32(o,nx,true); dv.setFloat32(o+4,ny,true); dv.setFloat32(o+8,nz,true); o+=12;
+    dv.setFloat32(o,v1[0],true); dv.setFloat32(o+4,v1[1],true); dv.setFloat32(o+8,v1[2],true); o+=12;
+    dv.setFloat32(o,v2[0],true); dv.setFloat32(o+4,v2[1],true); dv.setFloat32(o+8,v2[2],true); o+=12;
+    dv.setFloat32(o,v3[0],true); dv.setFloat32(o+4,v3[1],true); dv.setFloat32(o+8,v3[2],true); o+=12;
+    dv.setUint16(o,0,true); o+=2;
+  }
+  return buf;
+}
+
+/* STL binaire = coque + éventuellement la VRAIE base, écrite directement
+ * depuis son maillage indexé. On ne la déplie jamais en tableau de triangles :
+ * 356 632 triangles feraient plus d'un million d'objets JS pour rien. */
+function trianglesToSTLBinaryAvecBase(tris, label, avecBase){
+  const nBase = avecBase ? BASE_KIT.nTri : 0;
+  const n = tris.length + nBase;
+  const buf = new ArrayBuffer(84 + n*50);
+  const dv = new DataView(buf);
+  const header = ('Custom 3D Lamp Studio - '+(label||'lampe')
+                 + (nBase ? ' + BASE SIMPLE LED KIT (piece atelier, non modifiee)' : '')).slice(0,79);
+  for(let i=0;i<80;i++) dv.setUint8(i, i<header.length?header.charCodeAt(i):0);
+  dv.setUint32(80, n, true);
+  let o=84;
+  const ecrire=(v1,v2,v3)=>{
+    const [nx,ny,nz] = triangleNormal(v1,v2,v3);
+    dv.setFloat32(o,nx,true); dv.setFloat32(o+4,ny,true); dv.setFloat32(o+8,nz,true); o+=12;
+    for(const v of [v1,v2,v3]){
+      dv.setFloat32(o,v[0],true); dv.setFloat32(o+4,v[1],true); dv.setFloat32(o+8,v[2],true); o+=12;
+    }
+    dv.setUint16(o,0,true); o+=2;
+  };
+  for(const [v1,v2,v3] of tris) ecrire(v1,v2,v3);
+  if(nBase){
+    const V=BASE_KIT.verts, F=BASE_KIT.faces;
+    for(let i=0;i<F.length;i+=3){
+      const a=F[i]*3,b=F[i+1]*3,c=F[i+2]*3;
+      ecrire([V[a],V[a+1],V[a+2]], [V[b],V[b+1],V[b+2]], [V[c],V[c+1],V[c+2]]);
+    }
+  }
+  return buf;
+}
+
+/* ⚠️ Ces deux sélecteurs n'avaient AUCUN écouteur (07/08) : on changeait le
+ * réglage, rien ne se reconstruisait — ni l'aperçu, ni le maillage exporté,
+ * puisque l'export livre MESH.parts tel quel. « La qualité ne change pas »,
+ * et pour cause. Toute commande qui entre dans la géométrie doit déclencher
+ * une reconstruction, sans exception. */
+$('stlSegments').onchange = ()=>renderAll();
+$('stlQualite').onchange  = ()=>renderAll();
+
+$('exportStl').onclick=()=>{
+  if(!MESH.parts.length){ alert('Profil insuffisant pour générer un maillage (minimum 2 points).'); return; }
+  const stamp = Date.now();
+  const n = MESH.parts.length;
+  let totalTris=0, totalKo=0;
+  const slug = s => s.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^a-zA-Z0-9]+/g,'-').replace(/^-|-$/g,'').toLowerCase();
+  MESH.parts.forEach((p,i)=>{
+    // la vraie base part avec la pièce du BAS du corps qui la porte
+    const avecBase = BASE_KIT.etat==='ok' && baseKitUtile()
+                  && p.body===socketEndBodyIdx() && p.index===0;
+    const buf = trianglesToSTLBinaryAvecBase(p.tris, `${state.type}-${p.label}`, avecBase);
+    const name = n===1
+      ? `lampe-${state.type}-${stamp}.stl`
+      : `lampe-${state.type}-${String(i+1).padStart(2,'0')}sur${n}-${slug(p.label)}-${stamp}.stl`;
+    download(name, buf, 'model/stl');
+    totalTris += p.tris.length; totalKo += buf.byteLength/1024;
+  });
+  const s = MESH.stats;
+  $('stlInfo').innerHTML = `Dernier export : <b>${n} fichier${n>1?'s':''}</b> · <b>${totalTris}</b> triangles · <b>${totalKo.toFixed(1)} Ko</b> · `
+    + `${s.segExport} segments angulaires · style « ${styleLabel(state.surface)} » · `
+    + `coque creuse paroi ${state.wall} mm, <b>${(s.volMm3/1000).toFixed(1)} cm³</b> de matière — c'est ce volume qui est facturé.`;
+};
+
+$('exportJson').onclick=()=>{
+  download('dossier-lampe-'+Date.now()+'.json', JSON.stringify(buildDossier(),null,2), 'application/json');
+};
+$('exportTxt').onclick=()=>{
+  const d=buildDossier();
+  const txt = [
+    '=== DOSSIER DE FABRICATION — CUSTOM 3D LAMP STUDIO ===',
+    'PAS un fichier STL/3D prêt à imprimer — dossier de commande/specs.',
+    '',
+    'Généré le : '+new Date().toLocaleString('fr-FR'),
+    'Type de lampe : '+d.type_lampe,
+    `Silhouette : ${d.forme.silhouette_label}${d.forme.graine_aleatoire?` — graine ${d.forme.graine_aleatoire} (rejouable à l'identique)`:''}`,
+    `Style de surface : ${d.style_surface.label}`
+      + (d.style_surface.stries_sur_le_tour?` — ${d.style_surface.stries_sur_le_tour} stries, relief ${d.style_surface.profondeur_stries_mm}mm${d.style_surface.croise_losanges?`, croisées au pas de ${d.style_surface.pas_losanges_mm}mm`:''}`:'')
+      + (d.style_surface.organique_amplitude_mm?` — ondulation ${d.style_surface.organique_amplitude_mm}mm / ${d.style_surface.organique_echelle_mm}mm`:'')
+      + ` — ${d.style_surface.segments_angulaires} segments angulaires`,
+    '',
+    '--- Composition ---',
+    `  ${d.composition.nombre_de_corps} corps — ${d.composition.agencement_label} — ${d.composition.regularite}`
+      + (d.composition.base_portante?' — le corps 1 sert de base portante':''),
+    ...(d.composition.encombrement_assemblage_mm
+      ? [`  Encombrement de l'assemblage : ${d.composition.encombrement_assemblage_mm.x} × ${d.composition.encombrement_assemblage_mm.y} × ${d.composition.encombrement_assemblage_mm.z} mm`] : []),
+    ...d.composition.corps.map(b=>`  ${b.role} : ${b.silhouette} [${b.orientation}], couleur ${b.couleur}, h=${b.hauteur_mm}mm, échelle ×${b.echelle}`
+      + `, pose (x ${b.position_mm.x}, y ${b.position_mm.y}, z ${b.position_mm.z})mm`
+      + (b.rotation_deg?`, rotation ${b.rotation_deg}°`:'')
+      + (b.torsion_deg_par_mm?`, torsion ${b.torsion_deg_par_mm}°/mm`:'')
+      + (b.courbure_deg?`, courbure ${b.courbure_deg}°`:'')),
+    '  '+d.composition.note,
+    '',
+    '--- Modules imprimés (découpe multi-pièces) ---',
+    ...(d.modules_imprimes.multi_pieces
+      ? [`  ${d.modules_imprimes.nombre} modules — ${d.modules_imprimes.liaison}`,
+         ...d.modules_imprimes.decoupe.map(m=>`  module ${m.module} (${m.role}) : h ${m.h_de_mm}→${m.h_a_mm}mm${m.liaison?` — ${m.liaison.type}, Ø${m.liaison.diaMm}mm${m.liaison.pasMm?`, pas ${m.liaison.pasMm}mm / ${m.liaison.tours} tours`:''}`:''}`)]
+      : ['  pièce monobloc']),
+    '',
+    '--- Maillage STL livré ---',
+    `  ${d.maillage_exporte.type} — ${d.maillage_exporte.triangles} triangles — ${d.maillage_exporte.volume_matiere_cm3} cm³ de matière`,
+    `  Étanchéité : ${d.maillage_exporte.etanche===true?'étanche (manifold)':d.maillage_exporte.etanche===false?'NON ÉTANCHE — à signaler':'non vérifié'}`,
+    `  Basculement : ${d.maillage_exporte.angle_basculement_deg}° — centre de gravité à ${d.maillage_exporte.centre_gravite_hauteur_mm}mm`,
+    '  '+d.maillage_exporte.note,
+    '',
+    '--- Profil (hauteur mm, rayon mm), axe de révolution ---',
+    ...d.profil_mm.map((p,i)=>`  point ${i+1} : h=${p.hauteur}mm  r=${p.rayon}mm`),
+    `Hauteur totale : ${d.hauteur_totale_mm}mm — Rayon max : ${d.rayon_max_mm}mm`,
+    '',
+    '--- Connexion électrique (référence standard fermée) ---',
+    `Référence : ${d.connexion.ref} — ${d.connexion.label}`,
+    `À PRÉVOIR DANS LA PIÈCE : ${d.connexion.a_prevoir_dans_la_piece}`,
+    `Régime électrique : ${d.connexion.regime_electrique}`,
+    `Puissance max : ${d.connexion.maxWattageW}W`,
+    `Source cotes : ${d.connexion.source}`,
+    '',
+    '',
+    '--- Matière & paroi ---',
+    `Matériau : ${d.materiau}`,
+    `Épaisseur paroi : ${d.epaisseur_paroi_mm}mm`,
+    `Couleur : ${d.couleur}`,
+    '',
+    '--- Imprimante cible ---',
+    `${d.imprimante_cible.modele} — plateau ${d.imprimante_cible.plateau_mm} — buse ${d.imprimante_cible.buse_mm}mm`,
+    '',
+    '--- Estimation ---',
+    `Volume matière : ${d.estimation.volume_cm3} cm³`,
+    `Masse estimée : ${d.estimation.masse_g} g`,
+    `Temps d'impression estimé : ${d.estimation.temps_impression_h} h`,
+    `Prix estimé : ${d.estimation.prix_eur} €`,
+    '',
+    '--- Sécurité ---',
+    d.securite,
+    '',
+    d.avertissement,
+  ].join('\n');
+  download('dossier-lampe-'+Date.now()+'.txt', txt, 'text/plain');
+};
+
+/* ── Commande / mailto ───────────────────────────────────────────────── */
+$('prepEmail').onclick=()=>{
+  const name=$('cName').value.trim(), email=$('cEmail').value.trim(), notes=$('cNotes').value.trim();
+  const s = window.__lastSpecs || computeSpecs();
+  const sock = SOCKETS[state.socket];
+  const subject = `Commande lampe sur-mesure DELIGNY R&D — ${state.type}${name?(' — '+name):''}`;
+  const body = [
+    `Nom : ${name||'—'}`,
+    `Email : ${email||'—'}`,
+    '',
+    `Type de lampe : ${state.type}`,
+    `Silhouette : ${(SILHOUETTES[state.shape]||{}).label||state.shape}${state.seed?` — graine ${state.seed}`:''}`,
+    `Style de surface : ${styleLabel(state.surface)}`,
+    `Composition : ${state.compo.count} corps — ${LAYOUT_LABELS[state.compo.layout]} — ${state.compo.symmetric?'symétrique':'organique'}`,
+    `Pièces à imprimer : ${MESH.parts.length>1?`${MESH.parts.length} (${MESH.parts.map(p=>p.label).join(' + ')})`:'1 (monobloc)'}`,
+    `Hauteur totale : ${state.profile[state.profile.length-1].h.toFixed(0)}mm — Rayon max : ${Math.max(...state.profile.map(p=>p.r)).toFixed(0)}mm`,
+    `Connexion : ${state.socket} — ${sock.label}`,
+    `À prévoir : ${sock.type==='module'
+       ? sock.visM3+' vis M3 (entraxe '+sock.entraxeVisMm+' mm), passage câble USB Ø'+sock.cableDiaMm+' mm, décharge de traction'
+       : 'logement de douille + décharge de traction, assemblage par un professionnel'}`,
+    `Matériau : ${MATERIALS[state.material]} — paroi ${state.wall}mm`,
+    `Couleur : ${state.compo.count>1 && !state.linkBodies ? state.bodies.slice(0,state.compo.count).map((b,i)=>`corps ${i+1} ${bodyColor(i)}`).join(', ') : state.color}`,
+    `Volume estimé : ${s.volumeCm3.toFixed(1)} cm³ — Temps impr. estimé : ${s.printHours.toFixed(1)}h`,
+    `Prix estimé : ${s.price.toFixed(0)} €`,
+    '',
+    `Notes : ${notes||'—'}`,
+    '',
+    '(Merci de joindre manuellement le dossier JSON/TXT téléchargé sur le configurateur à cet email avant envoi.)',
+    '',
+    'Rappel : cette commande ne vaut pas paiement — assemblage électrique réalisé par le professionnel/l\'atelier, pas par le client.',
+  ].join('\n');
+  const mailto = `mailto:contact@deligny-rd.fr?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  window.location.href = mailto;
+};
+
+/* ── ÉTAPES ───────────────────────────────────────────────────────────────
+ * Mesuré avant : 13 cartes, 52 réglages, 5,7 écrans à faire défiler, le prix à
+ * 4,4 écrans et la commande à 5,8. Personne ne configure une lampe dans ces
+ * conditions. On regroupe en quatre étapes, une seule ouverte à la fois — rien
+ * n'est retiré, tout est à un clic, et la colonne redevient lisible.
+ * Les cartes sont repérées par un élément stable qu'elles contiennent, pas par
+ * leur position : ajouter une carte ailleurs ne casse pas le regroupement.
+ * ────────────────────────────────────────────────────────────────────────── */
+const ETAPES = [
+  // #cvIn en tête : le concierge est la porte d'entrée, il ouvre l'étape Forme.
+  // Sans cette ancre il partirait en dernière étape avec les cartes orphelines.
+  /* #addPoint = carte « Outils tracé », juste sous le type de lampe (demande
+   * Baptiste). #embFichier = carte « Image dans la matière ». Sans ancre
+   * declaree, ces deux cartes tombaient en derniere etape avec les
+   * orphelines, c'est-a-dire dans Commande. */
+  { titre:'Forme',       sous:'silhouette, corps',      ancres:['#cvIn','#type-seg','#addPoint','#presetRow','#bodyCount','#embFichier'] },
+  { titre:'Aspect',      sous:'surface, couleur, rendu', ancres:['#surface-seg','#swatches','#rFinish'] },
+  { titre:'Fabrication', sous:'matière, paroi', ancres:['#socketList','#splitOn','#material'] },
+  { titre:'Commande',    sous:'prix, dossier, envoi',    ancres:['#s-price','#exportStl','#prepEmail'] },
+];
+let etapeActive = 0;
+
+function organiserEnEtapes(){
+  const col = document.querySelector('.controls');
+  if(!col || col.dataset.organise) return;
+  const barre = document.createElement('div');
+  barre.className = 'stepper';
+  const sections = ETAPES.map((e,i)=>{
+    const s = document.createElement('section');
+    s.className = 'etape';
+    e.ancres.forEach(sel=>{
+      const el = document.querySelector(sel);
+      const carte = el && el.closest('.card');
+      if(carte && !carte.dataset.range){ carte.dataset.range = '1'; s.appendChild(carte); }
+    });
+    const b = document.createElement('button');
+    b.innerHTML = `<span class="n">${i+1} / ${ETAPES.length}</span>${e.titre}<br><span class="n">${e.sous}</span>`;
+    b.onclick = ()=> allerEtape(i);
+    barre.appendChild(b);
+    return s;
+  });
+  // toute carte non rattachée (ajoutée depuis) reste visible en fin de parcours
+  document.querySelectorAll('.controls .card:not([data-range])').forEach(c=>sections[sections.length-1].appendChild(c));
+  col.querySelectorAll(':scope > .grid').forEach(g=>{ if(!g.querySelector('.card')) g.remove(); });
+  col.textContent = '';
+  col.appendChild(barre);
+  sections.forEach(s=>col.appendChild(s));
+
+  sections.forEach((s,i)=>{
+    const pied = document.createElement('div');
+    pied.className = 'etape-pied';
+    const prec = document.createElement('button');
+    prec.className = 'btn'; prec.textContent = '← ' + (ETAPES[i-1] ? ETAPES[i-1].titre : '');
+    prec.style.visibility = i ? 'visible' : 'hidden';
+    prec.onclick = ()=> allerEtape(i-1);
+    const suiv = document.createElement('button');
+    suiv.className = 'btn pri';
+    suiv.textContent = (ETAPES[i+1] ? ETAPES[i+1].titre + ' →' : '✓ Terminé');
+    suiv.onclick = ()=> ETAPES[i+1] ? allerEtape(i+1) : window.scrollTo({top:0, behavior:'smooth'});
+    pied.appendChild(prec); pied.appendChild(suiv);
+    s.appendChild(pied);
+  });
+
+  col.dataset.organise = '1';
+  window.__etapes = sections;
+  allerEtape(0);
+}
+function allerEtape(i){
+  etapeActive = Math.max(0, Math.min(ETAPES.length-1, i));
+  (window.__etapes||[]).forEach((s,k)=>{ s.hidden = (k !== etapeActive); });
+  document.querySelectorAll('.stepper button').forEach((b,k)=>b.classList.toggle('on', k===etapeActive));
+  // l'aperçu reste en place : on ne remonte que la colonne des réglages
+  const col=document.querySelector('.controls');
+  if(col && col.getBoundingClientRect().top < 0) col.scrollIntoView({block:'start', behavior:'smooth'});
+}
+
+/* ── Init ─────────────────────────────────────────────────────────────── */
+organiserEnEtapes();
+syncViewInputs();
+setPreset(TYPES[state.type].silhouettes[0]);
+/* Le lien vers le tableau de bord PROPAGATION n'apparaît QUE sur le poste de
+ * travail. Test sur l'hôte, pas sur le protocole : une page ouverte en
+ * file:// ou servie par le moteur local est un atelier ; tout le reste est le
+ * site public, et le tableau de bord n'y a rien à faire. */
+/* Éteinte / allumée — pilote le rendu photo comme l'aperçu du navigateur.
+ * Le même interrupteur que la carte Rendu (#rLit) : deux commandes, un seul
+ * état, sinon elles se contrediraient à l'écran. */
+document.querySelectorAll('#litSeg button').forEach(b=>{
+  b.onclick = ()=>{
+    RENDER.lit = b.dataset.lit === '1';
+    syncLit();                       // idem : jamais deux chemins pour un etat
+    studioSoon(60);
+  };
+});
+(function atelierSeulement(){
+  const h = location.hostname;
+  const local = h === '127.0.0.1' || h === 'localhost' || h === '' || h.endsWith('.local');
+  const el = document.getElementById('lienAtelier');
+  if(el && local) el.style.display = '';
+})();
+/* ══════════════════════════════════════════════════════════════════════════
+ * CONCIERGE — une phrase du client, des RÉGLAGES du studio
+ *
+ * Le partage des rôles ne bouge pas d'un millimètre : l'IA PROPOSE des
+ * valeurs, le studio construit, mesure et écrête. Rien ici ne touche la
+ * géométrie en direct — tout passe par les fonctions qu'actionnent déjà les
+ * boutons (setPreset, normalizeProfile, propagateProfile, bodySurfaceForEdit,
+ * renderAll), donc par les mêmes garde-fous, dans le même ordre.
+ *
+ * Ce qui est écrêté ou refusé est AFFICHÉ. Un réglage qui disparaît sans un
+ * mot ressemble à une panne, et fait douter de tout le reste.
+ * ══════════════════════════════════════════════════════════════════════════ */
+const CONCIERGE = { busy:false, tours:0 };
+
+/* Le concierge a besoin du moteur local. Sur le site public, la page est
+ * servie en HTTPS et le navigateur INTERDIT d'appeler http://127.0.0.1 : le
+ * chat échouerait à chaque message. Un chat mort vaut moins que pas de chat,
+ * donc la carte n'apparaît que lorsque le moteur a répondu. Même règle que le
+ * rendu Blender, qui retombe sur le rendu du navigateur.
+ * ⚠️ Le display va sur la CARTE : le stepper la déplace, pas son emballage. */
+function renderConcierge(){
+  const c = $('conciergeCard'); if(!c) return;
+  c.style.display = (AI.ok === true) ? '' : 'none';
+  /* ⚠️ La 3e vue reste VISIBLE partout (11/08, « je veux un rendu live, la ça
+   * marche pas rien ne s'affiche »). Sans le moteur, elle montre l'apercu du
+   * navigateur en scene PAPIER : la piece seule sur le fond de la page, sans
+   * faux decor. C'est ce faux decor, pas le rendu lui-meme, qui la faisait
+   * juger mauvaise. Blender reste la version haute qualite a l'atelier. */
+  const r = $('colRendu');
+  if(r) r.style.display = '';
+}
+
+function cvBulle(qui, texte, cls){
+  const f = $('cvFil'); if(!f) return null;
+  const d = document.createElement('div');
+  d.className = 'cv-b ' + (qui==='moi' ? 'cv-moi' : 'cv-lui') + (cls ? ' '+cls : '');
+  d.textContent = texte;
+  f.appendChild(d); f.scrollTop = f.scrollHeight;
+  return d;
+}
+function cvTags(el, faits, refus){
+  if(!el || (!faits.length && !refus.length)) return;
+  const w = document.createElement('div'); w.className='cv-tags';
+  const puce = (t, no)=>{ const s=document.createElement('span');
+    s.className='cv-tag'+(no?' no':''); s.textContent=t; w.appendChild(s); };
+  faits.forEach(t=>puce(t,false));
+  refus.forEach(t=>puce(t,true));
+  el.appendChild(w);
+  const f=$('cvFil'); if(f) f.scrollTop=f.scrollHeight;
+}
+
+/* Applique une proposition. Rend ce qui a été fait ET ce qui a été refusé. */
+function appliquerConcierge(params, champ){
+  const p = params||{}, faits = [], refus = [];
+  const b = bounds();
+  const serre = (v, lo, hi, nom, unite, dec)=>{
+    const x = Math.max(lo, Math.min(hi, +v));
+    if(Math.abs(x - v) > 1e-6)
+      refus.push(nom+' ramené de '+(+v).toFixed(dec||0)+' à '+x.toFixed(dec||0)+' '+unite);
+    return x;
+  };
+
+  if(p.silhouette){
+    if(TYPES[state.type].silhouettes.includes(p.silhouette)){
+      setPreset(p.silhouette);                       // le chemin d'un bouton
+      faits.push(SILHOUETTES[p.silhouette].label);
+    } else refus.push('silhouette « '+p.silhouette+' » : pas dans ce type de lampe');
+  }
+
+  // Hauteur et rayon : on met la méridienne À L'ÉCHELLE. On ne la réinvente
+  // pas — sinon un simple « plus haute » effacerait le dessin du client.
+  if(p.hauteurMm != null && state.profile.length > 1){
+    const H = serre(p.hauteurMm, b.minH, b.maxH, 'hauteur', 'mm');
+    const h0 = profileTopH();
+    if(h0 > 1){
+      const k = H/h0;
+      state.profile.forEach(q=>{ q.h *= k; });
+      normalizeProfile(); propagateProfile();
+      faits.push('hauteur '+Math.round(profileTopH())+' mm');
+    }
+  }
+  if(p.rayonMaxMm != null && state.profile.length > 1){
+    const R = serre(p.rayonMaxMm, 8, b.maxR, 'rayon', 'mm');
+    const r0 = Math.max.apply(null, state.profile.map(q=>q.r));
+    if(r0 > 1){
+      const k = R/r0;
+      state.profile.forEach(q=>{ q.r *= k; });
+      normalizeProfile(); propagateProfile();
+      faits.push('rayon max '+Math.round(R)+' mm');
+    }
+  }
+
+  // Bornes des curseurs du panneau expert : les mêmes valeurs, pas des copies
+  // approchantes — un écart ici ferait mentir l'affichage.
+  const co = state.bodies[state.body];
+  if(p.echelle != null){
+    co.scale = serre(p.echelle, 0.35, 2.2, 'échelle', '×', 2);
+    faits.push('échelle ×'+co.scale.toFixed(2));
+  }
+  if(p.torsionDegParMm != null){
+    co.sculpt.twistDegPerMm = serre(p.torsionDegParMm, -1.2, 1.2, 'torsion', '°/mm', 2);
+    faits.push('torsion '+co.sculpt.twistDegPerMm.toFixed(2)+' °/mm');
+  }
+  if(p.courbureDeg != null){
+    co.sculpt.bendDeg = serre(p.courbureDeg, -35, 35, 'courbure', '°');
+    faits.push('courbure '+Math.round(co.sculpt.bendDeg)+'°');
+  }
+
+  if(p.matiere && MATERIALS[p.matiere]){
+    state.material = p.matiere;
+    faits.push(MATERIALS[p.matiere]);            // MATERIALS tient des libellés
+  } else if(p.matiere) refus.push('matière « '+p.matiere+' » indisponible');
+  if(p.paroiMm != null){
+    state.wall = serre(p.paroiMm, 0.8, 4, 'paroi', 'mm', 1);
+    faits.push('paroi '+state.wall.toFixed(1)+' mm');
+  }
+  if(p.corps != null){
+    const cfg = TYPES[state.type].compo;
+    state.compo.count = serre(p.corps, 1, cfg.maxBodies, 'nombre de corps', 'corps');
+    faits.push(state.compo.count+' corps');
+  }
+  if(p.agencement){
+    const cfg = TYPES[state.type].compo;
+    if(cfg.layouts.includes(p.agencement)){ state.compo.layout = p.agencement; faits.push(p.agencement); }
+    else refus.push('agencement « '+p.agencement+' » indisponible ici');
+  }
+
+  // Surface : on écrit là où les cases à cocher écrivent, pour que le réglage
+  // suive le partage « lié / par corps » sans le contourner.
+  const s = bodySurfaceForEdit();
+  const bascule = (cle, nom)=>{ if(p[cle] != null){ s[cle] = !!p[cle]; if(s[cle]) faits.push(nom); } };
+  if(p.base === 'lisse' || p.base === 'facette'){ s.base = p.base; faits.push('surface '+p.base+'e'); }
+  if(p.lissage != null) s.smoothing = Math.max(0, Math.min(90, +p.lissage));
+  bascule('stries','cannelures'); bascule('croise','croisées');
+  bascule('martele','martelage'); bascule('organique','ondulations');
+  bascule('ajour','ajourage');
+  if(p.strieCount != null)  s.strieCount  = Math.max(4, Math.min(60, Math.round(p.strieCount)));
+  if(p.strieDepthMm != null)s.strieDepthMm= Math.max(0, Math.min(5,  +p.strieDepthMm));
+  if(p.martCount != null)   s.martCount   = Math.max(6, Math.min(48, Math.round(p.martCount)));
+  if(p.martDepthMm != null) s.martDepthMm = Math.max(0, Math.min(4,  +p.martDepthMm));
+  if(p.orgAmpMm != null)    s.orgAmpMm    = Math.max(0, Math.min(8,  +p.orgAmpMm));
+  if(p.voroCells != null)   s.voroCells   = Math.max(186,Math.min(2000,Math.round(p.voroCells)));
+
+  // Champ de sculpture : c'est lui qui sort du vase symétrique. Le moteur
+  // borne déjà chaque terme et leur somme ; on ne double pas ce travail ici,
+  // on se contente de ne pas dépasser le nombre de termes qu'il lit.
+  if(Array.isArray(champ)){
+    if(champ.length){
+      s.champ = champ.slice(0, CHAMP.maxTermes);
+      s.champ.forEach(t=>faits.push(t.type+' '+(+t.amp||0).toFixed(1)+' mm'));
+      if(champ.length > CHAMP.maxTermes)
+        refus.push('seuls '+CHAMP.maxTermes+' termes de sculpture sont lus');
+    } else if(s.champ && s.champ.length && Object.keys(p).length){
+      // une proposition sans champ ne doit pas effacer la sculpture en cours
+    }
+  }
+
+  normalizeProfile();
+  renderAll();
+  // Le studio a le dernier mot : s'il a écrêté, il le dit lui-même.
+  // MESH.clamped tient des objets {body, from, to} : le rayon du haut a été
+  // remonté pour que le culot loge. Le formater à la main, pas String().
+  if(MESH.clamped && MESH.clamped.length)
+    MESH.clamped.slice(0,4).forEach(c=>refus.push(
+      'corps '+c.body+' : haut élargi de '+c.from+' à '+c.to+' mm pour le culot'));
+  return { faits, refus };
+}
+
+async function cvEnvoyer(texte){
+  if(CONCIERGE.busy) return;
+  texte = (texte || ($('cvIn')||{}).value || '').trim();
+  if(!texte) return;
+  CONCIERGE.busy = true;
+  const inp = $('cvIn'), go = $('cvGo');
+  if(inp) inp.value = '';
+  if(go){ go.disabled = true; go.textContent = '…'; }
+  cvBulle('moi', texte);
+  const attente = cvBulle('lui', 'Je regarde…', 'pense');
+  const etat = {
+    silhouettes: TYPES[state.type].silhouettes.slice(),
+    courant: {
+      silhouette: state.shape, hauteurMm: Math.round(profileTopH()),
+      rayonMaxMm: Math.round(Math.max.apply(null, state.profile.map(q=>q.r)||[0])),
+      matiere: state.material, paroiMm: state.wall, corps: state.compo.count,
+    }
+  };
+  try{
+    const r = await fetch(AI.base + '/api/lampe/chat', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ message: texte, etat })
+    });
+    const d = await r.json();
+    if(attente) attente.remove();
+    if(!d.ok){ cvBulle('lui', d.note || 'Le concierge n\'a pas pu répondre.'); return; }
+    const el = cvBulle('lui', d.reponse || 'Voilà.');
+    const { faits, refus } = appliquerConcierge(d.params, d.champ);
+    (d.rejets||[]).forEach(x=>refus.push(x));
+    cvTags(el, faits, refus);
+    CONCIERGE.tours++;
+    const et = $('cvEtat');
+    if(et) et.textContent = d.moteur === 'local'
+      ? 'Réponse du dictionnaire local : aucun fournisseur IA n\'est configuré sur ce poste.'
+      : 'Le studio a construit et vérifié la pièce après application. Tout reste modifiable à la main.';
+  }catch(e){
+    if(attente) attente.remove();
+    cvBulle('lui', "Le moteur local ne répond pas (" + (e.message||e) + "). "
+      + "Le concierge a besoin du moteur sur ce poste ; les réglages à la main, eux, fonctionnent toujours.");
+  }finally{
+    CONCIERGE.busy = false;
+    if(go){ go.disabled = false; go.textContent = 'Envoyer'; }
+    if(inp) inp.focus();
+  }
+}
+
+(function cvInit(){
+  const go = $('cvGo'), inp = $('cvIn'), ex = $('cvEx');
+  if(!go || !inp) return;
+  go.onclick = ()=>cvEnvoyer();
+  inp.addEventListener('keydown', e=>{ if(e.key === 'Enter'){ e.preventDefault(); cvEnvoyer(); } });
+  ['une lampe méduse','plus haute et vrillée','un gros ventre au milieu',
+   'très japonais et sobre','translucide et ajourée'].forEach(t=>{
+    const b = document.createElement('button');
+    b.className = 'btn'; b.textContent = t;
+    b.onclick = ()=>cvEnvoyer(t);
+    if(ex) ex.appendChild(b);
+  });
+})();
+
+/* ── Lithophanie : chargement de l'image ──────────────────────────────────
+ * Tout se passe dans le navigateur : le fichier n'est jamais televerse. Il est
+ * dessine dans un canvas hors ecran, reduit a une grille de luminance, et
+ * c'est cette grille SEULE qui entre dans la geometrie. */
+(function embossInit(){
+  const fich = $('embFichier'), amp = $('embAmp'), inv = $('embInv'),
+        off = $('embOff'), apercu = $('embApercu'), info = $('embInfo'),
+        val = $('embAmpVal'), invW = $('embInvWrap');
+  if(!fich) return;
+
+  const GRILLE_L = 720, GRILLE_H = 360;   // le tour fait 720, la hauteur 360
+
+  function majInfo(){
+    if(!info) return;
+    if(!EMBOSS.on || !EMBOSS.data){ info.innerHTML = ''; return; }
+    const ep = state.wall, epMax = state.wall + Math.min(EMBOSS_AMP_MAX, EMBOSS.ampMm);
+    info.innerHTML =
+      `<div class="line ok">Épaisseur de ${ep.toFixed(1)} mm dans les clairs à `
+      + `${epMax.toFixed(1)} mm dans les noirs. La paroi ne descend jamais sous `
+      + `${ep.toFixed(1)} mm : l'image AJOUTE de la matière, elle n'en retire pas.</div>`
+      + `<div class="line warn">L'image se lit quand la lampe est allumée. `
+      + `Éteinte, la pièce paraît lisse — c'est le principe.</div>`;
+  }
+
+  function afficherApercu(){
+    if(!apercu || !EMBOSS.data) return;
+    const c = apercu.getContext('2d');
+    const im = c.createImageData(apercu.width, apercu.height);
+    for(let y=0;y<apercu.height;y++){
+      for(let x=0;x<apercu.width;x++){
+        const l = embossLum(x/apercu.width, 1 - y/apercu.height);
+        const v = Math.round(l*255), k = (y*apercu.width+x)*4;
+        im.data[k]=im.data[k+1]=im.data[k+2]=v; im.data[k+3]=255;
+      }
+    }
+    c.putImageData(im,0,0);
+    apercu.style.display = '';
+  }
+
+  fich.onchange = e => {
+    const f = e.target.files && e.target.files[0];
+    if(!f) return;
+    const img = new Image();
+    img.onload = () => {
+      const cv = document.createElement('canvas');
+      cv.width = GRILLE_L; cv.height = GRILLE_H;
+      const c = cv.getContext('2d');
+      c.fillStyle = '#fff'; c.fillRect(0,0,GRILLE_L,GRILLE_H);
+      /* On REMPLIT la grille en gardant les proportions : etirer un portrait
+       * sur un tour complet le rendrait meconnaissable. Ce qui deborde est
+       * rogne, comme un cadrage photo. */
+      const k = Math.max(GRILLE_L/img.width, GRILLE_H/img.height);
+      const w = img.width*k, h = img.height*k;
+      c.drawImage(img, (GRILLE_L-w)/2, (GRILLE_H-h)/2, w, h);
+      const d = c.getImageData(0,0,GRILLE_L,GRILLE_H).data;
+      const lum = new Float32Array(GRILLE_L*GRILLE_H);
+      for(let i=0, j=0; i<d.length; i+=4, j++){
+        // luminance perceptuelle : une conversion naive (moyenne RVB) ecrase
+        // les rouges et les bleus, et un ciel bleu ressortirait aussi epais
+        // qu'une ombre
+        lum[j] = (0.2126*d[i] + 0.7152*d[i+1] + 0.0722*d[i+2]) / 255;
+      }
+      EMBOSS.data = lum; EMBOSS.w = GRILLE_L; EMBOSS.h = GRILLE_H;
+      EMBOSS.on = true; EMBOSS.nom = f.name;
+      if(off) off.style.display = '';
+      if(invW) invW.style.display = '';
+      afficherApercu(); majInfo();
+      renderAll();
+    };
+    img.onerror = () => { if(info) info.innerHTML = '<div class="line bad">Image illisible.</div>'; };
+    img.src = URL.createObjectURL(f);
+  };
+
+  amp.oninput = e => {
+    EMBOSS.ampMm = Math.min(EMBOSS_AMP_MAX, parseFloat(e.target.value));
+    val.textContent = EMBOSS.ampMm.toFixed(2).replace('.', ',') + ' mm';
+    majInfo(); renderSoon();
+  };
+  if(inv) inv.onchange = e => { EMBOSS.invert = e.target.checked; afficherApercu(); renderAll(); };
+  if(off) off.onclick = () => {
+    EMBOSS.on = false; EMBOSS.data = null; EMBOSS.nom = '';
+    if(apercu) apercu.style.display = 'none';
+    off.style.display = 'none'; if(invW) invW.style.display = 'none';
+    if(fich) fich.value = ''; majInfo(); renderAll();
+  };
+})();
+
+syncLit();          // l'interface part de l'etat, jamais l'inverse
+detectAI();
+
+})();

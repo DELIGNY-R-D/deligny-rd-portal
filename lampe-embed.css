@@ -1,0 +1,260 @@
+#lampe-embed-root{
+  /* ══ THÈME ÉDITORIAL (11/08) ═══════════════════════════════════════════
+   * Même grammaire que l'affiche DUNE No.01 : feuille crème, vert profond,
+   * contraste d'échelle. Les NOMS de variables sont conservés (--blue reste
+   * le nom de l'accent, désormais vert) pour que les 200 règles écrites plus
+   * bas continuent de marcher sans être reprises une par une.
+   * --acc-rgb et --ink-rgb portent les triplets : les 27 rgba() du fichier
+   * les lisent, donc un changement de thème se fait ICI et nulle part ailleurs. */
+  --acc-rgb:44,74,56; --ink-rgb:22,22,22;
+  /* Les couleurs de verdict avaient été choisies pour un fond sombre : claires
+   * et saturées. Sur crème elles crient et perdent leur sens de signal. */
+  --ok-rgb:47,107,69; --warn-rgb:138,90,18; --bad-rgb:163,50,40;
+  --bg:#e3e0d6; --bg1:#f6f4ed; --card:#efede6; --card2:#e7e4da;
+  --txt:#161616; --dim:#494943; --dim2:#6b6b63; --sep:rgba(var(--ink-rgb),.17);
+  --blue:#2c4a38; --blue-cta:#2c4a38; --green:#2f6b45; --amber:#8a5a12; --red:#a33228; --cyan:#3d6249;
+  --glow:rgba(var(--acc-rgb),.16);
+  /* couleurs de dessin des canvas, lues par le JS via PAL */
+  --canvas-fond:#e9e6dd; --canvas-grille:rgba(22,22,22,.085);
+  --canvas-grille-maj:rgba(22,22,22,.22); --canvas-texte:#6b6b63;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+#lampe-embed-root *, #lampe-embed-root *::before, #lampe-embed-root *::after{box-sizing:border-box;} 
+#lampe-embed-root{background:radial-gradient(1100px 520px at 50% -8%,rgba(var(--acc-rgb),.075),transparent 60%) var(--bg);
+  color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.008em;}
+#lampe-embed-root ::selection{background:rgba(var(--acc-rgb),.30);}
+#lampe-embed-root :focus-visible{outline:2px solid rgba(var(--acc-rgb),.55);outline-offset:2px;}
+#lampe-embed-root ::-webkit-scrollbar{width:6px;height:6px;} #lampe-embed-root ::-webkit-scrollbar-thumb{background:rgba(var(--ink-rgb),.12);border-radius:99px;}
+#lampe-embed-root a{color:var(--blue);text-decoration:none;} #lampe-embed-root a:hover{text-decoration:underline;}
+#lampe-embed-root .wrap{max-width:1560px;margin:0 auto;padding:18px 20px 60px;}
+/* ── En-tête éditorial ────────────────────────────────────────────────────
+ * L'ancien en-tête était centré, avec un titre de 26 px : correct, mais sans
+ * voix. Ici la hiérarchie est brutale et assumée, comme sur l'affiche. */
+#lampe-embed-root header{text-align:left;padding:6px 0 10px;}
+#lampe-embed-root .ligne-marque{display:flex;align-items:center;justify-content:space-between;
+  gap:16px;padding-bottom:10px;border-bottom:1px solid var(--sep);}
+#lampe-embed-root .marque{font-size:15px;font-weight:700;letter-spacing:.02em;color:var(--txt);}
+#lampe-embed-root .menu-ed{display:flex;gap:20px;}
+#lampe-embed-root .menu-ed a{font-size:12.5px;color:var(--txt);text-decoration:none;}
+#lampe-embed-root .menu-ed a:hover{text-decoration:underline;text-underline-offset:3px;}
+#lampe-embed-root .ref-produit{font-size:clamp(15px,2vw,20px);font-weight:600;letter-spacing:-.01em;margin-top:14px;}
+#lampe-embed-root h1{font-size:clamp(56px,11vw,132px);line-height:.82;font-weight:800;
+  letter-spacing:-.055em;margin:-.02em 0 10px;}
+#lampe-embed-root h1 .g{color:var(--blue);}
+#lampe-embed-root .sub{color:var(--dim);font-size:13px;max-width:760px;margin:0;}
+#lampe-embed-root .free{display:inline-block;margin-left:8px;font-size:11px;font-weight:600;color:var(--green);background:rgba(var(--ok-rgb),.08);border:1px solid rgba(var(--ok-rgb),.30);padding:2px 10px;border-radius:99px;}
+
+#lampe-embed-root .safety{margin-top:12px;background:rgba(var(--bad-rgb),.05);border:1px solid rgba(var(--bad-rgb),.25);border-radius:12px;padding:10px 14px;text-align:left;}
+#lampe-embed-root .safety summary{cursor:pointer;font-size:13px;color:var(--txt);list-style:none;}
+#lampe-embed-root .safety summary::-webkit-details-marker{display:none;}
+#lampe-embed-root .safety summary b{color:var(--red);}
+#lampe-embed-root .safety summary::after{content:' — détails ▸';color:var(--dim2);font-size:12px;}
+#lampe-embed-root .safety[open] summary::after{content:' — replier ▾';}
+#lampe-embed-root .safety .d{color:var(--dim);font-size:13px;margin-top:8px;}
+
+#lampe-embed-root .grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;}
+#lampe-embed-root .grid.full{grid-template-columns:1fr;}
+@media(max-width:900px){#lampe-embed-root .grid{grid-template-columns:1fr;}}
+#lampe-embed-root .card{background:var(--card);border:1px solid var(--sep);border-radius:16px;padding:24px;}
+#lampe-embed-root .card h2{font-size:11px;font-weight:600;color:var(--dim2);margin:0 0 16px;letter-spacing:.12em;text-transform:uppercase;}
+#lampe-embed-root .card h2 .n{display:inline-block;width:18px;height:18px;line-height:17px;text-align:center;border-radius:50%;border:1px solid rgba(var(--acc-rgb),.55);color:var(--blue);background:transparent;font-size:10px;letter-spacing:0;margin-right:8px;}
+
+#lampe-embed-root .seg{display:flex;gap:8px;flex-wrap:wrap;}
+#lampe-embed-root .seg button{flex:1;min-width:110px;font:600 13px var(--font);padding:10px 12px;border-radius:10px;border:1px solid var(--sep);background:transparent;color:var(--dim);cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
+#lampe-embed-root .seg button.on{background:var(--blue);color:var(--card);border-color:var(--blue);}
+#lampe-embed-root .seg button:hover:not(.on){border-color:rgba(var(--ink-rgb),.24);color:var(--txt);}
+
+#lampe-embed-root .hint{margin-top:10px;font-size:12.5px;color:var(--dim2);line-height:1.6;}
+#lampe-embed-root .hint b{color:var(--dim);}
+/* Épure : les longues notes se replient sur 2 lignes — un clic les déplie.
+ * Tout le texte reste là, il ne s'impose plus. */
+#lampe-embed-root .clamp{cursor:pointer;}
+#lampe-embed-root .clamp:not(.open){display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;
+  -webkit-mask-image:linear-gradient(180deg,#000 55%,rgba(0,0,0,.25));mask-image:linear-gradient(180deg,#000 55%,rgba(0,0,0,.25));}
+#lampe-embed-root .clamp.open{-webkit-mask-image:none;mask-image:none;}
+#lampe-embed-root .clamp:hover{color:var(--dim);}
+
+#lampe-embed-root canvas{display:block;background:var(--canvas-fond);border-radius:12px;border:1px solid var(--sep);width:100%;height:auto;touch-action:none;cursor:crosshair;}
+/* Curseur ROTATION sur la fenetre 3D : la croix ci-dessus vise, or on ne
+   vise rien ici, on tourne une piece. Fleche circulaire SVG, trait sombre
+   dessous et blanc dessus pour rester lisible sur le fond vert du canevas
+   comme sur un fond clair ; point chaud au centre, la ou la piece tourne.
+   Repli grab/grabbing si le navigateur refuse un curseur SVG.
+   La classe sur <body> tient pendant tout le geste : les mousemove sont
+   ecoutes sur window, le pointeur sort donc souvent du canevas et le
+   curseur de selection de texte reapparaitrait sans elle. */
+#lampe-embed-root{--cur-rot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M14 6.5A7.5 7.5 0 1 1 6.5 14' fill='none' stroke='%23000' stroke-opacity='.55' stroke-width='4.5' stroke-linecap='round'/%3E%3Cpath d='M13 3.2 18.5 6.5 13 9.8Z' fill='%23000' fill-opacity='.55' stroke='%23000' stroke-opacity='.55' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M14 6.5A7.5 7.5 0 1 1 6.5 14' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M13 3.2 18.5 6.5 13 9.8Z' fill='%23fff'/%3E%3C/svg%3E") 14 14;}
+#lampe-embed-root #previewCanvas{cursor:var(--cur-rot), grab;}
+body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
+#lampe-embed-root .canvas-row{display:flex;gap:14px;flex-wrap:wrap;}
+#lampe-embed-root .canvas-col{flex:1;min-width:240px;}
+#lampe-embed-root .canvas-col .lbl{font-size:10.5px;color:var(--dim2);margin-bottom:6px;text-transform:uppercase;letter-spacing:.09em;font-weight:600;}
+#lampe-embed-root .canvas-col .lbl small{display:block;text-transform:none;letter-spacing:0;font-weight:400;margin-top:2px;color:var(--dim2);opacity:.85;}
+
+#lampe-embed-root .row-btn{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+#lampe-embed-root .btn{font:600 12.5px var(--font);padding:8px 14px;border-radius:99px;border:1px solid transparent;cursor:pointer;background:rgba(var(--ink-rgb),.07);color:var(--txt);transition:background .15s,border-color .15s;}
+#lampe-embed-root .btn:hover{background:rgba(var(--ink-rgb),.12);}
+#lampe-embed-root .btn.pri{background:var(--blue-cta);color:var(--card);} #lampe-embed-root .btn.pri:hover{background:#3d6249;}
+#lampe-embed-root .btn.danger{background:rgba(var(--bad-rgb),.12);color:var(--red);} #lampe-embed-root .btn.danger:hover{background:rgba(var(--bad-rgb),.22);}
+#lampe-embed-root .btn:disabled{opacity:.35;cursor:not-allowed;box-shadow:none;}
+
+#lampe-embed-root table.pts{width:100%;border-collapse:collapse;margin-top:10px;font:12px var(--mono);color:var(--dim);}
+#lampe-embed-root table.pts th{text-align:left;color:var(--dim2);font-weight:600;padding:4px 6px;border-bottom:1px solid var(--sep);}
+#lampe-embed-root table.pts td{padding:4px 6px;border-bottom:.5px solid var(--sep);}
+#lampe-embed-root table.pts tr.sel td{color:var(--txt);background:rgba(var(--acc-rgb),.08);}
+#lampe-embed-root table.pts tr.warn td{color:var(--amber);}
+#lampe-embed-root table.pts tr.bad td{color:var(--red);}
+
+#lampe-embed-root .warnbox{margin-top:10px;font-size:12.5px;}
+#lampe-embed-root .warnbox .line{padding:5px 10px;border-radius:0 8px 8px 0;margin-top:6px;border-left:2px solid;background:rgba(var(--ink-rgb),.03);}
+#lampe-embed-root .warnbox .ok{color:var(--green);}
+#lampe-embed-root .warnbox .warn{color:var(--amber);}
+#lampe-embed-root .warnbox .bad{color:var(--red);}
+
+#lampe-embed-root .field{margin-top:14px;}
+#lampe-embed-root .field label{display:block;font-size:12.5px;color:var(--dim2);font-weight:600;margin-bottom:6px;}
+#lampe-embed-root .field input[type=text], #lampe-embed-root .field input[type=email], #lampe-embed-root .field textarea, #lampe-embed-root .field select{
+  width:100%;background:var(--bg1);border:1px solid var(--sep);border-radius:10px;color:var(--txt);
+  padding:10px 12px;font:14px var(--font);transition:border-color .15s,box-shadow .15s;
+}
+#lampe-embed-root .field input:focus, #lampe-embed-root .field textarea:focus, #lampe-embed-root .field select:focus{outline:none;border-color:rgba(var(--acc-rgb),.55);box-shadow:0 0 0 3px rgba(var(--acc-rgb),.12);}
+#lampe-embed-root .field textarea{resize:vertical;min-height:70px;}
+#lampe-embed-root .field select{cursor:pointer;}
+#lampe-embed-root .swatches{display:flex;gap:8px;flex-wrap:wrap;}
+#lampe-embed-root .swatch{width:30px;height:30px;border-radius:50%;border:2px solid transparent;cursor:pointer;}
+#lampe-embed-root .swatch.on{border-color:var(--blue);box-shadow:0 0 0 3px rgba(var(--acc-rgb),.22);}
+#lampe-embed-root .seed{font:600 12px var(--mono);color:var(--txt);background:var(--bg1);border:1px solid var(--sep);border-radius:99px;padding:8px 12px;width:96px;text-align:center;}
+#lampe-embed-root .seed:focus{outline:none;border-color:rgba(var(--acc-rgb),.55);}
+#lampe-embed-root .viewtools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px;font-size:12px;color:var(--dim2);}
+#lampe-embed-root .viewtools input[type=range]{accent-color:var(--blue);width:110px;}
+
+/* ── App-shell : les visuels restent à l'écran, les réglages défilent ───── */
+#lampe-embed-root .app{display:grid;grid-template-columns:minmax(0,1.32fr) minmax(360px,.88fr);gap:16px;align-items:start;margin-top:12px;}
+#lampe-embed-root .viewer{position:sticky;top:8px;max-height:calc(100vh - 16px);overflow:auto;min-width:0;}
+#lampe-embed-root .controls{min-width:0;display:flex;flex-direction:column;gap:18px;}
+#lampe-embed-root .controls .card{margin-top:0 !important;}
+#lampe-embed-root .vgrid{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:1240px){#lampe-embed-root .vgrid{grid-template-columns:1fr;}}
+/* Trois vues de front : coupe, coque, rendu. En dessous de 1500 px la
+ * troisième passe sous les deux autres plutôt que de les étrangler. */
+/* Le rendu est en 4:3 (canvas) ou 4:5 (Blender) : on lui donne une boîte de
+ * taille fixe et les deux s'y inscrivent en `contain`. Sans plafond de hauteur,
+ * la troisième vue mangeait l'écran et chassait le bandeau de cotes. */
+#lampe-embed-root .rendu-box{position:relative;width:100%;aspect-ratio:4/3;max-height:330px;}
+/* Cartouche d'attente : il occupe la place du rendu tant que Blender n'a pas
+ * fini. L'apercu du navigateur ne s'affiche PLUS ici, ni pendant l'attente. */
+#lampe-embed-root #renduAttente{position:absolute;inset:0;display:grid;place-items:center;border-radius:12px;
+  border:1px dashed var(--sep);background:var(--card2);color:var(--dim2);
+  font-size:12.5px;letter-spacing:.04em;}
+#lampe-embed-root #renduAttente[hidden]{display:none;}
+#lampe-embed-root .rendu-box canvas, #lampe-embed-root .rendu-box img{position:absolute;inset:0;width:100%;height:100%;
+  object-fit:contain;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
+/* Les deux vues de TRAVAIL côte à côte, le rendu sous elles sur toute la
+ * largeur. Trois colonnes de front tiendraient sur le papier, mais la colonne
+ * visuelle ne fait que ~730 px : la coupe cotée y devient illisible. Les trois
+ * sont à l'écran en même temps, c'est ce qui compte. */
+#lampe-embed-root .vgrid3{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+#lampe-embed-root .vgrid3 > :nth-child(3){grid-column:1 / -1;}
+@media(max-width:1000px){#lampe-embed-root .vgrid3{grid-template-columns:1fr;}
+  #lampe-embed-root .vgrid3 > :nth-child(3){grid-column:auto;}}
+@media(max-width:1000px){
+  #lampe-embed-root .app{grid-template-columns:1fr;}
+  #lampe-embed-root .viewer{position:static;max-height:none;overflow:visible;}
+}
+#lampe-embed-root .vtabs{display:flex;gap:8px;margin-bottom:12px;}
+#lampe-embed-root .vtabs button{flex:1;font:600 13px var(--font);padding:9px 12px;border-radius:10px;border:1px solid var(--sep);
+  background:transparent;color:var(--dim);cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
+#lampe-embed-root .vtabs button.on{background:var(--blue);color:var(--card);border-color:var(--blue);}
+#lampe-embed-root .vpane[hidden]{display:none;}
+/* ── Étapes : une seule ouverte à la fois ─────────────────────────────────
+ * 13 cartes et 52 réglages d'affilée, c'est 5,7 écrans à faire défiler avant
+ * d'atteindre la commande. Les regrouper en 4 étapes ramène la colonne à une
+ * hauteur lisible sans rien retirer : tout reste accessible, à un clic. */
+#lampe-embed-root .stepper{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;position:sticky;top:8px;z-index:5;
+  background:rgba(227,224,214,.88);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);
+  border-radius:12px;padding:2px 0 10px;}
+#lampe-embed-root .stepper button{font:600 12.5px var(--font);padding:10px 8px;border-radius:10px;border:1px solid var(--sep);
+  background:transparent;color:var(--dim);cursor:pointer;transition:border-color .15s,background .15s,color .15s;line-height:1.25;text-align:left;}
+#lampe-embed-root .stepper button .n{display:block;font-size:10px;color:var(--dim2);font-weight:600;letter-spacing:.08em;text-transform:uppercase;}
+#lampe-embed-root .stepper button.on{background:var(--blue);color:var(--card);border-color:var(--blue);}
+#lampe-embed-root .stepper button.on .n{color:rgba(239,237,230,.72);}
+#lampe-embed-root .stepper button:hover:not(.on){border-color:rgba(var(--ink-rgb),.24);color:var(--txt);}
+#lampe-embed-root .etape[hidden]{display:none;}
+#lampe-embed-root .etape{display:flex;flex-direction:column;gap:18px;}
+#lampe-embed-root .etape-pied{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:2px;}
+@media(max-width:560px){#lampe-embed-root .stepper{grid-template-columns:repeat(2,1fr);}}
+
+#lampe-embed-root #hud{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
+#lampe-embed-root #hud div{background:var(--card2);border:1px solid var(--sep);border-radius:10px;padding:9px 10px;}
+#lampe-embed-root #hud .k{font-size:9.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.09em;font-weight:600;}
+#lampe-embed-root #hud .v{font-size:15px;font-weight:650;letter-spacing:-.01em;margin-top:3px;line-height:1.15;font-feature-settings:"tnum";}
+#lampe-embed-root #hud .v small{font-size:11px;color:var(--dim);font-weight:500;}
+#lampe-embed-root #hud .v.ok{color:var(--green);} #lampe-embed-root #hud .v.bad{color:var(--red);} #lampe-embed-root #hud .v.warn{color:var(--amber);}
+@media(max-width:560px){#lampe-embed-root #hud{grid-template-columns:repeat(2,1fr);}}
+
+#lampe-embed-root .socket-opt{display:flex;gap:10px;border:1px solid var(--sep);border-radius:12px;padding:12px 14px;margin-top:8px;cursor:pointer;background:transparent;transition:border-color .15s,background .15s;}
+#lampe-embed-root .socket-opt.on{border-color:rgba(var(--acc-rgb),.60);background:rgba(var(--acc-rgb),.08);}
+#lampe-embed-root .socket-opt input{margin-top:3px;accent-color:var(--blue);}
+#lampe-embed-root .socket-opt .t{font-weight:600;}
+#lampe-embed-root .socket-opt .d{font-size:12px;color:var(--dim2);margin-top:3px;line-height:1.5;}
+#lampe-embed-root .tag{display:inline-block;font-size:10px;font-weight:700;padding:1px 7px;border-radius:99px;margin-left:6px;vertical-align:1px;}
+#lampe-embed-root .tag.measured{background:rgba(var(--ok-rgb),.08);border:1px solid rgba(var(--ok-rgb),.35);color:var(--green);}
+#lampe-embed-root .tag.standard{background:rgba(var(--warn-rgb),.08);border:1px solid rgba(var(--warn-rgb),.35);color:var(--amber);}
+
+#lampe-embed-root .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+#lampe-embed-root .stat{background:var(--card2);border:1px solid var(--sep);border-radius:12px;padding:14px;}
+#lampe-embed-root .stat .k{font-size:10px;color:var(--dim2);text-transform:uppercase;letter-spacing:.09em;font-weight:600;}
+#lampe-embed-root .stat .v{font-size:21px;font-weight:650;letter-spacing:-.02em;margin-top:5px;line-height:1;font-feature-settings:"tnum";}
+#lampe-embed-root .stat .v small{font-size:12px;color:var(--dim);font-weight:500;}
+/* Le prix devient le BANDEAU VERT de l'affiche : bord à bord dans la carte,
+ * texte crème. C'est l'élément qui signe le langage, et le seul endroit du
+ * configurateur où une couleur pleine est justifiée. */
+#lampe-embed-root .price-big{margin:16px -24px -24px;padding:16px 24px 18px;background:var(--blue);
+  color:var(--card);text-align:left;border-radius:0 0 15px 15px;}
+#lampe-embed-root .price-big .amt{font-size:38px;font-weight:700;letter-spacing:-.025em;font-feature-settings:"tnum";
+  color:var(--card);line-height:1.05;}
+#lampe-embed-root .price-big .amt small{font-size:16px;color:rgba(239,237,230,.72);font-weight:500;-webkit-text-fill-color:rgba(239,237,230,.72);}
+#lampe-embed-root .price-big .note{font-size:12px;color:rgba(239,237,230,.66);margin-top:4px;}
+#lampe-embed-root .breakdown{margin-top:12px;font:12.5px var(--mono);color:var(--dim);}
+#lampe-embed-root .breakdown div{display:flex;justify-content:space-between;padding:3px 0;border-bottom:.5px solid var(--sep);}
+
+#lampe-embed-root footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+#lampe-embed-root footer .disc{max-width:680px;margin:0 auto 10px;}
+#lampe-embed-root .disc-small{font-size:11.5px;color:var(--dim2);margin-top:10px;line-height:1.6;background:var(--card);border:1px solid var(--sep);border-radius:10px;padding:10px 12px;}
+
+/* Concierge — l'espace où l'on décrit la lampe en clair */
+#lampe-embed-root .cv-fil{max-height:260px;overflow-y:auto;margin:12px 0 10px;display:flex;flex-direction:column;gap:8px;}
+#lampe-embed-root .cv-fil:empty{display:none;}
+#lampe-embed-root .cv-b{max-width:88%;padding:8px 11px;border-radius:13px;font-size:13px;line-height:1.5;white-space:pre-wrap;}
+#lampe-embed-root .cv-moi{align-self:flex-end;background:var(--blue);color:var(--card);border-bottom-right-radius:4px;}
+#lampe-embed-root .cv-lui{align-self:flex-start;background:var(--card2);border:.5px solid var(--sep);border-bottom-left-radius:4px;}
+#lampe-embed-root .cv-b.pense{opacity:.6;font-style:italic;}
+/* Ce qui a ete applique, et ce qui a ete refuse : jamais l'un sans l'autre. */
+#lampe-embed-root .cv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
+#lampe-embed-root .cv-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(var(--ok-rgb),.14);color:#30d158;border:.5px solid rgba(var(--ok-rgb),.3);}
+#lampe-embed-root .cv-tag.no{background:rgba(var(--warn-rgb),.14);color:#ff9f0a;border-color:rgba(var(--warn-rgb),.3);}
+#lampe-embed-root .cv-saisie{display:flex;gap:8px;align-items:center;}
+#lampe-embed-root .cv-saisie input{flex:1;background:#141416;color:var(--txt);border:.5px solid var(--sep);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;}
+#lampe-embed-root .cv-saisie input:focus{outline:none;border-color:var(--blue);}
+#lampe-embed-root .cv-etat{font-size:11.5px;color:var(--dim2);margin-top:9px;line-height:1.5;}
+#lampe-embed-root #cvEx{margin-top:9px;}
+#lampe-embed-root #cvEx button{font-size:11.5px;padding:4px 10px;}
+
+/* Overrides pour l'integration homepage : seules les 3 fenetres + bascule
+   restent visibles, tout le reste (type de lampe, profil de revolution,
+   composition, concierge, prix...) reste dans le DOM (le script y ecrit
+   sans jamais planter) mais est masque. */
+#lampe-embed-root .controls,
+#lampe-embed-root .warnbox,
+#lampe-embed-root #hud {
+  display: none;
+}
+#lampe-embed-root .app {
+  grid-template-columns: 1fr;
+}
+#lampe-embed-root .viewer {
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
