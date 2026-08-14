@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-zg/ckOIu9oZ8vfSH9BPPJ0TQEDexfqBLzSElqGiKuok='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-URUdCyas+JrOtIxrdRC8v0vt2LfcMug5KxAo61dNt2c='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -420,7 +420,13 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         <div id="sculptParams" style="margin-top:6px"></div>
       </div>
 
-      <div class="card">
+      <!-- 4. APPARENCE DE L'APERCU — MASQUEE (14/08, « enleve Apparence de
+           l'apercu »). ⚠️ Elle portait aussi trois controles de FABRICATION :
+           maillage exporte, ASSISE (basculement contre le minimum de 25°) et
+           etancheite du maillage. Les calculs et les clamps continuent de
+           tourner, mais leur avertissement ne s'affiche plus. Masquee et non
+           supprimee : #swatches est peuple par identifiant. -->
+      <div class="card" style="display:none">
         <h2><span class="n">4</span>Apparence de l'aperçu</h2>
         <div class="row-btn" style="align-items:center">
           <span style="font-size:12px;color:var(--dim2);margin-right:4px">Couleur (cosmétique — n'affecte pas la géométrie) :</span>
@@ -430,8 +436,13 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         <div class="warnbox" id="checksbox"></div>
       </div>
 
-  <!-- 5. RENDU STUDIO -->
-  <div class="card" style="margin-top:16px">
+  <!-- 5. RENDU STUDIO — MASQUEE (14/08, « n'affiche pas RENDU STUDIO »).
+       Elle empilait les reglages des deux moteurs de rendu et portait un texte
+       devenu faux sur l'impossibilite d'appeler le moteur depuis le site
+       public. Masquee et NON supprimee : initRenderControls et
+       renderBlenderBlock cherchent rFinish, rBg, rBase, blGo, blSamples... par
+       identifiant et planteraient si ces commandes quittaient le document. -->
+  <div class="card" style="margin-top:16px;display:none">
     <h2><span class="n">5</span>Rendu studio</h2>
     <div class="hint">Rendu « photo produit » calculé <b>dans ton navigateur</b> à partir du <b>même maillage</b> que le STL :
     éclairage 3 points (principale + déboucheuse + contre-jour), spéculaire et Fresnel selon la finition, ombre de contact,
@@ -1437,7 +1448,10 @@ let state = {
   socle: { on:true, diaMm: 99.5, montrer:true },
   poser: { variante: 'monobloc' },
   // couches combinables : une base + des reliefs additifs + un ajourage
-  surface: { base:'facette', smoothing:45,
+  // Lisse par defaut (14/08). Cout mesure avant application : ~56k triangles
+  // a l'export, apercu plafonne a 110 segments — sans rapport avec les 462k
+  // qui gelaient la page.
+  surface: { base:'lisse', smoothing:45,
              /* ⚠️ DEFAUT ALIGNE SUR LA PIECE PUBLIEE (13/08, arbitrage Baptiste
               * « ouvre sur la piece nervurée »). Le configurateur ouvrait sur une
               * lampe a 14 segments SANS nervures (9 706 triangles) alors que
@@ -1445,12 +1459,12 @@ let state = {
               * silhouette a 708 segments avec 118 nervures fines : deux objets
               * visuellement differents, le visiteur ne retrouvait pas le produit
               * qu'on lui vend. Ce sont les valeurs exactes de l'affiche. */
-             stries:true, strieCount:118, strieDepthMm:0.85, cross:false, pitchMm:34,
+             stries:false, strieCount:118, strieDepthMm:0.85, cross:false, pitchMm:22,
              organique:false, orgAmpMm:2.4, orgPitchMm:40,
              martele:false, martCount:22, martHMm:12, martDepthMm:1.2,
              congeMm:0,
              // 91 cellules ≈ 24 mm de côté : le motif se lit sans devenir une dentelle
-             ajour:false, voroCells:91, voroStrutMm:3.2, voroBandMm:14, voroVariant:1 },
+             ajour:false, voroCells:186, voroStrutMm:5.0, voroBandMm:14, voroVariant:1 },
   split: { on:false, count:2 },   // découpe horizontale d'un corps en modules empilables
   expert: false,
   linkBodies: true,   // true = profil/style/sculpture communs ; false = chaque corps est réglé à part
@@ -4324,9 +4338,12 @@ function drawPreview(hq){
     let bas=0, gx=0, n=0;
     faces.forEach(f=>f.P.forEach(P=>{ if(P.sy>bas) bas=P.sy; gx+=P.sx; n++; }));
     const cxo=gx/n, gy=Math.min(h-6*SS, bas);
-    const fl=ctx.createLinearGradient(0,gy,0,h);
-    fl.addColorStop(0,'rgba(210,230,215,.07)'); fl.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=fl; ctx.fillRect(0,gy,w,h-gy);
+    /* ⚠️ SOL RETIRE (14/08, demande Baptiste : « un bandeau blanchatre apparait
+     * sur le bas, enleve-le »). Ce degrade clair traversait toute la largeur
+     * sous la piece pour figurer un sol ; sur le fond vert de cette fenetre il
+     * ne se lit pas comme un sol mais comme une BANDE en travers de l'image.
+     * L'ombre de contact ci-dessous est CONSERVEE : c'est elle qui pose
+     * l'objet, sans elle la piece flotterait. */
     const rr=Math.max(40*SS, (w*0.22));
     const sh=ctx.createRadialGradient(cxo,gy,4,cxo,gy,rr);
     sh.addColorStop(0,'rgba(0,0,0,.60)'); sh.addColorStop(0.55,'rgba(0,0,0,.20)'); sh.addColorStop(1,'rgba(0,0,0,0)');
@@ -5950,15 +5967,17 @@ function renderSurface(){
     "La paroi ne garde que les nervures du diagramme de Voronoï. Bandes pleines imposées en haut (culot) et en bas (appui), avec un fondu progressif. C'est ce qui économise le plus de matière.",
     ()=>{
       // échelle logarithmique : réglage fin de 8 à 2000 cellules sur une seule course
-      const toCells = t => Math.round(8*Math.pow(2000/8, t/100));
-      const toSlider = c => Math.round(100*Math.log(Math.max(8,c)/8)/Math.log(2000/8));
+      /* Base a 186 et non 8 : c'est la butee GAUCHE demandee. L'echelle reste
+       logarithmique, seule son origine bouge. */
+    const toCells = t => Math.round(186*Math.pow(2000/186, t/100));
+      const toSlider = c => Math.round(100*Math.log(Math.max(186,c)/186)/Math.log(2000/186));
       const f=document.createElement('div'); f.className='field';
       f.innerHTML = `<label>Densité : <b>${s.voroCells} cellules</b> <span class="dim" id="voroCellSize"></span></label>
         <input type="range" min="0" max="100" step="1" value="${toSlider(s.voroCells)}" style="width:100%;accent-color:var(--blue)">`;
       f.querySelector('input').oninput = e=>{ s.voroCells = toCells(parseFloat(e.target.value)); renderSoon(); };
       box.appendChild(f);
-      addSlider('Largeur des nervures','voroStrutMm',0.6,7,0.1,v=>v.toFixed(1)+' mm');
-      addSlider('Bande pleine aux extrémités','voroBandMm',3,40,1,v=>v.toFixed(0)+' mm');
+      addSlider('Largeur des nervures','voroStrutMm',5,7,0.1,v=>v.toFixed(1)+' mm');
+      addSlider('Bande pleine aux extrémités','voroBandMm',14,40,1,v=>v.toFixed(0)+' mm');
       const row=document.createElement('div'); row.className='row-btn';
       const b=document.createElement('button');
       b.className='btn pri'; b.textContent='🎲 Autre motif';
@@ -6639,7 +6658,7 @@ function lampeAleatoire(graine){
   s.orgAmpMm = +entre(1.0,4.0).toFixed(1);
   s.orgPitchMm = Math.round(entre(28,90));
   s.ajour = rng() < 0.35;
-  s.voroCells = Math.round(entre(18,220));
+  s.voroCells = Math.round(entre(186,420));   // jamais sous la butee gauche
   s.voroStrutMm = +entre(2.0,4.5).toFixed(1);
   s.voroBandMm = Math.round(entre(8,22));
   s.voroVariant = 1 + Math.floor(rng()*999);
@@ -7527,7 +7546,7 @@ function appliquerConcierge(params, champ){
   if(p.martCount != null)   s.martCount   = Math.max(6, Math.min(48, Math.round(p.martCount)));
   if(p.martDepthMm != null) s.martDepthMm = Math.max(0, Math.min(4,  +p.martDepthMm));
   if(p.orgAmpMm != null)    s.orgAmpMm    = Math.max(0, Math.min(8,  +p.orgAmpMm));
-  if(p.voroCells != null)   s.voroCells   = Math.max(12,Math.min(260,Math.round(p.voroCells)));
+  if(p.voroCells != null)   s.voroCells   = Math.max(186,Math.min(2000,Math.round(p.voroCells)));
 
   // Champ de sculpture : c'est lui qui sort du vase symétrique. Le moteur
   // borne déjà chaque terme et leur somme ; on ne double pas ce travail ici,
