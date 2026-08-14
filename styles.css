@@ -689,6 +689,14 @@ img.app-banner {
   object-position: top;
 }
 
+/* Lampe Designer : la capture montre trois panneaux empiles (profil,
+   coque 3D, rendu) — un ratio proche du carre, pas la bande 400x172 des
+   autres cartes, sinon les deux du bas se retrouvent hors cadre. */
+.app-card-primary.app-card-visual .app-banner.app-banner-tall {
+  height: auto;
+  aspect-ratio: 782 / 783;
+}
+
 .app-card-visual .app-body {
   display: flex;
   flex: 1;
