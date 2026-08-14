@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Kd2X/fwlVEwBHcg5lrAB2acoFoyK2u/cdb8MrUwXytE='; style-src-attr 'unsafe-inline'; script-src 'sha256-lErWtEBiGHt7432Zy9i+G8OnSMl40b74fTuDq/m6u3s='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Kd2X/fwlVEwBHcg5lrAB2acoFoyK2u/cdb8MrUwXytE='; style-src-attr 'unsafe-inline'; script-src 'sha256-aDVAeG4vtkrpbfM3JXP+ujCV1tTh1CDQ8ffjA2kIeJ0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4526,7 +4526,9 @@ window.addEventListener('mousemove', e=>{
    * de derive, soit 92°, pour un deplacement sans bouton). */
   if(e.buttons === 0){ rotDrag=false; apercuProgressif(); return; }
   view.az += (e.clientX-lastX)*0.01;
-  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el + (e.clientY-lastY)*0.008));
+  /* signe NEGATIF (14/08, Baptiste) : descendre la souris faisait passer la
+   * camera sous la piece, ce qui se lit a l'envers du geste attendu. */
+  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el - (e.clientY-lastY)*0.008));
   lastX=e.clientX; lastY=e.clientY;
   syncViewInputs(); apercuProgressif();
 });
@@ -4546,7 +4548,8 @@ vc.addEventListener('touchstart', e=>{ rotDrag=true; lastX=e.touches[0].clientX;
 vc.addEventListener('touchmove', e=>{
   if(!rotDrag) return;
   view.az += (e.touches[0].clientX-lastX)*0.01;
-  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el + (e.touches[0].clientY-lastY)*0.008));
+  // meme sens qu'a la souris : c'est le meme geste
+  view.el = Math.max(EL_HAUT, Math.min(EL_BAS, view.el - (e.touches[0].clientY-lastY)*0.008));
   lastX=e.touches[0].clientX; lastY=e.touches[0].clientY;
   syncViewInputs(); apercuProgressif();
 }, {passive:true});
