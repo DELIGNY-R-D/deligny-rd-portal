@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-dMdrBEI8Gnd2hvQFkhcifYAZI2XHSIuUt6no1qlNB9g='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-rYQHnoDnRIvaUcD5h4rg8OdV7Udnr8cg/o//YT8tJ/Q='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4775,7 +4775,10 @@ async function detecterMoteurDistant(){
     // HTTPS strict, hote seul, aucun chemin : on ne se laisse pas rediriger
     // vers une origine choisie par le contenu du fichier.
     if(!/^https:\/\/[a-z0-9.-]+$/i.test(u)) return false;
-    const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 5000);
+    /* 15 s et non 5 : au chargement, la construction du maillage sature le fil
+     * principal et la reponse ne peut pas etre traitee a temps. Mesure : la
+     * sonde repond en 150 ms page au repos, et expirait au demarrage. */
+    const ctl = new AbortController(); const to = setTimeout(()=>ctl.abort(), 15000);
     const s = await fetch(u + '/sante', {signal:ctl.signal});
     clearTimeout(to);
     if(!s.ok) return false;
@@ -5189,7 +5192,12 @@ async function detectAI(){
      * moteur en HTTPS, la passerelle le rend joignable depuis cette page. Les
      * fonctions LLM restent coupees (AI.ok reste faux) : la passerelle ne les
      * relaie pas, les proposer serait mentir. */
-    if(await detecterMoteurDistant()){
+    /* SECONDE TENTATIVE. Un demarrage lent ne doit pas condamner le moteur
+     * pour toute la visite : si la premiere sonde echoue, on retente une fois
+     * la page calmee. */
+    let vu = await detecterMoteurDistant();
+    if(!vu){ await new Promise(r=>setTimeout(r, 8000)); vu = await detecterMoteurDistant(); }
+    if(vu){
       renderBlenderBlock();
       /* ⚠️ UNE PHOTO, AUTOMATIQUEMENT, UNE SEULE FOIS (14/08).
        *
