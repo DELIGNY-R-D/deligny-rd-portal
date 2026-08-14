@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-rYQHnoDnRIvaUcD5h4rg8OdV7Udnr8cg/o//YT8tJ/Q='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-nv37ktPvAx2FRb7kndOyXMHQ7a9mJyrQhhCeOw3GgTc='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -5099,6 +5099,21 @@ async function rendreBlender(live, sigAttendue){
     if(!j.ok){ info.innerHTML = `<div class="line bad">${j.note||'échec du rendu'}</div>`; }
     else{
       BL_LIVE.derniereMs = j.ms;
+      /* ⚠️ LA PHOTO DOIT ALLER DANS L'EMPLACEMENT VISIBLE (14/08).
+       * Mesure sur le site public : le rendu aboutissait et l'image etait bien
+       * dans le document, mais rangee dans `blOut`, qui vit dans une etape
+       * REPLIEE. L'emplacement du haut gardait l'apercu navigateur : la bonne
+       * image existait sans jamais s'afficher. Le chemin live, lui, ecrit dans
+       * blLiveImg et bascule la source. On fait pareil ici. */
+      if(j.image){
+        const vis = $('blLiveImg');
+        if(vis){
+          vis.src = j.image;
+          vis.style.display = '';
+          const cv = $('renderCanvas'); if(cv) cv.style.display = 'none';
+          majSourceRendu('blender');
+        }
+      }
       info.innerHTML = enLive
         ? `<div class="line ok">Rendu studio — Blender EEVEE, image en ${(j.ms/1000).toFixed(1)} s (620 px).</div>`
         : `<div class="line ok">Rendu Blender en ${(j.ms/1000).toFixed(1)} s — `
