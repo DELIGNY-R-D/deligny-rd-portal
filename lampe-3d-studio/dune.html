@@ -1,6 +1,6 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-jGTj9k390SbGnI33W6Y1JQkxGhKxvLXUpXR1f0c5gOs='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-HUjDytXbyyOTMXA+WMj6XUqrt5LpcVFkufz5UHPxf48='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lampe Designer, la lampe imprimée sur mesure | DELIGNY R&D</title>
 <meta name="description" content="Lampe Designer : lampe à poser dessinée dans le configurateur, nervures fines calculées dans la matière, coque creuse en PLA translucide diffusant. 249 mm, 160 cm³, 5 V USB.">
@@ -11,7 +11,9 @@
 <meta property="og:description" content="Profil dessiné point par point, nervures fines calculées dans la matière, coque creuse imprimée à la commande.">
 <style>
 /* ============================================================================
- * AFFICHE PRODUIT : DUNE No.01
+ * PAGE DE PRESENTATION DU PRODUIT (ex-« affiche », renommee le 14/08 : depuis
+ * qu'elle est en page pleine et non plus une feuille flottante, c'est une page
+ * de presentation, plus un objet graphique).
  * Mise en page d'affiche : une feuille crème posée sur fond sombre, un mot en
  * très grand, le produit détouré qui chevauche la typographie. Le mot passe
  * DERRIÈRE la lampe et la lampe déborde sur lui : c'est ce recouvrement qui
@@ -80,6 +82,9 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
   border-left:2px solid var(--vert);padding-left:16px;margin-top:26px;max-width:420px}
 .citation p{font-size:14px;line-height:1.62;color:var(--vert);font-style:italic;
   letter-spacing:.005em}
+/* Les strophes respirent : sans cet ecart la mise en vers se lit comme un
+   paragraphe casse au hasard. */
+.citation p + p{margin-top:11px}
 .citation .auteur{margin-top:12px;font-size:11.5px;font-style:normal;
   color:var(--gris);letter-spacing:.04em;text-transform:uppercase}
 
@@ -220,11 +225,14 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
          lampe n'est qu'un premier objet, l'outil est le sujet. Elle est
          reproduite mot pour mot, sans retouche. -->
     <blockquote class="citation">
-      <p>« Quand j'aurai inventé assez de choses, j'aimerais donner aux autres
-         les outils pour créer les leurs. Parce qu'au fond, chacun peut avoir
-         une idée qui mérite d'exister. Et le jour où l'on pourra créer plus
-         librement ce que l'on imagine, on fabriquera simplement des objets
-         qui nous ressemblent. »</p>
+      <p>« Quand j’aurai créé assez de choses,<br>
+         j’aimerais aider les autres à créer les leurs.</p>
+      <p>Parce qu’une idée, même simple,<br>
+         peut mériter d’exister.</p>
+      <p>Et si demain nos outils permettent à chacun<br>
+         de rapprocher une idée de sa fabrication,<br>
+         alors nous serons tous plus libres de créer<br>
+         ce qui nous ressemble. »</p>
       <div class="auteur">Baptiste Placier, DELIGNY R&amp;D</div>
     </blockquote>
 
@@ -245,38 +253,13 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 
   </div>
 
-  <div class="bandeau">
-    <a href="#fiche">Fiche technique</a>
-    <div class="prix">215 €</div>
-  </div>
-
-  <div class="pied">
+    <div class="pied">
     <a href="https://deligny-rd.fr">deligny-rd.fr</a>
     <div class="monogramme">D</div>
   </div>
 
 </div>
 
-<!-- Les cotes viennent du configurateur, mesurées sur le maillage exporté :
-     ce sont celles du fichier livré, pas des valeurs d'illustration. -->
-<section class="fiche" id="fiche">
-  <h2>Cotes mesurées sur la pièce exportée</h2>
-  <div class="cotes">
-    <div class="cote"><span>Hauteur</span><b>249 mm</b></div>
-    <div class="cote"><span>Diamètre</span><b>142 mm</b></div>
-    <div class="cote"><span>Volume</span><b>160 cm³</b></div>
-    <div class="cote"><span>Matière</span><b>PLA translucide 199 g</b></div>
-    <div class="cote"><span>Impression</span><b>15,3 h</b></div>
-    <div class="cote"><span>Basculement</span><b>25,5°</b></div>
-  </div>
-  <p class="note">Alimentation module USB 5 V (très basse tension de sécurité) :
-     aucun raccordement au secteur, montage à la main. Le prix suit la pièce,
-     il est recalculé sur le volume réellement imprimé.
-     L'angle de basculement est mesuré sur la lampe MONTÉE, bague et base
-     comprises : 25,5° pour 25 exigés.
-     <a href="index.html">Ouvrir le configurateur</a> pour changer la silhouette,
-     la surface et les cotes.</p>
-</section>
 
 <script>
 /* Partage : l'API native quand elle existe, sinon copie du lien. Aucun
