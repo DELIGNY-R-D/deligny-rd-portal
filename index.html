@@ -29,7 +29,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=1270c42c" />
+  <link rel="stylesheet" href="styles.css?v=91c7a0f8" />
 <!-- HUB:citable-substrate:start -->
 <script type="application/ld+json">
 {
@@ -126,20 +126,42 @@
         <h2>A decouvrir et tester</h2>
       </div>
       <p class="section-lead">Les logiciels et studios que nous developpons en interne, sans sous-traitance — certains deja utilisables aujourd'hui, d'autres encore en construction.</p>
-      <div class="app-grid">
-        <article class="app-card app-card-primary app-card-visual">
-          <img class="app-banner app-banner-tall" src="img/screenshots/lampe-designer.jpg" alt="Lampe Designer : modification du profil, vue 3D de la coque et rendu studio calcule" loading="lazy" />
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>Lampe Designer</h3>
-              <span class="tag tag-live">Configurateur</span>
-            </div>
-            <p>Dessine la forme d'une lampe imprimee en 3D : modifie le profil, vois la coque reelle en 3D et le rendu studio se recalculent en direct — prix, controles d'imprimabilite et dossier de fabrication inclus, sans compte.</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="lampe-3d-studio/index.html">Ouvrir Lampe Designer</a>
-            </div>
+
+      <div class="lampe-widget">
+        <div class="lampe-widget-head">
+          <div class="app-title-row">
+            <h3>Lampe Designer</h3>
+            <span class="tag tag-live">Vitrine interactive</span>
           </div>
-        </article>
+          <p>Dessine la forme d'une lampe imprimee en 3D directement ici : modifie le profil, observe sa geometrie en temps reel dans l'espace 3D, puis regarde son rendu — sans compte, sans rien installer.</p>
+        </div>
+        <div class="lampe-widget-row">
+          <div class="lampe-panel">
+            <p class="lampe-panel-head">Coupe 2D cotee</p>
+            <p class="lampe-panel-sub">Clique dans le vide pour ajouter un point &middot; glisse un point pour le deplacer</p>
+            <canvas id="lampeProfileCanvas" width="440" height="360"></canvas>
+          </div>
+          <div class="lampe-panel">
+            <p class="lampe-panel-head">Coque reelle</p>
+            <p class="lampe-panel-sub">Glisse pour tourner</p>
+            <canvas id="lampePreviewCanvas" width="440" height="360"></canvas>
+          </div>
+        </div>
+        <div class="lampe-panel lampe-panel-wide">
+          <p class="lampe-panel-head">Rendu studio</p>
+          <p class="lampe-panel-sub">Meme geometrie, calculee dans le navigateur — aucun appel serveur.</p>
+          <canvas id="lampeRenderCanvas" width="960" height="360"></canvas>
+        </div>
+        <div class="lampe-widget-toggle">
+          <button type="button" id="lampeToggleOff" class="btn btn-small">Lampe eteinte</button>
+          <button type="button" id="lampeToggleOn" class="btn btn-small">Lampe allumee</button>
+        </div>
+        <div class="lampe-widget-actions">
+          <a class="btn btn-primary" href="lampe-3d-studio/index.html">Continuer sur Lampe Designer &rarr;</a>
+        </div>
+      </div>
+
+      <div class="app-grid">
 
         <article class="app-card app-card-primary app-card-visual">
           <svg class="app-banner" viewBox="0 0 400 172" preserveAspectRatio="xMidYMid slice" role="img" aria-label="Le Bureau Atlas Studio Pro : fenetres Document et Terminal ouvertes, dock avec Agenda, Mail, Graphique et Tableau">
@@ -1033,5 +1055,6 @@
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
 <script src="logo-3d.js?v=53990441"></script>
 <script src="tagline.js?v=38c0e5d1"></script>
+<script src="lampe-widget.js?v=343f2752"></script>
 </body>
 </html>

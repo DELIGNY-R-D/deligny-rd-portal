@@ -585,6 +585,93 @@ h3 {
 }
 
 
+/* Lampe Designer — vitrine interactive de l'accueil (lampe-widget.js).
+   Moteur independant du vrai outil (lampe-3d-studio/index.html, en cours
+   de modification par un autre chantier) : ne rien y coupler pour ne pas
+   risquer un conflit d'edition sur ce fichier tres actif. */
+.lampe-widget {
+  margin-bottom: 40px;
+}
+
+.lampe-widget-head {
+  max-width: 680px;
+  margin-bottom: 20px;
+}
+
+.lampe-widget-head p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.lampe-widget-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.lampe-panel {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 16px;
+  box-shadow: var(--shadow);
+}
+
+.lampe-panel-wide {
+  margin-top: 14px;
+}
+
+.lampe-panel-head {
+  margin: 0 0 2px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ink-dim);
+}
+
+.lampe-panel-sub {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.lampe-panel canvas {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  touch-action: none;
+}
+
+#lampeProfileCanvas {
+  cursor: crosshair;
+}
+
+#lampePreviewCanvas {
+  cursor: grab;
+}
+
+#lampePreviewCanvas:active {
+  cursor: grabbing;
+}
+
+.lampe-widget-toggle {
+  display: flex;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.lampe-widget-actions {
+  margin-top: 16px;
+}
+
+@media (max-width: 760px) {
+  .lampe-widget-row {
+    grid-template-columns: 1fr;
+  }
+}
+
 .app-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
