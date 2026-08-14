@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Kd2X/fwlVEwBHcg5lrAB2acoFoyK2u/cdb8MrUwXytE='; style-src-attr 'unsafe-inline'; script-src 'sha256-aDVAeG4vtkrpbfM3JXP+ujCV1tTh1CDQ8ffjA2kIeJ0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Kd2X/fwlVEwBHcg5lrAB2acoFoyK2u/cdb8MrUwXytE='; style-src-attr 'unsafe-inline'; script-src 'sha256-U/hIVqe8wEjzr4t7erXsL/1iCKNtoXWsh/Ng9Ga/774='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4468,7 +4468,7 @@ function drawPreview(hq){
     const k = (f.tint%2 ? 0.93 : 1);                   // corps et modules discernables
     const s = f.shade * k;
     const teinte = hq
-      ? (v,n)=> shadeFace(n || f.nv, col, FINISHES[RENDER.finish], RENDER.lit)
+      ? (v,n)=> shadeFace(n || f.nv, col, FINISHES[RENDER.finish], RENDER.lit, APERCU_CONTRASTE)
       : (v)=> `rgb(${tonemap(col.r*v)},${tonemap(col.g*v)},${tonemap(col.b*v)})`;
     let fill = teinte(s, f.nv);
     if(f.sh3){
@@ -4692,7 +4692,16 @@ function tonemap(v){
   return Math.max(0, Math.min(255, Math.round(y*255)));
 }
 
-function shadeFace(n, base, fin, lit){
+/* Contraste de la fenetre 3D. 1 = formule d'origine. Au-dessus, les ombres
+ * descendent et la face eclairee ne bouge pas. Ne s'applique qu'a
+ * drawPreview : le rendu studio garde sa colorimetrie. */
+/* 1,70 et non 1,45 : mesure sur la courbe d'eclairement, l'ecart entre
+ * l'ombre et la lumiere ne faisait que 26,9 niveaux a 1,00 (d'ou l'aspect
+ * plat), 49,6 a 1,45 et 70,4 a 1,70. Baptiste trouvait les ombres trop
+ * claires : 1,45 restait timide, l'ombre y tombait a 165 seulement. */
+const APERCU_CONTRASTE = 1.70;
+
+function shadeFace(n, base, fin, lit, contraste){
   // repère vue : la caméra regarde vers +depth décroissant, V = (0,0,-1)
   const dot=(a,b)=>a.x*b.x+a.y*b.y+a.z*b.z;
   const KEY={x:0.42,y:0.72,z:-0.55}, FILL={x:-0.65,y:0.12,z:-0.40}, RIM={x:-0.15,y:0.35,z:0.90};
@@ -4718,9 +4727,15 @@ function shadeFace(n, base, fin, lit){
   const t = fin.trans;                        // 0 = opaque · 0,75 = PLA diffusant
   const w = 0.85 * t;
   const enroule = d => (d + w) / (1 + w);
-  const lum = (0.16 + 0.34*t)
+  let lum = (0.16 + 0.34*t)
             + (1.00 - 0.42*t) * enroule(dK)
             + (0.32 - 0.10*t) * enroule(dF);
+  /* Contraste : on ancre le MAXIMUM et on tire le reste vers le bas. Les
+   * ombres foncent, la face eclairee garde exactement sa valeur. */
+  if(contraste && contraste !== 1){
+    const lumMax = (0.16 + 0.34*t) + (1.00 - 0.42*t) + (0.32 - 0.10*t);
+    lum = Math.max(0, lumMax - (lumMax - lum) * contraste);
+  }
   // spéculaire Blinn-Phong (vecteur médian entre lumière et caméra)
   const Hv={x:KEY.x*nk+0, y:KEY.y*nk+0, z:KEY.z*nk-1};
   const hl=1/Math.hypot(Hv.x,Hv.y,Hv.z);
