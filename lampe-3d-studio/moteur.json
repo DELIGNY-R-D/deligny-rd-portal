@@ -1,6 +1,7 @@
 {
-  "base": "https://shoe-poor-ryan-keep.trycloudflare.com",
+  "base": "https://counters-returns-identity-numerous.trycloudflare.com",
   "type": "tunnel-rapide",
-  "note": "Adresse du moteur de rendu Blender, exposee par une passerelle qui n'ouvre que POST /api/blender. ATTENTION : un tunnel rapide Cloudflare change d'adresse a CHAQUE redemarrage de cloudflared, et il ne repond que lorsque le Mac de l'atelier est allume. Quand l'adresse ne repond plus, la page retombe silencieusement sur l'apercu navigateur, ce qui est le comportement voulu. Pour une adresse stable il faut un tunnel nomme sur un sous-domaine de deligny-rd.fr, ce qui demande une connexion au compte Cloudflare.",
-  "pose_le": "2026-08-13"
+  "protocole": "file d'attente : POST /jobs rend un job_id, puis GET /jobs/<id> toutes les 2 s, et GET /jobs/<id>/result quand l'etat vaut DONE",
+  "note": "Adresse du moteur de rendu Blender, exposee par une passerelle qui n'ouvre que la file. ATTENTION : un tunnel rapide Cloudflare CHANGE D'ADRESSE a chaque redemarrage de cloudflared, et il ne repond que lorsque le Mac de l'atelier est allume. Quand l'adresse ne repond plus, la page retombe silencieusement sur l'apercu navigateur, ce qui est le comportement voulu. Pour une adresse stable il faut un tunnel nomme sur un sous-domaine de deligny-rd.fr, ce qui demande une connexion au compte Cloudflare.",
+  "pose_le": "2026-08-14"
 }

@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-jm82Z4NnvZzk+Au8n5/NaITQb7Bcwu9DdZ31y/m8HRw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://*.trycloudflare.com">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-kNFhQGanXD/n3BqQVoS5t6kd/2XHWbSf9KkQKMJw56I='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://*.trycloudflare.com">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4784,6 +4784,75 @@ async function detecterMoteurDistant(){
   }catch(e){ return false; }
 }
 
+/* Duree lisible : « 1 min 24 s » plutot que « 84 s ». Au-dela d'une minute,
+ * des secondes seules ne se lisent plus. */
+function duree(s){
+  s = Math.max(0, Math.round(s));
+  return s < 60 ? `${s} s` : `${Math.floor(s/60)} min ${String(s%60).padStart(2,'0')} s`;
+}
+
+/* RENDU PAR FILE D'ATTENTE. On depose, puis on demande l'avancement toutes les
+ * deux secondes. Rend la meme forme de reponse que l'ancien appel direct, pour
+ * que l'appelant n'ait pas a savoir par quel chemin l'image est arrivee.
+ *
+ * ⚠️ AUCUN POURCENTAGE. Blender ne remonte pas d'avancement fiable par ce
+ * canal : afficher « 63 % » serait un chiffre invente. On montre le temps
+ * ECOULE, et une estimation quand la passerelle en a une, tiree de la mediane
+ * de ses rendus precedents. */
+async function rendreParFile(corps, entetes, info){
+  const dire = (t) => { if(info) info.innerHTML = `<div class="line warn">${t}</div>`; };
+  let rep;
+  try{
+    rep = await fetch(MOTEUR.base + '/jobs', {method:'POST', headers:entetes, body:corps});
+  }catch(e){ return {ok:false, note:'moteur injoignable : ' + e.message}; }
+  let d;
+  try{ d = await rep.json(); }
+  catch(e){ return {ok:false, note:'réponse illisible du moteur'}; }
+  if(!d || !d.job_id) return {ok:false, note:(d && d.note) || 'dépôt refusé'};
+
+  const t0 = performance.now();
+
+  /* CACHE. La passerelle deduplique par empreinte : si exactement cette lampe
+   * a deja ete rendue, elle repond DONE tout de suite. On sert alors l'image
+   * sans attendre un cycle de sondage, et sans relancer un calcul. */
+  if(d.status === 'DONE'){
+    try{
+      const r = await (await fetch(`${MOTEUR.base}/jobs/${d.job_id}/result`)).json();
+      if(r && r.image) return {ok:true, image:r.image, ms:Math.round(performance.now()-t0), cache:true};
+    }catch(e){ /* le cache a peut-etre expire : on retombe sur le sondage */ }
+  }
+
+  const estim = d.estimation_s ? ` · environ ${duree(d.estimation_s)} d'après les rendus précédents` : '';
+  dire(`Calcul de ton rendu…${estim}`);
+
+  /* Plafond de securite. Le delai du moteur est de 15 min cote passerelle ;
+   * on laisse un peu plus avant d'abandonner l'attente, sans jamais tenir de
+   * requete ouverte pendant ce temps. */
+  const LIMITE_MS = 16 * 60 * 1000;
+  while(performance.now() - t0 < LIMITE_MS){
+    await new Promise(r => setTimeout(r, 2000));
+    let e;
+    try{
+      e = await (await fetch(`${MOTEUR.base}/jobs/${d.job_id}`, {cache:'no-store'})).json();
+    }catch(err){ continue; }              // un accroc reseau ne doit pas tout perdre
+    if(e.status === 'QUEUED'){
+      dire(`En file d'attente${e.devant ? `, ${e.devant} rendu${e.devant>1?'s':''} devant toi` : ''}…`);
+    } else if(e.status === 'RENDERING'){
+      const att = e.estimation_s ? ` · environ ${duree(e.estimation_s)} attendues` : '';
+      dire(`Calcul de ton rendu · ${duree(e.elapsed_s)} écoulées${att}`);
+    } else if(e.status === 'DONE'){
+      try{
+        const r = await (await fetch(`${MOTEUR.base}/jobs/${d.job_id}/result`)).json();
+        if(r && r.image) return {ok:true, image:r.image, ms:Math.round(performance.now()-t0)};
+        return {ok:false, note:(r && r.note) || 'image introuvable'};
+      }catch(err){ return {ok:false, note:'image illisible : ' + err.message}; }
+    } else if(e.status === 'FAILED'){
+      return {ok:false, note: e.erreur || 'le moteur a échoué'};
+    }
+  }
+  return {ok:false, note:"le rendu dépasse le délai d'attente"};
+}
+
 function aiPrompt(){
   const b=state.bodies[state.body];
   const surf=bodySurface(state.body);
@@ -4992,9 +5061,24 @@ async function rendreBlender(live, sigAttendue){
       corps = JSON.stringify({ stls: tampons.map(enBase64), ...params });
       entetes = {'Content-Type':'application/json'};
     }
-    const r = await fetch(MOTEUR.base+'/api/blender',
-      {method:'POST', headers:entetes, body:corps});
-    const j = await r.json();
+    /* ENVOI. Deux protocoles, et ce n'est pas un caprice.
+     *
+     * LOCAL : une requete, une reponse. La boucle 127.0.0.1 n'a pas de delai
+     * d'expiration, garder la requete ouverte ne coute rien.
+     *
+     * DISTANT : FILE D'ATTENTE. Mesure du 14/08 : un rendu de 134 s a ete
+     * CALCULE puis JETE par le transport, Cloudflare ayant coupe la connexion
+     * (« Incoming request ended abruptly »), la passerelle ayant ecrit dans un
+     * tuyau ferme. Un essai de 42 s passait, celui de 134 s non : le seuil est
+     * autour de 100 s. Tenir une requete ouverte pendant le calcul est donc
+     * une impasse, pas une optimisation manquante. On depose un travail, on
+     * recoit un identifiant en quelques millisecondes, et on demande
+     * l'avancement toutes les deux secondes. Chaque echange dure une fraction
+     * de seconde : la duree du calcul n'a plus de rapport avec le transport. */
+    const j = MOTEUR.distant
+      ? await rendreParFile(corps, entetes, info)
+      : await (await fetch(MOTEUR.base+'/api/blender',
+          {method:'POST', headers:entetes, body:corps})).json();
     if(!j.ok){ info.innerHTML = `<div class="line bad">${j.note||'échec du rendu'}</div>`; }
     else{
       BL_LIVE.derniereMs = j.ms;
@@ -5091,7 +5175,25 @@ async function detectAI(){
      * moteur en HTTPS, la passerelle le rend joignable depuis cette page. Les
      * fonctions LLM restent coupees (AI.ok reste faux) : la passerelle ne les
      * relaie pas, les proposer serait mentir. */
-    if(await detecterMoteurDistant()) renderBlenderBlock();
+    if(await detecterMoteurDistant()){
+      renderBlenderBlock();
+      /* ⚠️ UNE PHOTO, AUTOMATIQUEMENT, UNE SEULE FOIS (14/08).
+       *
+       * Le moteur etait joignable, le bouton etait la, et pourtant Baptiste
+       * voyait toujours l'apercu navigateur : rien ne se declenchait sans
+       * clic, et le bouton est dans une autre carte, plus bas. La bonne image
+       * existait mais ne s'affichait jamais d'elle-meme.
+       *
+       * On en calcule donc UNE au chargement. Pas de rendu live a distance :
+       * il se relance a chaque geste et saturerait le tunnel comme il avait
+       * sature le debit local. Les modifications suivantes se reprennent au
+       * bouton, ce qui laisse le visiteur dessiner sans rien consommer.
+       *
+       * Cout assume : une photo par visite, bornee par le debit de la
+       * passerelle (6/min/adresse). C'est du temps CPU sur la machine de
+       * l'atelier, et c'est le prix de montrer le vrai produit. */
+      setTimeout(()=>{ if(MESH.parts.length) rendreBlender(false); }, 400);
+    }
     return;
   }
   try{
