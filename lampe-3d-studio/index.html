@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-nv37ktPvAx2FRb7kndOyXMHQ7a9mJyrQhhCeOw3GgTc='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-W/51W+/EFLfYsID16cn0STqJtFBAZbkEpeU3GwF3OPY='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -5163,10 +5163,20 @@ async function rendreBlender(live, sigAttendue){
 const RENDU_CAM = { vue: 35, hauteurVue: 10 };
 const BL_LIVE = { on:false, busy:false, pending:false, timer:null, derniereMs:0, signature:null };
 function planifierLive(){
-  if(!BL_LIVE.on || AI.ok !== true) return;
+  /* ⚠️ LE MOTEUR DISTANT COMPTE AUSSI (14/08). La condition exigeait
+   * AI.ok === true, or sur le site public AI.ok est FAUX : les fonctions LLM y
+   * sont coupees a dessein. Le moteur de rendu etait pourtant joignable, mais
+   * la planification l'ignorait et ne repartait jamais. Consequence visible :
+   * on changeait la forme et la photo restait celle de la lampe precedente,
+   * sous un titre annoncant un apercu navigateur. */
+  if(!BL_LIVE.on || (AI.ok !== true && !MOTEUR.distant)) return;
+  /* Plus d'attente a distance : chaque rendu monte ~3,75 Mo par le tunnel, on
+   * ne veut pas en declencher un a chaque point deplace. Le dedoublonnage par
+   * empreinte cote passerelle protege les repetitions exactes. */
+  const attente = MOTEUR.distant ? 3000 : 900;
   clearTimeout(BL_LIVE.timer);
-  BL_LIVE.timer = setTimeout(lancerLive, 900);
-  compteARebours('attente', 900);
+  BL_LIVE.timer = setTimeout(lancerLive, attente);
+  compteARebours('attente', attente);
 }
 /* Tout ce qui change RÉELLEMENT l'image. La caméra étant fixe, tourner
  * l'aperçu 3D n'y figure pas — et c'est le but : sans cette signature, chaque
@@ -5229,7 +5239,13 @@ async function detectAI(){
        * Cout assume : une photo par visite, bornee par le debit de la
        * passerelle (6/min/adresse). C'est du temps CPU sur la machine de
        * l'atelier, et c'est le prix de montrer le vrai produit. */
-      setTimeout(()=>{ if(MESH.parts.length) rendreBlender(false); }, 400);
+      /* On active la planification au lieu de lancer UN rendu isole : c'est
+       * elle qui fera la premiere photo, et surtout toutes les suivantes quand
+       * la forme changera. Un rendu unique laissait une image perimee des la
+       * premiere modification. */
+      BL_LIVE.on = true;
+      const c = document.getElementById('blLive'); if(c) c.checked = true;
+      setTimeout(()=>{ if(MESH.parts.length) lancerLive(); }, 400);
     }
     return;
   }
