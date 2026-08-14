@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-5+UjhYuhs3F+5hOt59d4lVYSeNNw22CjTqGejxCJfqQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xZhCcYZkxTkxCqro5Vc0YsQ1xLjLZdeQ4+f9Fcarbpc='; style-src-attr 'unsafe-inline'; script-src 'sha256-8OZkgUmuK7SqReHGduLcCTXq0zKdSKgDsLTmIkc7ZFk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -470,7 +470,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         <select id="rBg" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)"></select>
       </label>
       <!-- BASE : apparence seulement. La base d'atelier est une piece ACHETEE,
-           aux cotes mesurees (V3 « BQ P2 », Ø118,6 x 18,6) : son aspect change,
+           aux cotes mesurees (V6 « LQ P2 », Ø104,0 x 18,2) : son aspect change,
            jamais sa geometrie. Elle ne porte jamais les stries de l'abat-jour. -->
       <label style="font-size:12.5px;color:var(--dim2)">Base
         <select id="rBase" style="background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);padding:6px 8px;font:600 12.5px var(--font)">
@@ -1075,7 +1075,7 @@ const BASE_KIT_B64 = "TEtJVOEJAADCEwAA4O0jQgAAAAAsuLNBIQAjQpdli0AsuLNBljkgQm2bCk
 function baseKitUtile(){ return socleActif(); }
 
 /* « Lampe personnalisable base » (05/08) : la base d'ATELIER, pour l'ÉCRAN
- * seulement — V3 « BQ P2 », Ø118,6 × 18,6, z −5,4 → 13,2, 5 116 triangles. Elle apparaît dans
+ * seulement — V6 « LQ P2 », Ø104,0 × 18,2, z 0 → 18,2, 15 918 triangles. Elle apparaît dans
  * l'aperçu, le rendu studio et le rendu Blender pour montrer la lampe montée,
  * mais N'ENTRE JAMAIS dans le STL téléchargé : le client n'imprime que
  * l'abat-jour et sa bague, la base vient de l'atelier. */
@@ -1117,6 +1117,19 @@ function chargerDeco(){
     DECO.faces = new Uint32Array(buf, 12+nv*12, nf*3);
     corrigerEnroulement(DECO.verts, DECO.faces);
     DECO.nTri = nf; DECO.etat = 'ok';
+    /* Cotes MESUREES, jamais ecrites en dur : le substitut d'affichage s'en
+     * sert, et une cote figee redevient fausse a la piece suivante. */
+    {
+      const V = DECO.verts;
+      let z0 = Infinity, z1 = -Infinity, r2 = 0;
+      for(let i=0;i<V.length;i+=3){
+        const z = V[i+2]; if(z < z0) z0 = z; if(z > z1) z1 = z;
+        const d = V[i]*V[i] + V[i+1]*V[i+1]; if(d > r2) r2 = d;
+      }
+      DECO.zBasMm = +z0.toFixed(2);
+      DECO.zHautMm = +z1.toFixed(2);
+      DECO.diaMm = +(2*Math.sqrt(r2)).toFixed(2);
+    }
   }catch(e){ DECO.etat = 'echec'; }
 }
 /* Le peintre trie par profondeur de CENTROÏDE : un grand triangle du mur
@@ -1177,7 +1190,10 @@ function bagueProxy(segments){
    * recouvrement de 0,5 mm existe pour la SOUDURE AU TRANCHAGE des pieces
    * reelles ; a l'ecran il n'apporte rien et ne fait que creer ce conflit.
    * Rayon ramene a 51,90 : le bourrelet retrouve son affleurement Ø104. */
-  _bagueProxy[N] = buildTube(0, BAGUE.assiseMm - 0.56, ()=>40, ()=>51.90, N, 2, null, 10);
+  chargerBaseKit();
+  const zB = (BASE_KIT.zBasMm != null) ? BASE_KIT.zBasMm : 0;
+  const rB = (BAGUE.diaExtMm / 2) - 0.10;
+  _bagueProxy[N] = buildTube(zB, BAGUE.assiseMm - 0.56, ()=>40, ()=>rB, N, 2, null, 10);
   return _bagueProxy[N];
 }
 function decoProxy(segments){
@@ -1186,10 +1202,16 @@ function decoProxy(segments){
   if(_decoProxy[N]) return _decoProxy[N];
   // fût plein (rayon intérieur quasi nul) : vue par en dessous, la base réelle
   // a un plancher — le substitut ne doit pas montrer un tunnel à la place
-  // V3 « BQ P2 » : la base va de z −5,400 à +13,200, mais seule la partie sous
-  // le bourrelet se voit (Ø118,6 à l'affleurement). On s'arrête 0,05 mm sous
-  // z=0 pour ne pas confondre son plat avec le dessous de la bague.
-  _decoProxy[N] = buildTube(-5.4, -0.05, ()=>0.5, ()=>59.0, N, 2.7, null, 10);
+  /* Recale sur la piece reelle (V6) : la base part du plateau et seule la
+   * partie SOUS la bague se voit, le reste monte a l'interieur. On s'arrete
+   * 0,05 mm sous le bas de la bague pour ne pas confondre les deux plats, et
+   * on retire 0,10 mm au rayon pour la meme raison qu'ailleurs : deux
+   * surfaces confondues sortent en tirets sombres avec le tri du peintre. */
+  chargerDeco(); chargerBaseKit();
+  const zTable = (DECO.zBasMm != null) ? DECO.zBasMm : 0;
+  const zHaut  = (BASE_KIT.zBasMm != null) ? BASE_KIT.zBasMm : zTable + 5;
+  const rDeco  = ((DECO.diaMm || 104) / 2) - 0.10;
+  _decoProxy[N] = buildTube(zTable, zHaut - 0.05, ()=>0.5, ()=>rDeco, N, 2.7, null, 10);
   return _decoProxy[N];
 }
 
@@ -5675,7 +5697,7 @@ function renderPoser(){
   }
   L.push(['ok', `PIED : l'abat-jour se termine par un cercle extérieur Ø${fr(PIED.diaMm,1)} mm — la forme, `
     + `même complexe, fond son relief et rejoint ce cercle sur les ${PIED.transitionMm} derniers mm.`]);
-  L.push(['ok', `La BASE d'atelier (V3 « BQ P2 », Ø118,6 × 18,6 mm) apparaît à l'écran et dans les rendus `
+  L.push(['ok', `La BASE d'atelier (Ø${fr(DECO.diaMm||104,1)} × ${fr(DECO.zHautMm||18.2,1)} mm, mesurée) apparaît à l'écran et dans les rendus `
     + `pour montrer la lampe montée. Le STL téléchargé, lui, ne contient QUE l'abat-jour et sa bague : `
     + `la base n'est pas à imprimer, elle vient de l'atelier.`]);
   L.forEach(([cl,t])=>{ const d=document.createElement('div'); d.className='line '+cl; d.textContent=t; box.appendChild(d); });
