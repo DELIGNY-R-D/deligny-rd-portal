@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-Kd2X/fwlVEwBHcg5lrAB2acoFoyK2u/cdb8MrUwXytE='; style-src-attr 'unsafe-inline'; script-src 'sha256-U/hIVqe8wEjzr4t7erXsL/1iCKNtoXWsh/Ng9Ga/774='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-VGJ8h5w73yJDww72OLPJWTbfYAdqft1A2AZ4lwqSf9w='; style-src-attr 'unsafe-inline'; script-src 'sha256-Ruz0C2uqEsV+oeQv4irogVtnpFtIJyuK2CIXORu4yWQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -151,7 +151,7 @@ table.pts tr.bad td{color:var(--red);}
 /* Cartouche d'attente : il occupe la place du rendu tant que Blender n'a pas
  * fini. L'apercu du navigateur ne s'affiche PLUS ici, ni pendant l'attente. */
 #renduAttente{position:absolute;inset:0;display:grid;place-items:center;border-radius:12px;
-  border:1px dashed var(--sep);background:var(--card2);color:var(--dim2);
+  border:1px solid var(--sep);background:#fff;color:var(--dim2);
   font-size:12.5px;letter-spacing:.04em;}
 #renduAttente[hidden]{display:none;}
 .rendu-box canvas,.rendu-box img{position:absolute;inset:0;width:100%;height:100%;
@@ -313,7 +313,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
             <div class="rendu-box">
               <canvas id="renderCanvas" width="1280" height="960" style="display:none"></canvas>
               <img id="blLiveImg" alt="Rendu Blender de la lampe" style="display:none">
-              <div id="renduAttente">Rendu Blender en cours…</div>
+              <div id="renduAttente">Attente du rendu…</div>
             </div>
             <!-- Éteinte / allumée : ce n'est pas un effet, c'est la même pièce
                  sous deux éclairages. Sur une paroi translucide, la seconde
@@ -6951,12 +6951,12 @@ function compteARebours(phase, ms){
     const att = $('renduAttente');
     if(att && !att.hidden){
       att.textContent = RENDU_PHASE === 'attente'
-        ? (reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s` : 'Lancement du rendu…')
+        ? (reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s` : 'Attente du rendu…')
         : (reste > 0.05 ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
                         : `Rendu Blender — ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s`);
     }
     if(RENDU_PHASE === 'attente'){
-      n.textContent = reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s…` : 'Lancement du rendu…';
+      n.textContent = reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s…` : 'Attente du rendu…';
     } else if(RENDU_PHASE === 'rendu'){
       n.textContent = reste > 0.05
         ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
@@ -7015,7 +7015,13 @@ function majSourceRendu(src){
        * neutre, prend sa place : il ne montre rien plutot que de montrer autre
        * chose. L'apercu ne reste visible que s'il n'y a AUCUN moteur, ou il est
        * la seule image possible. */
-      const moteurDispo = (AI.ok === true) || MOTEUR.distant;
+      /* ⚠️ TROIS ETATS, PAS DEUX. AI.ok et MOTEUR.ok valent `null` tant que la
+       * sonde n'a pas repondu : au chargement, `AI.ok === true` est faux SANS
+       * que cela veuille dire « pas de moteur ». Traiter l'indetermine comme
+       * un non faisait apparaitre l'apercu navigateur pendant une seconde,
+       * puis disparaitre. On attend plutot que de montrer une fausse image. */
+      const enCoursDeDetection = (AI.ok === null) && (MOTEUR.ok === null);
+      const moteurDispo = (AI.ok === true) || MOTEUR.distant || enCoursDeDetection;
       if(img) img.style.display = dejaBlender ? '' : 'none';
       if(cvR) cvR.style.display = (dejaBlender || moteurDispo) ? 'none' : '';
       if(att) att.hidden = dejaBlender || !moteurDispo;
