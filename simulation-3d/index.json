@@ -2,9 +2,8 @@
  "films": [
   {
    "num": "01",
-   "cle": "rigid_domino",
-   "titre": "Corps rigides",
-   "texte": "Les huit pieces du logo debout, fauchees par une masse. Reveil d'un corps cinematique : Blender lui transmet la vitesse deduite de son animation.",
+   "titre": "Chute et impact",
+   "texte": "Huit pieces independantes, une masse lancee, et rien d'anime a la main : la chute, les rebonds et l'empilement final sortent du calcul. La couleur suit la vitesse reellement mesuree de chaque piece.",
    "video": "video/01.mp4",
    "affiche": "video/01.png",
    "images": 180,
@@ -13,9 +12,8 @@
   },
   {
    "num": "02",
-   "cle": "shatter",
-   "titre": "Fracture de Voronoi",
-   "texte": "Fracture 3D calculee ici meme, sans add-on : chaque cellule est l'intersection des demi-espaces entre une graine et ses voisines.",
+   "titre": "Fracture",
+   "texte": "La piece est decoupee en cellules de Voronoi calculees sur mesure, puis chaque eclat vit sa vie. Aucune extension : la geometrie de fracture est produite par notre propre code.",
    "video": "video/02.mp4",
    "affiche": "video/02.png",
    "images": 180,
@@ -24,9 +22,8 @@
   },
   {
    "num": "03",
-   "cle": "cloth_reveal",
-   "titre": "Tissu",
-   "texte": "Un voile tombe librement sur le logo, se drape, puis une rafale l'emporte. Raide dans le plan, mou en flexion : c'est ce couple qui fait un voile et pas un tas.",
+   "titre": "Drape",
+   "texte": "Un voile tombe librement, epouse le relief, puis une rafale l'emporte. Raide dans le plan et mou en flexion : c'est ce couple qui fait un tissu credible plutot qu'un tas.",
    "video": "video/03.mp4",
    "affiche": "video/03.png",
    "images": 210,
@@ -35,9 +32,8 @@
   },
   {
    "num": "04",
-   "cle": "cloth_flag",
-   "titre": "Tissu tendu",
-   "texte": "Le logo imprime sur une etoffe, dans le vent. Le masque vient de l'ALPHA du PNG : son noir et son vide ont le meme RGB.",
+   "titre": "Etoffe tendue",
+   "texte": "Le meme solveur, tendu sur une hampe et soumis au vent. L'impression suit la deformation du tissu, image par image.",
    "video": "video/04.mp4",
    "affiche": "video/04.png",
    "images": 210,
@@ -45,72 +41,9 @@
    "poids_mo": 0.63
   },
   {
-   "num": "05",
-   "cle": "softbody",
-   "titre": "Corps mou",
-   "texte": "Des billes de gelee s'ecrasent sur le logo. Le solveur veut un maillage regulier et ferme : le logo reste rigide et sert de collision.",
-   "video": "video/05.mp4",
-   "affiche": "video/05.png",
-   "images": 180,
-   "secondes": 6.0,
-   "poids_mo": 0.82
-  },
-  {
-   "num": "06",
-   "cle": "liquid_pour",
-   "titre": "Liquide FLIP",
-   "texte": "Mantaflow : domaine liquide, entree, effecteur de collision, surface reconstruite apres la cuisson.",
-   "video": "video/06.mp4",
-   "affiche": "video/06.png",
-   "images": 180,
-   "secondes": 6.0,
-   "poids_mo": 1.27
-  },
-  {
-   "num": "07",
-   "cle": "smoke_reveal",
-   "titre": "Fumee",
-   "texte": "Mantaflow gaz : flottabilite, vorticite, bruit de sur-resolution. Rendu en Cycles, EEVEE n'eclairant pas ce volume de facon exploitable.",
-   "video": "video/07.mp4",
-   "affiche": "video/07.png",
-   "images": 180,
-   "secondes": 6.0,
-   "poids_mo": 0.68
-  },
-  {
-   "num": "08",
-   "titre": "Feu",
-   "texte": "Gaz avec carburant et emission de corps noir. Seule la couronne emet : une piece qui brule, pas un logo derriere un mur de flammes.",
-   "video": null,
-   "affiche": null
-  },
-  {
-   "num": "09",
-   "cle": "particles",
-   "titre": "Particules",
-   "texte": "Emission de surface, instances, turbulence. Un vortex trop fort ramassait la poussiere en une corde : la derive vient du bruit.",
-   "video": "video/09.mp4",
-   "affiche": "video/09.png",
-   "images": 210,
-   "secondes": 7.0,
-   "poids_mo": 5.16
-  },
-  {
-   "num": "10",
-   "cle": "boids",
-   "titre": "Boids",
-   "texte": "L'IA de nuee integree a Blender : separation, troupeau, but. La distance de separation vit dans les reglages de l'essaim, pas dans une regle.",
-   "video": "video/10.mp4",
-   "affiche": "video/10.png",
-   "images": 210,
-   "secondes": 7.0,
-   "poids_mo": 2.39
-  },
-  {
    "num": "11",
-   "cle": "hair",
-   "titre": "Chevelure dynamique",
-   "texte": "Le solveur de tissu applique aux meches, peignees par le vent.",
+   "titre": "Matiere fibreuse",
+   "texte": "Des milliers de brins, chacun simule comme un ressort, peignes par le vent. C'est la meme technique pour un velours, une brosse ou un tapis.",
    "video": "video/11.mp4",
    "affiche": "video/11.png",
    "images": 180,
@@ -119,113 +52,21 @@
   },
   {
    "num": "12",
-   "cle": "ocean",
-   "titre": "Ocean",
-   "texte": "Spectre de vagues resolu par FFT, ecume. Sans animation de `time` l'ocean reste fige : ce n'est pas l'image qui le fait avancer.",
+   "titre": "Surface liquide",
+   "texte": "Une mer resolue par transformee de Fourier, avec ecume et creux, d'ou la piece emerge. La houle avance dans le temps, elle n'est pas une texture qui defile.",
    "video": "video/12.mp4",
    "affiche": "video/12.png",
    "images": 210,
    "secondes": 7.0,
    "poids_mo": 0.82
-  },
+  }
+ ],
+ "photos": [
   {
-   "num": "13",
-   "cle": "dynamic_paint",
-   "titre": "Dynamic Paint",
-   "texte": "Le seul systeme de Blender qui propage une onde SUR une surface plutot que de simuler un volume.",
-   "video": "video/13.mp4",
-   "affiche": "video/13.png",
-   "images": 180,
-   "secondes": 6.0,
-   "poids_mo": 0.82
-  },
-  {
-   "num": "14",
-   "cle": "geonodes",
-   "titre": "Geometry Nodes",
-   "texte": "Zone de simulation : l'etat est reporte d'une image a la suivante, donc les deplacements s'accumulent.",
-   "video": "video/14.mp4",
-   "affiche": "video/14.png",
-   "images": 195,
-   "secondes": 6.5,
-   "poids_mo": 0.76
-  },
-  {
-   "num": "15",
-   "cle": "explode",
-   "titre": "Explode",
-   "texte": "Modificateur pilote par un systeme de particules, sur un maillage remailla en blocs pour donner des eclats et non six plaques.",
-   "video": "video/15.mp4",
-   "affiche": "video/15.png",
-   "images": 180,
-   "secondes": 6.0,
-   "poids_mo": 0.52
-  },
-  {
-   "num": "16",
-   "cle": "desintegration",
-   "titre": "Desintegration au passage",
-   "texte": "2,3 millions de particules composent le logo. Tant qu'un point n'est pas atteint par le front, son deplacement est exactement nul : le logo tient. La couronne resiste le plus longtemps.",
-   "video": "video/16.mp4",
-   "affiche": "video/16.png",
-   "images": 210,
-   "secondes": 7.0,
-   "poids_mo": 1.35
-  },
-  {
-   "num": "17",
-   "cle": "contraintes",
-   "titre": "Contraintes de corps rigides",
-   "texte": "Le logo pendu en mobile : cinq rotules, deux ressorts amortis, une charniere pour la couronne. Bouscule, il s'ecarte mais ne tombe pas — c'est la contrainte qui le retient.",
-   "video": "video/17.mp4",
-   "affiche": "video/17.png",
-   "images": 210,
-   "secondes": 7.0,
-   "poids_mo": 0.5
-  },
-  {
-   "num": "18",
-   "cle": "armature",
-   "titre": "Armature",
-   "texte": "Un squelette de neuf os et un parentage automatique par poids : le logo se plie comme un ruban sans qu'aucun sommet soit anime a la main. La meme technique articule un mecanisme de produit.",
-   "video": "video/18.mp4",
-   "affiche": "video/18.png",
-   "images": 180,
-   "secondes": 6.0,
-   "poids_mo": 0.29
-  },
-  {
-   "num": "19",
-   "cle": "variantes",
-   "titre": "Generation de variantes",
-   "texte": "Un SEUL graphe produit une famille entiere : trois sources, quinze declinaisons, et la planche se regenere quand la graine change. De la modelisation procedurale, pas de la simulation.",
-   "video": "video/19.mp4",
-   "affiche": "video/19.png",
-   "images": 195,
-   "secondes": 6.5,
-   "poids_mo": 0.81
-  },
-  {
-   "num": "20",
-   "cle": "trait",
-   "titre": "Rendu au trait",
-   "texte": "Freestyle detecte contours, silhouettes et aretes vives de la geometrie et les dessine. Silhouette epaisse, aretes internes fines : c'est cette difference qui fait lire un dessin technique.",
-   "video": "video/20.mp4",
-   "affiche": "video/20.png",
-   "images": 180,
-   "secondes": 6.0,
-   "poids_mo": 1.33
-  },
-  {
-   "num": "21",
-   "cle": "annotation",
-   "titre": "Cotation en 3D",
-   "texte": "Les lignes de cote sont de vrais traits Grease Pencil dans la scene : la camera tourne et elles tournent avec la piece, ce qu'un habillage pose sur l'image ne saurait pas faire.",
-   "video": "video/21.mp4",
-   "affiche": "video/21.png",
-   "images": 210,
-   "secondes": 7.0,
-   "poids_mo": 0.43
+   "cle": "feu",
+   "titre": "Combustion",
+   "texte": "Image fixe, moteur de rendu physique. Le feu est un volume calcule — carburant, flottabilite, emission de corps noir — et non un effet plaque sur l'image. Rendu en 64 echantillons.",
+   "src": "photo/feu.png"
   }
  ]
 }
