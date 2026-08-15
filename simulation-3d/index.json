@@ -57,17 +57,25 @@
   },
   {
    "num": "06",
+   "cle": "liquid_pour",
    "titre": "Liquide FLIP",
    "texte": "Mantaflow : domaine liquide, entree, effecteur de collision, surface reconstruite apres la cuisson.",
-   "video": null,
-   "affiche": null
+   "video": "video/06.mp4",
+   "affiche": "video/06.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.27
   },
   {
    "num": "07",
+   "cle": "smoke_reveal",
    "titre": "Fumee",
    "texte": "Mantaflow gaz : flottabilite, vorticite, bruit de sur-resolution. Rendu en Cycles, EEVEE n'eclairant pas ce volume de facon exploitable.",
-   "video": null,
-   "affiche": null
+   "video": "video/07.mp4",
+   "affiche": "video/07.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.68
   },
   {
    "num": "08",
@@ -78,52 +86,80 @@
   },
   {
    "num": "09",
+   "cle": "particles",
    "titre": "Particules",
    "texte": "Emission de surface, instances, turbulence. Un vortex trop fort ramassait la poussiere en une corde : la derive vient du bruit.",
-   "video": null,
-   "affiche": null
+   "video": "video/09.mp4",
+   "affiche": "video/09.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 5.16
   },
   {
    "num": "10",
+   "cle": "boids",
    "titre": "Boids",
    "texte": "L'IA de nuee integree a Blender : separation, troupeau, but. La distance de separation vit dans les reglages de l'essaim, pas dans une regle.",
-   "video": null,
-   "affiche": null
+   "video": "video/10.mp4",
+   "affiche": "video/10.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 2.39
   },
   {
    "num": "11",
+   "cle": "hair",
    "titre": "Chevelure dynamique",
    "texte": "Le solveur de tissu applique aux meches, peignees par le vent.",
-   "video": null,
-   "affiche": null
+   "video": "video/11.mp4",
+   "affiche": "video/11.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 2.13
   },
   {
    "num": "12",
+   "cle": "ocean",
    "titre": "Ocean",
    "texte": "Spectre de vagues resolu par FFT, ecume. Sans animation de `time` l'ocean reste fige : ce n'est pas l'image qui le fait avancer.",
-   "video": null,
-   "affiche": null
+   "video": "video/12.mp4",
+   "affiche": "video/12.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 0.82
   },
   {
    "num": "13",
+   "cle": "dynamic_paint",
    "titre": "Dynamic Paint",
    "texte": "Le seul systeme de Blender qui propage une onde SUR une surface plutot que de simuler un volume.",
-   "video": null,
-   "affiche": null
+   "video": "video/13.mp4",
+   "affiche": "video/13.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.82
   },
   {
    "num": "14",
+   "cle": "geonodes",
    "titre": "Geometry Nodes",
    "texte": "Zone de simulation : l'etat est reporte d'une image a la suivante, donc les deplacements s'accumulent.",
-   "video": null,
-   "affiche": null
+   "video": "video/14.mp4",
+   "affiche": "video/14.png",
+   "images": 195,
+   "secondes": 6.5,
+   "poids_mo": 0.76
   },
   {
    "num": "15",
+   "cle": "explode",
    "titre": "Explode",
    "texte": "Modificateur pilote par un systeme de particules, sur un maillage remailla en blocs pour donner des eclats et non six plaques.",
-   "video": null,
-   "affiche": null
+   "video": "video/15.mp4",
+   "affiche": "video/15.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.52
   },
   {
    "num": "16",
@@ -135,6 +171,61 @@
    "images": 210,
    "secondes": 7.0,
    "poids_mo": 1.35
+  },
+  {
+   "num": "17",
+   "cle": "contraintes",
+   "titre": "Contraintes de corps rigides",
+   "texte": "Le logo pendu en mobile : cinq rotules, deux ressorts amortis, une charniere pour la couronne. Bouscule, il s'ecarte mais ne tombe pas — c'est la contrainte qui le retient.",
+   "video": "video/17.mp4",
+   "affiche": "video/17.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 0.5
+  },
+  {
+   "num": "18",
+   "cle": "armature",
+   "titre": "Armature",
+   "texte": "Un squelette de neuf os et un parentage automatique par poids : le logo se plie comme un ruban sans qu'aucun sommet soit anime a la main. La meme technique articule un mecanisme de produit.",
+   "video": "video/18.mp4",
+   "affiche": "video/18.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.29
+  },
+  {
+   "num": "19",
+   "cle": "variantes",
+   "titre": "Generation de variantes",
+   "texte": "Un SEUL graphe produit une famille entiere : trois sources, quinze declinaisons, et la planche se regenere quand la graine change. De la modelisation procedurale, pas de la simulation.",
+   "video": "video/19.mp4",
+   "affiche": "video/19.png",
+   "images": 195,
+   "secondes": 6.5,
+   "poids_mo": 0.81
+  },
+  {
+   "num": "20",
+   "cle": "trait",
+   "titre": "Rendu au trait",
+   "texte": "Freestyle detecte contours, silhouettes et aretes vives de la geometrie et les dessine. Silhouette epaisse, aretes internes fines : c'est cette difference qui fait lire un dessin technique.",
+   "video": "video/20.mp4",
+   "affiche": "video/20.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.33
+  },
+  {
+   "num": "21",
+   "cle": "annotation",
+   "titre": "Cotation en 3D",
+   "texte": "Les lignes de cote sont de vrais traits Grease Pencil dans la scene : la camera tourne et elles tournent avec la piece, ce qu'un habillage pose sur l'image ne saurait pas faire.",
+   "video": "video/21.mp4",
+   "affiche": "video/21.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 0.43
   }
  ]
 }
