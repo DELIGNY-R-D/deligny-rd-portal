@@ -590,22 +590,46 @@ h3 {
    (extrait de la version publiee, jamais du fichier local en cours de
    modification par un autre chantier) — le detail visuel de ses trois
    fenetres vit dans lampe-embed.css, scope sous #lampe-embed-root. */
-.lampe-widget {
+.tool-widget {
   margin-bottom: 40px;
 }
 
-.lampe-widget-head {
+.tool-widget-head {
   max-width: 680px;
   margin-bottom: 20px;
 }
 
-.lampe-widget-head p {
+.tool-widget-head p {
   color: var(--muted);
   line-height: 1.55;
 }
 
-.lampe-widget-actions {
+.tool-widget-actions {
   margin-top: 16px;
+}
+
+/* Atlas Studio Pro : la vraie appli en iframe (atlas-studio.pro ne pose ni
+   X-Frame-Options ni frame-ancestors — verifie avant d'embarquer). Donnees
+   fictives, environnement de demo public, aucune couche a nous. */
+.atlas-embed {
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  box-shadow: var(--shadow);
+  background: var(--panel);
+}
+
+.atlas-embed iframe {
+  display: block;
+  width: 100%;
+  height: 640px;
+  border: 0;
+}
+
+@media (max-width: 640px) {
+  .atlas-embed iframe {
+    height: 480px;
+  }
 }
 
 .app-grid {
