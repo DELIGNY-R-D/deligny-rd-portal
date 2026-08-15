@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-VGJ8h5w73yJDww72OLPJWTbfYAdqft1A2AZ4lwqSf9w='; style-src-attr 'unsafe-inline'; script-src 'sha256-TVeTY+9xahCarlMNOOGDSNSHV77+g8RaysFQoyF3LPg='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-VGJ8h5w73yJDww72OLPJWTbfYAdqft1A2AZ4lwqSf9w='; style-src-attr 'unsafe-inline'; script-src 'sha256-0hwK5zneRUssCYdmoDRa+kVPyoUwwig88VYbGluPB6M='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -5115,7 +5115,13 @@ async function rendreBlender(live, sigAttendue){
     const t0 = performance.now();
     // MOTEUR.base et non AI.base : en local les deux coincident, mais depuis le
     // site public c'est le tunnel, qui n'ouvre que cette route.
-    const params = ({ modules_opaques: modulesOpaques,
+    /* La bague est opaque COMME la base, mais elle seule recoit
+     * l'auto-eclairage : elle est en ombre portee sous l'abat-jour, alors que
+     * la base affleure. Confondre les deux ramenait le halo blanc. */
+    const modulesBague = envoyes
+      .map((p,i)=> /bague/.test(p.label||'') ? i : -1)
+      .filter(i=> i >= 0);
+    const params = ({ modules_opaques: modulesOpaques, modules_bague: modulesBague,
         base_finition: BASE_FINITIONS.includes(RENDER.base) ? RENDER.base : 'blanc',
         /* Le mode LIVE rend LA MÊME IMAGE que la photo — même décor, même
          * matière — mais en EEVEE, plus petit et moins échantillonné. Mesuré :
