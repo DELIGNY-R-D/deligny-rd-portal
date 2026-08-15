@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-VGJ8h5w73yJDww72OLPJWTbfYAdqft1A2AZ4lwqSf9w='; style-src-attr 'unsafe-inline'; script-src 'sha256-Ruz0C2uqEsV+oeQv4irogVtnpFtIJyuK2CIXORu4yWQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-VGJ8h5w73yJDww72OLPJWTbfYAdqft1A2AZ4lwqSf9w='; style-src-attr 'unsafe-inline'; script-src 'sha256-TVeTY+9xahCarlMNOOGDSNSHV77+g8RaysFQoyF3LPg='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -4050,18 +4050,23 @@ function buildParts(segList, mode){
         meshes[0] = meshes[0].concat(S.tris);
       }
     }
+    /* ⚠️ EN MODE RENDU la bague part SEPAREMENT (voir plus bas) : fusionnee,
+     * elle heriterait du PLA translucide de la peau alors qu'elle est PLEINE,
+     * et sortirait GRISE. Un materiau se donne par OBJET : tant qu'elle est
+     * dans le meme STL, aucun reglage ne peut la distinguer. */
+    let bagueSeparee = null;
     if(bagueActive() && bi === socketEndBodyIdx()){
       chargerBaseKit();          // décodage unique, mis en cache
       if(BASE_KIT.etat === 'ok'){
         // LA VRAIE BAGUE V2, telle quelle — 5 596 triangles, elle tient dans
         // l'aperçu comme dans l'export, aucune reconstruction
         MESH.bague = { diaExtMm: BAGUE.diaExtMm, hautMm: BAGUE.hautMm, assiseMm: BAGUE.assiseMm, reelle: true, nTri: BASE_KIT.nTri, volMm3: BASE_KIT.volMm3 };
-        meshes[0] = meshes[0].concat(
-          // l'export ET le maillage de rendu recoivent la VRAIE bague V2 ;
-          // l'ecran (brouillon ET qualite) recoit le substitut ferme, cf. le
-          // commentaire de bagueProxy(). Une PHOTO doit montrer la vraie piece :
-          // c'est le substitut, envoye par erreur, qui donnerait un pied faux.
-          (mode === 'export' || mode === 'rendu') ? trianglesBaseKit() : bagueProxy(segments));
+        // l'export recoit la VRAIE bague V2 FUSIONNEE (elle s'imprime avec
+        // l'abat-jour) ; l'ecran recoit le substitut ferme, cf. bagueProxy() ;
+        // le RENDU la recoit a part, pour qu'elle puisse etre opaque.
+        if(mode === 'rendu') bagueSeparee = trianglesBaseKit();
+        else meshes[0] = meshes[0].concat(
+          mode === 'export' ? trianglesBaseKit() : bagueProxy(segments));
       } else {
         // secours si le décodage échoue : reconstruction paramétrique, avec
         // avertissement (renderPoser) — ne pas lancer de série avec ça
@@ -4075,6 +4080,15 @@ function buildParts(segList, mode){
       parts.push({ tris:meshes[i], h0:cuts[i], h1:cuts[i+1], index:i, nslice:n,
                    joint: joints[i]||null, body:bi, xf:pl, perfore:isPerforated(surf),
                    refVolMm3:pappusShellVolMm3(slices[i], wall), label: lbl || 'monobloc' });
+    }
+    /* La bague, en mode rendu seulement. Le libelle DOIT commencer par
+     * « base atelier » : c'est ce que modulesOpaques reconnait pour demander au
+     * moteur un materiau opaque. Meme placement (xf) que le corps, sinon elle
+     * se poserait ailleurs que la peau qu'elle porte. */
+    if(bagueSeparee && bagueSeparee.length){
+      parts.push({ tris:bagueSeparee, h0:cuts[0], h1:cuts[0], index:0, nslice:n,
+                   joint:null, body:bi, xf:pl, perfore:false, refVolMm3:0,
+                   label:'base atelier — bague' });
     }
     // platine du module USB : une seule, sur le corps qui porte la connexion
     // ⚠️ Pas de platine avec la bague : le module LED se monte sur le SUPPORT
