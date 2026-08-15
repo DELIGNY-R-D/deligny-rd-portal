@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-VGJ8h5w73yJDww72OLPJWTbfYAdqft1A2AZ4lwqSf9w='; style-src-attr 'unsafe-inline'; script-src 'sha256-0hwK5zneRUssCYdmoDRa+kVPyoUwwig88VYbGluPB6M='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-g27pHdjtStbvrJO9H3RZCSRD7Ovdgc0jHNg0DcJyDF8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -150,6 +150,23 @@ table.pts tr.bad td{color:var(--red);}
 .rendu-box{position:relative;width:100%;aspect-ratio:4/3;max-height:330px;}
 /* Cartouche d'attente : il occupe la place du rendu tant que Blender n'a pas
  * fini. L'apercu du navigateur ne s'affiche PLUS ici, ni pendant l'attente. */
+/* ── Panier ─────────────────────────────────────────────────────────── */
+.pan-ligne{display:grep;display:grid;grid-template-columns:74px 1fr auto;gap:12px;align-items:center;
+  padding:10px 0;border-top:1px solid var(--sep);}
+.pan-ligne:first-of-type{border-top:0;}
+.pan-vig{width:74px;height:92px;object-fit:cover;border-radius:8px;border:1px solid var(--sep);background:#fff;}
+.pan-nom{font:600 13.5px var(--font);color:var(--txt);}
+.pan-det{font:12px var(--font);color:var(--dim2);margin-top:2px;line-height:1.45;}
+.pan-prix{font:700 15px var(--font);color:var(--txt);text-align:right;white-space:nowrap;}
+.pan-qte{display:flex;gap:4px;align-items:center;justify-content:flex-end;margin-top:6px;}
+.pan-qte button{width:26px;height:26px;border-radius:8px;border:1px solid var(--sep);background:transparent;
+  color:var(--txt);cursor:pointer;font:600 14px var(--font);}
+.pan-qte span{min-width:22px;text-align:center;font:600 13px var(--font);}
+.pan-total{display:flex;justify-content:space-between;align-items:baseline;margin-top:14px;
+  padding-top:12px;border-top:2px solid var(--sep);}
+.pan-total .k{font:600 13px var(--font);color:var(--dim2);}
+.pan-total .v{font:800 22px var(--font);color:var(--txt);}
+.pan-vide{color:var(--dim2);font:13px var(--font);padding:8px 0;}
 #renduAttente{position:absolute;inset:0;display:grid;place-items:center;border-radius:12px;
   border:1px solid var(--sep);background:#fff;color:var(--dim2);
   font-size:12.5px;letter-spacing:.04em;}
@@ -749,6 +766,29 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
   </div>
 
   <!-- 12. COMMANDE -->
+  <div class="card" style="margin-top:16px">
+    <h2>Ajouter au panier</h2>
+    <div class="hint">La ligne fige le prix, les cotes et l'image du moment. Tu peux
+    continuer à dessiner ensuite sans que le panier ne bouge.</div>
+    <div class="row-btn">
+      <button class="btn pri" id="ajoutPanier">🛒 Ajouter cette lampe au panier</button>
+      <span id="ajoutPanierEtat" style="font:12.5px var(--font);color:var(--dim2)"></span>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:16px">
+    <h2><span class="n">✦</span>Récapitulatif de commande</h2>
+    <div class="hint">Ce que tu commandes, ligne par ligne. <b>Kit LED inclus et monté,
+    rien à monter.</b> Alimentation par module USB 5 V.</div>
+    <div id="panierListe"></div>
+    <div class="row-btn" style="margin-top:12px">
+      <button class="btn" id="panierAutre">＋ Ajouter une autre lampe</button>
+      <button class="btn" id="panierVider">Vider le panier</button>
+    </div>
+    <div class="hint" style="margin-top:10px">Images et montants <b>non contractuels</b> :
+    le rendu est un calcul, la pièce est imprimée. Aucun paiement n'est effectué sur cette page.</div>
+  </div>
+
   <div class="card" style="margin-top:16px">
     <h2><span class="n">10</span>Commande</h2>
     <div class="hint">Prépare un email récapitulatif vers <b>contact@deligny-rd.fr</b>. <b>Aucun paiement n'est effectué ici</b> — c'est ton
@@ -6726,6 +6766,154 @@ function syncEtatUI(){
   if(fs && fs.value !== RENDER.finish) fs.value = RENDER.finish;
 }
 
+
+/* ══ PANIER ═══════════════════════════════════════════════════════════════
+ * ⚠️ UNE LIGNE FIGE SES CHIFFRES. Prix, cotes et image sont captures a la
+ * mise au panier, jamais recalcules a l'affichage : sinon continuer a
+ * dessiner apres avoir ajoute une lampe ferait bouger le panier tout seul,
+ * et le client verrait un prix changer sans avoir rien demande.
+ */
+const PANIER = { cle: 'lampe.panier.v1', lignes: [] };
+
+function chargerPanier(){
+  try{
+    const brut = localStorage.getItem(PANIER.cle);
+    PANIER.lignes = brut ? (JSON.parse(brut) || []) : [];
+  }catch(e){ PANIER.lignes = []; }
+}
+function enregistrerPanier(){
+  /* ⚠️ localStorage plafonne vers 5 Mo. On n'y met QUE la vignette reduite ;
+   * si ca deborde quand meme, on le DIT au lieu d'echouer en silence. */
+  try{ localStorage.setItem(PANIER.cle, JSON.stringify(PANIER.lignes)); return true; }
+  catch(e){
+    const el = $('ajoutPanierEtat');
+    if(el) el.textContent = 'panier non conservé : espace navigateur saturé';
+    return false;
+  }
+}
+
+/* Vignette REDUITE. Un rendu Blender pese ~280 Ko ; a pleine taille le panier
+ * saturait le stockage vers quinze lampes. 240 px de large en JPEG suffisent
+ * pour se relire, et pesent une quinzaine de kilo-octets. */
+function vignetteCourante(){
+  const src = document.getElementById('blLiveImg');
+  const cv  = document.getElementById('previewCanvas');
+  try{
+    const L = 240;
+    const c = document.createElement('canvas');
+    if(src && src.naturalWidth){
+      c.width = L; c.height = Math.round(L * src.naturalHeight / src.naturalWidth);
+      c.getContext('2d').drawImage(src, 0, 0, c.width, c.height);
+    } else if(cv && cv.width){
+      c.width = L; c.height = Math.round(L * cv.height / cv.width);
+      c.getContext('2d').drawImage(cv, 0, 0, c.width, c.height);
+    } else return '';
+    return c.toDataURL('image/jpeg', 0.72);
+  }catch(e){ return ''; }
+}
+
+function cotesCourantes(){
+  /* La lampe MONTEE, mesuree sur le MAILLAGE EXPORTE et non sur le profil :
+   * le profil est une intention, le maillage est le produit. Ecart releve
+   * entre les deux : 1,1 mm au diametre. Le prix est deja calcule sur ce
+   * maillage, la taille annoncee doit venir de la meme source.
+   * La hauteur part de la TABLE (z=0), base d'atelier comprise, parce que
+   * c'est ce que le client voit posé chez lui. */
+  let h = 0, r = 0;
+  try{
+    for(const part of MESH.parts) for(const t of part.tris) for(const q of t){
+      if(q[2] > h) h = q[2];
+      const d = Math.hypot(q[0], q[1]); if(d > r) r = d;
+    }
+    if(typeof chargerDeco === 'function'){
+      chargerDeco();
+      if(DECO && DECO.etat === 'ok'){
+        for(let i = 0; i < DECO.verts.length; i += 3){
+          const d = Math.hypot(DECO.verts[i], DECO.verts[i+1]); if(d > r) r = d;
+        }
+      }
+    }
+  }catch(e){}
+  if(!h){                       // repli si le maillage n'est pas encore construit
+    try{
+      const P = profilAvecJupe(state.profile, 0);
+      for(const p of P){ if(p.h > h) h = p.h; if(p.r > r) r = p.r; }
+    }catch(e){}
+  }
+  return { hautMm: Math.round(h), diaMm: Math.round(2*r) };
+}
+
+function ajouterAuPanier(){
+  const s = window.__lastSpecs || (typeof computeSpecs === 'function' ? computeSpecs() : null);
+  if(!s){ return; }
+  const c = cotesCourantes();
+  PANIER.lignes.push({
+    id: 'L' + (Date.now() % 1e9).toString(36),
+    nom: (TYPES[state.type] ? TYPES[state.type].label : 'Lampe') + ' — ' + (state.material || ''),
+    prix: Math.round(s.price),
+    hautMm: c.hautMm, diaMm: c.diaMm,
+    matiere: MATERIALS[state.material] || state.material,
+    couleur: (typeof bodyColor === 'function' ? bodyColor(0) : ''),
+    nPieces: s.nParts || 1,
+    qte: 1,
+    vignette: vignetteCourante(),
+    config: JSON.parse(JSON.stringify(state)),
+  });
+  enregistrerPanier();
+  renderPanier();
+  const el = $('ajoutPanierEtat');
+  if(el){
+    el.textContent = 'ajoutée · ' + PANIER.lignes.reduce((n,l)=>n+l.qte,0) + ' au panier';
+    setTimeout(()=>{ if(el.textContent.startsWith('ajoutée')) el.textContent = ''; }, 4000);
+  }
+}
+
+function renderPanier(){
+  const box = $('panierListe');
+  if(!box) return;
+  if(!PANIER.lignes.length){
+    box.innerHTML = '<div class="pan-vide">Panier vide. Dessine une lampe, puis « Ajouter au panier » à la fin de l\'étape Aspect.</div>';
+    return;
+  }
+  const euro = n => n.toLocaleString('fr-FR') + ' €';
+  box.innerHTML = PANIER.lignes.map((l,i)=>`
+    <div class="pan-ligne">
+      ${l.vignette ? `<img class="pan-vig" src="${l.vignette}" alt="">`
+                   : `<div class="pan-vig"></div>`}
+      <div>
+        <div class="pan-nom">${l.nom}</div>
+        <div class="pan-det">
+          ${l.hautMm} mm de haut · Ø${l.diaMm} mm<br>
+          ${l.matiere}${l.nPieces > 1 ? ' · ' + l.nPieces + ' pièces' : ''}<br>
+          Kit LED inclus et monté
+        </div>
+      </div>
+      <div>
+        <div class="pan-prix">${euro(l.prix * l.qte)}</div>
+        <div class="pan-qte">
+          <button data-pan="moins" data-i="${i}" aria-label="retirer un">−</button>
+          <span>${l.qte}</span>
+          <button data-pan="plus" data-i="${i}" aria-label="ajouter un">+</button>
+          <button data-pan="suppr" data-i="${i}" aria-label="supprimer la ligne">✕</button>
+        </div>
+      </div>
+    </div>`).join('');
+  const total = PANIER.lignes.reduce((n,l)=> n + l.prix * l.qte, 0);
+  const nb = PANIER.lignes.reduce((n,l)=> n + l.qte, 0);
+  box.insertAdjacentHTML('beforeend',
+    `<div class="pan-total"><span class="k">${nb} lampe${nb>1?'s':''} · total estimé</span>` +
+    `<span class="v">${euro(total)}</span></div>`);
+  box.querySelectorAll('[data-pan]').forEach(b=>{
+    b.onclick = ()=>{
+      const i = +b.dataset.i, a = b.dataset.pan;
+      if(a === 'plus') PANIER.lignes[i].qte++;
+      else if(a === 'moins') PANIER.lignes[i].qte = Math.max(1, PANIER.lignes[i].qte - 1);
+      else if(a === 'suppr') PANIER.lignes.splice(i, 1);
+      enregistrerPanier(); renderPanier();
+    };
+  });
+}
+
 function renderAll(){
   syncBodies();
   syncEtatUI();
@@ -6747,6 +6935,7 @@ function renderAll(){
   renderSplit();
   renderChecks();
   renderPrice();
+  renderPanier();
   renderBounds();
   renderHud();
   const ex=$('vExplodeWrap'); if(ex) ex.style.display = MESH.parts.length>1 ? '' : 'none';
@@ -7512,9 +7701,9 @@ const ETAPES = [
    * declaree, ces deux cartes tombaient en derniere etape avec les
    * orphelines, c'est-a-dire dans Commande. */
   { titre:'Forme',       sous:'silhouette, corps',      ancres:['#cvIn','#type-seg','#addPoint','#presetRow','#bodyCount','#embFichier'] },
-  { titre:'Aspect',      sous:'surface, couleur, rendu', ancres:['#surface-seg','#swatches','#rFinish'] },
+  { titre:'Aspect',      sous:'surface, couleur, rendu', ancres:['#surface-seg','#swatches','#rFinish','#ajoutPanier'] },
   { titre:'Fabrication', sous:'matière, paroi', ancres:['#socketList','#splitOn','#material'] },
-  { titre:'Commande',    sous:'prix, dossier, envoi',    ancres:['#s-price','#exportStl','#prepEmail'] },
+  { titre:'Commande',    sous:'prix, dossier, envoi',    ancres:['#panierListe','#s-price','#exportStl','#prepEmail'] },
 ];
 let etapeActive = 0;
 
@@ -7573,7 +7762,13 @@ function allerEtape(i){
 }
 
 /* ── Init ─────────────────────────────────────────────────────────────── */
+chargerPanier();
 organiserEnEtapes();
+{ const b=$('ajoutPanier'); if(b) b.onclick = ajouterAuPanier;
+  const o=$('panierAutre'); if(o) o.onclick = ()=> allerEtape(0);
+  const v=$('panierVider'); if(v) v.onclick = ()=>{
+    if(PANIER.lignes.length && confirm('Vider le panier ?')){ PANIER.lignes = []; enregistrerPanier(); renderPanier(); } }; }
+renderPanier();
 syncViewInputs();
 setPreset(TYPES[state.type].silhouettes[0]);
 /* Le lien vers le tableau de bord PROPAGATION n'apparaît QUE sur le poste de
