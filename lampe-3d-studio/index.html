@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-g27pHdjtStbvrJO9H3RZCSRD7Ovdgc0jHNg0DcJyDF8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-Sn7I/sFsUnhgAUibeomGgrkfowMsZMtyLN14wk/gNC8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -785,6 +785,15 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       <button class="btn" id="panierAutre">＋ Ajouter une autre lampe</button>
       <button class="btn" id="panierVider">Vider le panier</button>
     </div>
+    <div class="field" style="margin-top:14px">
+      <label for="cmdEmail">Email pour le suivi de commande</label>
+      <input id="cmdEmail" type="email" placeholder="toi@exemple.fr" autocomplete="email">
+    </div>
+    <div class="row-btn" style="margin-top:10px">
+      <button class="btn pri" id="cmdValider">Valider la commande</button>
+      <span id="cmdEtat" style="font:12.5px var(--font);color:var(--dim2)"></span>
+    </div>
+    <div id="cmdSuite" hidden style="margin-top:12px;padding:12px;border:1px solid var(--sep);border-radius:12px;background:var(--card2)"></div>
     <div class="hint" style="margin-top:10px">Images et montants <b>non contractuels</b> :
     le rendu est un calcul, la pièce est imprimée. Aucun paiement n'est effectué sur cette page.</div>
   </div>
@@ -6767,6 +6776,111 @@ function syncEtatUI(){
 }
 
 
+
+/* ══ COMMANDE ═════════════════════════════════════════════════════════════
+ * Le panier ne vivait que dans ce navigateur : si le visiteur vidait son
+ * cache, la commande disparaissait et DELIGNY R&D ne l'avait jamais vue. Elle
+ * est desormais deposee sur le serveur, qui rend une reference.
+ *
+ * ⚠️ PAIEMENT EN MOCK. Le parcours est COMPLET — depot, creation du paiement,
+ * confirmation, etat PAYEE — mais aucun argent ne circule. C'est voulu : on
+ * eprouve la chaine entiere avant d'y mettre un centime. Le passage au reel
+ * demande la cle Payplug, que Baptiste pose cote serveur.
+ *
+ * ⚠️ LE PRIX ENVOYE D'ICI N'EST PAS UNE AUTORITE. Le serveur l'enregistre
+ * comme « annonce », c'est-a-dire ce que le client dit avoir vu. Il ne peut
+ * pas le recalculer sans la geometrie, donc aucun encaissement reel ne doit en
+ * partir sans validation humaine.
+ */
+const CMD = { ref: null, paiement: null };
+
+function baseCommande(){
+  // meme adresse que le rendu : en local le serveur, en ligne le tunnel
+  return (MOTEUR && MOTEUR.base) ? MOTEUR.base.replace(/\/+$/, '') : '';
+}
+
+async function validerCommande(){
+  const etat = $('cmdEtat'), suite = $('cmdSuite');
+  if(!PANIER.lignes.length){ if(etat) etat.textContent = 'panier vide'; return; }
+  if(etat) etat.textContent = 'envoi…';
+  // on n'envoie PAS la vignette : le serveur n'en a pas l'usage et elle
+  // alourdirait la commande de plusieurs kilo-octets par ligne
+  const lignes = PANIER.lignes.map(l => ({
+    nom: l.nom, prix: l.prix, qte: l.qte,
+    hautMm: l.hautMm, diaMm: l.diaMm, matiere: l.matiere, config: l.config,
+  }));
+  const client = {};
+  const em = $('cmdEmail'); if(em && em.value.trim()) client.email = em.value.trim();
+  try{
+    const r = await fetch(baseCommande() + '/api/commande', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ lignes, client }),
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.msg || j.error || 'refus du serveur');
+    CMD.ref = j.ref;
+    if(etat) etat.textContent = '';
+    if(suite){
+      suite.hidden = false;
+      suite.innerHTML =
+        `<div style="font:600 13.5px var(--font)">Commande ${j.ref}</div>` +
+        `<div style="font:12.5px var(--font);color:var(--dim2);margin-top:4px">` +
+        `Total annoncé ${(j.total_annonce_cents/100).toLocaleString('fr-FR')} € · ` +
+        `note bien cette référence.</div>` +
+        `<div class="row-btn" style="margin-top:10px">` +
+        `<button class="btn pri" id="cmdPayer">Payer</button>` +
+        `<span style="font:12px var(--font);color:var(--amber)">paiement de démonstration, aucun débit</span></div>`;
+      const b = $('cmdPayer'); if(b) b.onclick = payerCommande;
+    }
+  }catch(e){
+    if(etat) etat.textContent = 'échec : ' + e.message;
+  }
+}
+
+async function payerCommande(){
+  const suite = $('cmdSuite');
+  if(!CMD.ref) return;
+  try{
+    const r = await fetch(baseCommande() + '/api/commande/' + CMD.ref + '/payer', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ retour: location.href.split('?')[0] }),
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.msg || j.error || 'refus');
+    CMD.paiement = j.paiement;
+    /* En mock, la banque est absente : c'est ce bouton qui joue son role.
+     * Avec Payplug il disparaitra — seule la notification, RE-INTERROGEE
+     * aupres du fournisseur, pourra confirmer un paiement. Le serveur refuse
+     * deja cette route des qu'un vrai fournisseur est configure. */
+    suite.innerHTML +=
+      `<div style="margin-top:10px;font:12.5px var(--font);color:var(--dim2)">` +
+      `Paiement ${j.paiement.id} créé (${j.paiement.fournisseur}).</div>` +
+      `<div class="row-btn" style="margin-top:8px">` +
+      `<button class="btn pri" id="cmdConfirmer">Confirmer le paiement (démonstration)</button></div>`;
+    const b = $('cmdConfirmer'); if(b) b.onclick = confirmerCommande;
+  }catch(e){
+    if(suite) suite.innerHTML += `<div style="color:var(--mauvais);font:12.5px var(--font);margin-top:8px">échec : ${e.message}</div>`;
+  }
+}
+
+async function confirmerCommande(){
+  const suite = $('cmdSuite');
+  try{
+    const r = await fetch(baseCommande() + '/api/commande/' + CMD.ref + '/confirmer', {
+      method: 'POST', headers: {'Content-Type': 'application/json'}, body: '{}',
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.msg || j.error || 'refus');
+    suite.innerHTML =
+      `<div style="font:700 14px var(--font);color:var(--bon)">Commande ${CMD.ref} — payée</div>` +
+      `<div style="font:12.5px var(--font);color:var(--dim2);margin-top:6px">` +
+      `Paiement de démonstration : aucun montant n'a été débité. Le panier est conservé ` +
+      `tant que tu ne le vides pas.</div>`;
+  }catch(e){
+    if(suite) suite.innerHTML += `<div style="color:var(--mauvais);font:12.5px var(--font);margin-top:8px">échec : ${e.message}</div>`;
+  }
+}
+
 /* ══ PANIER ═══════════════════════════════════════════════════════════════
  * ⚠️ UNE LIGNE FIGE SES CHIFFRES. Prix, cotes et image sont captures a la
  * mise au panier, jamais recalcules a l'affichage : sinon continuer a
@@ -7766,6 +7880,7 @@ chargerPanier();
 organiserEnEtapes();
 { const b=$('ajoutPanier'); if(b) b.onclick = ajouterAuPanier;
   const o=$('panierAutre'); if(o) o.onclick = ()=> allerEtape(0);
+  const c=$('cmdValider'); if(c) c.onclick = validerCommande;
   const v=$('panierVider'); if(v) v.onclick = ()=>{
     if(PANIER.lignes.length && confirm('Vider le panier ?')){ PANIER.lignes = []; enregistrerPanier(); renderPanier(); } }; }
 renderPanier();
