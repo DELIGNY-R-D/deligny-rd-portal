@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-Sn7I/sFsUnhgAUibeomGgrkfowMsZMtyLN14wk/gNC8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-lLkEzfdX6mcApRKdbJaUQvToqxYdFkzMhVfbtIl21IA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -789,6 +789,55 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       <label for="cmdEmail">Email pour le suivi de commande</label>
       <input id="cmdEmail" type="email" placeholder="toi@exemple.fr" autocomplete="email">
     </div>
+    <div style="font:600 12.5px var(--font);color:var(--dim2);margin-top:14px;
+                text-transform:uppercase;letter-spacing:.06em">Adresse de livraison</div>
+    <div class="field" style="margin-top:8px">
+      <label for="cmdNom">Nom et prénom</label>
+      <input id="cmdNom" type="text" autocomplete="name">
+    </div>
+    <div class="field" style="margin-top:8px">
+      <label for="cmdAdresse">Adresse</label>
+      <input id="cmdAdresse" type="text" autocomplete="address-line1">
+    </div>
+    <div class="field" style="margin-top:8px">
+      <label for="cmdComplement">Complément (étage, bâtiment)</label>
+      <input id="cmdComplement" type="text" autocomplete="address-line2">
+    </div>
+    <div class="grid" style="grid-template-columns:1fr 2fr;gap:10px;margin-top:8px">
+      <div class="field">
+        <label for="cmdCp">Code postal</label>
+        <input id="cmdCp" type="text" inputmode="numeric" autocomplete="postal-code">
+      </div>
+      <div class="field">
+        <label for="cmdVille">Ville</label>
+        <input id="cmdVille" type="text" autocomplete="address-level2">
+      </div>
+    </div>
+    <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+      <div class="field">
+        <label for="cmdPays">Pays</label>
+        <select id="cmdPays">
+          <option value="FR" selected>France</option>
+          <option value="BE">Belgique</option>
+          <option value="CH">Suisse</option>
+          <option value="LU">Luxembourg</option>
+          <option value="DE">Allemagne</option>
+          <option value="ES">Espagne</option>
+          <option value="IT">Italie</option>
+          <option value="GB">Royaume-Uni</option>
+          <!-- ⚠️ « ZZ » et non « AUTRE » : zone_de() ne lit que les DEUX premieres
+               lettres, et « AUTRE » donnait « AU », c'est-a-dire l'Australie. Ca
+               tombait juste par accident, la zone monde etant la meme. ZZ n'est
+               attribue a aucun pays (ISO 3166-1, plage libre). -->
+          <option value="ZZ">Autre pays</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="cmdTel">Téléphone (livraison)</label>
+        <input id="cmdTel" type="tel" autocomplete="tel">
+      </div>
+    </div>
+    <div id="cmdPort" class="hint" style="margin-top:10px"></div>
     <div class="row-btn" style="margin-top:10px">
       <button class="btn pri" id="cmdValider">Valider la commande</button>
       <span id="cmdEtat" style="font:12.5px var(--font);color:var(--dim2)"></span>
@@ -6808,9 +6857,23 @@ async function validerCommande(){
   const lignes = PANIER.lignes.map(l => ({
     nom: l.nom, prix: l.prix, qte: l.qte,
     hautMm: l.hautMm, diaMm: l.diaMm, matiere: l.matiere, config: l.config,
+    // le POIDS sert au calcul du port, fait cote serveur : on declare, on ne tarife pas
+    massG: l.massG,
   }));
   const client = {};
-  const em = $('cmdEmail'); if(em && em.value.trim()) client.email = em.value.trim();
+  const champ = (id, cle) => { const e = $(id); if(e && e.value.trim()) client[cle] = e.value.trim(); };
+  champ('cmdEmail','email'); champ('cmdNom','nom'); champ('cmdAdresse','adresse');
+  champ('cmdComplement','complement'); champ('cmdCp','cp'); champ('cmdVille','ville');
+  champ('cmdTel','tel');
+  const ps = $('cmdPays'); if(ps) client.pays = ps.value;
+  /* ⚠️ On exige une adresse AVANT de deposer. Une commande sans adresse est une
+   * commande qu'on ne peut pas livrer : mieux vaut le dire ici que le
+   * decouvrir apres encaissement. */
+  const manque = ['nom','adresse','cp','ville'].filter(k => !client[k]);
+  if(manque.length || !client.email){
+    if(etat) etat.textContent = 'il manque : ' + (client.email ? '' : 'email, ') + manque.join(', ');
+    return;
+  }
   try{
     const r = await fetch(baseCommande() + '/api/commande', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -6825,8 +6888,12 @@ async function validerCommande(){
       suite.innerHTML =
         `<div style="font:600 13.5px var(--font)">Commande ${j.ref}</div>` +
         `<div style="font:12.5px var(--font);color:var(--dim2);margin-top:4px">` +
-        `Total annoncé ${(j.total_annonce_cents/100).toLocaleString('fr-FR')} € · ` +
-        `note bien cette référence.</div>` +
+        `Articles ${(j.total_annonce_cents/100).toLocaleString('fr-FR')} € · ` +
+        (j.port_ok
+          ? `port ${(j.port_cents/100).toLocaleString('fr-FR')} € · ` +
+            `<b>à payer ${(j.total_a_payer_cents/100).toLocaleString('fr-FR')} €</b>`
+          : `<b style="color:var(--amber)">port : ${j.port_note}</b>`) +
+        ` · note bien cette référence.</div>` +
         `<div class="row-btn" style="margin-top:10px">` +
         `<button class="btn pri" id="cmdPayer">Payer</button>` +
         `<span style="font:12px var(--font);color:var(--amber)">paiement de démonstration, aucun débit</span></div>`;
@@ -6969,6 +7036,7 @@ function ajouterAuPanier(){
     matiere: MATERIALS[state.material] || state.material,
     couleur: (typeof bodyColor === 'function' ? bodyColor(0) : ''),
     nPieces: s.nParts || 1,
+    massG: Math.round(s.massG || 0),
     qte: 1,
     vignette: vignetteCourante(),
     config: JSON.parse(JSON.stringify(state)),
