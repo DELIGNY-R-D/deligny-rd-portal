@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-ckBTnZKaZqaokTTKbjmhJLSppBSV4jsMYIKYzVO85io='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-blfQ0SChRMCxv/K+wrB/hs+JD5zarDkQfE2Ih5CLtko='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -7073,14 +7073,76 @@ async function validerCommande(){
             `<b>à payer ${(j.total_a_payer_cents/100).toLocaleString('fr-FR')} €</b>`
           : `<b style="color:var(--amber)">port : ${j.port_note}</b>`) +
         ` · note bien cette référence.</div>` +
+        `<div id="cmdPiece" style="font:12.5px var(--font);color:var(--dim2);margin-top:6px"></div>` +
         `<div class="row-btn" style="margin-top:10px">` +
         `<button class="btn pri" id="cmdPayer">Payer</button>` +
         `<span style="font:12px var(--font);color:var(--amber)">paiement de démonstration, aucun débit</span></div>`;
       const b = $('cmdPayer'); if(b) b.onclick = payerCommande;
+      joindrePieces();          // en tache de fond : le paiement n'attend pas le fichier
     }
   }catch(e){
     if(etat) etat.textContent = 'échec : ' + e.message;
   }
+}
+
+/* ══ PIECE A IMPRIMER JOINTE A LA COMMANDE ════════════════════════════════
+ * ⚠️ C'EST LE MAILLAGE D'EXPORT, pas celui de l'apercu. MESH.parts est
+ * construit en mode 'export' : la bague y est FUSIONNEE avec l'abat-jour,
+ * c'est-a-dire la piece telle qu'elle sort de la machine. L'apercu, lui,
+ * porte un substitut de bague ; l'envoyer donnerait un fichier joli et
+ * infabricable.
+ *
+ * ⚠️ ON ENVOIE APRES LE DEPOT, PAS AVANT. Une piece sans commande n'a pas de
+ * nom, et un echec d'envoi ne doit pas faire perdre la commande : elle existe
+ * deja, la piece se rattache ensuite.
+ */
+async function joindrePieces(){
+  const suite = $('cmdSuite');
+  if(!CMD.ref || !MESH.parts || !MESH.parts.length) return;
+  const dire = t => { const e = $('cmdPiece'); if(e) e.textContent = t; };
+  const n = MESH.parts.length;
+  let envoyees = 0, octets = 0;
+  for(let i = 0; i < n; i++){
+    const p = MESH.parts[i];
+    dire(`préparation de la pièce ${i+1} sur ${n}…`);
+    let b64;
+    try{
+      /* meme chemin que le bouton d'export : la piece jointe et le fichier
+       * telecharge sont le MEME objet, on ne fabrique pas deux verites */
+      const avecBase = BASE_KIT.etat === 'ok' && baseKitUtile()
+                    && p.body === socketEndBodyIdx() && p.index === 0;
+      const buf = trianglesToSTLBinaryAvecBase(p.tris, `${state.type}-${p.label}`, avecBase);
+      const oct = new Uint8Array(buf);
+      let bin = '';
+      for(let k = 0; k < oct.length; k += 8192)
+        bin += String.fromCharCode.apply(null, oct.subarray(k, k + 8192));
+      b64 = btoa(bin);
+    }catch(e){ dire('pièce non préparée : ' + e.message); return; }
+
+    /* La passerelle refuse au-dela de 48 Mo. On le DIT avant d'essayer :
+     * un 413 muet laisserait croire que la piece est partie. */
+    if(b64.length > 44 * 1024 * 1024){
+      dire(`pièce ${i+1} trop lourde (${(b64.length/1048576).toFixed(0)} Mo) : ` +
+           `baisse la finesse d'export, ou envoie-la à part.`);
+      return;
+    }
+    dire(`envoi de la pièce ${i+1} sur ${n} (${(b64.length*0.75/1048576).toFixed(1)} Mo)…`);
+    try{
+      const r = await fetch(baseCommande() + '/api/commande/' + CMD.ref + '/piece', {
+        method: 'POST', headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ nom: `${state.type}-${i+1}sur${n}`, stl_b64: b64 }),
+      });
+      const j = await r.json();
+      if(!j.ok) throw new Error(j.msg || j.error || 'refus');
+      envoyees++; octets += j.octets;
+    }catch(e){
+      dire(`pièce ${i+1} non transmise : ${e.message}. La commande ${CMD.ref} existe, ` +
+           `la pièce peut être renvoyée.`);
+      return;
+    }
+  }
+  dire(`${envoyees} pièce${envoyees>1?'s':''} à imprimer jointe${envoyees>1?'s':''} ` +
+       `(${(octets/1048576).toFixed(1)} Mo) — abat-jour et bague fusionnés.`);
 }
 
 async function payerCommande(){
