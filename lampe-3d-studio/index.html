@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-blfQ0SChRMCxv/K+wrB/hs+JD5zarDkQfE2Ih5CLtko='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-oXThr00h2WTQ/lvL5PyoitvVgriQaLkDij8QPv8ILbc='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -863,6 +863,26 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       <span id="cmdEtat" style="font:12.5px var(--font);color:var(--dim2)"></span>
     </div>
     <div id="cmdSuite" hidden style="margin-top:12px;padding:12px;border:1px solid var(--sep);border-radius:12px;background:var(--card2)"></div>
+    <div style="margin-top:16px;padding-top:14px;border-top:1px solid var(--sep)">
+      <div style="font:600 12.5px var(--font);color:var(--dim2);text-transform:uppercase;
+                  letter-spacing:.06em">Retrouver une commande</div>
+      <div class="hint" style="margin-top:6px">La référence seule ne suffit pas : elle est
+      courte, donc devinable. L'email qui a servi à commander est demandé avec elle.</div>
+      <div class="grid" style="grid-template-columns:1fr 1fr;gap:10px;margin-top:8px">
+        <div class="field">
+          <label for="suiviRef">Référence</label>
+          <input id="suiviRef" type="text" placeholder="DL-260817-ABCD" autocomplete="off">
+        </div>
+        <div class="field">
+          <label for="suiviEmail">Email de la commande</label>
+          <input id="suiviEmail" type="email" autocomplete="email">
+        </div>
+      </div>
+      <div class="row-btn" style="margin-top:8px">
+        <button class="btn" id="suiviChercher">Afficher ma commande</button>
+      </div>
+      <div id="suiviResultat" style="margin-top:10px"></div>
+    </div>
     <div class="hint" style="margin-top:10px">Images et montants <b>non contractuels</b> :
     le rendu est un calcul, la pièce est imprimée. Aucun paiement n'est effectué sur cette page.</div>
   </div>
@@ -7085,6 +7105,50 @@ async function validerCommande(){
   }
 }
 
+
+/* ══ SUIVI DE COMMANDE ════════════════════════════════════════════════════
+ * ⚠️ REFERENCE + EMAIL, jamais la reference seule. Le suffixe fait quatre
+ * caracteres sur un alphabet de trente : 810 000 possibilites pour une date
+ * donnee, donc enumerable, et la commande porte une ADRESSE POSTALE. Le
+ * serveur repond la meme chose pour « reference inconnue » et « email qui ne
+ * correspond pas », sinon un curieux apprendrait quelles references existent.
+ */
+async function chercherCommande(){
+  const zone = $('suiviResultat');
+  const ref = ($('suiviRef') || {}).value ? $('suiviRef').value.trim().toUpperCase() : '';
+  const email = ($('suiviEmail') || {}).value ? $('suiviEmail').value.trim() : '';
+  if(!ref || !email){ zone.innerHTML = '<div class="hint">référence et email sont demandés.</div>'; return; }
+  zone.innerHTML = '<div class="hint">recherche…</div>';
+  try{
+    const r = await fetch(baseCommande() + '/api/commande/' + encodeURIComponent(ref) + '/suivi', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email }),
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.msg || 'aucune commande avec cette référence et cet email');
+    const eur = c => (c/100).toLocaleString('fr-FR') + ' €';
+    const etats = { DEPOSEE:'déposée, en attente de paiement', EN_PAIEMENT:'paiement en cours',
+                    PAYEE:'payée', ANNULEE:'annulée' };
+    zone.innerHTML =
+      `<div style="padding:12px;border:1px solid var(--sep);border-radius:12px;background:var(--card2)">` +
+      `<div style="font:700 14px var(--font)">${j.ref} — ${etats[j.etat] || j.etat}</div>` +
+      `<div style="font:12.5px var(--font);color:var(--dim2);margin-top:6px">` +
+      `déposée le ${new Date(j.cree_a*1000).toLocaleDateString('fr-FR')}</div>` +
+      j.lignes.map(l => `<div style="font:12.5px var(--font);margin-top:8px">` +
+        `${l.qte} × ${l.nom} — ${l.haut_mm} mm de haut, Ø${l.dia_mm} mm<br>` +
+        `<span style="color:var(--dim2)">${l.matiere}</span></div>`).join('') +
+      `<div style="font:12.5px var(--font);margin-top:10px">Articles ${eur(j.total_annonce_cents)} · ` +
+      `port ${eur(j.port_cents)}<br><b>Total ${eur(j.total_a_payer_cents)}</b></div>` +
+      (j.pieces && j.pieces.length
+        ? `<div style="font:12px var(--font);color:var(--dim2);margin-top:8px">` +
+          `${j.pieces.length} fichier${j.pieces.length>1?'s':''} de fabrication joint` +
+          `${j.pieces.length>1?'s':''} à la commande.</div>` : '') +
+      `</div>`;
+  }catch(e){
+    zone.innerHTML = `<div class="hint" style="color:var(--amber)">${e.message}</div>`;
+  }
+}
+
 /* ══ PIECE A IMPRIMER JOINTE A LA COMMANDE ════════════════════════════════
  * ⚠️ C'EST LE MAILLAGE D'EXPORT, pas celui de l'apercu. MESH.parts est
  * construit en mode 'export' : la bague y est FUSIONNEE avec l'abat-jour,
@@ -8189,6 +8253,7 @@ chargerPanier();
 organiserEnEtapes();
 { const b=$('ajoutPanier'); if(b) b.onclick = ajouterAuPanier;
   const o=$('panierAutre'); if(o) o.onclick = ()=> allerEtape(0);
+  const sc=$('suiviChercher'); if(sc) sc.onclick = chercherCommande;
   const c=$('cmdValider'); if(c) c.onclick = validerCommande;
   const v=$('panierVider'); if(v) v.onclick = ()=>{
     if(PANIER.lignes.length && confirm('Vider le panier ?')){ PANIER.lignes = []; enregistrerPanier(); renderPanier(); } }; }
