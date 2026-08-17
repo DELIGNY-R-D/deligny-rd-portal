@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-lLkEzfdX6mcApRKdbJaUQvToqxYdFkzMhVfbtIl21IA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-huvERBsjTgqqTO4gnNBfObB4HjVC/4WanSZwr3LOzOY='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -3583,8 +3583,19 @@ function drawProfile(){
 }
 
 let dragIdx=-1;
-function nearestPoint(x,y){
-  let best=-1,bd=14;
+/* Rayon de saisie. 14 px de canevas conviennent a une souris. Au doigt il faut
+ * une cible d'environ 10 mm : on la convertit dans le repere du canevas, qui
+ * est REDUIT a l'affichage sur un telephone (480 px dessines sur ~360). Sans
+ * cette conversion, la cible retrecit avec l'ecran, exactement la ou elle
+ * devrait grandir. */
+function rayonSaisie(tactile){
+  if(!tactile) return 14;
+  const rect = pc.getBoundingClientRect();
+  const echelle = rect.width ? pc.width / rect.width : 1;
+  return Math.max(28, 38 * echelle);
+}
+function nearestPoint(x,y,rayon){
+  let best=-1,bd=(rayon || 14);
   state.profile.forEach((p,i)=>{
     const xr=pMapX(p.r), xl=pAxisX()-(xr-pAxisX());       // le point et son miroir
     const dx=Math.min(Math.abs(xr-x), Math.abs(xl-x)), dy=pMapY(p.h)-y, d=Math.sqrt(dx*dx+dy*dy);
@@ -3643,26 +3654,67 @@ window.addEventListener('mouseup', ()=>{
 // Tactile : même logique que la souris (sélection OU ajout de point) — l'ancienne
 // version renvoyait un MouseEvent sans coordonnées, donc on ne pouvait pas ajouter
 // de point au doigt.
+/* ECART DOIGT-POINT conserve pendant tout le geste : sans lui le point bondit
+ * au centre du contact des la prise, et on le regle ensuite a l'aveugle
+ * puisque le doigt le masque. */
+let tapDep = null, tapEcart = null;
 pc.addEventListener('touchstart', e=>{
   e.preventDefault();
   const {x,y}=canvasPos(e);
-  const idx=nearestPoint(x,y);
-  if(idx>=0){ state.selected=idx; dragIdx=idx; renderAll(); return; }
-  if(x>=PAD.l && x<=pc.width-PAD.r && y>=PAD.t && y<=pc.height-PAD.b){
-    const np={h:pUnmapY(y), r:pUnmapX(x)};
+  const idx=nearestPoint(x, y, rayonSaisie(true));
+  if(idx>=0){
+    state.selected=idx; dragIdx=idx;
+    const p=state.profile[idx];
+    const xr=pMapX(p.r), xl=pAxisX()-(xr-pAxisX());
+    // le trace est miroir : on suit le cote reellement touche
+    const xp = Math.abs(xr-x) <= Math.abs(xl-x) ? xr : xl;
+    tapEcart = { dx: xp - x, dy: pMapY(p.h) - y, miroir: xp !== xr };
+    renderAll(); return;
+  }
+  /* ⚠️ ON N'AJOUTE PLUS RIEN ICI. Un appui qui rate le point tombait « dans le
+   * vide » et creait un point : l'erreur de visee se transformait en degat.
+   * La creation est reportee au relachement, et seulement si l'appui est NET. */
+  tapDep = { x, y };
+}, {passive:false});
+
+pc.addEventListener('touchmove', e=>{ e.preventDefault();
+  if(tapDep){
+    const {x,y}=canvasPos(e);
+    if(Math.hypot(x-tapDep.x, y-tapDep.y) > 8) tapDep = null;   // ce n'est plus un appui net
+  }
+  if(dragIdx<0) return;
+  const {x,y}=canvasPos(e); const p=state.profile[dragIdx];
+  const avant={r:p.r,h:p.h};                       // meme butee qu'a la souris
+  const xv = x + (tapEcart ? tapEcart.dx : 0);
+  const yv = y + (tapEcart ? tapEcart.dy : 0);
+  p.r=pUnmapX(xv); p.h=pUnmapY(yv); clampPoint(p, dragIdx===socketEndIdx());
+  if(angleMiniAutour(state.profile, dragIdx) < ANGLE_MIN_DEG){ p.r=avant.r; p.h=avant.h; }
+  drawProfile(); }, {passive:false});
+
+pc.addEventListener('touchend', ()=>{
+  if(dragIdx>=0){ dragIdx=-1; tapEcart=null; normalizeProfile(); renderAll(); return; }
+  /* Creation au RELACHEMENT, et seulement si l'appui n'a pas bouge ET tombe
+   * loin de tout point : deux fois le rayon de saisie. Entre les deux se
+   * trouve une zone morte, volontaire — c'est la que vivaient les points
+   * crees par accident. */
+  const t = tapDep; tapDep = null;
+  if(!t) return;
+  /* Zone morte MESUREE, pas choisie a l'estime. Elle doit couvrir la visee
+   * ratee sans supprimer la creation. Part du canevas restant libre pour
+   * creer, sur un profil de 5 points : x1,0 -> 46 % · x1,2 -> 35 % ·
+   * x1,4 -> 26 % · x2,0 -> 7 %. A deux fois le rayon il ne restait presque
+   * plus rien, la correction aurait supprime la fonction au lieu de la
+   * reparer. */
+  const r2 = rayonSaisie(true) * 1.2;
+  if(nearestPoint(t.x, t.y, r2) >= 0) return;
+  if(t.x>=PAD.l && t.x<=pc.width-PAD.r && t.y>=PAD.t && t.y<=pc.height-PAD.b){
+    const np={h:pUnmapY(t.y), r:pUnmapX(t.x)};
     state.profile.push(np);
     normalizeProfile();
     state.selected=state.profile.indexOf(np);
     renderAll();
   }
-}, {passive:false});
-pc.addEventListener('touchmove', e=>{ e.preventDefault(); if(dragIdx<0) return;
-  const {x,y}=canvasPos(e); const p=state.profile[dragIdx];
-  const avant={r:p.r,h:p.h};                       // meme butee qu'a la souris
-  p.r=pUnmapX(x); p.h=pUnmapY(y); clampPoint(p, dragIdx===socketEndIdx());
-  if(angleMiniAutour(state.profile, dragIdx) < ANGLE_MIN_DEG){ p.r=avant.r; p.h=avant.h; }
-  drawProfile(); }, {passive:false});
-pc.addEventListener('touchend', ()=>{ if(dragIdx>=0){dragIdx=-1; normalizeProfile(); renderAll();} });
+});
 
 $('addPoint').onclick=()=>{
   const i=state.selected;
