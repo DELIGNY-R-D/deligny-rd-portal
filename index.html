@@ -6,15 +6,15 @@
   <meta name="description" content="DELIGNY R&D : conception produit, logiciel et structure informatique." />
   <title>DELIGNY R&D - Vitrine R&D</title>
   <!--
-    Profil STATIC_FORTRESS (deploy/STATIC_FORTRESS_CHECKLIST.md) — adapte a
+    Profil STATIC_FORTRESS (deploy/STATIC_FORTRESS_CHECKLIST.md) : adapte a
     l'hebergement reel (GitHub Pages). A jour au 10/08 : le domaine est
     proxie par Cloudflare (nameservers bascules le 30/07), qui pose de
-    vrais en-tetes HTTP en periphrie — X-Content-Type-Options,
-    Permissions-Policy, X-Frame-Options — via une Response Header
+    vrais en-tetes HTTP en periphrie : X-Content-Type-Options,
+    Permissions-Policy, X-Frame-Options, via une Response Header
     Transform Rule. Le proxy Cloudflare EST le geste NO GO CloudFlare du
     23/07, leve depuis. La balise CSP ci-dessous reste posee en meta pour
     le navigateur (frame-ancestors/form-action y restent inertes, seul un
-    en-tete les rend actifs — non reproductible ici, GitHub Pages
+    en-tete les rend actifs (non reproductible ici, GitHub Pages
     n'expose aucun en-tete personnalise cote origine).
   -->
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr; frame-src https://atlas-studio.pro; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
@@ -24,7 +24,7 @@
   <link rel="apple-touch-icon" href="img/apple-touch-icon.png" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="DELIGNY R&D" />
-  <meta property="og:title" content="DELIGNY R&D — Vitrine R&D" />
+  <meta property="og:title" content="DELIGNY R&D - Vitrine R&D" />
   <meta property="og:description" content="DELIGNY R&D : conception produit, logiciel et structure informatique." />
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
@@ -126,7 +126,7 @@
         <p class="eyebrow">Logiciels</p>
         <h2>A decouvrir et tester</h2>
       </div>
-      <p class="section-lead">Les logiciels et studios que nous developpons en interne, sans sous-traitance — certains deja utilisables aujourd'hui, d'autres encore en construction.</p>
+      <p class="section-lead">Les logiciels et studios que nous developpons en interne, sans sous-traitance, certains deja utilisables aujourd'hui, d'autres encore en construction.</p>
 
       <div class="tool-widget">
         <div class="tool-widget-head">
@@ -134,7 +134,7 @@
             <h3>Lampe Designer</h3>
             <span class="tag tag-live">Vitrine interactive</span>
           </div>
-          <p>Le vrai moteur de Lampe Designer, integre ici tel quel : dessine le profil, observe la coque reelle en 3D, regarde le rendu studio — sans compte, sans rien installer.</p>
+          <p>Le vrai moteur de Lampe Designer, integre ici tel quel : dessine le profil, observe la coque reelle en 3D, regarde le rendu studio : sans compte, sans rien installer.</p>
         </div>
         <div id="lampe-embed-root">
   <div class="app">
@@ -633,7 +633,7 @@
             <h3>Atlas Studio Pro</h3>
             <span class="tag tag-live">Demo interactive</span>
           </div>
-          <p>Le vrai Bureau Atlas Studio Pro, en direct ci-dessous : ouvre les applications, navigue dans le dock. Environnement de demonstration a donnees fictives — aucun compte requis.</p>
+          <p>Le vrai Bureau Atlas Studio Pro, en direct ci-dessous : ouvre les applications, navigue dans le dock. Environnement de demonstration a donnees fictives : aucun compte requis.</p>
         </div>
         <div class="atlas-embed">
           <iframe src="https://atlas-studio.pro/desktop/desktop.html" title="Demo interactive du Bureau Atlas Studio Pro (donnees fictives)" loading="lazy"></iframe>
@@ -666,7 +666,7 @@
               <h3>NORA</h3>
               <span class="tag tag-lab">Prototype</span>
             </div>
-            <p>Une IA nait dans un atelier vide et apprend a creer son propre univers. Entite narrative et experimentale, monde scelle — garde-fou public : ne pretend pas prouver une conscience reelle.</p>
+            <p>Une IA nait dans un atelier vide et apprend a creer son propre univers. Entite narrative et experimentale, monde scelle, garde-fou public : ne pretend pas prouver une conscience reelle.</p>
             <div class="app-actions">
               <button class="btn btn-small btn-muted" type="button" disabled>Liste d'attente bientot en ligne</button>
             </div>
@@ -698,7 +698,7 @@
               <h3>NODUS</h3>
               <span class="tag tag-live">Verificateur public</span>
             </div>
-            <p>Un certificat d'authenticite signe, verifiable par un simple QR — hors ligne, sans serveur, sans blockchain. Meme si ce site disparait, un certificat imprime reste verifiable.</p>
+            <p>Un certificat d'authenticite signe, verifiable par un simple QR : hors ligne, sans serveur, sans blockchain. Meme si ce site disparait, un certificat imprime reste verifiable.</p>
             <div class="app-actions">
               <a class="btn btn-small" href="nodus/index.html">Verifier un certificat</a>
             </div>
@@ -755,7 +755,7 @@
               <h3>3D Print Checker</h3>
               <span class="tag tag-free">Gratuit</span>
             </div>
-            <p>Depose un fichier STL, OBJ ou 3MF et obtiens ses risques d'impression, son cout et son temps de fabrication — FDM ou resine/cire pour la bijouterie.</p>
+            <p>Depose un fichier STL, OBJ ou 3MF et obtiens ses risques d'impression, son cout et son temps de fabrication : FDM ou resine/cire pour la bijouterie.</p>
             <div class="app-actions">
               <a class="btn btn-small" href="https://deligny-r-d.github.io/print-checker/" target="_blank" rel="noopener">Ouvrir</a>
             </div>
@@ -853,7 +853,7 @@
       <div class="infra-list">
         <div class="infra-row">
           <strong>GAIA</strong>
-          <span>Capteur de donnees du monde reel — meteo, marche, veille — qui alimente les autres systemes DELIGNY.</span>
+          <span>Capteur de donnees du monde reel (meteo, marche, veille) qui alimente les autres systemes DELIGNY.</span>
           <span class="tag tag-lab">Interne</span>
         </div>
         <div class="infra-row">
@@ -884,7 +884,7 @@
         <p class="eyebrow">Conception produit</p>
         <h2>Avant le logiciel, l'objet</h2>
       </div>
-      <p class="section-lead">Horlogerie, mobilier, luminaires, jusqu'a un yacht electrique — un apercu du portfolio, 25 projets concus, testes et pour certains fabriques.</p>
+      <p class="section-lead">Horlogerie, mobilier, luminaires, jusqu'a un yacht electrique, un apercu du portfolio, 25 projets concus, testes et pour certains fabriques.</p>
       <div class="showcase-grid">
         <a class="showcase-card" href="portfolio/Pattern-watch.html">
           <img src="portfolio/img/Pattern-watch/cover.jpg" alt="Pattern watch" loading="lazy" />
@@ -892,7 +892,7 @@
         </a>
         <a class="showcase-card" href="portfolio/Bellows.html">
           <img src="portfolio/img/Bellows/cover.jpg" alt="Bellows, sac orange fait main" loading="lazy" />
-          <span>Bellows — sac fait main</span>
+          <span>Bellows - sac fait main</span>
         </a>
         <a class="showcase-card" href="portfolio/La-Factory.html">
           <img src="portfolio/img/La-Factory/cover.jpg" alt="La Factory" loading="lazy" />
@@ -900,7 +900,7 @@
         </a>
         <a class="showcase-card" href="portfolio/Le-Papillon.html">
           <img src="portfolio/img/Le-Papillon/cover.jpg" alt="Le Papillon, yacht electrique de 24 metres" loading="lazy" />
-          <span>Le Papillon — yacht electrique</span>
+          <span>Le Papillon - yacht electrique</span>
         </a>
         <a class="showcase-card" href="portfolio/K1-Kinetic.html">
           <img src="portfolio/img/K1-Kinetic/cover.jpg" alt="K1 Kinetic" loading="lazy" />
@@ -966,7 +966,7 @@
               <h3>Outils gratuits</h3>
               <span class="tag tag-free">Sans compte</span>
             </div>
-            <p>21 outils gratuits et 100% locaux — verificateur STL, generateur QR, calculateur fiscal... rien n'est envoye a un serveur.</p>
+            <p>21 outils gratuits et 100% locaux : verificateur STL, generateur QR, calculateur fiscal... rien n'est envoye a un serveur.</p>
             <div class="app-actions">
               <a class="btn btn-small" href="#outils">Voir les outils gratuits</a>
             </div>
@@ -978,7 +978,7 @@
     <section class="section" id="outils">
       <div class="section-head">
         <p class="eyebrow">Outils gratuits</p>
-        <h2>21 outils gratuits, sans compte — + Office Studio (compte Atlas requis)</h2>
+        <h2>21 outils gratuits, sans compte, + Office Studio (compte Atlas requis)</h2>
       </div>
       <div class="app-grid">
         <article class="app-card">
@@ -988,7 +988,7 @@
               <h3>Cube Violet</h3>
               <span class="tag tag-free">Gratuit</span>
             </div>
-            <p>Resout : suivre la veille design sans y passer ses journees. Petits fabricants innovants, matieres sobres en energie, processus de conception et de fabrication, esthetique — par Cristabel Petipa.</p>
+            <p>Resout : suivre la veille design sans y passer ses journees. Petits fabricants innovants, matieres sobres en energie, processus de conception et de fabrication, esthetique, par Cristabel Petipa.</p>
             <div class="app-actions">
               <a class="btn btn-small" href="cube-violet.html">Ouvrir</a>
               <span>Deja en ligne, sans compte.</span>
@@ -1003,10 +1003,10 @@
               <h3>3D Print Checker</h3>
               <span class="tag tag-free">Gratuit</span>
             </div>
-            <p>Resout : eviter une impression 3D ratee. Depose un STL/OBJ/3MF/GLTF..., obtiens risques, cout et temps — FDM ou resine/cire pour la bijouterie (casting).</p>
+            <p>Resout : eviter une impression 3D ratee. Depose un STL/OBJ/3MF/GLTF..., obtiens risques, cout et temps : FDM ou resine/cire pour la bijouterie (casting).</p>
             <div class="app-actions">
               <a class="btn btn-small" href="https://deligny-r-d.github.io/print-checker/" target="_blank" rel="noopener">Ouvrir</a>
-              <span>Deja en ligne — le seul outil publie a ce jour.</span>
+              <span>Deja en ligne : le seul outil publie a ce jour.</span>
             </div>
           </div>
         </article>
@@ -1138,7 +1138,7 @@
               <h3>Crypto Key Toolkit</h3>
               <span class="tag tag-free">Gratuit</span>
             </div>
-            <p>Resout : generer une paire de cles SSH (Ed25519/RSA) ou PGP directement dans le navigateur — aucune cle transmise.</p>
+            <p>Resout : generer une paire de cles SSH (Ed25519/RSA) ou PGP directement dans le navigateur : aucune cle transmise.</p>
             <div class="app-actions">
               <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
               <span>Web Crypto native + openpgp.js.</span>
@@ -1261,7 +1261,7 @@
             <p>Resout : simuler l'impot sur des plus-values crypto (methode fraction de capital, art. 150 VH bis) avant declaration.</p>
             <div class="app-actions">
               <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
-              <span>Simulateur, pas declarant — validation humaine obligatoire.</span>
+              <span>Simulateur, pas declarant : validation humaine obligatoire.</span>
             </div>
           </div>
         </article>
@@ -1308,12 +1308,12 @@
             <p>Resout : editer un tableur ou un document sans Word/Excel ni logiciel tiers. Export reel .xlsx/.docx/.pptx ; tableur mono-feuille pour l'instant.</p>
             <div class="app-actions">
               <a class="btn btn-small" href="https://atlas-studio.pro">Ouvrir</a>
-              <span>Relie a <a href="https://atlas-studio.pro">Atlas Studio Pro</a> — Bureautique, une fois connecte.</span>
+              <span>Relie a <a href="https://atlas-studio.pro">Atlas Studio Pro</a> : Bureautique, une fois connecte.</span>
             </div>
           </div>
         </article>
       </div>
-      <p class="section-note">Aucun de ces outils ne demande de compte ni de paiement, sauf Office Studio (compte Atlas Studio Pro requis) et les paliers HD/commercial du Pochoir Convertisseur (bientot disponibles). 100% local pour tous les autres — rien n'est envoye a un serveur.</p>
+      <p class="section-note">Aucun de ces outils ne demande de compte ni de paiement, sauf Office Studio (compte Atlas Studio Pro requis) et les paliers HD/commercial du Pochoir Convertisseur (bientot disponibles). 100% local pour tous les autres : rien n'est envoye a un serveur.</p>
     </section>
 
     <section class="section" id="offre">
@@ -1407,7 +1407,7 @@
             <p>
               RUBY orchestre des agents specialises (routage multi-modeles, missions
               programmees, boucle de veille) pour automatiser des taches metier
-              repetitives. Assiste et supervise humainement — pas une IA autonome.
+              repetitives. Assiste et supervise humainement : pas une IA autonome.
             </p>
             <div class="app-actions">
               <a class="btn btn-small btn-muted" href="mailto:contact@deligny-rd.fr?subject=Etude%20de%20cas%20Agent%20AI">Demander un devis</a>
@@ -1465,8 +1465,8 @@
       <figcaption>231 Rue Saint-Honoré, 75001 Paris</figcaption>
     </figure>
     <div class="footer-legal">
-      DELIGNY R&D — SAS au capital de 1 000 € — SIREN 107 503 807 — RCS Paris —
-      231 Rue Saint-Honoré, 75001 Paris —
+      DELIGNY R&D, SAS au capital de 1 000 €, SIREN 107 503 807, RCS Paris,
+      231 Rue Saint-Honoré, 75001 Paris ·
       <a href="https://atlas-studio.pro/mentions-legales.html" target="_blank" rel="noopener">Mentions legales</a> ·
       <a href="https://atlas-studio.pro/conditions-generales-vente.html" target="_blank" rel="noopener">CGV</a> ·
       <a href="https://atlas-studio.pro/confidentialite.html" target="_blank" rel="noopener">Confidentialite</a> ·

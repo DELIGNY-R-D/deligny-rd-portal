@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Revendiquer une œuvre — Deligny R&amp;D</title>
+<title>Revendiquer une œuvre - Deligny R&amp;D</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -42,7 +42,7 @@
 <div class="card">
   <p class="note">Tu as scanné le <b>jeton de propriété</b> imprimé sur l'étiquette de l'œuvre.
   Ce jeton est à <b>usage unique</b> : il atteste que tu détiens physiquement la pièce.
-  Renseigne le pseudonyme sous lequel tu veux figurer au registre et ton pays — la traçabilité
+  Renseigne le pseudonyme sous lequel tu veux figurer au registre et ton pays : la traçabilité
   de la provenance n'exige rien d'autre, ni nom réel, ni adresse.</p>
   <div id="oeuvre" class="note" style="margin-top:10px"></div>
   <label>Pseudonyme public</label><input id="pseudo" maxlength="40" placeholder="ex : Collectionneur78">
@@ -50,7 +50,7 @@
   <button id="go">REVENDIQUER</button>
   <div class="msg" id="msg"></div>
   <p class="note" style="margin-top:14px">La revendication est contresignée par l'artiste avant d'être
-  inscrite au certificat. Tu recevras ensuite un lien d'espace propriétaire — conserve-le : c'est
+  inscrite au certificat. Tu recevras ensuite un lien d'espace propriétaire ; conserve-le : c'est
   lui qui te permettra de confirmer ta possession ou de céder l'œuvre.</p>
 </div>
 
@@ -80,7 +80,7 @@ $("go").onclick = async () => {
   $("go").disabled = true;
   try {
     const d = await post("/claim", { token: t, pseudo: $("pseudo").value, pays: $("pays").value });
-    say($("msg"), "<b>" + esc(d.titre) + "</b> — " + esc(d.message), true);
+    say($("msg"), "<b>" + esc(d.titre) + "</b> - " + esc(d.message), true);
     $("go").style.display = "none";
   } catch (e) { say($("msg"), esc(e.message), false); $("go").disabled = false; }
 };

@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Espace propriétaire — Deligny R&amp;D</title>
+<title>Espace propriétaire - Deligny R&amp;D</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -72,7 +72,7 @@ async function charger() {
         <div class="titre">${esc(o.titre)}</div>
         <div class="mono">${esc(o.id)}</div>
         <p class="note" style="margin-top:8px">
-          Propriétaire déclaré : <b>${esc(o.proprietaire_pseudo || "—")}</b> (${esc(o.proprietaire_pays || "—")})<br>
+          Propriétaire déclaré : <b>${esc(o.proprietaire_pseudo || "-")}</b> (${esc(o.proprietaire_pays || "-")})<br>
           Possession confirmée le : ${esc(o.possession_confirmee_le || "jamais")}<br>
           Vérifications du certificat : <b>${o.scans_uniques}</b>
         </p>

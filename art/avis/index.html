@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Avis & idées — Deligny R&amp;D</title>
+<title>Avis & idées - Deligny R&amp;D</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -42,10 +42,10 @@
 <h2>Laisser un avis</h2>
 <div class="card">
   <p class="note">Sur une œuvre précise ou sur le travail de l'atelier. Publié après relecture.</p>
-  <label>Œuvre (facultatif)</label><select id="oeuvre"><option value="">— sur le travail en général —</option></select>
+  <label>Œuvre (facultatif)</label><select id="oeuvre"><option value="">(sur le travail en général)</option></select>
   <label>Pseudonyme</label><input id="pseudo" maxlength="40">
   <label>Pays (facultatif)</label><input id="pays" maxlength="40">
-  <label>Note</label><select id="note"><option value="5">5 — remarquable</option><option value="4">4</option>
+  <label>Note</label><select id="note"><option value="5">5 - remarquable</option><option value="4">4</option>
     <option value="3">3</option><option value="2">2</option><option value="1">1</option>
     <option value="0">sans note</option></select>
   <label>Ton avis</label><textarea id="texte" maxlength="1200"></textarea>
@@ -91,7 +91,7 @@ async function charger() {
   try {
     const o = await get("/public/oeuvres");
     $("oeuvre").innerHTML += (o.oeuvres || []).map(x =>
-      `<option value="${esc(x.id)}">${esc(x.id)} — ${esc(x.titre)}</option>`).join("");
+      `<option value="${esc(x.id)}">${esc(x.id)} - ${esc(x.titre)}</option>`).join("");
     const d = await get("/public/avis");
     $("liste").innerHTML = (d.avis || []).length ? (d.avis.map(a => `<div class="card">
       <b>${esc(a.pseudo)}</b> ${a.pays ? '<span class="note">(' + esc(a.pays) + ')</span>' : ""}

@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Espace d'échange — Deligny R&amp;D</title>
+<title>Espace d'échange - Deligny R&amp;D</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -38,10 +38,10 @@
 </style></head><body>
 <div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
 
-<h1>DELIGNY R&amp;D<small>ŒUVRES À CÉDER — ENTRE COLLECTIONNEURS</small></h1>
+<h1>DELIGNY R&amp;D<small>ŒUVRES À CÉDER - ENTRE COLLECTIONNEURS</small></h1>
 <p class="note">Ces œuvres sont proposées par leurs propriétaires actuels. <b>Aucun paiement ne transite
 par cette plateforme</b> : tu adresses une offre, le propriétaire te répond, la transaction se fait
-directement entre vous, puis la cession est déclarée et contresignée — la provenance reste continue.</p>
+directement entre vous, puis la cession est déclarée et contresignée : la provenance reste continue.</p>
 <div id="liste"><p class="note">Chargement…</p></div>
 <h2>Faire une offre</h2>
 <div class="card">
@@ -85,13 +85,13 @@ async function charger() {
         <div class="titre" style="font-size:19px">${esc(o.titre)}</div>
         <div class="mono">${esc(o.id)}</div>
         <p class="note">${esc(o.artiste)} · ${esc(o.date_creation)}<br>
-        Propriétaire : ${esc(o.proprietaire_pseudo || "—")} (${esc(o.proprietaire_pays || "—")})<br>
+        Propriétaire : ${esc(o.proprietaire_pseudo || "-")} (${esc(o.proprietaire_pays || "-")})<br>
         <span class="pill">${esc(o.prix || "prix sur demande")}</span>
         <span class="pill">${o.scans_uniques} vérif.</span></p>
         <a href="../verify/${esc(o.id)}/">certificat →</a>
       </div>`).join("") + "</div>"
       : '<p class="note">Aucune œuvre proposée à la cession pour l\'instant.</p>';
-    $("oeuvre").innerHTML = dispo.map(o => `<option value="${esc(o.id)}">${esc(o.id)} — ${esc(o.titre)}</option>`).join("");
+    $("oeuvre").innerHTML = dispo.map(o => `<option value="${esc(o.id)}">${esc(o.id)} - ${esc(o.titre)}</option>`).join("");
   } catch (e) { $("liste").innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
 }
 $("go").onclick = async () => {
