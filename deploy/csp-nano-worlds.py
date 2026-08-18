@@ -1,68 +1,60 @@
 #!/usr/bin/env python3
-"""Pose (et tient à jour) la CSP de nano-worlds/index.html.
+"""Pose la CSP de nano-worlds/index.html et la maintient a jour (idempotent,
+comme les autres scripts de deploy/ : le hook pre-commit peut le relancer
+sans effet si rien n'a change).
 
-Même besoin que csp-studio.py (le moteur est un <script> en ligne, une CSP
-écrite à la main se périmerait en silence à la première modification), mais
-une forme différente : ce jeu importe Three.js et cannon-es depuis un CDN via
-importmap, donc script-src-elem doit autoriser ces origines EN PLUS des deux
-empreintes (importmap + module). Les boutons du panneau utilisent des
-attributs onclick="..." (des dizaines) : réécrire chacun en addEventListener
-serait un chantier séparé sur du code qui n'est pas d'ici, donc
-script-src-attr reste 'unsafe-inline', comme style-src-attr sur le Lamp
-Studio.
+Pas d'empreintes sha256 ici, contrairement a csp-studio.py. Verifie en reel
+(18/08) : la CSP spec IGNORE totalement 'unsafe-inline' des qu'une empreinte
+est presente dans la meme directive -- or ce moteur cree aussi, a
+l'execution, des <style> dont le contenu varie (HUD, effets) et des scripts
+de module via blob: (es-module-shims) : aucun des deux n'est empreintable a
+l'avance. 'unsafe-inline' seul (sans empreinte) est le seul reglage qui
+laisse les DEUX fonctionner. Le panneau utilise deja des dizaines
+d'attributs onclick="..." en script-src-attr 'unsafe-inline' -- meme niveau
+de confiance pour le contenu de <script>/<style>, sur du code qui n'est pas
+d'ici.
+
+Three.js/cannon-es/rapier sont vendorises localement (vendor/), aucune
+origine externe requise pour le moteur -- seul connect-src autorise l'API
+OpenAI, pour le compagnon IA optionnel (BYOK, cle saisie par l'utilisateur
+et gardee en localStorage, jamais dans le code), et l'hote du beacon
+(mesure d'audience + fetch optionnel d'un profil IA entraine).
 
 Usage : python3 deploy/csp-nano-worlds.py [--check]
   --check : ne modifie rien, sort en code 1 si la CSP est absente ou périmée.
 """
-import base64
-import hashlib
 import os
 import re
 import sys
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PAGE = "nano-worlds/index.html"
-CDN_ORIGINS = "https://cdn.jsdelivr.net https://esm.sh"
-# Meme hote que inject-beacon.py (mesure d'audience) -- baked ici directement
-# (pas ajoute apres coup) pour que les deux scripts restent idempotents quel
-# que soit l'ordre d'execution, comme csp-studio.py le fait deja.
+OPENAI_ORIGIN = "https://api.openai.com"
+# Meme hote que inject-beacon.py -- coherent avec son ajout a img-src.
 BEACON_HOST = "https://atlas-studio.pro"
 
+CSP = ("default-src 'none'; "
+       "base-uri 'none'; "
+       "frame-ancestors 'none'; "
+       "form-action 'none'; "
+       f"img-src 'self' data: {BEACON_HOST}; "
+       "style-src-elem 'unsafe-inline'; "
+       "style-src-attr 'unsafe-inline'; "
+       "script-src-elem 'self' blob: 'unsafe-inline'; "
+       "script-src-attr 'unsafe-inline'; "
+       f"connect-src 'self' {OPENAI_ORIGIN} {BEACON_HOST}")
+
 BALISE = re.compile(r'\s*<meta http-equiv="Content-Security-Policy"[^>]*>')
-
-
-def empreinte(contenu: str) -> str:
-    return "sha256-" + base64.b64encode(
-        hashlib.sha256(contenu.encode("utf-8")).digest()).decode("ascii")
-
-
-def blocs(html: str, balise: str) -> list[str]:
-    """Contenu EXACT de chaque <balise ...>...</balise> -- c'est sur ces
-    octets-là que le navigateur calcule l'empreinte."""
-    return re.findall(r"<%s[^>]*>(.*?)</%s>" % (balise, balise), html, re.S)
-
-
-def csp_pour(html: str) -> str:
-    style_hash = " ".join("'%s'" % empreinte(s) for s in blocs(html, "style"))
-    script_hashes = " ".join("'%s'" % empreinte(s) for s in blocs(html, "script"))
-    return ("default-src 'none'; "
-            "base-uri 'none'; "
-            "frame-ancestors 'none'; "
-            "form-action 'none'; "
-            f"img-src 'self' data: {BEACON_HOST}; "
-            f"style-src-elem {style_hash}; "
-            "style-src-attr 'unsafe-inline'; "
-            f"script-src-elem 'self' {script_hashes} {CDN_ORIGINS}; "
-            "script-src-attr 'unsafe-inline'; "
-            f"connect-src 'self' {CDN_ORIGINS}")
+CHARSET = re.compile(r'<meta charset="utf-8">', re.I)
 
 
 def applique(html: str) -> str:
     sans = BALISE.sub("", html)
-    meta = ('\n<meta http-equiv="Content-Security-Policy" content="%s">'
-            % csp_pour(sans))
-    return sans.replace('<meta charset="UTF-8">',
-                         '<meta charset="UTF-8">' + meta, 1)
+    m = CHARSET.search(sans)
+    if not m:
+        raise SystemExit("balise <meta charset> introuvable dans " + PAGE)
+    meta = '\n<meta http-equiv="Content-Security-Policy" content="%s">' % CSP
+    return sans[:m.end()] + meta + sans[m.end():]
 
 
 def main() -> int:
@@ -81,7 +73,7 @@ def main() -> int:
         print("CSP absente ou périmée : " + PAGE)
         return 1
     open(chemin, "w", encoding="utf-8").write(apres)
-    print("CSP recalculée : " + PAGE)
+    print("CSP posée : " + PAGE)
     return 0
 
 

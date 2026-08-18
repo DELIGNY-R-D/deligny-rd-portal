@@ -1,3 +1,5 @@
+import { VEHICLE_GEO, VEHICLE_PHYS, buildVehiclePhysicsSpec } from './vehicle_physics_profile.mjs';
+
 // ─────────────────────────────────────────────────────────────────────────────
 // vehicle_factory.mjs — NANO WORLDS · usine à véhicules PARTAGÉE
 //
@@ -5,8 +7,9 @@
 //   peinture vernie clearcoat, chrome, vitres teintées, roues à crampons/jantes
 //   5 branches, livrées, panneaux déformables tagués façon BeamNG).
 //
-//   Extrait du cœur Suspension Arena pour Nano Worlds 3 :
-//     • index.html  (jeu V3 — conduite, réglage, crash, progression autour du véhicule)
+//   Extrait VERBATIM du labo arena_suspension.html (06/07) pour être consommé par :
+//     • arena_suspension.html  (le labo — réglage/crash)
+//     • monde3d.html           (le jeu — châssis "atelier" de Création véhicule)
 //
 //   Convention : carrosserie construite AUTOUR DU CENTRE CHÂSSIS, avant = +Z.
 //   Les roues (makeWheel) sont dessinées à R=0.36 → scale par (radius/0.36).
@@ -21,15 +24,7 @@
 export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
 
   // ── Géométries des 7 châssis du labo (radius roue · track ±x · base ±z · ride y · dimensions caisse · style) ──
-  const GEO = {
-    '4x4':    { radius: 0.38, track: 0.98, base: 1.00, ride: 0,     bw: 2.02, bh: 0.42, bl: 2.95, color: 0x2255aa, style: 'hummer',  label: '🚙 4×4' },
-    sport:    { radius: 0.32, track: 0.86, base: 1.02, ride: -0.04, bw: 1.80, bh: 0.40, bl: 3.40, color: 0xd23b3b, style: 'sport',   label: '🏎 Sport' },
-    trophy:   { radius: 0.42, track: 1.02, base: 1.16, ride: 0.02,  bw: 1.90, bh: 0.52, bl: 3.55, color: 0xe0a020, style: 'buggy',   label: '🏜 Trophy' },
-    monster:  { radius: 0.64, track: 1.16, base: 1.14, ride: 0.06,  bw: 2.00, bh: 0.70, bl: 3.10, color: 0x8b3bd2, style: 'monster', label: '👹 Monster' },
-    crawler:  { radius: 0.50, track: 1.06, base: 1.00, ride: 0.04,  bw: 1.86, bh: 0.50, bl: 2.90, color: 0x3b7fd2, style: 'buggy',   label: '🧗 Crawler' },
-    buggy:    { radius: 0.40, track: 0.96, base: 1.02, ride: 0,     bw: 1.60, bh: 0.42, bl: 2.80, color: 0x30c060, style: 'buggy',   label: '🏁 Buggy' },
-    drift:    { radius: 0.34, track: 0.90, base: 1.00, ride: -0.03, bw: 1.78, bh: 0.40, bl: 3.30, color: 0xff5522, style: 'sport',   label: '🏎 Drift' },
-  };
+  const GEO = VEHICLE_GEO;
 
   // ── Matériaux roue (partagés) ──
   const matRubber = new THREE.MeshStandardMaterial({ color: 0x141619, roughness: 0.92, metalness: 0.04 });
@@ -86,6 +81,7 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
       }
     }
     g.userData.rubber = rubberParts;                       // -> setTireBurst() les masque
+    g.userData.burst = (on = true) => setTireBurst(g, on); // 💥 crevaison par roue : cache pneu+crampons, laisse la jante
     const inner = new THREE.Mesh(new THREE.CylinderGeometry(0.26, 0.26, 0.42, 20), matRim); // voile de jante (large)
     inner.rotation.z = Math.PI / 2; g.add(inner);
     for (const fx of [0.225, -0.225]) {                 // les 2 faces (écartées : pneu large)
@@ -102,6 +98,16 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
     }
     g.traverse(o => { if (o.isMesh) o.castShadow = true; });
     return g;
+  }
+
+  // 🛞💥 CREVAISON : masque pneu + crampons (g.userData.rubber) → il ne reste que la jante = « pneu crevé ».
+  //    Appelable par roue (wheelGroup.userData.burst()) OU directement setTireBurst(wheelGroup).
+  function setTireBurst(wheelGroup, burst = true) {
+    const rub = wheelGroup && wheelGroup.userData && wheelGroup.userData.rubber;
+    if (!rub) return false;
+    for (const p of rub) p.visible = !burst;
+    wheelGroup.userData.tireBurst = !!burst;
+    return true;
   }
 
   // ── Carrosserie complète : caisse + panneaux déformables + vitres + livrée + accessoires méca ──
@@ -157,7 +163,7 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
         mkPanel(rbox(0.05, 0.11, L * 0.70, 0.02), dark, [sx * (W / 2 + 0.002), -0.03, 0],
           { kind: 'panel', part: 'bas_de_caisse', hingeAxis: V3(0, 0, sx), hingePivot: V3(sx * (W / 2 + 0.002), 0.02, 0), maxBend: 1.03, bendGain: 1.56, detachAt: 3.4 });
       mkPanel(rbox(W * 0.98, 0.16, 0.16, 0.06), chrome, [0, 0.10, L / 2 + 0.02],
-        { kind: 'panel', part: 'parechoc_av', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.10, L / 2 - 0.06), maxBend: 1.15, bendGain: 2.60, detachAt: 1.9 });
+        { kind: 'panel', part: 'parechoc_av', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.10, L / 2 - 0.06), maxBend: 1.15, bendGain: 2.60, detachAt: 1.3 });
       mkPanel(rbox(W * 0.98, 0.16, 0.16, 0.06), chrome, [0, 0.10, -L / 2 - 0.02],
         { kind: 'panel', part: 'parechoc_ar', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.10, -L / 2 + 0.06), maxBend: 1.15, bendGain: 2.60, detachAt: 1.9 });
       // 🚗 AILES (fenders) avant/arrière G/D : passages de roue, plient puis se détachent (comme une vraie caisse)
@@ -179,6 +185,7 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
     };
     const chromeKit = (frontZ, rearZ, bumpY = 0.10) => {   // calandre + pots (les pare-chocs sont des panneaux déformables, cf. addPanels)
       const grille = new THREE.Mesh(rbox(W * 0.46, 0.13, 0.05, 0.03), dark); grille.position.set(0, bumpY + 0.12, frontZ - 0.01); grp.add(grille);
+      tag(grille, { kind: 'panel', part: 'calandre', fixation: 'clip', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, bumpY + 0.12, frontZ - 0.06), maxBend: 0.55, bendGain: 2.20, detachAt: 1.35, squash: 0.2 });
       for (const sx of [-0.22, 0.22]) { const ex = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.065, 0.18, 12), chrome); ex.rotation.x = Math.PI / 2; ex.position.set(sx, 0.03, rearZ - 0.06); grp.add(ex); }
     };
     const decalMat = (tex) => new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.42, roughness: 0.42, metalness: 0.0, side: THREE.DoubleSide, polygonOffset: true, polygonOffsetFactor: -2, envMapIntensity: 0.5 });
@@ -216,6 +223,9 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
       // 🌡️ RADIATEUR — bloc plat à l'avant, sous la calandre
       mkPanel(rbox(W * 0.52, H * 0.5, 0.06, 0.02), metal, [0, 0.08, L / 2 - 0.09],
         { kind: 'panel', part: 'radiateur', fixation: 'boulon', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.08, L / 2 - 0.14), maxBend: 0.40, bendGain: 2.08, detachAt: 1.4, squash: 0.2, cast: 1 });
+      // 🔋 BATTERIE — petit bloc dans le compartiment moteur (avant), s'arrache tôt en choc frontal
+      mkPanel(rbox(0.24, 0.20, 0.18, 0.03), dark, [-W * 0.22, 0.12, L / 2 - 0.34],
+        { kind: 'panel', part: 'batterie', fixation: 'sangle', hingeAxis: V3(1, 0, 0), hingePivot: V3(-W * 0.22, 0.12, L / 2 - 0.28), maxBend: 0.40, bendGain: 1.90, detachAt: 1.35, squash: 0.2, cast: 1 });
       // 🔩 POULIE / COURROIE — devant le moteur (haut-avant)
       { const pul = new THREE.Mesh(cyl(0.09, 0.09, 0.05, 14), metal); pul.rotation.z = Math.PI / 2; pul.position.set(0, 0.14, L / 2 - 0.24); grp.add(pul);
         tag(pul, { kind: 'panel', part: 'poulie', fixation: 'boulon', hingeAxis: V3(0, 1, 0), hingePivot: V3(0.05, 0.14, L / 2 - 0.24), maxBend: 0.46, bendGain: 2.21, detachAt: 1.3, squash: 0.2 }); }
@@ -241,29 +251,89 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
       }
     };
 
+    // ── 🪟 VITRES SÉPARÉES (6 panneaux tagués kind:'glass', éclatent ~0.9) + 🛋️ HABITACLE low-poly ──
+    //    Conducteur = GAUCHE = -x (cohérent avec side = sx<0?'g':'d'). volant devant siege_avg.
+    //    Appelée par les 2 branches avec les dimensions de LEUR serre (green) → cohérent par châssis.
+    const cloth = new THREE.MeshStandardMaterial({ color: 0x191b1f, roughness: 0.94, metalness: 0.02 });   // tissu mat sombre (sièges/planche)
+    const addCabin = (gcx, gcy, gcz, gw, gh, gl, fourDoor) => {
+      const hw = gw / 2, hh = gh / 2, hl = gl / 2, t = 0.03;
+      const frontZ = gcz + hl, rearZ = gcz - hl, floorY = gcy - hh;
+      // --- 6 vitres, chacune un mesh tagué kind:'glass' (contrat de noms) ---
+      const pane = (part, geo, pos, rx = 0) => {
+        const m = new THREE.Mesh(geo, glass.clone()); m.position.set(pos[0], pos[1], pos[2]); m.rotation.x = rx; grp.add(m);
+        return tag(m, { kind: 'glass', part, shatterAt: 0.9, detachAt: 2.2, maxBend: 0.4, bendGain: 1.6, squash: 0.2 });
+      };
+      pane('pare_brise', rbox(gw * 0.9, gh * 1.04, t, 0.01), [gcx, gcy + 0.015, frontZ - 0.02], -0.33);   // avant incliné
+      pane('lunette',    rbox(gw * 0.9, gh * 0.98, t, 0.01), [gcx, gcy + 0.015, rearZ + 0.02],   0.36);   // arrière incliné
+      pane('vitre_avg',  rbox(t, gh * 0.9, gl * 0.4, 0.01), [gcx - hw, gcy, gcz + gl * 0.2]);             // latérale AV gauche
+      pane('vitre_avd',  rbox(t, gh * 0.9, gl * 0.4, 0.01), [gcx + hw, gcy, gcz + gl * 0.2]);             // latérale AV droite
+      if (fourDoor) {
+        pane('vitre_arg', rbox(t, gh * 0.9, gl * 0.4, 0.01), [gcx - hw, gcy, gcz - gl * 0.2]);            // latérale AR gauche
+        pane('vitre_ard', rbox(t, gh * 0.9, gl * 0.4, 0.01), [gcx + hw, gcy, gcz - gl * 0.2]);            // latérale AR droite
+      }
+      // --- HABITACLE : sièges (assise + dossier enfant), tableau de bord, console, volant ---
+      const spanX = gw * 0.22, frontSZ = gcz + gl * 0.12, rearSZ = gcz - gl * 0.24;
+      const seat = (part, sx, sz) => {   // assise taguée ; dossier = enfant (suit l'assise quand elle est éjectée)
+        const cushion = new THREE.Mesh(rbox(gw * 0.3, 0.07, gl * 0.28, 0.02), cloth.clone());
+        cushion.position.set(sx, floorY + 0.05, sz); cushion.castShadow = true;
+        const back = new THREE.Mesh(rbox(gw * 0.3, gh * 0.85, 0.06, 0.02), cloth.clone());
+        back.position.set(0, gh * 0.42 + 0.035, -gl * 0.13); cushion.add(back);
+        grp.add(cushion);
+        return tag(cushion, { kind: 'panel', part, detachAt: 2.2, maxBend: 0.8, bendGain: 1.5, squash: 0.35 });
+      };
+      seat('siege_avg', gcx - spanX, frontSZ);   // conducteur = gauche (-x)
+      seat('siege_avd', gcx + spanX, frontSZ);
+      if (fourDoor) { seat('siege_arg', gcx - spanX, rearSZ); seat('siege_ard', gcx + spanX, rearSZ); }
+      // tableau de bord : caisson bas sous le pare-brise
+      { const m = new THREE.Mesh(rbox(gw * 0.86, 0.12, gl * 0.14, 0.03), cloth.clone());
+        m.position.set(gcx, floorY + 0.12, frontZ - gl * 0.12); grp.add(m);
+        tag(m, { kind: 'panel', part: 'tableau_bord', detachAt: 2.6, maxBend: 0.5, bendGain: 1.5, squash: 0.3 }); }
+      // console centrale : petit caisson entre les 2 sièges avant
+      { const m = new THREE.Mesh(rbox(gw * 0.16, 0.13, gl * 0.34, 0.02), dark.clone());
+        m.position.set(gcx, floorY + 0.09, frontSZ); grp.add(m);
+        tag(m, { kind: 'panel', part: 'console', detachAt: 2.6, maxBend: 0.5, bendGain: 1.5, squash: 0.3 }); }
+      // volant : devant siege_avg. Le PIVOT porte l'inclinaison de colonne ; le mesh 'volant' (jante)
+      //   reste à l'origine locale → le jeu écrit volant.rotation.z (axe Z local = colonne = plan de la jante).
+      const volantPivot = new THREE.Group();
+      volantPivot.position.set(gcx - spanX, floorY + gh * 0.55, frontSZ + gl * 0.2);
+      volantPivot.rotation.x = -0.5;   // inclinaison colonne (haut vers l'avant)
+      grp.add(volantPivot);
+      const rim = new THREE.Mesh(new THREE.TorusGeometry(0.13, 0.022, 8, 16), dark.clone());   // jante dans le plan XY local (axe = Z local)
+      volantPivot.add(rim);
+      for (const a of [0, Math.PI / 3, 2 * Math.PI / 3]) {   // 3 barres → 6 rayons, enfants de la jante (tournent avec elle)
+        const sp = new THREE.Mesh(rbox(0.018, 0.25, 0.014, 0.006), dark.clone()); sp.rotation.z = a; rim.add(sp);
+      }
+      const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.03, 0.03, 0.03, 10), dark.clone()); hub.rotation.x = Math.PI / 2; rim.add(hub);
+      const col = new THREE.Mesh(new THREE.CylinderGeometry(0.02, 0.02, 0.2, 8), dark.clone());
+      col.rotation.x = Math.PI / 2; col.position.set(0, 0, -0.12); volantPivot.add(col);   // colonne le long de -Z local (vers la planche)
+      tag(rim, { kind: 'panel', part: 'volant', detachAt: 2.8, maxBend: 0.4, bendGain: 1.4, squash: 0.25 });
+    };
+
     if (g.style === 'hummer') {
       const body = new THREE.Mesh(rbox(2.02, 0.42, 2.95, 0.13), paint); body.castShadow = true; body.position.y = 0.16; grp.add(body);
-      tag(body, { kind: 'shell', part: 'caisse', maxBend: 0.25, bendGain: 0.65, squash: 0.5 });
+      tag(body, { kind: 'shell', part: 'caisse', maxBend: 0.25, bendGain: 0.65, squash: 0.05 });
       const skirt = new THREE.Mesh(rbox(2.06, 0.20, 2.75, 0.07), dark); skirt.position.y = -0.02; grp.add(skirt);
       const hood = new THREE.Mesh(rbox(1.9, 0.16, 0.8, 0.06), paint); hood.position.set(0, 0.30, 1.15); grp.add(hood);
       tag(hood, { kind: 'panel', part: 'capot', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.30, 0.75), maxBend: 1.38, bendGain: 2.21, detachAt: 2.6 });
       const trunk = new THREE.Mesh(rbox(1.9, 0.20, 0.7, 0.07), paint); trunk.position.set(0, 0.30, -1.25); grp.add(trunk);
       tag(trunk, { kind: 'panel', part: 'coffre', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.30, -0.90), maxBend: 1.26, bendGain: 2.08, detachAt: 2.4 });
-      const green = new THREE.Mesh(rbox(1.8, 0.34, 1.35, 0.12), glass); green.position.set(0, 0.50, 0.02); grp.add(green);
-      tag(green, { kind: 'glass', part: 'vitres', shatterAt: 0.9 });
+      addCabin(0, 0.50, 0.02, 1.8, 0.34, 1.35, true);   // 🪟 6 vitres séparées + habitacle (long/4 portes)
       const roof = new THREE.Mesh(rbox(1.7, 0.10, 1.25, 0.05), paint); roof.position.set(0, 0.70, 0.02); roof.castShadow = true; grp.add(roof);
-      tag(roof, { kind: 'shell', part: 'toit', maxBend: 0.23, bendGain: 0.52, squash: 0.4 });
+      tag(roof, { kind: 'shell', part: 'toit', maxBend: 0.23, bendGain: 0.52, squash: 0.05 });
       for (const sx of [-1, 1]) mkPanel(rbox(0.05, 0.34, 1.4, 0.02), paint, [sx * 1.02, 0.16, 0.1],
         { kind: 'panel', part: 'porte', hingeAxis: V3(0, sx, 0), hingePivot: V3(sx * 1.02, 0.16, 0.8), maxBend: 1.61, bendGain: 2.21, detachAt: 2.9, squash: 0.28 });
       for (const sx of [-1, 1]) mkPanel(rbox(0.05, 0.12, 2.4, 0.02), dark, [sx * 1.02, -0.04, 0],
         { kind: 'panel', part: 'bas_de_caisse', hingeAxis: V3(0, 0, sx), hingePivot: V3(sx * 1.02, 0.02, 0), maxBend: 1.03, bendGain: 1.56, detachAt: 3.4 });
-      mkPanel(rbox(1.98, 0.18, 0.16, 0.06), chrome, [0, 0.12, 1.50], { kind: 'panel', part: 'parechoc_av', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.12, 1.42), maxBend: 1.15, bendGain: 2.60, detachAt: 1.9 });
+      mkPanel(rbox(1.98, 0.18, 0.16, 0.06), chrome, [0, 0.12, 1.40], { kind: 'panel', part: 'parechoc_av', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.12, 1.32), maxBend: 1.15, bendGain: 2.60, detachAt: 1.3 });
       mkPanel(rbox(1.98, 0.18, 0.16, 0.06), chrome, [0, 0.12, -1.55], { kind: 'panel', part: 'parechoc_ar', hingeAxis: V3(1, 0, 0), hingePivot: V3(0, 0.12, -1.47), maxBend: 1.15, bendGain: 2.60, detachAt: 1.9 });
       for (const zc of [1.05, -1.05]) for (const sx of [-1, 1]) mkPanel(rbox(0.05, 0.34, 0.7, 0.03), paint, [sx * 1.02, 0.14, zc],
         { kind: 'panel', part: zc > 0 ? 'aile_av' : 'aile_ar', hingeAxis: V3(0, sx, 0), hingePivot: V3(sx * 1.02, 0.14, zc - Math.sign(zc) * 0.35), maxBend: 1.49, bendGain: 2.08, detachAt: 2.7, squash: 0.3 });
       for (const sz of [1.0, -1.0]) for (const sx of [-0.98, 0.98]) { const arch = new THREE.Mesh(rbox(0.28, 0.22, 0.62, 0.08), dark); arch.position.set(sx, 0.02, sz); grp.add(arch); }
-      for (const sx of [-0.78, 0.78]) { const hl = new THREE.Mesh(rbox(0.26, 0.16, 0.06, 0.03), light); hl.position.set(sx, 0.26, 1.55); grp.add(hl);
-        const tl = new THREE.Mesh(rbox(0.24, 0.16, 0.06, 0.03), tail); tl.position.set(sx, 0.30, -1.60); grp.add(tl); }
+      for (const sx of [-0.78, 0.78]) { const side = sx < 0 ? 'g' : 'd';
+        const hl = new THREE.Mesh(rbox(0.26, 0.16, 0.06, 0.03), light); hl.position.set(sx, 0.26, 1.44); grp.add(hl);
+        tag(hl, { kind: 'glass', part: 'phare_' + side, fixation: 'clip', shatterAt: 0.7, detachAt: 1.6, maxBend: 0.30, bendGain: 1.8, squash: 0.2 });
+        const tl = new THREE.Mesh(rbox(0.24, 0.16, 0.06, 0.03), tail); tl.position.set(sx, 0.30, -1.44); grp.add(tl);
+        tag(tl, { kind: 'glass', part: 'feu_' + side, fixation: 'clip', shatterAt: 0.7, detachAt: 1.6, maxBend: 0.30, bendGain: 1.8, squash: 0.2 }); }
       // ✨ toit lumière rallye
       const bar = new THREE.Mesh(rbox(1.2, 0.10, 0.22, 0.05), dark); bar.position.set(0, 0.80, 0.5); grp.add(bar);
       for (const sx of [-0.4, 0, 0.4]) { const lp = new THREE.Mesh(new THREE.CylinderGeometry(0.08, 0.08, 0.12, 12), light); lp.rotation.x = Math.PI / 2; lp.position.set(sx, 0.86, 0.62); grp.add(lp); }
@@ -271,18 +341,20 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
       applyLivery({ frontZ: 1.48, rearZ: -1.48, bumpY: 0.14, hoodZ: 1.15, hoodLen: 0.7, trunkZ: -1.25, trunkLen: 0.6, roofZ: 0.02, roofLen: 1.15, topY: 0.40, roofY: 0.77, doorZ: 0.2, doorY: 0.30, decalW: 1.5, decalH: 0.62 });
     } else {
       const body = new THREE.Mesh(rbox(W, H, L, 0.14), paint); body.position.y = 0.16; body.castShadow = true; grp.add(body);
-      tag(body, { kind: 'shell', part: 'caisse', maxBend: 0.25, bendGain: 0.65, squash: 0.5 });   // la caisse se déforme, casse presque pas
+      tag(body, { kind: 'shell', part: 'caisse', maxBend: 0.25, bendGain: 0.65, squash: 0.05 });   // la caisse se déforme, casse presque pas
       const skirt = new THREE.Mesh(rbox(W * 1.02, 0.18, L * 0.9, 0.07), dark); skirt.position.y = -0.02; grp.add(skirt);
       addPanels(W, H, L, 0.16 + H / 2);
-      { const green = new THREE.Mesh(rbox(W * 0.9, 0.32, L * 0.42, 0.12), glass); green.position.set(0, 0.46, 0.0); grp.add(green);
-        tag(green, { kind: 'glass', part: 'vitres', shatterAt: 0.9 });
+      { addCabin(0, 0.46, 0.0, W * 0.9, 0.32, L * 0.42, L > 3.0);   // 🪟 6 vitres séparées + habitacle (rear windows/seats si long)
         const roof = new THREE.Mesh(rbox(W * 0.82, 0.09, L * 0.38, 0.05), paint); roof.position.set(0, 0.63, 0.0); roof.castShadow = true; grp.add(roof);
-        tag(roof, { kind: 'shell', part: 'toit', maxBend: 0.23, bendGain: 0.52, squash: 0.4 });
+        tag(roof, { kind: 'shell', part: 'toit', maxBend: 0.23, bendGain: 0.52, squash: 0.05 });
         if (g.style === 'buggy') for (const zz of [0.28, -0.28]) { const bar = new THREE.Mesh(new THREE.BoxGeometry(W * 0.8, 0.05, 0.05), dark); bar.position.set(0, 0.66, zz * L); grp.add(bar); }
         if (g.style === 'sport') { for (const sx of [-W * 0.4, W * 0.4]) { const py = new THREE.Mesh(rbox(0.06, 0.16, 0.06, 0.02), chrome); py.position.set(sx, 0.44, -L / 2 + 0.18); grp.add(py); }
           const wing = new THREE.Mesh(rbox(W * 0.94, 0.05, 0.28, 0.02), paint); wing.position.set(0, 0.54, -L / 2 + 0.18); grp.add(wing); } }
-      for (const sx of [-W * 0.36, W * 0.36]) { const hl = new THREE.Mesh(rbox(0.22, 0.14, 0.06, 0.03), light); hl.position.set(sx, 0.24, L / 2 - 0.05); grp.add(hl);
-        const tl = new THREE.Mesh(rbox(0.20, 0.14, 0.06, 0.03), tail); tl.position.set(sx, 0.28, -L / 2 + 0.05); grp.add(tl); }
+      for (const sx of [-W * 0.36, W * 0.36]) { const side = sx < 0 ? 'g' : 'd';
+        const hl = new THREE.Mesh(rbox(0.22, 0.14, 0.06, 0.03), light); hl.position.set(sx, 0.24, L / 2 - 0.03); grp.add(hl);
+        tag(hl, { kind: 'glass', part: 'phare_' + side, fixation: 'clip', shatterAt: 0.7, detachAt: 1.6, maxBend: 0.30, bendGain: 1.8, squash: 0.2 });
+        const tl = new THREE.Mesh(rbox(0.20, 0.14, 0.06, 0.03), tail); tl.position.set(sx, 0.28, -L / 2 + 0.03); grp.add(tl);
+        tag(tl, { kind: 'glass', part: 'feu_' + side, fixation: 'clip', shatterAt: 0.7, detachAt: 1.6, maxBend: 0.30, bendGain: 1.8, squash: 0.2 }); }
       const topY = 0.16 + H / 2 + 0.015;
       addAccessories(W, H, L);
       applyLivery({ frontZ: L / 2, rearZ: -L / 2, bumpY: 0.10, hoodZ: L * 0.31, hoodLen: L * 0.26, trunkZ: -L * 0.31, trunkLen: L * 0.26, roofZ: 0, roofLen: L * 0.34, topY, roofY: 0.69, doorZ: 0, doorY: 0.20, decalW: L * 0.5, decalH: Math.max(0.42, H * 1.25) });
@@ -301,18 +373,11 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
   // ── ⚙️ RÉGLAGES PHYSIQUES par châssis — les tunings VALIDÉS du labo (P de base 4×4 + overrides
   //    de la table VEHICLES d'arena_suspension.html, copiés le 06/07). Unités Bullet du labo :
   //    springK/damping en N/m et N·s/m ABSOLUS (à normaliser par la masse pour le RaycastVehicle),
-  //    engineForce/brake pour la masse indiquée. Source unique des véhicules Nano Worlds 3.
-  const PHYS = {
-    '4x4':    { mass: 2800, springK: 31000, damping: 3000, restLength: 0.60, maxSuspTravel: 0.90, engineForce: 8500,  brakeF: 170, brakeR: 170, tireCompliance: 0.0001,  diff: 'open' },
-    sport:    { mass: 1200, springK: 26000, damping: 3400, restLength: 0.30, maxSuspTravel: 0.35, engineForce: 6500,  brakeF: 170, brakeR: 170, tireCompliance: 0.0001,  diff: 'lsd' },
-    trophy:   { mass: 1050, springK: 8500,  damping: 900,  restLength: 0.55, maxSuspTravel: 1.05, engineForce: 10800, brakeF: 100, brakeR: 100, tireCompliance: 0.0001,  diff: 'lsd' },
-    monster:  { mass: 3900, springK: 35600, damping: 4750, restLength: 0.85, maxSuspTravel: 1.30, engineForce: 14000, brakeF: 60,  brakeR: 270, tireCompliance: 0.00013, diff: 'open' },
-    crawler:  { mass: 2400, springK: 26000, damping: 3600, restLength: 0.72, maxSuspTravel: 1.30, engineForce: 12000, brakeF: 220, brakeR: 220, tireCompliance: 0.0001,  diff: 'welded' },
-    buggy:    { mass: 1000, springK: 24000, damping: 3000, restLength: 0.50, maxSuspTravel: 0.80, engineForce: 6000,  brakeF: 170, brakeR: 170, tireCompliance: 0.0001,  diff: 'open' },
-    drift:    { mass: 1300, springK: 34800, damping: 3400, restLength: 0.35, maxSuspTravel: 0.93, engineForce: 5600,  brakeF: 170, brakeR: 170, tireCompliance: 0.00003, diff: 'welded', frictionOverride: 8 },   // pont AR soudé au labo ; grip abaissé (le jeu n'a pas la machinerie de glisse dynamique du labo)
-  };
+  //    engineForce/brake pour la masse indiquée. Consommé par monde3d (_physSpawnFor) qui normalise
+  //    à la masse du jeu. Si tu retunes un véhicule au labo, reporte ici (source unique côté jeu).
+  const PHYS = VEHICLE_PHYS;
 
-  return { GEO, PHYS, makeWheel, buildBodyMesh, makeLiveryTexture, rbox, materials: { matRubber, matLug, matRim } };
+  return { GEO, PHYS, buildPhysicsSpec: buildVehiclePhysicsSpec, makeWheel, setTireBurst, buildBodyMesh, makeLiveryTexture, rbox, materials: { matRubber, matLug, matRim } };
 }
 
 export default makeVehicleFactory;

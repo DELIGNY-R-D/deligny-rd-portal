@@ -1,0 +1,17 @@
+{
+  "name": "Mini-Monde 3D",
+  "short_name": "Mini-Monde",
+  "description": "Bac à sable 3D : sculpte ta maquette, joue avec l'eau, les transports et la ville.",
+  "lang": "fr",
+  "start_url": "monde3d.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "any",
+  "background_color": "#0d1422",
+  "theme_color": "#0b0e13",
+  "icons": [
+    { "src": "icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
