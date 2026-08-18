@@ -72,8 +72,8 @@
   },
   {
    "num": "28",
-   "titre": "Le detail qui fait vrai",
-   "texte": "Poussiere, traces de doigts, micro-rayures. Elles ne sont pas peintes sur la couleur mais posees sur la RUGOSITE : une trace ne teinte pas le metal, elle change sa facon de refleter. C'est pour cela qu'une lumiere rasante les revele — ici une bande etroite qui balaie la piece — et qu'un eclairage de face les effacerait.",
+   "titre": "Carbone forge",
+   "texte": "Le carbone forge est l'une des matieres les plus difficiles a refaire, et pour une raison precise : ce n'est pas un motif, c'est un empilement de milliers de FRAGMENTS de fibre orientes au hasard. Chacun renvoie la lumiere dans SA direction. Le peindre sur la couleur ne donne rien du tout — il faut faire varier l'orientation de la reflexion fragment par fragment. D'ou le rendu : une lumiere rasante balaie la piece, et l'on voit les eclats s'allumer les uns apres les autres selon leur inclinaison. Un eclairage de face les effacerait tous d'un coup.",
    "video": "video/28.mp4",
    "affiche": "video/28.png",
    "images": 180,
