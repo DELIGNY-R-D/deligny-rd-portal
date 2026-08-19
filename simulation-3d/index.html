@@ -4,14 +4,14 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Conception, animation et rendu 3D chez DELIGNY R&D : geometrie parametrique, mouvement calcule par simulation physique, images de qualite studio." />
-  <title>Conception, animation, rendu 3D - DELIGNY R&amp;D</title>
+  <title>Conception, animation, rendu 3D — DELIGNY R&amp;D</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; media-src 'self'; style-src 'self'; script-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="../img/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="../img/favicon.png" sizes="32x32" type="image/png" />
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="DELIGNY R&amp;D" />
-  <meta property="og:title" content="Conception, animation, rendu 3D - DELIGNY R&amp;D" />
+  <meta property="og:title" content="Conception, animation, rendu 3D — DELIGNY R&amp;D" />
   <meta property="og:description" content="Geometrie parametrique, mouvement calcule, images de qualite studio." />
   <meta property="og:url" content="https://deligny-rd.fr/simulation-3d/" />
   <link rel="stylesheet" href="../styles.css?v=7396fcff" />
@@ -47,7 +47,7 @@
     <p class="lead">Nous concevons la geometrie, nous la mettons en mouvement par
     la <strong>simulation physique</strong>, et nous en tirons des images de
     qualite studio. Rien n'est anime image par image : la chute, le drape, la
-    houle et la rupture sortent du calcul, ce qui les rend justes, et
+    houle et la rupture sortent du calcul, ce qui les rend justes — et
     rejouables avec d'autres parametres.</p>
     <p class="lead">Les plans ci-dessous prennent notre propre marque pour sujet,
     parce qu'un banc d'essai se fait sur soi. La chaine est la meme pour un
@@ -62,15 +62,23 @@
 
   <div class="sim-grid">
       <article class="sim-card">
-        <figure><video src="video/22.mp4" poster="video/22.png" muted loop playsinline autoplay preload="auto" controls aria-label="Un lieu, pas un fond"></video></figure>
+        <figure><video src="video/22.mp4" poster="video/22.png" muted loop playsinline preload="none" controls aria-label="Un lieu, pas un fond"></video></figure>
         <div class="sim-body">
           <h2>Un lieu, pas un fond</h2>
-          <p>Le logo en levitation au-dessus d'un lac, et son reflet dans l'eau. La houle avance vraiment : elle derive ET evolue sur place, sinon le motif glisserait en bloc comme un decor qu'on tire. Camera au ras de l'eau au depart : c'est a l'angle rasant que la reflexion est la plus forte. 9 s, format carre.</p>
+          <p>Le logo en levitation au-dessus d'un lac, et son reflet dans l'eau. La houle avance vraiment — elle derive ET evolue sur place, sinon le motif glisserait en bloc comme un decor qu'on tire. Camera au ras de l'eau au depart : c'est a l'angle rasant que la reflexion est la plus forte. 9 s, format carre.</p>
           <p class="sim-meta">7.2 s · format carre 1440</p>
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/01.mp4" poster="video/01.png" muted loop playsinline autoplay preload="auto" controls aria-label="Chute et impact"></video></figure>
+        <figure><video src="video/31.mp4" poster="video/31.png" muted loop playsinline preload="none" controls aria-label="Contrainte mesuree"></video></figure>
+        <div class="sim-body">
+          <h2>Contrainte mesuree</h2>
+          <p>Ici la couleur n'habille pas la piece, elle la MESURE. Chaque point compare la longueur de son arete a sa longueur au repos, memorisee a la premiere image, et l'echelle va du bleu au repos au violet a l'effort maximal, en passant par le vert, le jaune, l'orange et le rouge. Le D reste bleu parce qu'il ne travaille pas ; la couronne et le G virent au magenta parce qu'ils encaissent toute la torsion. C'est la carte qu'un bureau d'etudes regarde, produite par le calcul qui fait l'animation, et non repeinte apres coup.</p>
+          <p class="sim-meta">6.0 s · format carre 1440</p>
+        </div>
+      </article>
+      <article class="sim-card">
+        <figure><video src="video/01.mp4" poster="video/01.png" muted loop playsinline preload="none" controls aria-label="Chute et impact"></video></figure>
         <div class="sim-body">
           <h2>Chute et impact</h2>
           <p>Huit pieces independantes, une masse lancee, et rien d'anime a la main : la chute, les rebonds et l'empilement final sortent du calcul. La couleur suit la vitesse reellement mesuree de chaque piece.</p>
@@ -78,7 +86,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/02.mp4" poster="video/02.png" muted loop playsinline autoplay preload="auto" controls aria-label="Fracture"></video></figure>
+        <figure><video src="video/02.mp4" poster="video/02.png" muted loop playsinline preload="none" controls aria-label="Fracture"></video></figure>
         <div class="sim-body">
           <h2>Fracture</h2>
           <p>La piece est decoupee en cellules de Voronoi calculees sur mesure, puis chaque eclat vit sa vie. Aucune extension : la geometrie de fracture est produite par notre propre code.</p>
@@ -86,7 +94,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/03.mp4" poster="video/03.png" muted loop playsinline autoplay preload="auto" controls aria-label="Drape"></video></figure>
+        <figure><video src="video/03.mp4" poster="video/03.png" muted loop playsinline preload="none" controls aria-label="Drape"></video></figure>
         <div class="sim-body">
           <h2>Drape</h2>
           <p>Un voile tombe librement, epouse le relief, puis une rafale l'emporte. Raide dans le plan et mou en flexion : c'est ce couple qui fait un tissu credible plutot qu'un tas.</p>
@@ -94,7 +102,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/04.mp4" poster="video/04.png" muted loop playsinline autoplay preload="auto" controls aria-label="Etoffe tendue"></video></figure>
+        <figure><video src="video/04.mp4" poster="video/04.png" muted loop playsinline preload="none" controls aria-label="Etoffe tendue"></video></figure>
         <div class="sim-body">
           <h2>Etoffe tendue</h2>
           <p>Le meme solveur, tendu sur une hampe et soumis au vent. L'impression suit la deformation du tissu, image par image.</p>
@@ -102,7 +110,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/11.mp4" poster="video/11.png" muted loop playsinline autoplay preload="auto" controls aria-label="Matiere fibreuse"></video></figure>
+        <figure><video src="video/11.mp4" poster="video/11.png" muted loop playsinline preload="none" controls aria-label="Matiere fibreuse"></video></figure>
         <div class="sim-body">
           <h2>Matiere fibreuse</h2>
           <p>Des milliers de brins, chacun simule comme un ressort, peignes par le vent. C'est la meme technique pour un velours, une brosse ou un tapis.</p>
@@ -110,7 +118,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/12.mp4" poster="video/12.png" muted loop playsinline autoplay preload="auto" controls aria-label="Surface liquide"></video></figure>
+        <figure><video src="video/12.mp4" poster="video/12.png" muted loop playsinline preload="none" controls aria-label="Surface liquide"></video></figure>
         <div class="sim-body">
           <h2>Surface liquide</h2>
           <p>Une mer resolue par transformee de Fourier, avec ecume et creux, d'ou la piece emerge. La houle avance dans le temps, elle n'est pas une texture qui defile.</p>
@@ -118,11 +126,19 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/28.mp4" poster="video/28.png" muted loop playsinline autoplay preload="auto" controls aria-label="Carbone forge"></video></figure>
+        <figure><video src="video/28.mp4" poster="video/28.png" muted loop playsinline preload="none" controls aria-label="Carbone forge"></video></figure>
         <div class="sim-body">
           <h2>Carbone forge</h2>
-          <p>Le carbone forge est l'une des matieres les plus difficiles a refaire, et pour une raison precise : ce n'est pas un motif, c'est un empilement de milliers de FRAGMENTS de fibre orientes au hasard. Chacun renvoie la lumiere dans SA direction. Le peindre sur la couleur ne donne rien du tout : il faut faire varier l'orientation de la reflexion fragment par fragment. D'ou le rendu : une lumiere rasante balaie la piece, et l'on voit les eclats s'allumer les uns apres les autres selon leur inclinaison. Un eclairage de face les effacerait tous d'un coup.</p>
+          <p>Le carbone forge est l'une des matieres les plus difficiles a refaire, et pour une raison precise : ce n'est pas un motif, c'est un empilement de milliers de FRAGMENTS de fibre orientes au hasard. Chacun renvoie la lumiere dans SA direction. Le peindre sur la couleur ne donne rien du tout — il faut faire varier l'orientation de la reflexion fragment par fragment. D'ou le rendu : une lumiere rasante balaie la piece, et l'on voit les eclats s'allumer les uns apres les autres selon leur inclinaison. Un eclairage de face les effacerait tous d'un coup.</p>
           <p class="sim-meta">6.0 s · format carre 1440</p>
+        </div>
+      </article>
+      <article class="sim-card">
+        <figure><img src="photo/feu.png" alt="Combustion" width="720" height="720" loading="lazy" /></figure>
+        <div class="sim-body">
+          <h2>Combustion</h2>
+          <p>Image fixe, moteur de rendu physique. Le feu est un volume calcule — carburant, flottabilite, emission de corps noir — et non un effet plaque sur l'image. Rendu en 64 echantillons.</p>
+          <p class="sim-meta">image fixe · rendu physique</p>
         </div>
       </article>
   </div>
@@ -133,8 +149,8 @@
       <dt>Conception : la geometrie vient d'une regle, pas d'un fichier fige</dt>
       <dd>La forme 3D est tracee depuis l'image de reference et reconstruite par
       programme : contours extraits, lissés, simplifies, extrudes. Elle tient en
-      573 points, trous compris. Changer un parametre (epaisseur, arrondi,
-      decoupe) reproduit toute la piece sans redessiner quoi que ce soit.</dd>
+      573 points, trous compris. Changer un parametre — epaisseur, arrondi,
+      decoupe — reproduit toute la piece sans redessiner quoi que ce soit.</dd>
 
       <dt>Animation : le mouvement est une consequence, pas une intention</dt>
       <dd>Corps rigides, tissu, fibres, houle : chaque plan repose sur un
@@ -145,8 +161,8 @@
       <dt>Rendu : eclairage de plateau, matieres physiques</dt>
       <dd>Eclairage a trois sources dimensionne en watts et en distance,
       fond raccorde sans ligne d'horizon, matieres a base physique. La couleur
-      des pieces suit une grandeur MESUREE (la vitesse reelle de chaque
-      fragment, relevee apres calcul) et non un degrade decoratif.</dd>
+      des pieces suit une grandeur MESUREE — la vitesse reelle de chaque
+      fragment, relevee apres calcul — et non un degrade decoratif.</dd>
 
       <dt>Format : tourne large, recadrable ensuite</dt>
       <dd>Tout est cadre en carre avec une marge calculee pour qu'un format

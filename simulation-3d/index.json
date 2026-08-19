@@ -11,6 +11,16 @@
    "poids_mo": 7.72
   },
   {
+   "num": "31",
+   "titre": "Contrainte mesuree",
+   "texte": "Ici la couleur n'habille pas la piece, elle la MESURE. Chaque point compare la longueur de son arete a sa longueur au repos, memorisee a la premiere image, et l'echelle va du bleu au repos au violet a l'effort maximal, en passant par le vert, le jaune, l'orange et le rouge. Le D reste bleu parce qu'il ne travaille pas ; la couronne et le G virent au magenta parce qu'ils encaissent toute la torsion. C'est la carte qu'un bureau d'etudes regarde, produite par le calcul qui fait l'animation, et non repeinte apres coup.",
+   "video": "video/31.mp4",
+   "affiche": "video/31.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.49
+  },
+  {
    "num": "01",
    "titre": "Chute et impact",
    "texte": "Huit pieces independantes, une masse lancee, et rien d'anime a la main : la chute, les rebonds et l'empilement final sortent du calcul. La couleur suit la vitesse reellement mesuree de chaque piece.",
