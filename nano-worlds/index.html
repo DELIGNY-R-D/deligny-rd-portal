@@ -114,7 +114,7 @@ if('serviceWorker' in navigator){
      tactile (ou le jeu le replie par defaut). Clic droit = pivoter, molette = zoom. */
   html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load){display:none!important}
   html.ui-topo #top > :not(#brushCard){display:none!important}
-  html.ui-topo #bar .tool:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="smooth"]):not([data-tool="niveau"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="colline"]):not([data-tool="plateau"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]){display:none!important}
+  html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="smooth"]):not([data-tool="niveau"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="colline"]):not([data-tool="plateau"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
   html.ui-topo #bar, html.ui-topo #bar.hidden, html.ui-topo body.game-clean #bar{display:flex!important}
   html.ui-topo body.game-clean #top{display:flex!important}
   html.ui-topo #bar{top:12px;bottom:12px}
