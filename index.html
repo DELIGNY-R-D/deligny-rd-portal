@@ -17,7 +17,7 @@
     en-tete les rend actifs (non reproductible ici, GitHub Pages
     n'expose aucun en-tete personnalise cote origine).
   -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr; frame-src https://atlas-studio.pro; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; style-src-attr 'unsafe-inline'; script-src 'self'; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr; frame-src 'self' https://atlas-studio.pro; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="img/favicon.png" sizes="32x32" type="image/png" />
@@ -29,7 +29,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=7396fcff" />
+  <link rel="stylesheet" href="styles.css?v=eaf917d8" />
   <link rel="stylesheet" href="lampe-embed.css?v=bcba7e5e" />
 <!-- HUB:citable-substrate:start -->
 <script type="application/ld+json">
@@ -643,38 +643,23 @@
         </div>
       </div>
 
-      <div class="app-grid">
-
-        <article class="app-card app-card-visual">
-          <svg class="app-banner" viewBox="0 0 400 132" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-            <defs>
-              <linearGradient id="bg-nano" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="var(--blue)" />
-                <stop offset="100%" stop-color="var(--purple-2)" />
-              </linearGradient>
-            </defs>
-            <rect width="400" height="132" fill="url(#bg-nano)" />
-            <ellipse cx="210" cy="66" rx="70" ry="26" fill="none" stroke="#fff" stroke-width="2" opacity="0.6" transform="rotate(-14 210 66)" />
-            <circle cx="210" cy="66" r="8" fill="#fff" opacity="0.95" />
-            <g fill="#fff">
-              <circle cx="150" cy="35" r="2" opacity="0.8" />
-              <circle cx="270" cy="40" r="2.5" opacity="0.6" />
-              <circle cx="290" cy="95" r="2" opacity="0.7" />
-              <circle cx="140" cy="100" r="2.5" opacity="0.5" />
-              <circle cx="240" cy="20" r="1.8" opacity="0.7" />
-            </g>
-          </svg>
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>Nano Worlds</h3>
-              <span class="tag tag-live">Demo jouable</span>
-            </div>
-            <p>Un monde isometrique procedural, modifiable en direct : on sculpte le terrain, on pose des routes et des batiments, l'eau et les saisons reagissent, et un compagnon IA optionnel explore avec vous.</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="nano-worlds/index.html?world=default">Jouer</a>
-            </div>
+      <div class="tool-widget">
+        <div class="tool-widget-head">
+          <div class="app-title-row">
+            <h3>Nano Worlds</h3>
+            <span class="tag tag-live">Demo jouable</span>
           </div>
-        </article>
+          <p>Le vrai jeu, ici meme : un monde isometrique procedural, modifiable en direct. On sculpte le terrain, on pose des routes et des batiments, l'eau et les saisons reagissent, et un compagnon IA optionnel explore avec vous. Souris : clic gauche pivoter, clic droit deplacer, molette zoom.</p>
+        </div>
+        <div class="nano-embed">
+          <iframe src="nano-worlds/index.html?world=default" title="Nano Worlds, demo jouable (monde de reference)" loading="lazy" allow="fullscreen"></iframe>
+        </div>
+        <div class="tool-widget-actions">
+          <a class="btn btn-primary" href="nano-worlds/index.html?world=default">Jouer en plein ecran &rarr;</a>
+        </div>
+      </div>
+
+      <div class="app-grid">
 
         <article class="app-card app-card-primary app-card-visual">
           <svg class="app-banner" viewBox="0 0 400 172" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
