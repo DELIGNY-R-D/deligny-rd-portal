@@ -91,12 +91,5 @@
    "poids_mo": 1.85
   }
  ],
- "photos": [
-  {
-   "cle": "feu",
-   "titre": "Combustion",
-   "texte": "Image fixe, moteur de rendu physique. Le feu est un volume calcule — carburant, flottabilite, emission de corps noir — et non un effet plaque sur l'image. Rendu en 64 echantillons.",
-   "src": "photo/feu.png"
-  }
- ]
+ "photos": []
 }
