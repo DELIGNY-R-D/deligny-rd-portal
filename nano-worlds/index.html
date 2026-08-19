@@ -13,6 +13,11 @@
 <link rel="icon" href="icon.svg" type="image/svg+xml">
 <title>Nano Worlds</title>
 <script>
+// VITRINE deligny-rd.fr (copie portail, absent de la source NANO WORLDS/paysage) : ?ui=topo = mode
+// « topologie seule » de la demo d'accueil. Uniquement de la presentation (CSS plus bas) : on ne
+// montre que les outils qui modifient le relief, aucun autre bouton. Se combine avec ?dev (deverrouille
+// les outils avances de relief que la progression reserve normalement) et ?world=default.
+if(/[?&]ui=topo(&|$)/.test(location.search)) document.documentElement.classList.add('ui-topo');
 // En LOCAL (lanceur localhost) : pas de service worker → toujours la dernière version (et on nettoie un éventuel SW déjà installé).
 // Sur un vrai domaine (si un jour hébergé) : SW activé pour le mode hors-ligne / PWA.
 if('serviceWorker' in navigator){
@@ -102,6 +107,18 @@ if('serviceWorker' in navigator){
   #load{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
     background:#0b0e13;color:var(--mut);font-size:14px;z-index:10}
   #chronicleBar{position:fixed;bottom:30px;left:50%;transform:translateX(-50%);z-index:8;display:flex;gap:5px;pointer-events:none;opacity:0;transition:opacity .4s;flex-wrap:wrap;justify-content:center;max-width:90vw}
+  /* ── MODE ?ui=topo (vitrine deligny-rd.fr) : relief seulement ───────────────────
+     Tout ce qui n'est pas la toile, le dock d'outils, la carte Pinceau/Force ou l'ecran de
+     chargement est masque (HUD, panneaux, menus, toasts, modales de reprise, chapitres...).
+     Dans le dock, seuls les outils de relief restent. Le dock reste visible meme en mode
+     tactile (ou le jeu le replie par defaut). Clic droit = pivoter, molette = zoom. */
+  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load){display:none!important}
+  html.ui-topo #top > :not(#brushCard){display:none!important}
+  html.ui-topo #bar .tool:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="smooth"]):not([data-tool="niveau"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="colline"]):not([data-tool="plateau"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]){display:none!important}
+  html.ui-topo #bar, html.ui-topo #bar.hidden, html.ui-topo body.game-clean #bar{display:flex!important}
+  html.ui-topo body.game-clean #top{display:flex!important}
+  html.ui-topo #bar{top:12px;bottom:12px}
+  html.ui-topo #top{top:calc(8px + env(safe-area-inset-top));left:auto;right:calc(8px + env(safe-area-inset-right));width:auto;bottom:auto;padding:0;background:transparent;border:0}
 </style>
 </head>
 <body>
@@ -111,7 +128,7 @@ if('serviceWorker' in navigator){
 <div id="top">
   <div class="card" id="title" style="cursor:pointer" onclick="openNanoMenu()">🌍 Nano Worlds</div>
   <div class="card" id="stats" style="font-variant-numeric:tabular-nums">🏞 0 barrage</div>
-  <div class="card ctl">Pinceau <input type="range" id="size" min="2" max="42" value="6">
+  <div class="card ctl" id="brushCard">Pinceau <input type="range" id="size" min="2" max="42" value="6">
     Force <input type="range" id="str" min="10" max="100" value="55"></div>
   <div class="card ctl">☀️ <input type="range" id="time" min="0" max="100" value="62"></div>
   <div class="card ctl" title="Force du flux : sources ⛲, tuyaux de pompage 🚰 et magma 🌋">💧 <input type="range" id="flow" min="0" max="100" value="50"></div>
