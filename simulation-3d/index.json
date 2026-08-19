@@ -79,6 +79,216 @@
    "images": 180,
    "secondes": 6.0,
    "poids_mo": 1.85
+  },
+  {
+   "num": "26",
+   "titre": "Film d'assemblage",
+   "texte": "Une montre se fabrique et s'assemble sans machine et sans main : les pieces frittent depuis la poudre, se rejoignent en levitation et se posent les unes dans les autres jusqu'au packshot. Le boitier, la lunette et le fond viennent des STL du client, cotes au dixieme de millimetre ; le reste, cadran, aiguilles, mouvement, verre saphir et bracelet, est construit a leurs cotes.",
+   "video": "video/26.mp4",
+   "affiche": "video/26.png",
+   "images": 300,
+   "secondes": 10.0,
+   "poids_mo": 3.39
+  },
+  {
+   "num": "27",
+   "titre": "Verre et caustiques",
+   "texte": "Une caustique n'est pas un effet, c'est la lumiere concentree par la refraction. Elle n'apparait que si le moteur suit vraiment le chemin des rayons a travers la matiere, ce qui la rend impossible a truquer proprement. C'est l'exercice qui separe un rendu propre d'un rendu qui impressionne.",
+   "video": "video/27.mp4",
+   "affiche": "video/27.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.17
+  },
+  {
+   "num": "30",
+   "titre": "Coulee de metal",
+   "texte": "Du metal en fusion tombe sur la piece, la nappe, ruisselle sur ses faces et s'en va. La couleur mesure l'epaisseur du film : un rayon part de chaque point vers le haut et cherche la surface libre, donc la distance touchee EST la hauteur de matiere qui pese. Une pellicule qui glisse reste bleue, un bourrelet monte l'echelle.",
+   "video": "video/30.mp4",
+   "affiche": "video/30.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 6.09
+  },
+  {
+   "num": "06",
+   "titre": "Jet liquide",
+   "texte": "Un jet arrose la piece et s'accumule au sol. Liquide resolu en particules puis reconstruit en surface, avec sa viscosite et sa tension : ni boucle, ni texture qui defile.",
+   "video": "video/06.mp4",
+   "affiche": "video/06.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.27
+  },
+  {
+   "num": "23",
+   "titre": "Tour de plateau",
+   "texte": "L'attendu numero un d'un client. La regle du genre est tenue : c'est la PIECE qui tourne, pas la camera, et l'eclairage reste fixe dans le monde. Les reflets balaient donc la surface pendant la rotation, ce qui est exactement ce qu'on veut voir d'un materiau.",
+   "video": "video/23.mp4",
+   "affiche": "video/23.png",
+   "images": 179,
+   "secondes": 6.0,
+   "poids_mo": 1.73
+  },
+  {
+   "num": "24",
+   "titre": "Vue eclatee",
+   "texte": "Les pieces s'ecartent le long d'un axe commun, avec leurs lignes de rappel, puis se remontent. Le plan qui dit « conception » : il montre l'ordre d'assemblage, pas seulement l'objet fini.",
+   "video": "video/24.mp4",
+   "affiche": "video/24.png",
+   "images": 195,
+   "secondes": 6.5,
+   "poids_mo": 0.69
+  },
+  {
+   "num": "25",
+   "titre": "Nuancier de matieres",
+   "texte": "La meme piece, cinq matieres, un seul eclairage. Un nuancier n'a de valeur que si rien d'autre ne change : meme piece, meme lumiere, meme angle. Sinon on ne compare plus des matieres, on compare des photos.",
+   "video": "video/25.mp4",
+   "affiche": "video/25.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 1.69
+  },
+  {
+   "num": "09",
+   "titre": "Pulverisation",
+   "texte": "La piece se defait en poussiere metallique, emise depuis sa propre surface et emportee par des champs de vortex et de turbulence. La trajectoire de chaque grain est calculee, aucune n'est dessinee.",
+   "video": "video/09.mp4",
+   "affiche": "video/09.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 5.16
+  },
+  {
+   "num": "16",
+   "titre": "Desintegration au passage",
+   "texte": "La piece n'est pas rendue : ce sont 2,3 millions de points qui la composent. Chacun garde son propre etat, vitesse, liberation, age, et tant que le front ne l'a pas atteint son deplacement est exactement nul. C'est ce qui fait qu'elle RESISTE avant de ceder, au lieu de fondre uniformement.",
+   "video": "video/16.mp4",
+   "affiche": "video/16.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 1.35
+  },
+  {
+   "num": "05",
+   "titre": "Corps mou",
+   "texte": "Des billes de gelee s'ecrasent sur la piece et s'y deforment. Ressorts d'aretes, objectif de forme et collision : la matiere molle a sa propre mecanique, distincte du tissu et du corps rigide.",
+   "video": "video/05.mp4",
+   "affiche": "video/05.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.82
+  },
+  {
+   "num": "07",
+   "titre": "Fumee",
+   "texte": "La piece emet, la fumee monte et la decouvre. Volume calcule avec flottabilite, vorticite et bruit de sur-resolution, puis rendu comme un volume et non comme une image plaquee.",
+   "video": "video/07.mp4",
+   "affiche": "video/07.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.68
+  },
+  {
+   "num": "10",
+   "titre": "Essaim",
+   "texte": "Un essaim converge et se pose. Chaque individu suit trois regles, separation, troupeau, but, et la figure d'ensemble n'est ecrite nulle part : elle emerge. C'est de l'intelligence collective, pas une trajectoire animee.",
+   "video": "video/10.mp4",
+   "affiche": "video/10.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 2.39
+  },
+  {
+   "num": "13",
+   "titre": "Onde de surface",
+   "texte": "La piece se pose sur une nappe et l'onde part. L'equation d'onde est resolue SUR le maillage de la nappe, avec reflexions sur les bords : c'est une simulation de surface, pas un deplacement anime.",
+   "video": "video/13.mp4",
+   "affiche": "video/13.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.82
+  },
+  {
+   "num": "14",
+   "titre": "Desagregation en voxels",
+   "texte": "La piece se desagrege cube par cube. L'etat est reporte d'une image a la suivante, donc les deplacements S'ACCUMULENT : un simple decalage anime ne sait pas faire cela, il repart de zero a chaque image.",
+   "video": "video/14.mp4",
+   "affiche": "video/14.png",
+   "images": 195,
+   "secondes": 6.5,
+   "poids_mo": 0.76
+  },
+  {
+   "num": "15",
+   "titre": "Eclatement face par face",
+   "texte": "La piece se defait face par face, chaque morceau emporte par une particule. Le maillage est remaille en volume avant, sinon l'eclatement projette six grandes plaques au lieu d'une nuee.",
+   "video": "video/15.mp4",
+   "affiche": "video/15.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.52
+  },
+  {
+   "num": "17",
+   "titre": "Mobile sous contrainte",
+   "texte": "La piece suspendue en mobile, bousculee. Ce sont des LIAISONS qui travaillent, pivots et cables, avec leurs limites : le solveur de contraintes est ce qui separe une piece qui tombe d'un mecanisme qui articule.",
+   "video": "video/17.mp4",
+   "affiche": "video/17.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 0.5
+  },
+  {
+   "num": "18",
+   "titre": "Squelette articule",
+   "texte": "Une chaine d'os, une ponderation automatique, et la piece se plie comme un ruban sans qu'aucun sommet soit anime a la main. Ce n'est pas de la physique, c'est du pilotage : le meme squelette rejoue n'importe quel autre mouvement.",
+   "video": "video/18.mp4",
+   "affiche": "video/18.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 0.29
+  },
+  {
+   "num": "19",
+   "titre": "Famille de variantes",
+   "texte": "Un seul graphe produit une famille entiere. C'est probablement la capacite la plus vendable d'un studio : declinez une gamme, un nuancier, une serie de tailles, sans remodeliser une seule fois.",
+   "video": "video/19.mp4",
+   "affiche": "video/19.png",
+   "images": 195,
+   "secondes": 6.5,
+   "poids_mo": 0.81
+  },
+  {
+   "num": "20",
+   "titre": "Epure technique",
+   "texte": "Un studio de conception ne livre pas que des images photorealistes. Les contours, les aretes vives et les silhouettes sont detectes sur la GEOMETRIE et non sur l'image, donc le trait reste juste sous tous les angles et a toutes les tailles.",
+   "video": "video/20.mp4",
+   "affiche": "video/20.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.33
+  },
+  {
+   "num": "21",
+   "titre": "Cotation dans l'espace",
+   "texte": "L'annotation n'est pas un calque pose sur l'image, elle vit dans la scene. Les lignes de cote sont de vrais traits 3D : la camera tourne et elles tournent avec la piece, ce qu'un habillage d'apres-coup ne sait pas faire.",
+   "video": "video/21.mp4",
+   "affiche": "video/21.png",
+   "images": 210,
+   "secondes": 7.0,
+   "poids_mo": 0.43
+  },
+  {
+   "num": "29",
+   "titre": "Macro et bascule de nettete",
+   "texte": "Un plan macro ne se fabrique pas en approchant la camera, il se fabrique en choisissant CE QUI EST NET. Ouverture, distance de mise au point et bascule pendant le plan : le flou est optique, calcule, pas ajoute apres.",
+   "video": "video/29.mp4",
+   "affiche": "video/29.png",
+   "images": 180,
+   "secondes": 6.0,
+   "poids_mo": 1.1
   }
  ],
  "photos": []
