@@ -7110,4 +7110,77 @@ async function cvEnvoyer(texte){
 syncLit();          // l'interface part de l'etat, jamais l'inverse
 detectAI();
 
+/* ══════════ VITRINE ACCUEIL (20/08) — OUTILS DU PROFIL 2D ══════════
+   Demande Baptiste : les outils visibles au-dessus de la coupe 2D, sans
+   ouvrir le panneau complet (masque sur l'accueil). Quatre modes :
+   ✋ Manipuler (defaut, deplace un point, ne cree RIEN au clic dans le vide),
+   📐 Angle (clic dans le vide = nouveau point a angle vif),
+   ◠ Arrondi (clic dans le vide = point arrondi ; clic sur un point =
+   arrondit, re-clic = angle vif — meme champ p.conge que le curseur),
+   🗑 Supprimer (clic sur un point). Implémente en ECOUTEURS CAPTURE au-dessus
+   des gestionnaires historiques, qui ne sont pas modifies. */
+(function(){
+  const col = pc.closest('.canvas-col') || pc.parentElement;
+  const lbl = col.querySelector('.lbl');
+  const bar = document.createElement('div');
+  bar.id = 'outilsProfil';
+  bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 8px';
+  const DEFS = [
+    ['move','\u270B Manipuler','D\u00e9placer un point (outil par d\u00e9faut)'],
+    ['angle','\uD83D\uDCD0 Angle','Clique dans le vide : nouveau point \u00e0 angle vif'],
+    ['arrondi','\u25E0 Arrondi','Clique dans le vide : point arrondi \u00b7 sur un point : l\u2019arrondit (re-clic : angle vif)'],
+    ['del','\uD83D\uDDD1 Supprimer','Clique un point pour le supprimer'],
+  ];
+  let outil = 'move';
+  const btns = {};
+  DEFS.forEach(function(d){
+    const b=document.createElement('button');
+    b.type='button'; b.textContent=d[1]; b.title=d[2];
+    b.style.cssText='padding:7px 11px;border:1px solid rgba(21,19,26,.18);border-radius:9px;background:#fbfaf6;color:#15131a;font:600 12px/1 system-ui;cursor:pointer';
+    b.onclick=function(){ outil=d[0]; for(const k in btns){ const x=btns[k], on=(k===d[0]);
+      x.style.background=on?'#2f6e4f':'#fbfaf6'; x.style.color=on?'#fff':'#15131a'; x.style.borderColor=on?'#2f6e4f':'rgba(21,19,26,.18)'; } };
+    btns[d[0]]=b; bar.appendChild(b);
+  });
+  btns.move.onclick();
+  if(lbl) lbl.insertAdjacentElement('afterend', bar); else col.insertAdjacentElement('afterbegin', bar);
+
+  const R_DEFAUT = 8;   // rayon pose par l'outil (le curseur cache va jusqu'a 25)
+  function poseConge(i){
+    if(i<=0 || i>=state.profile.length-1) return;   // extremites : jamais de conge (meme regle que le curseur)
+    const p=state.profile[i];
+    p.conge = p.conge>0 ? 0 : R_DEFAUT;
+    state.selected=i; renderSoon();
+  }
+  function supprime(i){
+    if(i<0 || state.profile.length<=3) return;      // meme garde que delPoint
+    state.profile.splice(i,1); state.selected=-1;
+    normalizeProfile(); renderAll();
+  }
+  function filtre(e){
+    if(outil==='angle') return;                     // comportement historique complet
+    const pos=canvasPos(e); const idx=nearestPoint(pos.x,pos.y);
+    if(outil==='move'){
+      if(idx<0){ e.stopImmediatePropagation(); e.preventDefault(); }   // pas d'ajout accidentel
+      return;
+    }
+    if(outil==='arrondi'){
+      if(idx>=0){ e.stopImmediatePropagation(); e.preventDefault(); poseConge(idx); }
+      else setTimeout(function(){ if(state.selected>0) poseConge(state.selected); },0);   // l'ajout historique d'abord, l'arrondi ensuite
+      return;
+    }
+    if(outil==='del'){ e.stopImmediatePropagation(); e.preventDefault(); if(idx>=0) supprime(idx); }
+  }
+  pc.addEventListener('mousedown', filtre, true);
+  pc.addEventListener('touchstart', filtre, true);
+
+  // Poignee de diagnostic (lecture seule + choix d'outil) pour les tests.
+  window.__outilsProfil = {
+    get outil(){ return outil; },
+    set outil(v){ if(btns[v]) btns[v].onclick(); },
+    get points(){ return state.profile.map(function(p){ return {h:+p.h.toFixed(1), r:+p.r.toFixed(1), conge:+(p.conge||0)}; }); },
+    canvasXY(i){ const p=state.profile[i]; return p ? {x:pMapX(p.r), y:pMapY(p.h)} : null; },
+    get selected(){ return state.selected; }
+  };
+})();
+
 })();

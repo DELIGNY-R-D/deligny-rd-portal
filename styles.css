@@ -31,6 +31,7 @@ html {
 }
 
 body {
+  position: relative;   /* conteneur du badge souverainete (absolute) */
   margin: 0;
   font-family: var(--font-body);
   background: var(--paper);
@@ -987,7 +988,10 @@ img.app-banner {
 }
 
 .sovereign-badge {
-  position: fixed;
+  /* Ancre en bas de PAGE, plus en bas d'ecran (demande 20/08) : le badge ne
+     flotte plus par-dessus le contenu pendant la lecture, on le retrouve
+     pres du footer. body est le conteneur positionne. */
+  position: absolute;
   right: 16px;
   bottom: 16px;
   z-index: 20;

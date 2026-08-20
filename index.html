@@ -29,7 +29,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=a0d3703e" />
+  <link rel="stylesheet" href="styles.css?v=2427a105" />
   <link rel="stylesheet" href="lampe-embed.css?v=bcba7e5e" />
 <!-- HUB:citable-substrate:start -->
 <script type="application/ld+json">
@@ -148,7 +148,7 @@
         <div class="vgrid3">
           <div class="canvas-col">
             <div class="lbl">Coupe 2D cotée — axe de symétrie au centre
-              <small>Clique dans le vide pour ajouter un point · glisse un point pour le déplacer</small>
+              <small>Choisis un outil : ✋ déplacer un point · 📐 nouveau point (angle) · ◠ arrondi · 🗑 supprimer</small>
               <small><span style="color:var(--amber)">■ évasement 45-55°</span> &nbsp;·&nbsp; <span style="color:var(--red)">■ évasement &gt;55° (support)</span></small>
             </div>
             <canvas id="profileCanvas" width="480" height="440"></canvas>
@@ -177,7 +177,10 @@
             </div>
           </div>
         </div>
-        <div class="viewtools">
+        <!-- Masque (demande 20/08) et non supprime : lampe-embed.js s'accroche a
+             vElev/vZoom/vReset/vTurn, retirer les elements casserait le script.
+             L'orbite au doigt/souris et le zoom curseur restent actifs dans l'apercu. -->
+        <div class="viewtools" style="display:none">
           <span>Orbite : glisse dans l'aperçu (horizontal = tourner, vertical = basculer). Zoom au curseur.</span>
           <label>Hauteur de vue <input type="range" id="vElev" min="3" max="80" step="1" value="14"></label>
           <label>Zoom <input type="range" id="vZoom" min="40" max="400" step="1" value="100"></label>
@@ -1462,6 +1465,6 @@
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
 <script src="logo-3d.js?v=53990441"></script>
 <script src="tagline.js?v=38c0e5d1"></script>
-<script src="lampe-embed.js?v=1a459ada"></script>
+<script src="lampe-embed.js?v=6cef19ef"></script>
 </body>
 </html>
