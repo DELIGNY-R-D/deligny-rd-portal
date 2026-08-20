@@ -122,9 +122,11 @@ if('serviceWorker' in navigator){
      chargement est masque (HUD, panneaux, menus, toasts, modales de reprise, chapitres...).
      Dans le dock, seuls les outils de relief restent. Le dock reste visible meme en mode
      tactile (ou le jeu le replie par defaut). Clic droit = pivoter, molette = zoom. */
-  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load):not(#topoNew){display:none!important}
-  html.ui-topo #top > :not(#brushCard){display:none!important}
-  html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
+  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load):not(#topoNew):not(#camReset){display:none!important}
+  html.ui-topo #camReset{top:auto!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;right:calc(158px + env(safe-area-inset-right))!important;border-radius:11px!important;background:rgba(16,20,27,.85)!important;color:#eaf0f7!important;border-color:rgba(255,255,255,.14)!important}   /* le « ⌂ » du jeu, repositionne a cote de « Nouveau monde » */
+  html.ui-topo #top > :not(#brushCard):not(#quickActions){display:none!important}
+  html.ui-topo #quickActions > :not(#rewind2):not(#speed){display:none!important}   /* ne restent que ⏪ (retour vers ×1) et ⏩ (accelerer) */
+  html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]):not([data-tool="tuyau"]):not([data-tool="rail"]):not([data-tool="train"]):not([data-tool="telecabine"]):not([data-tool="maison"]):not([data-tool="gratteciel"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
   html.ui-topo #bar, html.ui-topo #bar.hidden, html.ui-topo body.game-clean #bar{display:flex!important}
   html.ui-topo body.game-clean #top{display:flex!important}
   html.ui-topo #bar{top:12px;bottom:12px}
@@ -150,7 +152,7 @@ if('serviceWorker' in navigator){
     <button data-mode="orbit" class="on">🔄 Bouger</button>
     <button data-mode="sculpt">✋ Agir</button>
   </div>
-  <div class="card ctl"><button id="undo" style="background:transparent;border:0;color:var(--mut);cursor:pointer">↩︎ Annuler</button>
+  <div class="card ctl" id="quickActions"><button id="undo" style="background:transparent;border:0;color:var(--mut);cursor:pointer">↩︎ Annuler</button>
     <button id="redo" style="background:transparent;border:0;color:var(--mut);cursor:pointer">↪︎ Refaire</button>
     <button id="rewind2" style="background:transparent;border:0;color:var(--mut);cursor:pointer" title="⏪ Remonter le temps (lecture arrière) — clique pour reculer, re-clique pour aller plus vite en arrière">⏪ ×1</button>
     <button id="speed" style="background:transparent;border:0;color:var(--mut);cursor:pointer" title="⏩ Avancer le temps — clique pour accélérer">⏩ ×1</button>
