@@ -35,6 +35,19 @@ if(document.documentElement.classList.contains('ui-topo')) addEventListener('DOM
   // Pinceau au MILIEU par defaut (demande 20/08) : la valeur de depart du jeu (6/42)
   // fait des retouches trop fines pour une vitrine.
   var sz=document.getElementById('size'); if(sz){ sz.value=Math.round((+sz.min + +sz.max)/2); sz.dispatchEvent(new Event('input',{bubbles:true})); }
+  // TEMPS BORNE [x1 .. x30] et jamais en arriere (20/08, bug des « aiguilles ») :
+  // aux vitesses extremes du jeu (x600..x2000, singularite) les evenements
+  // autonomes s'emballent et criblent le terrain de pics ; le temps inverse
+  // n'a pas de sens dans une vitrine. On borne DE L'EXTERIEUR, sans toucher
+  // au moteur : apres chaque clic, si on depasse, on rend le clic inverse.
+  var spB=document.getElementById('speed'), rwB=document.getElementById('rewind2');
+  function _mult(){ var m=(spB.textContent||'').match(/\u00d7(\d+)/); return m?+m[1]:1; }
+  function _negatif(){ return (rwB.style.color||'')==='rgb(159, 211, 255)' || (rwB.style.color||'')==='#9fd3ff'; }
+  if(spB&&rwB){
+    spB.addEventListener('click', function(){ setTimeout(function(){ while(_mult()>30 && !_negatif()) rwB.click(); },0); });
+    rwB.addEventListener('click', function(e){ if(_mult()===1 && !_negatif()){ e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    rwB.addEventListener('click', function(){ setTimeout(function(){ while(_negatif()) spB.click(); },0); });
+  }
   // Curseur de ROTATION du paysage, en bas au centre (demande 20/08 : « faire
   // pivoter le paysage ») : azimut absolu de la camera autour de la cible,
   // plus simple au doigt que la rotation a deux doigts.
