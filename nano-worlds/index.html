@@ -9066,7 +9066,7 @@ document.querySelectorAll('#stylebar button').forEach(b=>b.onclick=()=>setMode(b
         }
       }
       // Rotation azimutale — seuil 0.014 rad (~0.8°) pour filtrer le tremblement des doigts
-      if(!isPinch && Math.abs(da)>0.014) _rotAz(-da); else controls.update();   // -da = sens naturel (carte suit les doigts)
+      if(!isPinch && Math.abs(da)>0.014) _rotAz(da*1.6); else controls.update();   // VITRINE deligny-rd.fr (20/08) : sens INVERSE demande (+da, la camera suit les doigts) et gain x1.6 (rotation plus franche)
       _t2=cur;
     }
   },{capture:true,passive:false});
@@ -9092,7 +9092,7 @@ document.querySelectorAll('#stylebar button').forEach(b=>b.onclick=()=>setMode(b
   // +d = sens horaire trackpad → _rotAz(+d*…) = même sens naturel que le touch (-da ci-dessus)
   let _gr=0;
   el.addEventListener('gesturestart',e=>{ e.preventDefault(); _gr=0; },{passive:false});
-  el.addEventListener('gesturechange',e=>{ e.preventDefault(); const d=e.rotation-_gr; _gr=e.rotation; _rotAz(d*Math.PI/180*0.5); },{passive:false});
+  el.addEventListener('gesturechange',e=>{ e.preventDefault(); const d=e.rotation-_gr; _gr=e.rotation; _rotAz(-d*Math.PI/180*0.8); },{passive:false});   // VITRINE deligny-rd.fr (20/08) : inverse + gain, aligne sur le 2-doigts tactile
 
   // ⌘ + molette = tilt vertical (Mac — tous navigateurs, y compris Chrome)
   window.addEventListener('wheel',e=>{ if(!e.metaKey)return; e.preventDefault(); _rotPhi(e.deltaY*0.0015); },{passive:false});
