@@ -43,8 +43,9 @@ a {
 }
 
 .topbar {
-  position: sticky;
-  top: 0;
+  /* Non collant (demande 20/08) : la barre vit en haut de la page et sort de
+     l'ecran au defilement -- sur iPhone/iPad elle mangeait toute la hauteur. */
+  position: static;
   z-index: 10;
   display: flex;
   align-items: center;
