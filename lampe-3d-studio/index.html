@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-7AAscayztFkqXToRJzeVC2OS0e7SW/3jlnB0oYODnIk='; style-src-attr 'unsafe-inline'; script-src 'sha256-hr05zQyoM9yg4Z85hhqq8XkVLLMDIOhVMCb8/BwHl6E='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-cfdwvKwQ11mX5zMwv+wPpeeRJ08HeUV8p15fXuheoiQ='; style-src-attr 'unsafe-inline'; script-src 'sha256-0ytOgknQ/C4IL+wEthPbDx8nsxx9eO2zzAqLFihAmn0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -185,15 +185,17 @@ table.pts tr.bad td{color:var(--red);}
   .app{grid-template-columns:1fr;}
   .viewer{position:static;max-height:none;overflow:visible;}
 }
-/* ── Téléphone : les vues empilées se partagent l'ÉCRAN, pas la page. ──
- * Sur iPhone la coque 3D (presque carrée, pleine largeur) mangeait un écran
- * entier et le rendu studio arrivait coupé sous elle. On borne chaque vue en
- * FRACTION DE LA HAUTEUR D'ÉCRAN (vh) et non en pixels : coque + rendu
- * tiennent ensemble dans une vue, quel que soit le téléphone. Le canvas garde
- * son ratio (élément remplacé) : width:auto + max-width évitent l'étirement. */
-@media(max-width:640px){
-  #previewCanvas{display:block;margin:0 auto;width:auto;max-width:100%;max-height:28vh;}
-  .rendu-box{aspect-ratio:auto;height:42vh;max-height:300px;}
+/* ── Téléphone : même disposition que la démo de l'accueil (20/08). ──
+ * En une colonne, chaque vue prenait un écran entier et le rendu arrivait
+ * coupé. La coupe 2D (surface d'édition) garde toute la largeur ; la coque
+ * 3D et le rendu passent CÔTE À CÔTE à mi-largeur — deux fois plus petits,
+ * visibles en entier. min-width:0 : sans lui, le min-width:240px des
+ * .canvas-col fait déborder la grille sur 390 px. */
+@media(max-width:700px){
+  .vgrid3{grid-template-columns:1fr 1fr;}
+  .vgrid3 > :nth-child(1){grid-column:1 / -1;}
+  .vgrid3 > :nth-child(3){grid-column:auto;}
+  .vgrid3 .canvas-col{min-width:0;}
 }
 .vtabs{display:flex;gap:8px;margin-bottom:12px;}
 .vtabs button{flex:1;font:600 13px var(--font);padding:9px 12px;border-radius:10px;border:1px solid var(--sep);
@@ -322,7 +324,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         <div class="vgrid3">
           <div class="canvas-col">
             <div class="lbl">Coupe 2D cotée — axe de symétrie au centre
-              <small>Clique dans le vide pour ajouter un point · glisse un point pour le déplacer</small>
+              <small>✋ déplace sans rien créer · 📐 et ◠ ajoutent un point · 🗑 supprime · double-appui : saisie chiffrée</small>
               <small><span style="color:var(--amber)">■ évasement 45-55°</span> &nbsp;·&nbsp; <span style="color:var(--red)">■ évasement &gt;55° (support)</span></small>
             </div>
             <canvas id="profileCanvas" width="480" height="440"></canvas>
@@ -3875,6 +3877,97 @@ pc.addEventListener('touchend', e=>{
   }
   dernierTap = maintenant; dernierTapXY = {x, y};
 });
+
+/* ══ OUTILS DU PROFIL 2D — portés de la démo d'accueil (20/08) ════════════
+ * Quatre modes au-dessus de la coupe : ✋ Manipuler (défaut) déplace sans
+ * JAMAIS créer au clic dans le vide — l'ajout accidentel était la première
+ * plainte iPhone ; 📐 Angle = comportement historique complet ; ◠ Arrondi =
+ * nouveau point arrondi R8, ou arrondit un point existant (re-clic : angle
+ * vif, même champ conge que la saisie chiffrée) ; 🗑 Supprimer.
+ * ⚠️ ÉCOUTEURS EN PHASE CAPTURE : les gestionnaires historiques (glissement,
+ * zone morte, création au relâchement) ne sont pas modifiés. */
+(function(){
+  const col = pc.closest('.canvas-col') || pc.parentElement;
+  const lbl = col.querySelector('.lbl');
+  const bar = document.createElement('div');
+  bar.id = 'outilsProfil'; bar.className = 'seg';
+  bar.style.margin = '0 0 8px';
+  const DEFS = [
+    ['move', '✋ Manipuler', 'Déplacer un point (outil par défaut, ne crée rien)'],
+    ['angle', '📐 Angle', 'Clique dans le vide : nouveau point à angle vif'],
+    ['arrondi', '◠ Arrondi', 'Clique dans le vide : point arrondi · sur un point : l’arrondit (re-clic : angle vif)'],
+    ['del', '🗑 Supprimer', 'Clique un point pour le supprimer'],
+  ];
+  let outil = 'move';
+  const btns = {};
+  DEFS.forEach(d=>{
+    const b = document.createElement('button');
+    b.type = 'button'; b.textContent = d[1]; b.title = d[2];
+    b.style.minWidth = '0';
+    b.onclick = ()=>{ outil = d[0];
+      for(const k in btns) btns[k].classList.toggle('on', k === d[0]); };
+    btns[d[0]] = b; bar.appendChild(b);
+  });
+  btns.move.onclick();
+  if(lbl) lbl.insertAdjacentElement('afterend', bar);
+  else col.insertAdjacentElement('afterbegin', bar);
+
+  const R_DEFAUT = 8;          // la saisie chiffrée va plus loin ; ici un cran utile
+  function poseConge(i){
+    if(i <= 0 || i >= state.profile.length - 1) return;   // extrémités : jamais de congé
+    const p = state.profile[i];
+    p.conge = (p.conge || 0) > 0 ? 0 : R_DEFAUT;
+    state.selected = i; renderSoon();
+  }
+  function supprime(i){
+    if(i < 0 || state.profile.length <= 3) return;        // même garde que delPoint
+    state.profile.splice(i, 1); state.selected = -1;
+    normalizeProfile(); renderAll();
+  }
+  /* La création TACTILE a lieu au relâchement (gestionnaire historique, zone
+   * morte comprise) : pour arrondir un point créé au doigt on note la taille
+   * du profil au départ, et on n'arrondit au relâchement QUE si un point est
+   * réellement apparu. */
+  let lenAvantTouche = -1;
+  function filtre(e){
+    if(outil === 'angle') return;               // comportement historique complet
+    const tactile = !!e.touches;
+    const pos = canvasPos(e);
+    const idx = nearestPoint(pos.x, pos.y, rayonSaisie(tactile));
+    if(outil === 'move'){
+      if(idx < 0){ e.stopImmediatePropagation(); e.preventDefault(); }  // pas d'ajout accidentel
+      return;
+    }
+    if(outil === 'arrondi'){
+      if(idx >= 0){ e.stopImmediatePropagation(); e.preventDefault(); poseConge(idx); }
+      else if(tactile) lenAvantTouche = state.profile.length;
+      else setTimeout(()=>{ if(state.selected > 0) poseConge(state.selected); }, 0);
+      return;
+    }
+    if(outil === 'del'){
+      e.stopImmediatePropagation(); e.preventDefault();
+      if(idx >= 0) supprime(idx);
+    }
+  }
+  pc.addEventListener('mousedown', filtre, true);
+  pc.addEventListener('touchstart', filtre, true);
+  pc.addEventListener('touchend', ()=>{
+    if(outil !== 'arrondi' || lenAvantTouche < 0) return;
+    const avant = lenAvantTouche; lenAvantTouche = -1;
+    setTimeout(()=>{
+      if(state.profile.length > avant && state.selected > 0) poseConge(state.selected);
+    }, 0);
+  }, true);
+
+  // Poignée de diagnostic pour les essais, même contrat que la démo d'accueil.
+  window.__outilsProfil = {
+    get outil(){ return outil; },
+    set outil(v){ if(btns[v]) btns[v].onclick(); },
+    get points(){ return state.profile.map(p=>({h:+p.h.toFixed(1), r:+p.r.toFixed(1), conge:+(p.conge||0)})); },
+    canvasXY(i){ const p = state.profile[i]; return p ? {x:pMapX(p.r), y:pMapY(p.h)} : null; },
+    get selected(){ return state.selected; }
+  };
+})();
 
 {
   const f = $('ptEditFermer'); if(f) f.onclick = fermerEditeurPoint;
