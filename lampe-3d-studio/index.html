@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-hr05zQyoM9yg4Z85hhqq8XkVLLMDIOhVMCb8/BwHl6E='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-7AAscayztFkqXToRJzeVC2OS0e7SW/3jlnB0oYODnIk='; style-src-attr 'unsafe-inline'; script-src 'sha256-hr05zQyoM9yg4Z85hhqq8XkVLLMDIOhVMCb8/BwHl6E='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -184,6 +184,16 @@ table.pts tr.bad td{color:var(--red);}
 @media(max-width:1000px){
   .app{grid-template-columns:1fr;}
   .viewer{position:static;max-height:none;overflow:visible;}
+}
+/* ── Téléphone : les vues empilées se partagent l'ÉCRAN, pas la page. ──
+ * Sur iPhone la coque 3D (presque carrée, pleine largeur) mangeait un écran
+ * entier et le rendu studio arrivait coupé sous elle. On borne chaque vue en
+ * FRACTION DE LA HAUTEUR D'ÉCRAN (vh) et non en pixels : coque + rendu
+ * tiennent ensemble dans une vue, quel que soit le téléphone. Le canvas garde
+ * son ratio (élément remplacé) : width:auto + max-width évitent l'étirement. */
+@media(max-width:640px){
+  #previewCanvas{display:block;margin:0 auto;width:auto;max-width:100%;max-height:28vh;}
+  .rendu-box{aspect-ratio:auto;height:42vh;max-height:300px;}
 }
 .vtabs{display:flex;gap:8px;margin-bottom:12px;}
 .vtabs button{flex:1;font:600 13px var(--font);padding:9px 12px;border-radius:10px;border:1px solid var(--sep);
