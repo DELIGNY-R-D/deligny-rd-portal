@@ -27,6 +27,11 @@ if(document.documentElement.classList.contains('ui-topo')) addEventListener('DOM
     'font:600 13px system-ui;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)';
   b.onclick=function(){ var r=document.getElementById('reset'); if(r&&r.onclick) r.click(); };
   document.body.appendChild(b);
+  // Le systeme ELEC du jeu tire des cables gris entre ses noeuds (groupe 'elec_cables'),
+  // y compris dans les mondes generes : hors sujet dans une vitrine de sculpture de relief.
+  // Le groupe est recree a chaque nouveau monde -> on le masque en continu (visible=false
+  // est gratuit quand il l'est deja).
+  setInterval(function(){ try{ var sc=window.__M&&window.__M.scene; if(!sc)return; var g=sc.getObjectByName('elec_cables'); if(g&&g.visible)g.visible=false; }catch(e){} },1200);
 });
 // En LOCAL (lanceur localhost) : pas de service worker → toujours la dernière version (et on nettoie un éventuel SW déjà installé).
 // Sur un vrai domaine (si un jour hébergé) : SW activé pour le mode hors-ligne / PWA.
