@@ -158,6 +158,17 @@ body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
 #lampe-embed-root .vgrid3 > :nth-child(3){grid-column:1 / -1;}
 @media(max-width:1000px){#lampe-embed-root .vgrid3{grid-template-columns:1fr;}
   #lampe-embed-root .vgrid3 > :nth-child(3){grid-column:auto;}}
+/* iPhone (20/08) : en une colonne, chaque vue prenait un ecran entier et le
+   rendu arrivait coupe. La coupe 2D (surface d'edition) garde toute la
+   largeur ; la coque 3D et le rendu passent COTE A COTE a mi-largeur, donc
+   deux fois plus petits et visibles en entier. min-width:0 : sans lui, le
+   min-width:240px des .canvas-col fait deborder la grille sur 390px. */
+@media(max-width:700px){
+  #lampe-embed-root .vgrid3{grid-template-columns:1fr 1fr;}
+  #lampe-embed-root .vgrid3 > :nth-child(1){grid-column:1 / -1;}
+  #lampe-embed-root .vgrid3 > :nth-child(3){grid-column:auto;}
+  #lampe-embed-root .vgrid3 .canvas-col{min-width:0;}
+}
 @media(max-width:1000px){
   #lampe-embed-root .app{grid-template-columns:1fr;}
   #lampe-embed-root .viewer{position:static;max-height:none;overflow:visible;}
