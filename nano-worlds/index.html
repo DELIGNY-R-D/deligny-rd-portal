@@ -18,6 +18,16 @@
 // montre que les outils qui modifient le relief, aucun autre bouton. Se combine avec ?dev (deverrouille
 // les outils avances de relief que la progression reserve normalement) et ?world=default.
 if(/[?&]ui=topo(&|$)/.test(location.search)) document.documentElement.classList.add('ui-topo');
+if(document.documentElement.classList.contains('ui-topo')) addEventListener('DOMContentLoaded',function(){
+  // Seul bouton d'action de la vitrine : un NOUVEAU monde aleatoire. On delegue au bouton
+  // « ↺ Nouveau » du jeu (#reset, masque ici) : meme generation, aucune logique dupliquee.
+  var b=document.createElement('button'); b.id='topoNew'; b.type='button'; b.textContent='\uD83C\uDF0D Nouveau monde';
+  b.style.cssText='position:fixed;right:calc(10px + env(safe-area-inset-right));bottom:calc(10px + env(safe-area-inset-bottom));z-index:30;'+
+    'background:rgba(16,20,27,.85);color:#eaf0f7;border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:9px 15px;'+
+    'font:600 13px system-ui;cursor:pointer;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)';
+  b.onclick=function(){ var r=document.getElementById('reset'); if(r&&r.onclick) r.click(); };
+  document.body.appendChild(b);
+});
 // En LOCAL (lanceur localhost) : pas de service worker → toujours la dernière version (et on nettoie un éventuel SW déjà installé).
 // Sur un vrai domaine (si un jour hébergé) : SW activé pour le mode hors-ligne / PWA.
 if('serviceWorker' in navigator){
@@ -112,9 +122,9 @@ if('serviceWorker' in navigator){
      chargement est masque (HUD, panneaux, menus, toasts, modales de reprise, chapitres...).
      Dans le dock, seuls les outils de relief restent. Le dock reste visible meme en mode
      tactile (ou le jeu le replie par defaut). Clic droit = pivoter, molette = zoom. */
-  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load){display:none!important}
+  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load):not(#topoNew){display:none!important}
   html.ui-topo #top > :not(#brushCard){display:none!important}
-  html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="smooth"]):not([data-tool="niveau"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="colline"]):not([data-tool="plateau"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
+  html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
   html.ui-topo #bar, html.ui-topo #bar.hidden, html.ui-topo body.game-clean #bar{display:flex!important}
   html.ui-topo body.game-clean #top{display:flex!important}
   html.ui-topo #bar{top:12px;bottom:12px}
