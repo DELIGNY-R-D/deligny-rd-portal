@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-qeTBDRRk8Ijt8y+VseqqU806M8sv9BSlWsYS3QD09y4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-hr05zQyoM9yg4Z85hhqq8XkVLLMDIOhVMCb8/BwHl6E='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -7275,9 +7275,21 @@ async function payerCommande(){
     const j = await r.json();
     if(!j.ok) throw new Error(j.msg || j.error || 'refus');
     CMD.paiement = j.paiement;
+    /* PAYPLUG : la banque a une page a elle, on y va. La confirmation ne
+     * reviendra JAMAIS par ce navigateur : c'est la notification serveur,
+     * re-verifiee aupres de Payplug, qui marquera la commande payee. Le
+     * client, lui, recevra l'email avec la facture. */
+    if(j.paiement.fournisseur === 'payplug'){
+      if(!j.paiement.url) throw new Error('page de paiement absente');
+      suite.innerHTML +=
+        `<div style="margin-top:10px;font:12.5px var(--font);color:var(--dim2)">` +
+        `Redirection vers la page de paiement sécurisée…</div>`;
+      location.href = j.paiement.url;
+      return;
+    }
     /* En mock, la banque est absente : c'est ce bouton qui joue son role.
-     * Avec Payplug il disparaitra — seule la notification, RE-INTERROGEE
-     * aupres du fournisseur, pourra confirmer un paiement. Le serveur refuse
+     * Avec Payplug il disparait — seule la notification, RE-INTERROGEE
+     * aupres du fournisseur, peut confirmer un paiement. Le serveur refuse
      * deja cette route des qu'un vrai fournisseur est configure. */
     suite.innerHTML +=
       `<div style="margin-top:10px;font:12.5px var(--font);color:var(--dim2)">` +
