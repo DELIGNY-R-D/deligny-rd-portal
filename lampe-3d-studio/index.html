@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-oXThr00h2WTQ/lvL5PyoitvVgriQaLkDij8QPv8ILbc='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-KG71z/vht/MYCrk2VimWG0zL3xbCGrwSRbl9bio/3wg='; style-src-attr 'unsafe-inline'; script-src 'sha256-qeTBDRRk8Ijt8y+VseqqU806M8sv9BSlWsYS3QD09y4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -858,6 +858,19 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       </div>
     </div>
     <div id="cmdPort" class="hint" style="margin-top:10px"></div>
+    <!-- ⚠️ CGV AVANT le bouton, exigee par validerCommande : une lampe tracee
+         par le client est un bien personnalise, donc SANS retractation
+         (art. L221-28 3° C. conso). Ce consentement doit etre recueilli AVANT
+         la commande, et il part au serveur avec elle (client.cgv). -->
+    <label style="display:flex;gap:10px;align-items:flex-start;margin-top:12px;
+                  font:12.5px var(--font);color:var(--dim2);cursor:pointer">
+      <input type="checkbox" id="cmdCgv" style="margin-top:3px;flex:none">
+      <span>J'ai lu et j'accepte les
+      <a href="cgv.html" target="_blank" rel="noopener" style="color:var(--acc)">conditions
+      générales de vente</a>, et je reconnais que ma lampe est fabriquée selon mes
+      spécifications&nbsp;: le droit de rétractation ne s'applique pas
+      (art.&nbsp;L221-28&nbsp;3° du Code de la consommation).</span>
+    </label>
     <div class="row-btn" style="margin-top:10px">
       <button class="btn pri" id="cmdValider">Valider la commande</button>
       <span id="cmdEtat" style="font:12.5px var(--font);color:var(--dim2)"></span>
@@ -7073,6 +7086,15 @@ async function validerCommande(){
     if(etat) etat.textContent = 'il manque : ' + (client.email ? '' : 'email, ') + manque.join(', ');
     return;
   }
+  /* ⚠️ CGV obligatoires AVANT le depot. L'horodatage part avec la commande :
+   * c'est la preuve que l'information sur l'absence de retractation
+   * (bien personnalise) a ete donnee et acceptee avant la vente. */
+  const cgv = $('cmdCgv');
+  if(!cgv || !cgv.checked){
+    if(etat) etat.textContent = 'coche la case des conditions générales de vente pour continuer.';
+    return;
+  }
+  client.cgv = new Date().toISOString();
   try{
     const r = await fetch(baseCommande() + '/api/commande', {
       method: 'POST', headers: {'Content-Type': 'application/json'},
@@ -7143,9 +7165,42 @@ async function chercherCommande(){
         ? `<div style="font:12px var(--font);color:var(--dim2);margin-top:8px">` +
           `${j.pieces.length} fichier${j.pieces.length>1?'s':''} de fabrication joint` +
           `${j.pieces.length>1?'s':''} à la commande.</div>` : '') +
+      (j.etat === 'PAYEE'
+        ? `<div class="row-btn" style="margin-top:10px">` +
+          `<button class="btn" id="suiviFacture">Télécharger la facture</button></div>` : '') +
       `</div>`;
+    const bf = $('suiviFacture');
+    if(bf) bf.onclick = () => telechargerFacture(ref, email, bf);
   }catch(e){
     zone.innerHTML = `<div class="hint" style="color:var(--amber)">${e.message}</div>`;
+  }
+}
+
+/* ⚠️ MEMES GARDES QUE LE SUIVI : reference + email. Le PDF arrive en base64
+ * et se telecharge en local — la facture appartient au client, le serveur ne
+ * la donne qu'a qui prouve connaitre le couple reference/email. */
+async function telechargerFacture(ref, email, bouton){
+  const avant = bouton.textContent;
+  bouton.textContent = 'préparation…'; bouton.disabled = true;
+  try{
+    const r = await fetch(baseCommande() + '/api/commande/' + encodeURIComponent(ref) + '/facture', {
+      method: 'POST', headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ email }),
+    });
+    const j = await r.json();
+    if(!j.ok) throw new Error(j.msg || 'facture indisponible');
+    const oct = Uint8Array.from(atob(j.pdf_b64), ch => ch.charCodeAt(0));
+    const url = URL.createObjectURL(new Blob([oct], { type: 'application/pdf' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = j.numero + '.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 4000);
+    bouton.textContent = 'facture ' + j.numero;
+  }catch(e){
+    bouton.textContent = e.message;
+  }finally{
+    bouton.disabled = false;
+    setTimeout(() => { bouton.textContent = avant; }, 6000);
   }
 }
 
@@ -7246,8 +7301,13 @@ async function confirmerCommande(){
     suite.innerHTML =
       `<div style="font:700 14px var(--font);color:var(--bon)">Commande ${CMD.ref} — payée</div>` +
       `<div style="font:12.5px var(--font);color:var(--dim2);margin-top:6px">` +
-      `Paiement de démonstration : aucun montant n'a été débité. Le panier est conservé ` +
-      `tant que tu ne le vides pas.</div>`;
+      `Paiement de démonstration : aucun montant n'a été débité. La facture est jointe ` +
+      `à l'email de confirmation. Le panier est conservé tant que tu ne le vides pas.</div>` +
+      `<div class="row-btn" style="margin-top:8px">` +
+      `<button class="btn" id="cmdFacture">Télécharger la facture</button></div>`;
+    const bf = $('cmdFacture');
+    if(bf) bf.onclick = () => telechargerFacture(
+      CMD.ref, ($('cmdEmail') || {}).value ? $('cmdEmail').value.trim() : '', bf);
   }catch(e){
     if(suite) suite.innerHTML += `<div style="color:var(--mauvais);font:12.5px var(--font);margin-top:8px">échec : ${e.message}</div>`;
   }
