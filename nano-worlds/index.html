@@ -32,6 +32,30 @@ if(document.documentElement.classList.contains('ui-topo')) addEventListener('DOM
   // Le groupe est recree a chaque nouveau monde -> on le masque en continu (visible=false
   // est gratuit quand il l'est deja).
   setInterval(function(){ try{ var sc=window.__M&&window.__M.scene; if(!sc)return; var g=sc.getObjectByName('elec_cables'); if(g&&g.visible)g.visible=false; }catch(e){} },1200);
+  // Pinceau au MILIEU par defaut (demande 20/08) : la valeur de depart du jeu (6/42)
+  // fait des retouches trop fines pour une vitrine.
+  var sz=document.getElementById('size'); if(sz){ sz.value=Math.round((+sz.min + +sz.max)/2); sz.dispatchEvent(new Event('input',{bubbles:true})); }
+  // Curseur de ROTATION du paysage, en bas au centre (demande 20/08 : « faire
+  // pivoter le paysage ») : azimut absolu de la camera autour de la cible,
+  // plus simple au doigt que la rotation a deux doigts.
+  var orb=document.createElement('input'); orb.type='range'; orb.id='topoOrbit';
+  orb.min='-180'; orb.max='180'; orb.step='1'; orb.value='0';
+  orb.title='Faire pivoter le paysage';
+  orb.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(58px + env(safe-area-inset-bottom));z-index:30;width:min(46vw,340px);accent-color:#4aa8ff';
+  function _cam(){ var M=window.__M; return (M&&M.camera&&M.controls)?M:null; }
+  function _azimut(M){ var o=M.camera.position.clone().sub(M.controls.target); return Math.atan2(o.x,o.z); }
+  orb.oninput=function(){ var M=_cam(); if(!M)return;
+    var cam=M.camera, ct=M.controls.target;
+    var o=cam.position.clone().sub(ct); var r=o.length();
+    var phi=Math.acos(Math.max(-1,Math.min(1,o.y/r)));
+    var th=(+orb.value)*Math.PI/180;
+    cam.position.set(ct.x + r*Math.sin(phi)*Math.sin(th), ct.y + r*Math.cos(phi), ct.z + r*Math.sin(phi)*Math.cos(th));
+    M.controls.update();
+  };
+  document.body.appendChild(orb);
+  // initialise le curseur sur l'azimut reel une fois le moteur pret (et le
+  // resynchronise si on a pivote autrement : 2 doigts, clic droit, ⌂)
+  setInterval(function(){ try{ var M=_cam(); if(!M)return; if(document.activeElement!==orb) orb.value=Math.round(_azimut(M)*180/Math.PI); }catch(e){} },900);
 });
 // En LOCAL (lanceur localhost) : pas de service worker → toujours la dernière version (et on nettoie un éventuel SW déjà installé).
 // Sur un vrai domaine (si un jour hébergé) : SW activé pour le mode hors-ligne / PWA.
@@ -127,7 +151,7 @@ if('serviceWorker' in navigator){
      chargement est masque (HUD, panneaux, menus, toasts, modales de reprise, chapitres...).
      Dans le dock, seuls les outils de relief restent. Le dock reste visible meme en mode
      tactile (ou le jeu le replie par defaut). Clic droit = pivoter, molette = zoom. */
-  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load):not(#topoNew):not(#camReset){display:none!important}
+  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load):not(#topoNew):not(#camReset):not(#topoOrbit){display:none!important}
   html.ui-topo #camReset{top:auto!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;right:calc(158px + env(safe-area-inset-right))!important;border-radius:11px!important;background:rgba(16,20,27,.85)!important;color:#eaf0f7!important;border-color:rgba(255,255,255,.14)!important}   /* le « ⌂ » du jeu, repositionne a cote de « Nouveau monde » */
   html.ui-topo #top > :not(#brushCard):not(#quickActions){display:none!important}
   html.ui-topo #quickActions > :not(#rewind2):not(#speed){display:none!important}   /* ne restent que ⏪ (retour vers ×1) et ⏩ (accelerer) */
