@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-cfdwvKwQ11mX5zMwv+wPpeeRJ08HeUV8p15fXuheoiQ='; style-src-attr 'unsafe-inline'; script-src 'sha256-0ytOgknQ/C4IL+wEthPbDx8nsxx9eO2zzAqLFihAmn0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-cfdwvKwQ11mX5zMwv+wPpeeRJ08HeUV8p15fXuheoiQ='; style-src-attr 'unsafe-inline'; script-src 'sha256-mDGB3a+gQD9M76FjqkIxLl2w7OfTWBjHKYVWED9HBFQ='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -7253,7 +7253,9 @@ async function chercherCommande(){
     if(!j.ok) throw new Error(j.msg || 'aucune commande avec cette référence et cet email');
     const eur = c => (c/100).toLocaleString('fr-FR') + ' €';
     const etats = { DEPOSEE:'déposée, en attente de paiement', EN_PAIEMENT:'paiement en cours',
-                    PAYEE:'payée', ANNULEE:'annulée' };
+                    PAYEE:'payée, en fabrication', EXPEDIEE:'expédiée', ANNULEE:'annulée' };
+    const SUIVI_COLIS = { colissimo: n => 'https://www.laposte.fr/outils/suivre-vos-envois?code=' + n,
+                          mondial_relay: n => 'https://www.mondialrelay.fr/suivi-de-colis/?numeroExpedition=' + n };
     zone.innerHTML =
       `<div style="padding:12px;border:1px solid var(--sep);border-radius:12px;background:var(--card2)">` +
       `<div style="font:700 14px var(--font)">${j.ref} — ${etats[j.etat] || j.etat}</div>` +
@@ -7268,7 +7270,15 @@ async function chercherCommande(){
         ? `<div style="font:12px var(--font);color:var(--dim2);margin-top:8px">` +
           `${j.pieces.length} fichier${j.pieces.length>1?'s':''} de fabrication joint` +
           `${j.pieces.length>1?'s':''} à la commande.</div>` : '') +
-      (j.etat === 'PAYEE'
+      (j.expedition && j.expedition.numero
+        ? `<div style="font:12.5px var(--font);margin-top:8px">Colis ` +
+          `${j.expedition.transporteur === 'mondial_relay' ? 'Mondial Relay' : 'Colissimo'} ` +
+          `n° ${j.expedition.numero} · ` +
+          (SUIVI_COLIS[j.expedition.transporteur]
+            ? `<a href="${SUIVI_COLIS[j.expedition.transporteur](j.expedition.numero)}" ` +
+              `target="_blank" rel="noopener" style="color:var(--acc)">suivre le colis</a>` : '') +
+          `</div>` : '') +
+      (j.etat === 'PAYEE' || j.etat === 'EXPEDIEE'
         ? `<div class="row-btn" style="margin-top:10px">` +
           `<button class="btn" id="suiviFacture">Télécharger la facture</button></div>` : '') +
       `</div>`;
