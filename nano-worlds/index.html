@@ -51,10 +51,14 @@ if(document.documentElement.classList.contains('ui-topo')) addEventListener('DOM
   // Curseur de ROTATION du paysage, en bas au centre (demande 20/08 : « faire
   // pivoter le paysage ») : azimut absolu de la camera autour de la cible,
   // plus simple au doigt que la rotation a deux doigts.
+  function _wrap(id, vertical, labelTxt){
+    var w=document.createElement('div'); w.id=id; w.className='topoWrap'+(vertical?' topoVert':'');
+    var l=document.createElement('span'); l.className='topoLbl'; l.textContent=labelTxt; w.appendChild(l);
+    document.body.appendChild(w); return w;
+  }
   var orb=document.createElement('input'); orb.type='range'; orb.id='topoOrbit';
   orb.min='-180'; orb.max='180'; orb.step='1'; orb.value='0';
   orb.title='Faire pivoter le paysage';
-  orb.style.cssText='position:fixed;left:50%;transform:translateX(-50%);bottom:calc(58px + env(safe-area-inset-bottom));z-index:30;width:min(46vw,340px);accent-color:#4aa8ff';
   function _cam(){ var M=window.__M; return (M&&M.camera&&M.controls)?M:null; }
   function _azimut(M){ var o=M.camera.position.clone().sub(M.controls.target); return Math.atan2(o.x,o.z); }
   orb.oninput=function(){ var M=_cam(); if(!M)return;
@@ -65,10 +69,33 @@ if(document.documentElement.classList.contains('ui-topo')) addEventListener('DOM
     cam.position.set(ct.x + r*Math.sin(phi)*Math.sin(th), ct.y + r*Math.cos(phi), ct.z + r*Math.sin(phi)*Math.cos(th));
     M.controls.update();
   };
-  document.body.appendChild(orb);
-  // initialise le curseur sur l'azimut reel une fois le moteur pret (et le
-  // resynchronise si on a pivote autrement : 2 doigts, clic droit, ⌂)
-  setInterval(function(){ try{ var M=_cam(); if(!M)return; if(document.activeElement!==orb) orb.value=Math.round(_azimut(M)*180/Math.PI); }catch(e){} },900);
+  _wrap('topoOrbitWrap', false, 'Pivoter').appendChild(orb);
+  // Etiquette du bloc temps (les curseurs Pinceau/Force portent deja leur nom)
+  var _qa=document.getElementById('quickActions');
+  if(_qa){ var ql=document.createElement('span'); ql.className='topoLbl'; ql.textContent='Temps'; _qa.insertBefore(ql,_qa.firstChild); }
+  // Curseur vertical INCLINAISON (droite) : angle polaire absolu de la camera
+  var tilt=document.createElement('input'); tilt.type='range'; tilt.id='topoTilt';
+  tilt.min='8'; tilt.max='85'; tilt.step='1'; tilt.value='55'; tilt.title='Pivoter verticalement';
+  tilt.oninput=function(){ var M=_cam(); if(!M)return; var cam=M.camera, ct=M.controls.target;
+    var o=cam.position.clone().sub(ct); var r=o.length(); var th=Math.atan2(o.x,o.z);
+    var phi=(+tilt.value)*Math.PI/180;
+    phi=Math.max(M.controls.minPolarAngle+0.02, Math.min(M.controls.maxPolarAngle-0.02, phi));
+    cam.position.set(ct.x + r*Math.sin(phi)*Math.sin(th), ct.y + r*Math.cos(phi), ct.z + r*Math.sin(phi)*Math.cos(th));
+    M.controls.update(); };
+  _wrap('topoTiltWrap', true, 'Inclinaison').appendChild(tilt);
+  // Curseur vertical ZOOM (droite) : zoom orthographique de la camera
+  var zm=document.createElement('input'); zm.type='range'; zm.id='topoZoom';
+  zm.min='48'; zm.max='420'; zm.step='2'; zm.value='100'; zm.title='Zoom';
+  zm.oninput=function(){ var M=_cam(); if(!M)return; M.camera.zoom=(+zm.value)/100; M.camera.updateProjectionMatrix(); };
+  _wrap('topoZoomWrap', true, 'Zoom').appendChild(zm);
+  // initialise les curseurs sur l'etat reel une fois le moteur pret (et les
+  // resynchronise si on a bouge autrement : 2 doigts, clic droit, molette, ⌂)
+  setInterval(function(){ try{ var M=_cam(); if(!M)return; var a=document.activeElement;
+    if(a!==orb) orb.value=Math.round(_azimut(M)*180/Math.PI);
+    var o=M.camera.position.clone().sub(M.controls.target); var r=o.length();
+    if(a!==tilt) tilt.value=Math.round(Math.acos(Math.max(-1,Math.min(1,o.y/r)))*180/Math.PI);
+    if(a!==zm) zm.value=Math.round(M.camera.zoom*100);
+  }catch(e){} },900);
 });
 // En LOCAL (lanceur localhost) : pas de service worker → toujours la dernière version (et on nettoie un éventuel SW déjà installé).
 // Sur un vrai domaine (si un jour hébergé) : SW activé pour le mode hors-ligne / PWA.
@@ -164,15 +191,24 @@ if('serviceWorker' in navigator){
      chargement est masque (HUD, panneaux, menus, toasts, modales de reprise, chapitres...).
      Dans le dock, seuls les outils de relief restent. Le dock reste visible meme en mode
      tactile (ou le jeu le replie par defaut). Clic droit = pivoter, molette = zoom. */
-  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load):not(#topoNew):not(#camReset):not(#topoOrbit){display:none!important}
+  html.ui-topo body > :not(#c):not(#bar):not(#top):not(#load):not(#topoNew):not(#camReset):not(#topoOrbitWrap):not(#topoTiltWrap):not(#topoZoomWrap){display:none!important}
   html.ui-topo #camReset{top:auto!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;right:calc(158px + env(safe-area-inset-right))!important;border-radius:11px!important;background:rgba(16,20,27,.85)!important;color:#eaf0f7!important;border-color:rgba(255,255,255,.14)!important}   /* le « ⌂ » du jeu, repositionne a cote de « Nouveau monde » */
-  html.ui-topo #top > :not(#brushCard):not(#quickActions){display:none!important}
-  html.ui-topo #quickActions > :not(#rewind2):not(#speed){display:none!important}   /* ne restent que ⏪ (retour vers ×1) et ⏩ (accelerer) */
+  html.ui-topo #top > :not(#brushCard):not(#quickActions):not(#stylebar){display:none!important}   /* + le selecteur natif Bouger/Agir, demande 21/08 */
+  html.ui-topo #quickActions > :not(#rewind2):not(#speed):not(.topoLbl){display:none!important}   /* ne restent que l'etiquette Temps, ⏪ et ⏩ */
   html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]):not([data-tool="tuyau"]):not([data-tool="rail"]):not([data-tool="train"]):not([data-tool="telecabine"]):not([data-tool="maison"]):not([data-tool="gratteciel"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
   html.ui-topo #bar, html.ui-topo #bar.hidden, html.ui-topo body.game-clean #bar{display:flex!important}
   html.ui-topo body.game-clean #top{display:flex!important}
-  html.ui-topo #bar{top:12px;bottom:12px}
-  html.ui-topo #top{top:calc(8px + env(safe-area-inset-top));left:auto;right:calc(8px + env(safe-area-inset-right));width:auto;bottom:auto;padding:0;background:transparent;border:0}
+  html.ui-topo #bar{top:168px;bottom:12px}   /* sous le cluster haut-gauche (Bouger/Agir + Pinceau/Force + Temps) */
+  html.ui-topo #top{top:calc(8px + env(safe-area-inset-top));left:calc(8px + env(safe-area-inset-left));right:auto;width:auto;bottom:auto;padding:0;background:transparent;border:0;flex-direction:column;align-items:flex-start;gap:6px}   /* cluster HAUT-GAUCHE (demande 21/08) */
+  html.ui-topo .topoLbl{font-size:10px;color:#9aa6b4;margin-right:6px;letter-spacing:.03em}
+  html.ui-topo .topoWrap{position:fixed;z-index:30;display:flex;align-items:center;gap:7px;background:rgba(16,20,27,.78);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:6px 10px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#eaf0f7}
+  html.ui-topo #topoOrbitWrap{left:50%;transform:translateX(-50%);bottom:calc(58px + env(safe-area-inset-bottom))}
+  html.ui-topo #topoOrbitWrap input{width:min(38vw,300px);accent-color:#4aa8ff}
+  html.ui-topo .topoVert{right:calc(10px + env(safe-area-inset-right));flex-direction:column;padding:8px 7px;gap:5px}
+  html.ui-topo .topoVert .topoLbl{margin:0}
+  html.ui-topo .topoVert input{writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;appearance:slider-vertical;width:18px;height:22vh;accent-color:#4aa8ff}
+  html.ui-topo #topoTiltWrap{top:calc(14vh + env(safe-area-inset-top))}
+  html.ui-topo #topoZoomWrap{top:calc(14vh + 22vh + 74px + env(safe-area-inset-top))}
 </style>
 </head>
 <body>
