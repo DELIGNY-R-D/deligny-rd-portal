@@ -54,8 +54,9 @@ a {
 .topbar {
   /* Non collant (demande 20/08) : la barre vit en haut de la page et sort de
      l'ecran au defilement -- sur iPhone/iPad elle mangeait toute la hauteur. */
-  position: static;
-  z-index: 10;
+  position: relative;   /* PAS static : sans contexte d'empilement, l'animation
+     du hero passait au-dessus des menus deroulants (signale 21/08) */
+  z-index: 30;
   display: flex;
   align-items: center;
   justify-content: space-between;
