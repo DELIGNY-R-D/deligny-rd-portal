@@ -6238,13 +6238,19 @@ function majSourceRendu(src){
        * chose. L'apercu ne reste visible que s'il n'y a AUCUN moteur, ou il est
        * la seule image possible. */
       const moteurDispo = (AI.ok === true) || MOTEUR.distant;
+      /* VITRINE ACCUEIL (23/08, demande Baptiste, repetee) : l'apercu navigateur
+       * ne s'affiche JAMAIS, meme quand aucun moteur n'est joignable. Sans
+       * moteur, le cartouche neutre reste en place avec un mot d'attente : on
+       * ne montre rien plutot qu'une lampe grise facettee qui n'est pas le
+       * produit. */
       if(img) img.style.display = dejaBlender ? '' : 'none';
-      if(cvR) cvR.style.display = (dejaBlender || moteurDispo) ? 'none' : '';
-      if(att) att.hidden = dejaBlender || !moteurDispo;
+      if(cvR) cvR.style.display = 'none';
+      if(att){ att.hidden = dejaBlender;
+        att.textContent = moteurDispo ? 'Rendu Blender en cours…' : 'Rendu Blender indisponible pour le moment.'; }
     }
     t.innerHTML = BL_LIVE.busy
-      ? '<span style="color:var(--amber)">— aperçu, Blender en cours…</span>'
-      : '<span style="color:var(--dim2)">— aperçu immédiat</span>';
+      ? '<span style="color:var(--amber)">— Blender en cours…</span>'
+      : '<span style="color:var(--dim2)">— en attente du moteur</span>';
     /* ⚠️ DEUX PUBLICS, DEUX PHRASES. « Le rendu photo Blender demande le
      * moteur local » decrit un manque : sur le site public, ou Blender n'a
      * jamais eu a exister, ça se lit comme une panne alors que tout va bien.
@@ -6256,7 +6262,7 @@ function majSourceRendu(src){
       ? "Point de vue fixe, comme une photo. Se refait à chaque modification."
       : (atelier
           ? "Le moteur local ne répond pas : le rendu photo Blender est indisponible."
-          : "Calculé dans ton navigateur à partir de la géométrie exacte, point de vue fixe.");
+          : "Le rendu studio est calculé par Blender, point de vue fixe. Il se refait à chaque modification dès que le moteur répond.");
   }
 }
 
@@ -7110,13 +7116,14 @@ async function cvEnvoyer(texte){
 syncLit();          // l'interface part de l'etat, jamais l'inverse
 detectAI();
 
-/* ══════════ VITRINE ACCUEIL (20/08) — OUTILS DU PROFIL 2D ══════════
+/* ══════════ VITRINE ACCUEIL (20/08, revu 23/08) — OUTILS DU PROFIL 2D ══════════
    Demande Baptiste : les outils visibles au-dessus de la coupe 2D, sans
    ouvrir le panneau complet (masque sur l'accueil). Quatre modes :
    ✋ Manipuler (defaut, deplace un point, ne cree RIEN au clic dans le vide),
-   📐 Angle (clic dans le vide = nouveau point a angle vif),
-   ◠ Arrondi (clic dans le vide = point arrondi ; clic sur un point =
-   arrondit, re-clic = angle vif — meme champ p.conge que le curseur),
+   ＋ Rajouter point (clic dans le vide = nouveau point a angle vif),
+   ◠ Arrondi (ne cree pas de point : appui sur un point = conge de 15 mm par
+   defaut, puis GLISSER regle le rayon — vers la droite plus rond, vers la
+   gauche moins, jusqu'a 0 = angle vif ; meme champ p.conge que le curseur),
    🗑 Supprimer (clic sur un point). Implémente en ECOUTEURS CAPTURE au-dessus
    des gestionnaires historiques, qui ne sont pas modifies. */
 (function(){
@@ -7124,11 +7131,11 @@ detectAI();
   const lbl = col.querySelector('.lbl');
   const bar = document.createElement('div');
   bar.id = 'outilsProfil';
-  bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 8px';
+  bar.style.cssText = 'display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 8px';
   const DEFS = [
     ['move','\u270B Manipuler','D\u00e9placer un point (outil par d\u00e9faut)'],
-    ['angle','\uD83D\uDCD0 Angle','Clique dans le vide : nouveau point \u00e0 angle vif'],
-    ['arrondi','\u25E0 Arrondi','Clique dans le vide : point arrondi \u00b7 sur un point : l\u2019arrondit (re-clic : angle vif)'],
+    ['angle','\uFF0B Rajouter point','Clique dans le vide : nouveau point \u00e0 angle vif'],
+    ['arrondi','\u25E0 Arrondi','Appuie sur un point (15 mm) puis glisse : \u00e0 droite plus rond, \u00e0 gauche moins (0 = angle vif)'],
     ['del','\uD83D\uDDD1 Supprimer','Clique un point pour le supprimer'],
   ];
   let outil = 'move';
@@ -7141,21 +7148,35 @@ detectAI();
       x.style.background=on?'#2f6e4f':'#fbfaf6'; x.style.color=on?'#fff':'#15131a'; x.style.borderColor=on?'#2f6e4f':'rgba(21,19,26,.18)'; } };
     btns[d[0]]=b; bar.appendChild(b);
   });
+  const info=document.createElement('span'); info.id='outilsProfilInfo';
+  info.style.cssText='font:500 12px system-ui;color:#6a6470;min-width:90px';
+  bar.appendChild(info);
   btns.move.onclick();
   if(lbl) lbl.insertAdjacentElement('afterend', bar); else col.insertAdjacentElement('afterbegin', bar);
 
-  const R_DEFAUT = 8;   // rayon pose par l'outil (le curseur cache va jusqu'a 25)
-  function poseConge(i){
-    if(i<=0 || i>=state.profile.length-1) return;   // extremites : jamais de conge (meme regle que le curseur)
-    const p=state.profile[i];
-    p.conge = p.conge>0 ? 0 : R_DEFAUT;
-    state.selected=i; renderSoon();
-  }
+  const R_DEFAUT = 15, R_MAX = 25;   // 15 mm au premier appui ; 25 = borne du curseur cache
+  function litRayon(r){ info.textContent = r>0 ? ('R '+r.toFixed(1)+' mm') : 'angle vif'; }
   function supprime(i){
     if(i<0 || state.profile.length<=3) return;      // meme garde que delPoint
     state.profile.splice(i,1); state.selected=-1;
     normalizeProfile(); renderAll();
   }
+  // Reglage du conge par glisser : on memorise le point, le rayon de depart et
+  // l'abscisse de depart ; chaque mouvement ajoute (dx / 6) mm, borne a [0, R_MAX].
+  let rond = null;   // { i, r0, x0 }
+  function debutRond(i, x){
+    if(i<=0 || i>=state.profile.length-1) return false;   // extremites : jamais de conge (meme regle que le curseur)
+    const p=state.profile[i];
+    if(!(p.conge>0)) p.conge=R_DEFAUT;
+    state.selected=i; rond={ i:i, r0:p.conge, x0:x };
+    litRayon(p.conge); renderSoon(); return true;
+  }
+  function bougeRond(x){
+    if(!rond) return; const p=state.profile[rond.i]; if(!p) return;
+    const r=Math.max(0, Math.min(R_MAX, rond.r0 + (x-rond.x0)/6));
+    p.conge = r>0.25 ? r : 0; litRayon(p.conge); renderSoon();
+  }
+  function finRond(){ if(rond){ rond=null; renderAll(); } }
   function filtre(e){
     if(outil==='angle') return;                     // comportement historique complet
     const pos=canvasPos(e); const idx=nearestPoint(pos.x,pos.y);
@@ -7163,15 +7184,16 @@ detectAI();
       if(idx<0){ e.stopImmediatePropagation(); e.preventDefault(); }   // pas d'ajout accidentel
       return;
     }
-    if(outil==='arrondi'){
-      if(idx>=0){ e.stopImmediatePropagation(); e.preventDefault(); poseConge(idx); }
-      else setTimeout(function(){ if(state.selected>0) poseConge(state.selected); },0);   // l'ajout historique d'abord, l'arrondi ensuite
-      return;
-    }
-    if(outil==='del'){ e.stopImmediatePropagation(); e.preventDefault(); if(idx>=0) supprime(idx); }
+    e.stopImmediatePropagation(); e.preventDefault();   // arrondi / suppression : jamais le gestionnaire historique
+    if(outil==='arrondi'){ if(idx>=0) debutRond(idx, pos.x); return; }
+    if(outil==='del' && idx>=0) supprime(idx);
   }
   pc.addEventListener('mousedown', filtre, true);
   pc.addEventListener('touchstart', filtre, true);
+  window.addEventListener('mousemove', function(e){ if(rond) bougeRond(canvasPos(e).x); }, true);
+  window.addEventListener('mouseup', finRond, true);
+  pc.addEventListener('touchmove', function(e){ if(rond){ e.stopImmediatePropagation(); e.preventDefault(); bougeRond(canvasPos(e).x); } }, {capture:true, passive:false});
+  pc.addEventListener('touchend', function(e){ if(rond){ e.stopImmediatePropagation(); finRond(); } }, true);
 
   // Poignee de diagnostic (lecture seule + choix d'outil) pour les tests.
   window.__outilsProfil = {
