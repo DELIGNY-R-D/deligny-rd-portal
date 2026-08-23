@@ -9144,25 +9144,24 @@ document.querySelectorAll('#stylebar button').forEach(b=>b.onclick=()=>setMode(b
         if(typeof pilotView!=='undefined'&&pilotView!=='iso'){ pilotZoom=Math.max(0.42,Math.min(2.4,pilotZoom/scale)); }
         else { const zScale=Math.pow(scale,0.72); camera.zoom=Math.max(0.48,Math.min(5.2,camera.zoom*zScale)); camera.updateProjectionMatrix(); }
       }
-      // GARDE doigts verticaux : si doigts trop proches (<30px) OU saut > 14° (atan2 instable) → absorbe la frame
-      if(cur.d < 30 || Math.abs(da) > 0.25){ controls.update(); _t2=cur; return; }
-      // Discrimination intention : pinch pur / rotation pure / pan
-      const isPinch  = Math.abs(scale-1) > 0.04 && Math.abs(da) < 0.06;
-      const isRotate = Math.abs(da) > 0.04 && Math.abs(scale-1) < 0.025;
-      // Pan (translation du centre) — reproduit screenSpacePanning=true d\'OrbitControls
-      // Ignoré pendant un pinch pur (évite de translater la carte pendant un zoom) ou rotation pure
-      if(!isPinch && !isRotate){
-        const dx=cur.cx-_t2.cx, dy=cur.cy-_t2.cy;
+      // VITRINE deligny-rd.fr (23/08, demande Baptiste) : a deux doigts, TRANSLATION,
+      // ROTATION et ZOOM se combinent librement et a tout moment. Plus de
+      // discrimination d'intention (pinch pur / rotation pure / pan) qui verrouillait
+      // le geste sur un seul mouvement. Le zoom ne vient QUE de l'ecartement des
+      // doigts (pincement, applique plus haut) ; un glisse vertical a deux doigts
+      // TRANSLATE la carte, il ne zoome pas. Le 3 doigts haut/bas regle l'inclinaison.
+      // Seule garde conservee : doigts trop proches (<30px) ou saut d'angle > 14°
+      // (atan2 instable) -> pas de rotation sur cette frame, mais pan + zoom passent.
+      const angleFiable = !(cur.d < 30 || Math.abs(da) > 0.25);
+      { const dx=cur.cx-_t2.cx, dy=cur.cy-_t2.cy;
         if(Math.abs(dx)>0.1||Math.abs(dy)>0.1){
           const ww=(camera.right-camera.left)/camera.zoom, wh=(camera.top-camera.bottom)/camera.zoom;
           const rv=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,0);
           const uv=new THREE.Vector3().setFromMatrixColumn(camera.matrixWorld,1);
           const pan=rv.multiplyScalar(-dx*ww/innerWidth).add(uv.multiplyScalar(dy*wh/innerHeight));
           controls.target.add(pan); camera.position.add(pan);
-        }
-      }
-      // Rotation azimutale — seuil 0.014 rad (~0.8°) pour filtrer le tremblement des doigts
-      if(!isPinch && Math.abs(da)>0.014) _rotAz(da*1.6); else controls.update();   // VITRINE deligny-rd.fr (20/08) : sens INVERSE demande (+da, la camera suit les doigts) et gain x1.6 (rotation plus franche)
+        } }
+      if(angleFiable && Math.abs(da)>0.006) _rotAz(da*1.6); else controls.update();   // sens inverse + gain x1.6 (20/08), seuil bas pour une rotation continue
       _t2=cur;
     }
   },{capture:true,passive:false});
