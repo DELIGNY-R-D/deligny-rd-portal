@@ -29,7 +29,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=c663672d" />
+  <link rel="stylesheet" href="styles.css?v=584a9b4e" />
   <link rel="stylesheet" href="lampe-embed.css?v=d00dfa61" />
 <!-- HUB:citable-substrate:start -->
 <script type="application/ld+json">
@@ -631,32 +631,28 @@
         </div>
       </div>
 
-      <div class="tool-widget">
+      <div class="tool-widget atlas-widget">
         <div class="tool-widget-head">
           <div class="app-title-row">
             <h3>Atlas Studio Pro</h3>
             <span class="tag tag-live">Demo interactive</span>
           </div>
-          <p>Le vrai Bureau Atlas Studio Pro, en direct ci-dessous : ouvre les applications, navigue dans le dock. Environnement de demonstration a donnees fictives : aucun compte requis.</p>
+          <p>Le vrai logiciel, en direct ci-dessous, sur une entreprise fictive : <strong>Chaises Lenoir</strong>, fabrique de chaises en bois. Une seule application, deux affichages au choix : le <strong>Bureau</strong> (fenetres, dock, applications) et la <strong>vue normale</strong> (tableau de bord classique). Donnees fictives, aucun compte requis.</p>
         </div>
-        <div class="atlas-embed">
-          <iframe src="https://atlas-studio.pro/desktop/desktop.html" title="Demo interactive du Bureau Atlas Studio Pro (donnees fictives)" loading="lazy"></iframe>
+        <input class="atlas-view-input" type="radio" name="atlas-view" id="atlas-view-bureau" checked />
+        <input class="atlas-view-input" type="radio" name="atlas-view" id="atlas-view-normale" />
+        <div class="atlas-switch" role="tablist" aria-label="Affichage d'Atlas Studio Pro">
+          <label for="atlas-view-bureau">Bureau</label>
+          <label for="atlas-view-normale">Vue normale</label>
+        </div>
+        <div class="atlas-embed atlas-embed-bureau">
+          <iframe src="https://atlas-studio.pro/desktop/desktop.html" title="Atlas Studio Pro, affichage Bureau (Chaises Lenoir, donnees fictives)" loading="lazy"></iframe>
+        </div>
+        <div class="atlas-embed atlas-embed-normale">
+          <iframe src="https://atlas-studio.pro/demo-vue-normale.html" title="Atlas Studio Pro, vue normale (Chaises Lenoir, donnees fictives)" loading="lazy"></iframe>
         </div>
         <div class="tool-widget-actions">
           <a class="btn btn-primary" href="https://atlas-studio.pro">Decouvrir Atlas Studio Pro &rarr;</a>
-        </div>
-      </div>
-
-      <div class="tool-widget">
-        <div class="tool-widget-head">
-          <div class="app-title-row">
-            <h3>Atlas Studio Pro, vue normale</h3>
-            <span class="tag tag-live">Demo</span>
-          </div>
-          <p>La meme application en affichage classique, sur une fabrique de chaises en bois fictive : tableau de bord, chiffre d'affaires, encours, commandes d'atelier, stock bois, factures et relance preparee par l'IA a valider.</p>
-        </div>
-        <div class="atlas-embed">
-          <iframe src="https://atlas-studio.pro/demo-vue-normale.html" title="Atlas Studio Pro, vue normale en demonstration (fabrique de chaises, donnees fictives)" loading="lazy"></iframe>
         </div>
       </div>
 

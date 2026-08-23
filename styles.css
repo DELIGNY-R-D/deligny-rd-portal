@@ -669,6 +669,58 @@ h3 {
   }
 }
 
+/* Atlas : UN bloc, deux affichages du meme produit (23/08). Selecteur en CSS
+   pur (radios cachees + labels), aucun script : la radio cochee montre son
+   cadre et colore son onglet. Le cadre masque (display:none + loading=lazy)
+   ne charge pas tant qu'on ne l'a pas demande. */
+.atlas-view-input {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.atlas-switch {
+  display: inline-flex;
+  gap: 4px;
+  padding: 4px;
+  margin-bottom: 12px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+.atlas-switch label {
+  padding: 8px 16px;
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink-dim);
+  cursor: pointer;
+}
+
+.atlas-switch label:hover {
+  color: var(--accent);
+}
+
+.atlas-view-input:focus-visible + .atlas-view-input + .atlas-switch label:first-child,
+.atlas-view-input:focus-visible + .atlas-switch label:last-child {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+#atlas-view-bureau:checked ~ .atlas-switch label[for="atlas-view-bureau"],
+#atlas-view-normale:checked ~ .atlas-switch label[for="atlas-view-normale"] {
+  background: var(--accent);
+  color: #fff;
+}
+
+#atlas-view-bureau:checked ~ .atlas-embed-normale,
+#atlas-view-normale:checked ~ .atlas-embed-bureau {
+  display: none;
+}
+
 /* ADAPTATIF (20/08) : sur ecran etroit, les demos embarquees prennent TOUTE la
    largeur de l'ecran (pleine sortie du gabarit centre), et sur ecran BAS
    (iPhone paysage) leur hauteur suit le viewport au lieu d'un 640px fixe qui
