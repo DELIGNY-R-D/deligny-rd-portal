@@ -4270,7 +4270,7 @@ async function rendreBlender(live, sigAttendue){
   if(!MESH.parts.length) return;
   if(!enLive){
     bouton.disabled = true;
-    info.innerHTML = '<div class="line warn">Rendu Blender en cours… quelques secondes en EEVEE, jusqu\'à une minute et demie en Cycles. La page reste utilisable.</div>';
+    info.innerHTML = '<div class="line warn">Rendu photoréaliste en cours… La page reste utilisable.</div>';
   }
   try{
     // chaque pièce est exportée AVEC sa transformation d'assemblage : c'est la
@@ -6174,15 +6174,12 @@ function compteARebours(phase, ms){
     if(att && !att.hidden){
       att.textContent = RENDU_PHASE === 'attente'
         ? (reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s` : 'Lancement du rendu…')
-        : (reste > 0.05 ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
-                        : `Rendu Blender — ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s`);
+        : 'Rendu photoréaliste en cours…';   // VITRINE (23/08, demande Baptiste) : juste ça, ni « Blender » ni décompte
     }
     if(RENDU_PHASE === 'attente'){
       n.textContent = reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s…` : 'Lancement du rendu…';
     } else if(RENDU_PHASE === 'rendu'){
-      n.textContent = reste > 0.05
-        ? `Rendu Blender — encore ~${reste.toFixed(1)} s`
-        : `Rendu Blender — ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s écoulées`;
+      n.textContent = 'Rendu photoréaliste en cours…';
     }
   };
   peindre();
@@ -6202,7 +6199,7 @@ function majSourceRendu(src){
     // canvas transparait par les bords si l'image porte de l'alpha
     const cvR = $('renderCanvas'); if(cvR) cvR.style.display = 'none';
     const att = $('renduAttente'); if(att) att.hidden = true;
-    t.innerHTML = '<span style="color:var(--green)">— Blender, géométrie réelle</span>';
+    t.innerHTML = '<span style="color:var(--green)">— rendu photoréaliste</span>';
     if(n) n.textContent = `Image calculée en ${(BL_LIVE.derniereMs/1000).toFixed(1)} s · point de vue fixe. Se refait à chaque modification.`;
   } else if(src === 'attente'){
     /* ⚠️ PENDANT LE CALCUL, PAS D'IMAGE (12/08, demande Baptiste : « je ne veux
@@ -6213,7 +6210,7 @@ function majSourceRendu(src){
     if(img) img.style.display = 'none';
     const cvR = $('renderCanvas'); if(cvR) cvR.style.display = 'none';
     const att = $('renduAttente'); if(att) att.hidden = false;
-    t.innerHTML = '<span style="color:var(--amber)">— Blender, calcul en cours…</span>';
+    t.innerHTML = '<span style="color:var(--amber)">— rendu photoréaliste en cours…</span>';
   } else {
     /* ⚠️ DEUX CHEMINS MENAIENT ICI, ET UN SEUL AVAIT ETE TRAITE. Quand un
      * rendu Blender est EN VOL, on arrivait dans cette branche (libelle
@@ -6246,11 +6243,11 @@ function majSourceRendu(src){
       if(img) img.style.display = dejaBlender ? '' : 'none';
       if(cvR) cvR.style.display = 'none';
       if(att){ att.hidden = dejaBlender;
-        att.textContent = moteurDispo ? 'Rendu Blender en cours…' : 'Rendu Blender indisponible pour le moment.'; }
+        att.textContent = moteurDispo ? 'Rendu photoréaliste en cours…' : 'Rendu photoréaliste indisponible pour le moment.'; }
     }
     t.innerHTML = BL_LIVE.busy
-      ? '<span style="color:var(--amber)">— Blender en cours…</span>'
-      : '<span style="color:var(--dim2)">— en attente du moteur</span>';
+      ? '<span style="color:var(--amber)">— rendu photoréaliste en cours…</span>'
+      : '<span style="color:var(--dim2)">— rendu photoréaliste</span>';
     /* ⚠️ DEUX PUBLICS, DEUX PHRASES. « Le rendu photo Blender demande le
      * moteur local » decrit un manque : sur le site public, ou Blender n'a
      * jamais eu a exister, ça se lit comme une panne alors que tout va bien.
