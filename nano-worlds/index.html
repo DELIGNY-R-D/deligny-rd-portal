@@ -209,6 +209,24 @@ if('serviceWorker' in navigator){
   html.ui-topo .topoVert input{writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;appearance:slider-vertical;width:18px;height:22vh;accent-color:#4aa8ff}
   html.ui-topo #topoTiltWrap{top:calc(14vh + env(safe-area-inset-top))}
   html.ui-topo #topoZoomWrap{top:calc(14vh + 22vh + 74px + env(safe-area-inset-top))}
+  /* UNIFORMISATION (23/08) : memes tailles, memes rayons, meme police, meme accent.
+     Boutons : 30 px de haut, 11 px. Outils du dock : 44x40, 8 px. Curseurs : 12 px
+     d'epaisseur, horizontaux 60 px (cartes) / 240 px max (Pivoter), verticaux 16vh. */
+  html.ui-topo #bar .tool{min-width:44px!important;height:40px!important;font-size:8px!important;border-radius:8px!important;gap:1px}
+  html.ui-topo #bar .tool .ic{font-size:13px!important}
+  html.ui-topo #bar{gap:4px;padding-top:6px;top:132px!important}
+  html.ui-topo #top .card{padding:3px 8px!important;font-size:11px!important;border-radius:9px!important;min-height:30px;display:flex;align-items:center;gap:6px}
+  html.ui-topo #top .card input[type=range]{width:60px!important;height:12px!important;accent-color:#4aa8ff}
+  html.ui-topo #stylebar button{padding:4px 9px!important;font-size:11px!important}
+  html.ui-topo #quickActions button{font-size:11px!important;padding:0 4px}
+  html.ui-topo .topoWrap{padding:4px 8px!important;border-radius:9px!important;min-height:30px}
+  html.ui-topo .topoLbl{font-size:10px!important}
+  html.ui-topo #topoOrbitWrap input{width:min(30vw,240px)!important;height:12px!important}
+  html.ui-topo .topoVert input{width:14px!important;height:16vh!important}
+  html.ui-topo #topoTiltWrap{top:calc(16vh + env(safe-area-inset-top))!important}
+  html.ui-topo #topoZoomWrap{top:calc(16vh + 16vh + 62px + env(safe-area-inset-top))!important}
+  html.ui-topo #topoNew{height:30px!important;padding:0 10px!important;font-size:11px!important;font-weight:600!important;border-radius:9px!important}
+  html.ui-topo #camReset{width:30px!important;height:30px!important;font-size:14px!important;border-radius:9px!important;right:calc(132px + env(safe-area-inset-right))!important}
 </style>
 </head>
 <body>
