@@ -1969,7 +1969,11 @@ function appliquerConges(profile, rayonMm){
     if(dev < Math.PI/36){ out.push({...P}); continue; }   // < 5° : quasi droit
     const demi = (Math.PI - dev)/2;                // demi-angle intérieur
     let t = rayonPoint / Math.tan(demi);           // longueur de tangence
-    const tMax = 0.45*Math.min(lu, lv);
+    /* 0.5 et non 0.45 (24/08, demande Baptiste : « pas de limite jusqu'au
+     * prochain point »). 0,5 est la borne GEOMETRIQUE stricte : la tangence ne
+     * peut pas depasser la moitie du segment, sinon les congés de deux points
+     * voisins se chevaucheraient et le trace se croiserait. */
+    const tMax = 0.5*Math.min(lu, lv);
     let R = rayonPoint;
     if(t > tMax){ t = tMax; R = t*Math.tan(demi); }
     const P1={h:P.h-u.h*t, r:P.r-u.r*t};           // début de l'arc
@@ -7182,7 +7186,26 @@ detectAI();
   btns.move.onclick();
   if(lbl) lbl.insertAdjacentElement('afterend', bar); else col.insertAdjacentElement('afterbegin', bar);
 
-  const R_DEFAUT = 15, R_MAX = 25;   // 15 mm au premier appui ; 25 = borne du curseur cache
+  const R_DEFAUT = 15;   // 15 mm au premier appui
+  /* PLUS DE PLAFOND FIXE (24/08) : on peut demander un rayon aussi grand qu'on
+   * veut, c'est la geometrie qui borne — le congé grandit jusqu'a toucher le
+   * point suivant, puis n'augmente plus. Le rayon AFFICHE est donc le rayon
+   * effectivement obtenu, pas celui demandé : sans ca l'etiquette annoncerait
+   * « R 90 mm » sur un angle qui n'en accepte que 32. */
+  function congeEffectif(i){
+    const pr=state.profile, P=pr[i], A=pr[i-1], B=pr[i+1];
+    if(!A||!B||!(P.conge>0)) return 0;
+    const u={h:P.h-A.h, r:P.r-A.r}, v={h:B.h-P.h, r:B.r-P.r};
+    const lu=Math.hypot(u.h,u.r), lv=Math.hypot(v.h,v.r);
+    if(lu<1e-6||lv<1e-6) return 0;
+    u.h/=lu; u.r/=lu; v.h/=lv; v.r/=lv;
+    const cosDev=Math.max(-1,Math.min(1,u.h*v.h+u.r*v.r));
+    const dev=Math.acos(cosDev);
+    if(dev<Math.PI/36) return 0;
+    const demi=(Math.PI-dev)/2;
+    const t=P.conge/Math.tan(demi), tMax=0.5*Math.min(lu,lv);
+    return t>tMax ? tMax*Math.tan(demi) : P.conge;
+  }
   function litRayon(r){ info.textContent = r>0 ? ('R '+r.toFixed(1)+' mm') : 'angle vif'; }
   function supprime(i){
     if(i<0 || state.profile.length<=3) return;      // meme garde que delPoint
@@ -7190,19 +7213,19 @@ detectAI();
     normalizeProfile(); renderAll();
   }
   // Reglage du conge par glisser : on memorise le point, le rayon de depart et
-  // l'abscisse de depart ; chaque mouvement ajoute (dx / 6) mm, borne a [0, R_MAX].
+  // l'abscisse de depart ; chaque mouvement ajoute (dx / 6) mm, sans plafond.
   let rond = null;   // { i, r0, x0 }
   function debutRond(i, x){
     if(i<=0 || i>=state.profile.length-1) return false;   // extremites : jamais de conge (meme regle que le curseur)
     const p=state.profile[i];
     if(!(p.conge>0)) p.conge=R_DEFAUT;
     state.selected=i; rond={ i:i, r0:p.conge, x0:x };
-    litRayon(p.conge); renderSoon(); return true;
+    litRayon(congeEffectif(i)); renderSoon(); return true;
   }
   function bougeRond(x){
     if(!rond) return; const p=state.profile[rond.i]; if(!p) return;
-    const r=Math.max(0, Math.min(R_MAX, rond.r0 + (x-rond.x0)/6));
-    p.conge = r>0.25 ? r : 0; litRayon(p.conge); renderSoon();
+    const r=Math.max(0, rond.r0 + (x-rond.x0)/6);
+    p.conge = r>0.25 ? r : 0; litRayon(congeEffectif(rond.i)); renderSoon();
   }
   function finRond(){ if(rond){ rond=null; renderAll(); } }
   function filtre(e){
