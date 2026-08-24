@@ -6172,14 +6172,20 @@ function compteARebours(phase, ms){
     // l'image : c'est lui qu'on regarde pendant l'attente, pas la note
     const att = $('renduAttente');
     if(att && !att.hidden){
-      att.textContent = RENDU_PHASE === 'attente'
-        ? (reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s` : 'Lancement du rendu…')
-        : 'Rendu photoréaliste en cours…';   // VITRINE (23/08, demande Baptiste) : juste ça, ni « Blender » ni décompte
+      /* VITRINE (23/08, demande Baptiste, ajuste le meme jour) : « Rendu
+       * photoréaliste en cours » + le DECOMPTE EN VERT (pas de « Blender »). */
+      att.innerHTML = RENDU_PHASE === 'attente'
+        ? (reste > 0.05 ? `Nouveau rendu dans <span style="color:var(--green)">${reste.toFixed(1)} s</span>` : 'Lancement du rendu…')
+        : (reste > 0.05
+            ? `Rendu photoréaliste en cours… <span style="color:var(--green)">~${reste.toFixed(1)} s</span>`
+            : `Rendu photoréaliste en cours… <span style="color:var(--green)">${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s</span>`);
     }
     if(RENDU_PHASE === 'attente'){
       n.textContent = reste > 0.05 ? `Nouveau rendu dans ${reste.toFixed(1)} s…` : 'Lancement du rendu…';
     } else if(RENDU_PHASE === 'rendu'){
-      n.textContent = 'Rendu photoréaliste en cours…';
+      n.textContent = reste > 0.05
+        ? `Rendu photoréaliste en cours… ~${reste.toFixed(1)} s`
+        : `Rendu photoréaliste en cours… ${((performance.now()-RENDU_DEBUT)/1000).toFixed(1)} s`;
     }
   };
   peindre();
