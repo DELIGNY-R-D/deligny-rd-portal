@@ -2648,6 +2648,14 @@ function drawProfile(){
     const g = (typeof isSmoothMesh==='function' && isSmoothMesh(surf)) ? (surf.congeMm||0) : 0;
     if(g>0 || pr.some(p=>(p.conge||0)>0)) forme = appliquerConges(pr, g);
   }catch(_){ forme = pr; }
+  /* ⚠️ HIERARCHIE INVERSEE (24/08, demande Baptiste : « on ne voit pas bien les
+   * arrondis, le trait de l'objet ne doit pas etre gris »). AVANT : le trace
+   * REEL (congés compris) etait un fantome a 30 % d'opacite, et la polyligne
+   * EDITABLE — a angles vifs, donc SANS les congés — passait par-dessus en noir
+   * plein : on ne voyait jamais l'arrondi qu'on venait de poser. MAINTENANT le
+   * trace reel est le trait noir de la piece, et la polyligne devient un guide
+   * fin en pointille (dessine plus bas), affiche seulement la ou il differe. */
+  const aDesConges = forme !== pr;
   if(forme.length>1){
     const col = PAL.encreRgb;
     pctx.beginPath();
@@ -2658,8 +2666,14 @@ function drawProfile(){
     pctx.closePath();
     pctx.fillStyle=`rgba(${col.r},${col.g},${col.b},0.055)`;
     pctx.fill();
-    pctx.strokeStyle=`rgba(${col.r},${col.g},${col.b},0.30)`;
+    // cote gauche (miroir) : attenue, comme la polyligne miroir
+    pctx.strokeStyle=`rgba(${col.r},${col.g},${col.b},0.35)`;
     pctx.lineWidth=1.5; pctx.stroke();
+    // cote droit : LE trait de la piece, noir et net, congés compris
+    pctx.beginPath();
+    forme.forEach((p,i)=>{ const x=pMapX(p.r), y=pMapY(p.h); if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y); });
+    pctx.strokeStyle=PAL.trait; pctx.lineWidth=2.4; pctx.lineJoin='round'; pctx.lineCap='round';
+    pctx.stroke();
   }
 
   // Axe de rotation, au centre
@@ -2677,10 +2691,21 @@ function drawProfile(){
       if(i===0) pctx.moveTo(x,y); else pctx.lineTo(x,y);
     });
   }
-  pctx.lineWidth=1.5; pctx.globalAlpha=0.35;
-  pctx.strokeStyle=PAL.trait; pathSide(-1); pctx.stroke();
-  pctx.globalAlpha=1; pctx.lineWidth=2;
-  pathSide(1); pctx.stroke();
+  if(aDesConges){
+    /* Avec congés : la piece est deja tracee en noir ci-dessus. La polyligne
+     * ne sert plus qu'a montrer OU sont les points a saisir -> guide fin en
+     * pointille, des deux cotes, pour ne pas masquer les arrondis. */
+    pctx.setLineDash([4,4]); pctx.lineWidth=1; pctx.globalAlpha=0.30;
+    pctx.strokeStyle=PAL.trait; pathSide(1); pctx.stroke();
+    pathSide(-1); pctx.stroke();
+    pctx.setLineDash([]); pctx.globalAlpha=1;
+  } else {
+    // Sans congé, polyligne et piece sont confondues : trait plein habituel.
+    pctx.lineWidth=1.5; pctx.globalAlpha=0.35;
+    pctx.strokeStyle=PAL.trait; pathSide(-1); pctx.stroke();
+    pctx.globalAlpha=1; pctx.lineWidth=2;
+    pathSide(1); pctx.stroke();
+  }
 
   // Segments d'alerte (évasement) : des deux côtés, la droite en plus appuyé
   for(let i=0;i<pr.length-1;i++){
