@@ -32,11 +32,24 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 REF = re.compile(r'((?:href|src)=")([^"?]+\.(?:css|js))(?:\?v=[0-9a-f]{8})?(")')
 
+# Un module ES ne se declare pas avec src= mais avec `import ... from './x.js'`.
+# Ces URL echappaient donc au versionnage, avec la meme consequence : le
+# 25/08, generative-design/shapes_cad.js et stl-exporter.js ont ete servis en
+# 404 par Cloudflare (cf-cache-status HIT, age 157) parce qu'une requete faite
+# pendant la propagation avait mis le 404 en cache, alors que le fichier
+# existait bien a la source. Une URL versionnee n'a jamais ete vue par l'edge :
+# le probleme ne peut plus se produire.
+IMPORT = re.compile(r"""((?:from|import)\s+['"])(\.{1,2}/[^'"?]+\.js)(?:\?v=[0-9a-f]{8})?(['"])""")
+
 
 def pages() -> list:
     out = subprocess.run(["git", "ls-files", "*.html"], cwd=RACINE,
                           capture_output=True, text=True).stdout.split()
-    return out
+    # Les modules ES importent d'autres modules : un fichier .js qui n'est
+    # reference par aucune page doit tout de meme voir SES imports versionnes.
+    mods = subprocess.run(["git", "ls-files", "generative-design/*.js"], cwd=RACINE,
+                          capture_output=True, text=True).stdout.split()
+    return out + mods
 
 
 def empreinte(chemin_fichier: str):
@@ -57,7 +70,7 @@ def corrige(contenu: str, dossier_page: str) -> str:
         if not h:
             return m.group(0)
         return f"{pre}{url}?v={h}{post}"
-    return REF.sub(remplace, contenu)
+    return IMPORT.sub(remplace, REF.sub(remplace, contenu))
 
 
 def main() -> int:
