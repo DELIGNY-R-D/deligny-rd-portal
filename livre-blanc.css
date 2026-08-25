@@ -1,0 +1,369 @@
+/* ══════════════════════════════════════════════════════════════════════
+   LIVRE BLANC — feuille dediee (meme parti que cube-violet.css / factory.css)
+
+   Contrainte du site : CSP style-src 'self', donc aucune police distante,
+   aucun CDN. On travaille avec les polices systeme et les jetons de
+   styles.css (--ink, --paper, --accent, --purple, --green, --gold, --blue) :
+   la personnalite vient de l'ECHELLE et du RYTHME, pas d'une fonte achetee.
+
+   Parti pris : un document long (huit chapitres) qui se lit d'un bout a
+   l'autre. Colonne de lecture serree, mono en voix « systeme » pour les
+   reperes, et UN seul moment fort — le chapitre d'architecture sur fond
+   encre avec le diagramme en couches. Tout le reste reste calme.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.lb {
+  --lb-mesure: 68ch;
+  --lb-encre: #14121a;
+  --lb-encre-2: #1e1b26;
+  --lb-sur-encre: #efeae0;
+  --lb-sur-encre-dim: #a49dae;
+}
+
+/* ── Ouverture ─────────────────────────────────────────────────────── */
+.lb-hero {
+  padding: 96px 0 56px;
+  border-bottom: 1px solid var(--line);
+}
+
+.lb-hero h1 {
+  max-width: 15ch;
+  margin-bottom: 26px;
+  font-size: clamp(44px, 7vw, 92px);
+  line-height: 0.98;
+  letter-spacing: -0.035em;
+  text-wrap: balance;
+}
+
+/* La question centrale du document, posee comme une citation : c'est elle
+   que le lecteur doit retenir s'il ne lit rien d'autre. */
+.lb-question {
+  max-width: 30ch;
+  margin: 0 0 24px;
+  padding-left: 22px;
+  border-left: 3px solid var(--accent);
+  font-family: var(--font-display);
+  font-size: clamp(21px, 2.4vw, 30px);
+  font-weight: 600;
+  line-height: 1.28;
+  letter-spacing: -0.015em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.lb-hero .lead {
+  max-width: var(--lb-mesure);
+  margin: 0;
+}
+
+/* ── Sommaire : huit chapitres, le lecteur doit pouvoir sauter ─────── */
+.lb-sommaire {
+  padding: 34px 0 10px;
+}
+
+.lb-sommaire h2 {
+  margin-bottom: 16px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.lb-sommaire ol {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 2px 28px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: lb-chapitre;
+}
+
+.lb-sommaire li {
+  counter-increment: lb-chapitre;
+}
+
+.lb-sommaire a {
+  display: flex;
+  gap: 12px;
+  padding: 9px 0;
+  border-bottom: 1px solid var(--line-2);
+  color: var(--ink-dim);
+  font-size: 15px;
+}
+
+.lb-sommaire a::before {
+  content: counter(lb-chapitre, decimal-leading-zero);
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.lb-sommaire a:hover {
+  color: var(--accent);
+}
+
+.lb-sommaire a:hover::before {
+  color: var(--accent);
+}
+
+/* ── Chapitres ─────────────────────────────────────────────────────── */
+.lb-chap {
+  padding: 68px 0 0;
+  scroll-margin-top: 24px;
+}
+
+.lb-chap > * {
+  max-width: var(--lb-mesure);
+}
+
+.lb-chap h2 {
+  margin-bottom: 22px;
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+.lb-chap p {
+  margin-bottom: 18px;
+  color: var(--ink-dim);
+  font-size: 18px;
+  line-height: 1.68;
+}
+
+.lb-chap p strong {
+  color: var(--ink);
+}
+
+/* Premiere phrase d'un chapitre : plus grande, elle porte l'argument.
+   ⚠️ La couleur passe par un jeton (--lb-amorce-c) et NON par --ink en dur :
+   sur fond encre, un !important sur --ink peignait du texte noir sur du noir
+   (contraste mesure 1.01, invisible). Le chapitre sombre redefinit le jeton. */
+.lb {
+  --lb-amorce-c: var(--ink);
+}
+
+.lb-amorce {
+  color: var(--lb-amorce-c) !important;
+  font-size: 21px !important;
+  line-height: 1.55 !important;
+}
+
+.lb-encre {
+  --lb-amorce-c: var(--lb-sur-encre);
+}
+
+/* Ce que RUBY doit comprendre : une liste dense, en deux colonnes. */
+.lb-liste {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0 28px;
+  max-width: var(--lb-mesure);
+  margin: 4px 0 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.lb-liste li {
+  padding: 8px 0 8px 18px;
+  border-bottom: 1px solid var(--line-2);
+  color: var(--ink-dim);
+  font-size: 15.5px;
+  position: relative;
+}
+
+.lb-liste li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 17px;
+  width: 6px;
+  height: 1px;
+  background: var(--accent);
+}
+
+/* ── Les projets : cinq bancs d'essai d'une meme question ──────────── */
+.lb-projets {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+  max-width: none !important;
+  margin-top: 30px;
+}
+
+.lb-projet {
+  padding: 22px 24px 24px;
+  border: 1px solid var(--line);
+  border-top: 2px solid var(--projet, var(--accent));
+  border-radius: 14px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+
+.lb-projet h3 {
+  margin-bottom: 4px;
+  font-size: 17px;
+  letter-spacing: -0.01em;
+}
+
+.lb-projet .lb-projet-quoi {
+  display: block;
+  margin-bottom: 12px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--projet, var(--accent));
+}
+
+.lb-projet p {
+  margin: 0;
+  color: var(--ink-dim);
+  font-size: 15px;
+  line-height: 1.6;
+}
+
+/* ── Le moment fort : l'architecture, sur fond encre ───────────────── */
+.lb-encre {
+  margin: 84px calc(50% - 50vw) 0;
+  padding: 72px calc(50vw - min(590px, 50vw - 20px)) 76px;
+  background: var(--lb-encre);
+  color: var(--lb-sur-encre);
+}
+
+.lb-encre .eyebrow {
+  color: #a58ce0;
+}
+
+.lb-encre .eyebrow::before {
+  background: #a58ce0;
+}
+
+.lb-encre h2 {
+  max-width: var(--lb-mesure);
+  margin-bottom: 22px;
+  color: var(--lb-sur-encre);
+  font-size: clamp(26px, 3.4vw, 40px);
+  line-height: 1.1;
+  letter-spacing: -0.022em;
+  text-wrap: balance;
+}
+
+.lb-encre p {
+  max-width: var(--lb-mesure);
+  margin-bottom: 18px;
+  color: var(--lb-sur-encre-dim);
+  font-size: 18px;
+  line-height: 1.68;
+}
+
+.lb-encre p strong {
+  color: var(--lb-sur-encre);
+}
+
+/* Le diagramme dit le mecanisme decrit juste au-dessus : qui coordonne,
+   qui organise, qui calcule, qui prolonge. Quatre couches, du plus
+   abstrait au plus physique. */
+.lb-pile {
+  display: grid;
+  gap: 8px;
+  margin-top: 34px;
+  max-width: 720px;
+}
+
+.lb-couche {
+  display: grid;
+  grid-template-columns: 132px 1fr;
+  gap: 20px;
+  align-items: baseline;
+  padding: 16px 20px;
+  border: 1px solid rgba(239, 234, 224, 0.14);
+  border-left: 3px solid var(--couche, #a58ce0);
+  border-radius: 10px;
+  background: var(--lb-encre-2);
+}
+
+.lb-couche dt {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  letter-spacing: 0.04em;
+  color: var(--couche, #a58ce0);
+}
+
+.lb-couche dd {
+  margin: 0;
+  color: var(--lb-sur-encre-dim);
+  font-size: 15.5px;
+  line-height: 1.5;
+}
+
+.lb-couche dd b {
+  color: var(--lb-sur-encre);
+  font-weight: 600;
+}
+
+/* ── Le principe : une regle, donc une seule ligne ─────────────────── */
+.lb-regle {
+  max-width: none !important;
+  margin: 34px 0 8px;
+  padding: 30px 32px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--soft);
+  font-family: var(--font-display);
+  font-size: clamp(20px, 2.6vw, 30px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+
+.lb-regle span {
+  color: var(--purple);
+}
+
+/* ── Fin ───────────────────────────────────────────────────────────── */
+.lb-fin {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 30px 56px;
+  margin-top: 76px;
+  padding: 44px 0 8px;
+  border-top: 1px solid var(--line);
+}
+
+.lb-fin h2 {
+  margin-bottom: 14px;
+  font-size: 22px;
+  letter-spacing: -0.015em;
+}
+
+.lb-fin p {
+  margin-bottom: 14px;
+  color: var(--ink-dim);
+  line-height: 1.65;
+}
+
+@media (max-width: 720px) {
+  .lb-hero {
+    padding: 64px 0 40px;
+  }
+
+  .lb-chap {
+    padding-top: 52px;
+  }
+
+  .lb-couche {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .lb-encre {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+}

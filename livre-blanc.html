@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="description" content="Livre blanc DELIGNY R&D : notre position face a l'IA en conception et ingenierie, RUBY OS COGNITION, et l'ambition d'Atlas." />
+  <meta name="description" content="Livre blanc DELIGNY R&D : notre position face a l'IA en conception et en ingenierie, les projets qui l'eprouvent, et l'infrastructure que nous construisons (RUBY OS COGNITION, Atlas Studio Pro, GARGANTUA)." />
   <title>Livre blanc - DELIGNY R&D</title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
@@ -13,11 +13,12 @@
   <meta property="og:type" content="website" />
   <meta property="og:site_name" content="DELIGNY R&D" />
   <meta property="og:title" content="Livre blanc - DELIGNY R&D" />
-  <meta property="og:description" content="Notre position face a l'IA en conception et ingenierie, RUBY OS COGNITION, et l'ambition d'Atlas." />
+  <meta property="og:description" content="Notre position face a l'IA en conception, les projets qui l'eprouvent, et l'infrastructure que nous construisons." />
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/livre-blanc.html" />
   <meta name="twitter:card" content="summary_large_image" />
   <link rel="stylesheet" href="styles.css?v=584a9b4e" />
+  <link rel="stylesheet" href="livre-blanc.css?v=44d812db" />
 </head>
 <body>
   <header class="topbar">
@@ -53,84 +54,245 @@
     </nav>
   </header>
 
-  <main>
-    <section class="hero">
-      <p class="eyebrow">Livre blanc - DELIGNY R&D</p>
-      <h1>Concevoir a l'ere de l'IA</h1>
-      <p class="lead">
-        Comment une societe de conception reste-t-elle pertinente quand l'intelligence
-        artificielle change la nature meme du travail qu'elle exerce ? Ce texte explique
-        notre position, et la methode que nous construisons pour y repondre.
-      </p>
+  <main class="lb">
+    <section class="lb-hero">
+      <p class="eyebrow">Livre blanc DELIGNY R&amp;D</p>
+      <h1>Concevoir à l'ère de l'IA</h1>
+      <p class="lb-question">Comment une société de conception reste-t-elle pertinente
+      quand l'intelligence artificielle change la nature même du travail qu'elle exerce ?</p>
+      <p class="lead">Ce texte expose notre position, les projets qui l'éprouvent et
+      l'infrastructure que nous construisons pour y répondre. Notre objectif n'est pas
+      simplement d'utiliser l'IA dans nos métiers : il est de repenser la manière dont une
+      idée devient un objet, un logiciel ou un système réel.</p>
     </section>
 
-    <section class="section">
-      <div class="section-head">
-        <p class="eyebrow">Le constat</p>
-        <h2>L'IA a deja change l'image et le design. Elle change maintenant la conception.</h2>
+    <nav class="lb-sommaire" aria-label="Sommaire du livre blanc">
+      <h2>Sommaire</h2>
+      <ol>
+        <li><a href="#constat">Le constat</a></li>
+        <li><a href="#position">Notre position</a></li>
+        <li><a href="#methode">La méthode</a></li>
+        <li><a href="#moteur">Le moteur logiciel</a></li>
+        <li><a href="#infrastructure">L'infrastructure physique</a></li>
+        <li><a href="#ambition">L'ambition</a></li>
+        <li><a href="#principe">Notre principe</a></li>
+        <li><a href="#suite">Et ensuite</a></li>
+      </ol>
+    </nav>
+
+    <section class="lb-chap" id="constat">
+      <p class="eyebrow">Le constat</p>
+      <h2>L'IA a déjà changé l'image et le design. Elle change maintenant la conception.</h2>
+      <p class="lb-amorce">L'intelligence artificielle a d'abord bouleversé la création
+      d'image, puis le design et son suivi : génération, exploration, itération et
+      production ont été accélérées d'un ordre de grandeur.</p>
+      <p>Ce qui se joue aujourd'hui est plus profond. C'est la conception et l'ingénierie
+      elles-mêmes qui basculent, c'est-à-dire la manière dont un objet, un logiciel ou un
+      système est imaginé, étudié, simulé et développé avant même d'exister. Les outils
+      capables d'écrire du code, d'analyser des données, de générer des géométries,
+      d'explorer des solutions ou de piloter d'autres outils progressent rapidement.</p>
+      <p>La question n'est donc plus de savoir si ces technologies modifieront notre
+      métier : <strong>elles le font déjà</strong>. La véritable question devient : comment
+      une société de conception reste-t-elle adaptée à une technologie dont les capacités
+      évoluent plus vite que ses propres méthodes de travail ?</p>
+      <p>Notre réponse n'est ni de ralentir cette évolution, ni de l'adopter aveuglément.
+      Elle consiste à reconstruire continuellement notre méthode au même rythme que les
+      outils qui la transforment.</p>
+    </section>
+
+    <section class="lb-chap" id="position">
+      <p class="eyebrow">Notre position</p>
+      <h2>Ne pas contrer l'évolution de l'IA : évoluer avec elle, en continu</h2>
+      <p class="lb-amorce">Nous ne cherchons pas à figer une méthode de conception autour
+      des capacités actuelles de l'intelligence artificielle : elle serait rapidement
+      dépassée.</p>
+      <p>Nous choisissons donc un autre principe, l'adaptation continue. Nos outils, nos
+      méthodes, notre infrastructure et l'organisation de nos projets doivent pouvoir
+      évoluer à mesure que les capacités disponibles évoluent.</p>
+      <p>Cet ajustement est porté par <strong>RUBY OS COGNITION</strong>, le système
+      cognitif interne que nous développons pour relier les projets, les connaissances, les
+      outils, les agents logiciels et les décisions de DELIGNY R&amp;D. RUBY n'est pas un
+      assistant ajouté au-dessus de nos logiciels : il est progressivement conçu comme leur
+      couche d'orchestration. Son rôle est de comprendre :</p>
+      <ul class="lb-liste">
+        <li>ce que nous cherchons à accomplir</li>
+        <li>ce qui existe déjà</li>
+        <li>l'état réel des projets</li>
+        <li>les outils disponibles</li>
+        <li>les expériences déjà réalisées</li>
+        <li>les décisions prises</li>
+        <li>les erreurs rencontrées</li>
+        <li>les ressources mobilisables</li>
+        <li>les prochaines actions pertinentes</li>
+      </ul>
+      <p>La finalité est simple : éviter que chaque nouveau projet reparte de zéro. Une
+      connaissance, un outil ou une méthode développés pour un projet doivent pouvoir
+      devenir une capacité disponible pour les suivants.</p>
+    </section>
+
+    <section class="lb-chap" id="methode">
+      <p class="eyebrow">La méthode</p>
+      <h2>Chaque projet doit augmenter notre capacité à créer le suivant</h2>
+      <p class="lb-amorce">DELIGNY R&amp;D développe volontairement des projets très
+      différents : objets physiques, logiciels professionnels, intelligence artificielle,
+      recherche scientifique, finance quantitative, environnements interactifs.</p>
+      <p>Ils peuvent sembler éloignés. Ils constituent pourtant différents bancs d'essai
+      d'une même question : jusqu'où peut-on réduire la distance entre une intention et sa
+      réalisation ? Chaque projet permet d'explorer une partie différente de cette chaîne.</p>
+      <div class="lb-projets">
+        <article class="lb-projet" style="--projet: var(--purple)">
+          <h3>Atlas Studio Pro</h3>
+          <span class="lb-projet-quoi">Organisation et exécution</span>
+          <p>Relie clients, projets, devis, facturation, production, stock, documents,
+          décisions et automatisations. L'objectif n'est pas de numériser une organisation
+          existante, mais de construire un environnement capable de comprendre son propre
+          fonctionnement et d'assister son pilotage.</p>
+        </article>
+        <article class="lb-projet" style="--projet: var(--gold)">
+          <h3>Conception et fabrication</h3>
+          <span class="lb-projet-quoi">Confrontation au monde physique</span>
+          <p>Nos objets et nos outils autour de la fabrication additive confrontent les
+          systèmes numériques au réel : une géométrie théoriquement correcte doit aussi
+          être fabricable, résistante, économique et assemblable. Calcul, simulation,
+          matériau, fabrication et esthétique dans une même boucle.</p>
+        </article>
+        <article class="lb-projet" style="--projet: var(--accent)">
+          <h3>NORA</h3>
+          <span class="lb-projet-quoi">Interaction et expérimentation</span>
+          <p>À la frontière du logiciel, de l'intelligence artificielle et de
+          l'environnement expérimental, NORA cherche comment un espace numérique peut
+          devenir simultanément un lieu d'interaction, d'expérimentation et de création.</p>
+        </article>
+        <article class="lb-projet" style="--projet: var(--green)">
+          <h3>GAIA</h3>
+          <span class="lb-projet-quoi">Démarche scientifique</span>
+          <p>Structure une chaîne allant de l'hypothèse à l'expérience, puis de
+          l'expérience à la preuve ou à la réfutation. Comment l'IA peut assister une
+          démarche scientifique sans remplacer les exigences de méthode et de
+          vérification.</p>
+        </article>
+        <article class="lb-projet" style="--projet: var(--blue)">
+          <h3>Capital OS</h3>
+          <span class="lb-projet-quoi">Erreurs immédiatement mesurables</span>
+          <p>Recherche, validation, risque, exécution et conservation d'un avantage réel
+          après coûts et contraintes. Ce projet apporte à l'ensemble une discipline
+          essentielle : distinguer ce qui paraît fonctionner de ce qui résiste réellement à
+          l'expérience.</p>
+        </article>
       </div>
-      <p class="section-lead">
-        L'intelligence artificielle a d'abord bouleverse la creation d'image, puis le
-        design et son suivi : generation, iteration et production accelerees d'un ordre
-        de grandeur. Ce qui se joue aujourd'hui est plus profond : c'est la conception et
-        l'ingenierie elles-memes qui basculent, la maniere dont un objet, un logiciel ou un
-        systeme est pense avant meme d'etre dessine.
-      </p>
-      <p class="section-lead">
-        Comment une societe de conception reste-t-elle adaptee a cette frenesie ? Notre
-        reponse n'est pas de la ralentir, ni de s'y soumettre sans la questionner : c'est
-        de penser differemment : de reconstruire notre methode au meme rythme que l'outil
-        qui la transforme.
-      </p>
     </section>
 
-    <section class="section">
-      <div class="section-head">
-        <p class="eyebrow">Notre position</p>
-        <h2>Ne pas contrer l'evolution de l'IA : l'accompagner en continu</h2>
-      </div>
-      <p class="section-lead">
-        Nous ne cherchons pas a freiner ou contenir l'evolution de l'intelligence
-        artificielle : ce combat serait perdu d'avance, et il n'est pas le notre. Nous
-        choisissons de travailler en parallele d'elle, avec un ajustement constant plutot
-        qu'une adaptation ponctuelle.
-      </p>
-      <p class="section-lead">
-        Cet ajustement continu est porte par <strong>RUBY OS COGNITION</strong>, le systeme
-        cognitif interne que nous developpons pour piloter la facon dont nos outils, nos
-        decisions et nos projets evoluent ensemble : pas un produit qu'on annonce une fois,
-        mais une capacite qu'on entretient en permanence.
-      </p>
+    <section class="lb-chap" id="moteur">
+      <p class="eyebrow">Le moteur logiciel</p>
+      <h2>Atlas Studio Pro est le moteur opérationnel de cette démarche</h2>
+      <p class="lb-amorce">Atlas Studio Pro constitue le socle logiciel destiné à faire
+      fonctionner l'activité de DELIGNY R&amp;D et, progressivement, celle de ses
+      utilisateurs.</p>
+      <p>Son ambition dépasse celle d'un ERP traditionnel. À mesure que les outils
+      deviennent capables de comprendre davantage de contexte, Atlas doit pouvoir passer
+      d'un système qui <strong>enregistre</strong> l'entreprise à un système qui
+      <strong>comprend</strong> son fonctionnement : détecter une anomalie, identifier une
+      dépendance, préparer une décision, simuler une conséquence, mobiliser un outil,
+      déclencher une opération autorisée, puis apprendre du résultat.</p>
+      <p>Atlas constitue ainsi la couche opérationnelle, tandis que RUBY apporte la
+      cognition, l'orchestration et la continuité entre les projets.</p>
     </section>
 
-    <section class="section">
-      <div class="section-head">
-        <p class="eyebrow">L'ambition</p>
-        <h2>Atlas Studio Pro est le moteur ; son ambition va jusqu'au materiel</h2>
-      </div>
-      <p class="section-lead">
-        Atlas Studio Pro fait tourner l'activite de DELIGNY R&D et de ses clients : c'est
-        le moteur logiciel de toute la demarche. Mais son ambition ne s'arrete pas au
-        logiciel : a long terme, elle vise le materiel professionnel le plus efficient au
-        monde, concu et developpe en interne, avec la meme exigence que le reste de notre
-        travail. Le logiciel d'abord, le materiel ensuite, jamais l'inverse.
-      </p>
+    <section class="lb-encre lb-chap" id="infrastructure">
+      <p class="eyebrow">L'infrastructure physique</p>
+      <h2>GARGANTUA : donner un corps au système</h2>
+      <p class="lb-amorce">À mesure que cette infrastructure gagne en capacités, une
+      dépendance exclusivement logicielle ou distante devient insuffisante.</p>
+      <p>Nous développons donc <strong>GARGANTUA</strong>, une architecture matérielle
+      pensée comme le socle physique de cet environnement. Elle commence par un PC mère :
+      une machine centrale qui concentre le calcul, le stockage, l'intelligence
+      artificielle locale, la simulation et l'orchestration nécessaires aux projets. Son
+      rôle n'est pas simplement d'être puissante : elle est conçue autour des usages réels
+      de DELIGNY R&amp;D, comme un outil industriel l'est autour de sa fonction.</p>
+      <p>Autour d'elle apparaissent ensuite des boîtiers enfants, plus petits, spécialisés
+      et distribués, qui étendent certaines capacités au plus près d'un atelier, d'une
+      machine ou d'un espace de travail. L'architecture devient alors distribuée.</p>
+      <dl class="lb-pile">
+        <div class="lb-couche" style="--couche: #a58ce0">
+          <dt>RUBY</dt>
+          <dd><b>Coordonne.</b> Connaissances, décisions, agents, continuité entre les projets.</dd>
+        </div>
+        <div class="lb-couche" style="--couche: #e0834f">
+          <dt>Atlas</dt>
+          <dd><b>Organise.</b> Clients, production, documents, opérations autorisées.</dd>
+        </div>
+        <div class="lb-couche" style="--couche: #7fb894">
+          <dt>GARGANTUA</dt>
+          <dd><b>Calcule et héberge.</b> PC mère : calcul, stockage, IA locale, simulation.</dd>
+        </div>
+        <div class="lb-couche" style="--couche: #8aa4cc">
+          <dt>Nœuds enfants</dt>
+          <dd><b>Prolongent.</b> Le système entre dans l'atelier, au plus près des machines.</dd>
+        </div>
+      </dl>
     </section>
 
-    <section class="section split">
+    <section class="lb-chap" id="ambition">
+      <p class="eyebrow">L'ambition</p>
+      <h2>Réduire la distance entre une idée et le réel</h2>
+      <p class="lb-amorce">La finalité de cette démarche n'est pas de construire une
+      intelligence artificielle capable de tout faire seule. Elle est de réduire le nombre
+      de ruptures entre une intention humaine et sa réalisation.</p>
+      <p>Aujourd'hui, une idée doit encore traverser une succession d'outils, de logiciels,
+      de fichiers, de spécialistes et de conversions avant de devenir réelle. Notre travail
+      consiste à relier ces étapes. Une intention pourrait demain être analysée, confrontée
+      à des contraintes, modélisée, simulée, optimisée, documentée puis préparée pour sa
+      fabrication avec beaucoup moins de ruptures qu'aujourd'hui.</p>
+      <p>L'humain conserve ce qui lui appartient : l'intention, le goût, l'intuition,
+      l'arbitrage et la responsabilité. Le système prend en charge la continuité entre ces
+      décisions.</p>
+      <p>À terme, notre ambition dépasse donc la création de produits individuels. Nous
+      voulons construire <strong>la machine qui nous permet de concevoir les
+      suivants</strong> : une infrastructure qui apprend de chaque projet et qui rend le
+      projet suivant plus rapide à comprendre, à développer, à tester et à matérialiser.</p>
+    </section>
+
+    <section class="lb-chap" id="principe">
+      <p class="eyebrow">Notre principe</p>
+      <h2>Le logiciel d'abord, le matériel lorsque sa nécessité devient évidente</h2>
+      <p class="lb-amorce">Nous ne développons pas du matériel pour donner une forme
+      physique à une vision abstraite. Le matériel doit apparaître lorsqu'une limite réelle
+      du logiciel, du calcul ou de l'usage le justifie.</p>
+      <p>C'est pourquoi Atlas et RUBY précèdent GARGANTUA. Les besoins doivent d'abord être
+      compris, les flux de travail éprouvés, les capacités nécessaires mesurées. Ce n'est
+      qu'ensuite que le matériel peut être conçu précisément autour d'elles.</p>
+      <p class="lb-regle">Le logiciel d'abord, le matériel ensuite,
+      <span>jamais l'inverse.</span></p>
+    </section>
+
+    <section class="lb-chap" id="suite">
+      <p class="eyebrow">Et ensuite</p>
+      <h2>Ce livre blanc évoluera avec notre méthode</h2>
+      <p class="lb-amorce">Ce document n'est pas un manifeste figé : il décrit une démarche
+      en cours.</p>
+      <p>RUBY OS COGNITION évolue. Atlas Studio Pro évolue. Les projets apportent
+      continuellement de nouveaux enseignements, et GARGANTUA évoluera avec les besoins
+      réels qu'ils feront apparaître. Ce livre blanc évoluera donc avec eux.</p>
+      <p>Les idées qui ne résistent pas à l'expérience seront abandonnées. Celles qui
+      fonctionnent deviendront des briques du système. Et chaque nouvelle capacité devra
+      répondre à la même question : <strong>réduit-elle réellement la distance entre une
+      idée et sa matérialisation ?</strong></p>
+      <p>Ce que vous lisez ici n'est pas une projection lointaine. C'est la direction selon
+      laquelle nous construisons DELIGNY R&amp;D.</p>
+    </section>
+
+    <section class="lb-fin">
       <div>
-        <p class="eyebrow">Et ensuite</p>
-        <h2>Ce livre blanc evoluera avec notre methode</h2>
-        <p>Ce n'est pas un manifeste fige : a mesure que RUBY OS COGNITION et Atlas
-        avancent, cette page sera mise a jour. Ce que vous lisez ici engage ce que nous
-        construisons.</p>
-        <p><a class="btn btn-small btn-primary" href="index.html">Retour a l'accueil</a></p>
+        <h2>Voir la démarche à l'œuvre</h2>
+        <p>Les logiciels, les outils et les projets décrits ici sont accessibles depuis le
+        portail, la plupart directement dans le navigateur.</p>
+        <p><a class="btn btn-small btn-primary" href="index.html">Retour à l'accueil</a>
+        <a class="btn btn-small" href="portfolio/index.html">Voir le portfolio</a></p>
       </div>
       <div>
-        <p class="eyebrow">Contact</p>
-        <h2>DELIGNY R&D</h2>
-        <p>SAS immatriculee, SIREN 107503807<br />231 rue Saint-Honore, 75001 Paris</p>
-        <p><a class="btn btn-small" href="contact.html">Nous ecrire</a></p>
+        <h2>DELIGNY R&amp;D</h2>
+        <p>SASU immatriculée, SIREN 107 503 807<br />231 rue Saint-Honoré, 75001 Paris</p>
+        <p><a class="btn btn-small" href="contact.html">Nous écrire</a></p>
       </div>
     </section>
   </main>
