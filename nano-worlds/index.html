@@ -32,19 +32,36 @@ if(document.documentElement.classList.contains('ui-topo')) addEventListener('DOM
   // Le groupe est recree a chaque nouveau monde -> on le masque en continu (visible=false
   // est gratuit quand il l'est deja).
   setInterval(function(){ try{ var sc=window.__M&&window.__M.scene; if(!sc)return; var g=sc.getObjectByName('elec_cables'); if(g&&g.visible)g.visible=false; }catch(e){} },1200);
+  // Le jeu masque les outils tant qu'ils ne sont pas debloques (mode carriere,
+  // etat persiste dans localStorage via _applyCareerToolVisibility). Dans une
+  // vitrine il n'y a pas de progression : un visiteur qui arrive pour la
+  // PREMIERE fois ne voyait qu'un seul outil, la hache. On lui rend la barre.
+  // Le tri des outils de la vitrine est deja fait par le CSS ci-dessus, dont
+  // le display:none!important l'emporte sur le style inline qu'on efface ici.
+  setInterval(function(){ try{ var bar=document.getElementById('bar'); if(!bar)return;
+    for(var i=0;i<bar.children.length;i++){ var c=bar.children[i];
+      if(c.style&&c.style.display==='none')c.style.display='';
+      if(c.classList&&c.classList.contains('locked'))c.classList.remove('locked'); }
+  }catch(e){} },900);
   // Pinceau au MILIEU par defaut (demande 20/08) : la valeur de depart du jeu (6/42)
   // fait des retouches trop fines pour une vitrine.
   var sz=document.getElementById('size'); if(sz){ sz.value=Math.round((+sz.min + +sz.max)/2); sz.dispatchEvent(new Event('input',{bubbles:true})); }
-  // TEMPS BORNE [x1 .. x30] et jamais en arriere (20/08, bug des « aiguilles ») :
+  // TEMPS BORNE [x1 .. x150] et jamais en arriere (20/08, bug des « aiguilles ») :
   // aux vitesses extremes du jeu (x600..x2000, singularite) les evenements
   // autonomes s'emballent et criblent le terrain de pics ; le temps inverse
   // n'a pas de sens dans une vitrine. On borne DE L'EXTERIEUR, sans toucher
   // au moteur : apres chaque clic, si on depasse, on rend le clic inverse.
+  // 25/08 : plafond remonte de x30 a x150 (x30 bloquait trop tot). Les paliers
+  // du jeu sont [1,3,6,12,30,60,150,400,600,...] : x150 laisse trois crans de
+  // plus tout en restant sous le seuil ou le terrain se criblait (x600).
   var spB=document.getElementById('speed'), rwB=document.getElementById('rewind2');
   function _mult(){ var m=(spB.textContent||'').match(/\u00d7(\d+)/); return m?+m[1]:1; }
   function _negatif(){ return (rwB.style.color||'')==='rgb(159, 211, 255)' || (rwB.style.color||'')==='#9fd3ff'; }
   if(spB&&rwB){
-    spB.addEventListener('click', function(){ setTimeout(function(){ while(_mult()>30 && !_negatif()) rwB.click(); },0); });
+    // En CAPTURE : on refuse le cran de trop AVANT que le jeu le traite, sinon
+    // l'affichage saute a x400 puis revient a x150, ce qui se voit.
+    spB.addEventListener('click', function(e){ if(_mult()>=150 && !_negatif()){ e.stopImmediatePropagation(); e.preventDefault(); } }, true);
+    spB.addEventListener('click', function(){ setTimeout(function(){ while(_mult()>150 && !_negatif()) rwB.click(); },0); });
     rwB.addEventListener('click', function(e){ if(_mult()===1 && !_negatif()){ e.stopImmediatePropagation(); e.preventDefault(); } }, true);
     rwB.addEventListener('click', function(){ setTimeout(function(){ while(_negatif()) spB.click(); },0); });
   }
@@ -195,7 +212,7 @@ if('serviceWorker' in navigator){
   html.ui-topo #camReset{top:auto!important;bottom:calc(10px + env(safe-area-inset-bottom))!important;right:calc(158px + env(safe-area-inset-right))!important;border-radius:11px!important;background:rgba(16,20,27,.85)!important;color:#eaf0f7!important;border-color:rgba(255,255,255,.14)!important}   /* le « ⌂ » du jeu, repositionne a cote de « Nouveau monde » */
   html.ui-topo #top > :not(#brushCard):not(#quickActions):not(#stylebar){display:none!important}   /* + le selecteur natif Bouger/Agir, demande 21/08 */
   html.ui-topo #quickActions > :not(#rewind2):not(#speed):not(.topoLbl){display:none!important}   /* ne restent que l'etiquette Temps, ⏪ et ⏩ */
-  html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="cratere"]):not([data-tool="canyon"]):not([data-tool="lac"]):not([data-tool="sable"]):not([data-tool="roche"]):not([data-tool="tuyau"]):not([data-tool="rail"]):not([data-tool="train"]):not([data-tool="telecabine"]):not([data-tool="maison"]):not([data-tool="gratteciel"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
+  html.ui-topo #bar > *:not([data-tool="raise"]):not([data-tool="lower"]):not([data-tool="flat"]):not([data-tool="water"]):not([data-tool="dry"]):not([data-tool="neige"]):not([data-tool="montagne"]):not([data-tool="lac"]):not([data-tool="roche"]):not([data-tool="pin"]):not([data-tool="bateau"]):not([data-tool="tuyau"]):not([data-tool="rail"]):not([data-tool="train"]):not([data-tool="telecabine"]):not([data-tool="maison"]):not([data-tool="gratteciel"]){display:none!important}   /* y compris les <button> que des modules ajoutent au dock (ex. Timeline) */
   html.ui-topo #bar, html.ui-topo #bar.hidden, html.ui-topo body.game-clean #bar{display:flex!important}
   html.ui-topo body.game-clean #top{display:flex!important}
   html.ui-topo #bar{top:168px;bottom:12px}   /* sous le cluster haut-gauche (Bouger/Agir + Pinceau/Force + Temps) */
@@ -8792,7 +8809,7 @@ let tool='raise', mode='orbit';
 const TOOLS=[['raise','⛰','Élever'],['lower','🕳','Creuser'],
   ['flat','▱','Aplanir'],['smooth','🌫','Lisser'],['niveau','📐','Niveau'],['water','💧','Verser'],['dry','🧽','Sécher'],['neige','❄️','Neige'],
   ['montagne','🗻','Montagne'],['colline','🟢','Colline'],['plateau','🟫','Plateau'],['cratere','🌋','Cratère'],['canyon','🏜','Canyon'],['lac','🌊','Lac'],['sable','🏖','Sable'],['roche','🪨','Roche'],
-  ['pin','🌲','Pin'],['feuillu','🌳','Feuillu'],['flore','🌴','Flore variée'],['herbe','🌿','Herbe'],['fleur','🌸','Fleur'],['recolte','🪓','Récolte'],
+  ['pin','🌲','Forêt'],['feuillu','🌳','Feuillu'],['flore','🌴','Flore variée'],['herbe','🌿','Herbe'],['fleur','🌸','Fleur'],['recolte','🪓','Récolte'],
   ['rail','🛤','Rail'],['doublerail','🛤','Double rail'],['train','🚆','Train'],['route','🛣','Route'],['reseau','🚦','Réseau rail+route'],['pont','🌉','Pont bois'],['grandpont','🌁','Grand pont'],['pistecourse','🏁','Tracer course'],['voiture','🚗','Voiture'],
   ['source','⛲','Source'],['magma','🌋','Source magma'],['tuyau','🚰','Tuyau pompe'],['gratteciel','🏙','Gratte-ciel'],['eolienne','🌬','Éolienne'],['phare','🗼','Phare'],['usine','🏭','Usine'],['carriere','⛏','Carrière'],['scierie','🪚','Scierie'],['tokamak','⚛️','Tokamak'],['labo','🔬','Labo recherche'],['chimie','🧪','Usine chimique'],
   ['gens','🧍','Gens'],['cage','🪤','Cage'],['laisse','🦮','Laisse'],
@@ -8836,9 +8853,19 @@ function applyAt(p,first){
   const rad=+sizeEl.value, str=+strEl.value/100;
   const ci=(p.x/SIZE+.5)*(N-1), cj=(p.z/SIZE+.5)*(N-1);
   if(tool==='neige'){ paintSnow(p.x,p.z,Math.max(2,+sizeEl.value)*0.55); return; }   // ❄️ NEIGE : blanchit le sol + calotte sur végétation/toits
-  if(tool==='pin'){ const r=Math.max(1,+sizeEl.value)*0.45;   // ARBRES VARIÉS : sapins + feuillus + buissons, en petit bosquet
-    for(let k=0;k<3;k++){ const a=Math.random()*6.28,dd=Math.random()*r, x=p.x+Math.cos(a)*dd, z=p.z+Math.sin(a)*dd, q=Math.random();
-      if(q<0.45)placeTree(x,z); else if(q<0.8&&typeof placeTreeLeafy==='function')placeTreeLeafy(x,z); else placeBush(x,z); } return; }
+  if(tool==='pin'){ const r=Math.max(1,+sizeEl.value)*0.45;   // 🌲 FORÊT MULTI-ESPÈCES : conifères + feuillus + buissons + essences d'accent selon le biome
+    // Densité proportionnelle à la surface du pinceau : au doigt, un grand
+    // pinceau doit poser une forêt, pas trois arbres perdus au milieu.
+    const n=Math.max(3,Math.min(14,Math.round(r*r*0.09)));
+    for(let k=0;k<n;k++){ const a=Math.random()*6.28,dd=Math.sqrt(Math.random())*r, x=p.x+Math.cos(a)*dd, z=p.z+Math.sin(a)*dd, q=Math.random();
+      // placeFlora crée un mesh individuel (pas une instance) : réservé à
+      // l'accent, sinon la scène s'alourdit vite. Il choisit seul l'essence
+      // selon le sol : palmier/cactus sur le sable, cyprès sous la neige,
+      // bouleau/saule en prairie.
+      if(q<0.40)placeTree(x,z);
+      else if(q<0.72&&typeof placeTreeLeafy==='function')placeTreeLeafy(x,z);
+      else if(q<0.92)placeBush(x,z);
+      else if(typeof placeFlora==='function'&&(typeof floraExtra==='undefined'||floraExtra.length<260))placeFlora(x,z); } return; }
   if(tool==='feuillu'){ placeTreeLeafy(p.x,p.z); return; }
   if(tool==='flore'){ pushUndo(); placeFlora(p.x,p.z); return; }   // 🌴 essence variée aléatoire (biome-aware) à chaque clic
   if(tool==='roche'){ const rad=Math.max(2,+sizeEl.value)*0.55, st=+strEl.value/100, R=Math.ceil(rad/CELL), ci=cI(p.x),cj=cJ(p.z);   // 🪨 AFFLEUREMENT : bosse rocheuse irrégulière (pentes raides = teinte roche auto) + gros rochers émergents
@@ -8966,7 +8993,18 @@ function onDown(e){ if(mode!=='sculpt')return; pointerNDC(e); const p=hitTerrain
   if(tool==='skieur'){placeSkier(p.x,p.z); return;}
   if(tool==='parapente'){placeParaglider(p.x,p.z); return;}
   if(tool==='kayak'){placeKayak(p.x,p.z); return;}
-  if(tool==='bateau'){placeBoat(p.x,p.z); return;}
+  if(tool==='bateau'){   // ⛵ placeBoat exige de l'eau (>0.2) SOUS le point exact.
+    // Au doigt on vise rarement juste : si le point touche la berge, on cherche
+    // le plan d'eau le plus proche dans le rayon du pinceau plutot que de ne
+    // rien faire en silence (les toasts sont desactives : aucun retour possible).
+    if(!placeBoat(p.x,p.z)){
+      const r=Math.max(4,+sizeEl.value)*0.7;
+      let bx=0,bz=0,bw=0.2;
+      for(let a=0;a<24;a++)for(let t=1;t<=4;t++){ const an=a/24*6.28, dd=r*t/4,
+        x=p.x+Math.cos(an)*dd, z=p.z+Math.sin(an)*dd, w=_wat(x,z);
+        if(w>bw){bw=w;bx=x;bz=z;} }
+      if(bw>0.2)placeBoat(bx,bz);
+    } return;}
   if(tool==='port'){makePort(p.x,p.z); return;}
   if(tool==='meteorite'){launchMeteor(p.x,p.z); return;}
   if(tool==='nuage'){ paintCloud(p.x,p.z); if(typeof teachMsg==='function')teachMsg('☁️ Nuage peint — il s\'assombrit puis déverse pluie + éclairs'); return;}   // ⛈ ORAGE LOCAL
