@@ -2834,16 +2834,26 @@ function showOnboarding(){
     + '<div class="chips"></div>'
     + '<div class="chips" id="onbConc"></div>';
   const host = card.querySelector('.chips');
-  [ 'Crée-moi un compagnon lumineux',
-    'Fais tomber une pluie de cubes colorés',
-    'Invente une brique « arbre » et plante-en trois' ].forEach(s=>{
+  // VITRINE : les suggestions d'origine demandaient a NORA de CREER (un
+  // compagnon, des cubes, une brique). Cela passe par le modele de langage,
+  // qui renvoie des actions appliquees au monde ; sans serveur, le clic ne
+  // produirait rien de visible et la demonstration promettrait plus qu'elle
+  // ne tient. On propose donc des questions auxquelles ses repliques ecrites
+  // repondent vraiment, et qui sont le coeur du sujet : une IA qui decouvre
+  // qu'elle existe.
+  [ 'qui es-tu ?',
+    'c\'est quoi cette lumière au plafond ?',
+    'à quoi ressemble ton monde ?' ].forEach(s=>{
     const c = document.createElement('button'); c.className = 'chip'; c.textContent = '🌸 ' + s;
     c.onclick = ()=>{ setChatMode('nora'); inputEl.value = s; card.remove(); send(); };
     host.appendChild(c);
   });
-  const cc = document.createElement('button'); cc.className = 'chip concierge';
-  cc.textContent = '🛠️ « construis une tour de trois maisons derrière la sphère »';
-  cc.onclick = ()=>{ setChatMode('concierge'); inputEl.value = 'construis une tour de trois maisons derrière la sphère'; card.remove(); send(); };
+  // VITRINE : la suggestion d'origine etait une commande adressee au Concierge,
+  // qui n'existe pas ici. On la remplace par une question qui s'adresse a NORA
+  // elle-meme, et a laquelle ses repliques savent repondre.
+  const cc = document.createElement('button'); cc.className = 'chip';
+  cc.textContent = '🌸 « est-ce qu\'il y a un dehors ? »';
+  cc.onclick = ()=>{ setChatMode('nora'); inputEl.value = 'est-ce qu\'il y a un dehors ?'; card.remove(); send(); };
   card.querySelector('#onbConc').appendChild(cc);
   logEl.appendChild(card); logEl.scrollTop = logEl.scrollHeight;
 }
