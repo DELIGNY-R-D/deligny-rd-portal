@@ -1952,44 +1952,77 @@ function appliquerConges(profile, rayonMm){
   const global_ = rayonMm || 0;
   if(profile.length < 3) return profile;
   if(global_ <= 0 && !profile.some(p=>(p.conge||0) > 0)) return profile;
-  const out=[{...profile[0]}];
-  for(let i=1;i<profile.length-1;i++){
+
+  /* ⚠️ PLUS AUCUN PLAFOND ARBITRAIRE (20/08). Le rayon etait rabote a 45 % du
+   * plus court segment voisin : un angle entre deux longs segments restait
+   * presque vif alors que la place existait, et le curseur butait a 25 mm.
+   * La SEULE limite est desormais geometrique : sur un segment, la tangence
+   * du conge de depart plus celle du conge d'arrivee ne peuvent pas depasser
+   * sa longueur. L'arrondi va donc JUSQU'AU PROCHAIN POINT, et pas au-dela,
+   * ou l'arc devorerait ce point.
+   *
+   * Deux temps : on calcule les tangences demandees, puis on ne rabote QUE
+   * les segments reellement trop courts, au prorata des deux demandes. */
+  const N = profile.length;
+  const tan = new Array(N).fill(0);      // longueur de tangence, par sommet
+  const dat = new Array(N).fill(null);   // geometrie du sommet (directions, demi-angle)
+
+  for(let i=1;i<N-1;i++){
     const A=profile[i-1], P=profile[i], B=profile[i+1];
-    /* CONGÉ PAR POINT : chaque angle du dessin peut porter SON rayon (outil de
-     * la coupe 2D). Le curseur global du style « lisse » reste un défaut pour
-     * les points qui n'en ont pas. */
     const rayonPoint = (P.conge !== undefined && P.conge !== null) ? P.conge : global_;
-    if(rayonPoint <= 0){ out.push({...P}); continue; }
+    if(rayonPoint <= 0) continue;
     const u={h:P.h-A.h, r:P.r-A.r}, v={h:B.h-P.h, r:B.r-P.r};
     const lu=Math.hypot(u.h,u.r), lv=Math.hypot(v.h,v.r);
-    if(lu<1e-6 || lv<1e-6){ out.push({...P}); continue; }
+    if(lu<1e-6 || lv<1e-6) continue;
     u.h/=lu; u.r/=lu; v.h/=lv; v.r/=lv;
     const cosDev = Math.max(-1, Math.min(1, u.h*v.h + u.r*v.r));
-    const dev = Math.acos(cosDev);                 // déviation au sommet
-    if(dev < Math.PI/36){ out.push({...P}); continue; }   // < 5° : quasi droit
-    const demi = (Math.PI - dev)/2;                // demi-angle intérieur
-    let t = rayonPoint / Math.tan(demi);           // longueur de tangence
-    /* 0.5 et non 0.45 (24/08, demande Baptiste : « pas de limite jusqu'au
-     * prochain point »). 0,5 est la borne GEOMETRIQUE stricte : la tangence ne
-     * peut pas depasser la moitie du segment, sinon les congés de deux points
-     * voisins se chevaucheraient et le trace se croiserait. */
-    const tMax = 0.5*Math.min(lu, lv);
-    let R = rayonPoint;
-    if(t > tMax){ t = tMax; R = t*Math.tan(demi); }
-    const P1={h:P.h-u.h*t, r:P.r-u.r*t};           // début de l'arc
-    const P2={h:P.h+v.h*t, r:P.r+v.r*t};           // fin de l'arc
-    // centre : sur la bissectrice, à R/sin(demi) du sommet
-    let bh=v.h-u.h, br=v.r-u.r;
+    const dev = Math.acos(cosDev);                 // deviation au sommet
+    if(dev < Math.PI/36) continue;                 // < 5 deg : quasi droit
+    const demi = (Math.PI - dev)/2;                // demi-angle interieur
+    tan[i] = rayonPoint / Math.tan(demi);          // tangence demandee
+    dat[i] = {u, v, demi};
+  }
+
+  /* Partage des segments. Rogner un segment peut rendre l'AUTRE segment du
+   * meme sommet excedentaire : on repasse jusqu'a ce que plus rien ne bouge
+   * (chaque passe ne fait que diminuer, donc ca converge). */
+  for(let passe=0; passe<8; passe++){
+    let bouge = false;
+    for(let s=0;s<N-1;s++){
+      const L = Math.hypot(profile[s+1].h-profile[s].h, profile[s+1].r-profile[s].r);
+      const somme = tan[s] + tan[s+1];
+      const place = L*0.999;                       // on s'arrete JUSTE avant le point voisin
+      if(somme > place && somme > 1e-9){
+        const f = place/somme;
+        tan[s] *= f; tan[s+1] *= f;
+        bouge = true;
+      }
+    }
+    if(!bouge) break;
+  }
+
+  const out=[{...profile[0]}];
+  for(let i=1;i<N-1;i++){
+    const P=profile[i], d=dat[i];
+    if(!d || tan[i] <= 1e-6){ out.push({...P}); continue; }
+    const t = tan[i], R = t*Math.tan(d.demi);
+    const P1={h:P.h-d.u.h*t, r:P.r-d.u.r*t};       // debut de l'arc
+    const P2={h:P.h+d.v.h*t, r:P.r+d.v.r*t};       // fin de l'arc
+    // centre : sur la bissectrice, a R/sin(demi) du sommet
+    let bh=d.v.h-d.u.h, br=d.v.r-d.u.r;
     const lb=Math.hypot(bh,br);
     if(lb<1e-9){ out.push({...P}); continue; }
     bh/=lb; br/=lb;
-    const C={h:P.h + bh*(R/Math.sin(demi)), r:P.r + br*(R/Math.sin(demi))};
+    const C={h:P.h + bh*(R/Math.sin(d.demi)), r:P.r + br*(R/Math.sin(d.demi))};
     const a1=Math.atan2(P1.r-C.r, P1.h-C.h);
     let a2=Math.atan2(P2.r-C.r, P2.h-C.h);
     let da=a2-a1;
     while(da >  Math.PI) da-=2*Math.PI;
     while(da < -Math.PI) da+=2*Math.PI;
-    const n=Math.max(2, Math.ceil(Math.abs(da)*R/0.4));   // ~0,4 mm d'arc
+    /* ~0,4 mm d'arc, mais borne : un conge de 120 mm demanderait un millier de
+     * points, multiplies par la revolution puis par chaque angle. 400 tient la
+     * finesse a l'oeil sans faire ramer le trace a chaque glissement. */
+    const n=Math.max(2, Math.min(400, Math.ceil(Math.abs(da)*R/0.4)));
     for(let k=0;k<=n;k++){
       const a=a1+da*k/n;
       out.push({h:C.h+R*Math.cos(a), r:Math.max(0.5, C.r+R*Math.sin(a))});
@@ -7195,16 +7228,28 @@ detectAI();
   function congeEffectif(i){
     const pr=state.profile, P=pr[i], A=pr[i-1], B=pr[i+1];
     if(!A||!B||!(P.conge>0)) return 0;
-    const u={h:P.h-A.h, r:P.r-A.r}, v={h:B.h-P.h, r:B.r-P.r};
-    const lu=Math.hypot(u.h,u.r), lv=Math.hypot(v.h,v.r);
-    if(lu<1e-6||lv<1e-6) return 0;
-    u.h/=lu; u.r/=lu; v.h/=lv; v.r/=lv;
-    const cosDev=Math.max(-1,Math.min(1,u.h*v.h+u.r*v.r));
-    const dev=Math.acos(cosDev);
-    if(dev<Math.PI/36) return 0;
-    const demi=(Math.PI-dev)/2;
-    const t=P.conge/Math.tan(demi), tMax=0.5*Math.min(lu,lv);
-    return t>tMax ? tMax*Math.tan(demi) : P.conge;
+    const geo=(X,Y,Z)=>{
+      const u={h:Y.h-X.h, r:Y.r-X.r}, v={h:Z.h-Y.h, r:Z.r-Y.r};
+      const lu=Math.hypot(u.h,u.r), lv=Math.hypot(v.h,v.r);
+      if(lu<1e-6||lv<1e-6) return null;
+      u.h/=lu;u.r/=lu;v.h/=lv;v.r/=lv;
+      const dev=Math.acos(Math.max(-1,Math.min(1,u.h*v.h+u.r*v.r)));
+      if(dev<Math.PI/36) return null;
+      return {demi:(Math.PI-dev)/2, lu, lv};
+    };
+    const g=geo(A,P,B); if(!g) return 0;
+    let t=P.conge/Math.tan(g.demi);
+    // place laissee par le voisin sur chaque segment adjacent
+    const dispo=(X,Y,Z,L)=>{
+      if(!X||!Z) return L*0.999;
+      const gv=geo(X,Y,Z); if(!gv) return L*0.999;
+      const tv=(Y.conge>0) ? Y.conge/Math.tan(gv.demi) : 0;
+      return Math.max(0, L*0.999 - tv);
+    };
+    const dAmont=dispo(pr[i-2], A, P, g.lu);
+    const dAval =dispo(P, B, pr[i+2], g.lv);
+    t=Math.min(t, dAmont, dAval);
+    return t*Math.tan(g.demi);
   }
   function litRayon(r){ info.textContent = r>0 ? ('R '+r.toFixed(1)+' mm') : 'angle vif'; }
   function supprime(i){
