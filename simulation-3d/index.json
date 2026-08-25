@@ -119,6 +119,56 @@
    "images": 195,
    "secondes": 6.5,
    "poids_mo": 0.69
+  },
+  {
+   "num": "33",
+   "titre": "La gamme",
+   "texte": "Un seul nuage de points prend successivement huit formes : la marque, une lampe, un sac, un yacht, un tableau, une chaise, un bureau, et de nouveau la marque. Les cles de forme exigent une topologie identique, donc elles etaient hors jeu ; on echantillonne le meme nombre de points sur chaque objet, on les apparie couche par couche, et on interpole. La lampe n'est pas une silhouette inventee : c'est le fichier de la lampe reellement dessinee ici. La couleur suit la vitesse de chaque point, donc une forme tenue est calme et une transition s'embrase.",
+   "video": "video/33.mp4",
+   "affiche": "video/33.png",
+   "images": 360,
+   "secondes": 12.0,
+   "poids_mo": 5.91
+  },
+  {
+   "num": "34",
+   "titre": "Impression FDM",
+   "texte": "Aucune machine, aucune buse, aucun plateau : on ne voit que la matiere et l'ordre dans lequel elle arrive. Un procede de fabrication n'est pas une machine, c'est un ORDRE, et c'est ce qu'une image generee ne sait pas dire. La hauteur est quantifiee a l'epaisseur de couche : c'est le palier qui fait la couche, sans quoi on filmerait une maree.",
+   "video": "video/34.mp4",
+   "affiche": "video/34.png",
+   "images": 240,
+   "secondes": 8.0,
+   "poids_mo": 1.11
+  },
+  {
+   "num": "36",
+   "titre": "Injection",
+   "texte": "La matiere entre par UN point, le seuil, et progresse vers les extremites. C'est vrai de toute piece injectee, et c'est pour cela qu'elle garde une histoire lisible sur son dos : les lignes de soudure sont la ou deux fronts se sont rejoints. Le front est chaud et refroidit derriere lui.",
+   "video": "video/36.mp4",
+   "affiche": "video/36.png",
+   "images": 240,
+   "secondes": 8.0,
+   "poids_mo": 1.07
+  },
+  {
+   "num": "37",
+   "titre": "Extrusion",
+   "texte": "Ni filiere, ni banc de tirage : rien que le jonc qui avance. La SECTION NE CHANGE JAMAIS, c'est la definition meme du procede, et c'est ce qui separe ce plan de tous les autres de la serie ou la forme evolue. Les stries courent dans le sens du tirage, l'inverse d'une piece imprimee.",
+   "video": "video/37.mp4",
+   "affiche": "video/37.png",
+   "images": 240,
+   "secondes": 8.0,
+   "poids_mo": 1.71
+  },
+  {
+   "num": "35",
+   "titre": "Stereolithographie",
+   "texte": "La piece emerge du bain, et elle emerge LA TETE EN BAS : c'est ainsi qu'on imprime en stereolithographie, et ce detail contre-intuitif suffit a faire reconnaitre le procede. La matiere n'est pas deposee mais solidifiee sur place, donc il n'y a pas de couche qui avance mais une ligne de flottaison qui descend, et un film de resine qui s'egoutte.",
+   "video": "video/35.mp4",
+   "affiche": "video/35.png",
+   "images": 240,
+   "secondes": 8.0,
+   "poids_mo": 1.89
   }
  ],
  "photos": []
