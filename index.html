@@ -206,7 +206,7 @@
            l'état commercial et les trous de conformité. Rien de tout ça ne
            doit se retrouver en ligne, pas même sous forme de lien mort. -->
       <div id="lienAtelier" style="display:none;margin-top:12px;font-size:12px;color:var(--dim2)">
-        Atelier · <a href="/propagation/lamp-designer.html">Tableau de bord PROPAGATION</a>
+        Atelier · <a href="lampe-3d-studio/index.html">Tableau de bord PROPAGATION</a>
         — diffusion, conformité, prochaine action
       </div>
     </div>
@@ -774,34 +774,6 @@
         <article class="app-card app-card-visual">
           <svg class="app-banner" viewBox="0 0 400 132" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
             <defs>
-              <linearGradient id="bg-gds" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="var(--purple)" />
-                <stop offset="100%" stop-color="var(--gold)" />
-              </linearGradient>
-            </defs>
-            <rect width="400" height="132" fill="url(#bg-gds)" />
-            <g fill="none" stroke="#fff" stroke-width="2.5" opacity="0.9" stroke-linejoin="round">
-              <path d="M170 40 L210 25 L250 40 L250 80 L210 95 L170 80 Z" />
-              <path d="M170 40 L210 55 L250 40" />
-              <line x1="210" y1="55" x2="210" y2="95" />
-            </g>
-          </svg>
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>General Design Studio</h3>
-              <span class="tag tag-live">Studio</span>
-            </div>
-            <p>Du prompt a l'objet fabricable : conception assistee, generation 3D et verification de faisabilite integrees dans un seul pipeline.</p>
-            <div class="app-actions">
-              <!-- pas d'URL publique : cible locale ../DESIGN:ART/GENERATIVE_DESIGN/app/index.html, a rebrancher une fois staged -->
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot public</button>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card app-card-visual">
-          <svg class="app-banner" viewBox="0 0 400 132" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-            <defs>
               <linearGradient id="bg-print" x1="0" y1="0" x2="1" y2="1">
                 <stop offset="0%" stop-color="var(--green)" />
                 <stop offset="100%" stop-color="#1c4d30" />
@@ -851,34 +823,6 @@
             <p>Une technique de neuroevolution sim-to-real, adaptable a tout projet qui doit apprendre un comportement en simulation avant de le transferer au reel. Premier cas d'usage : un tripode qui apprend a marcher.</p>
             <div class="app-actions">
               <a class="btn btn-small btn-muted" href="lumine/index.html">Voir l'avancement</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card app-card-visual">
-          <svg class="app-banner" viewBox="0 0 400 132" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-            <defs>
-              <linearGradient id="bg-sketch" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="var(--blue)" />
-                <stop offset="100%" stop-color="var(--gold)" />
-              </linearGradient>
-            </defs>
-            <rect width="400" height="132" fill="url(#bg-sketch)" />
-            <g fill="none" stroke="#fff" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M65 82 L78 52 L88 78 L100 45 L112 74 L124 56 L134 70" stroke-width="3" opacity="0.85" />
-              <path d="M162 66 L198 66" stroke-width="2" stroke-dasharray="3 6" opacity="0.6" />
-              <path d="M198 66 L189 60 M198 66 L189 72" stroke-width="2" opacity="0.6" />
-              <path d="M225 66 C 225 42, 250 30, 278 30 C 306 30, 331 42, 331 66 C 331 90, 306 102, 278 102 C 250 102, 225 90, 225 66 Z" stroke-width="3" opacity="0.95" />
-            </g>
-          </svg>
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>Intension</h3>
-              <span class="tag tag-lab">Prototype</span>
-            </div>
-            <p>Intension : un carnet de croquis iPad avec copilote de rendu : on ecrit une intention, on dessine au Pencil, une IA rend l'objet a cote en direct. Le rendu se fige comme source, pivote en 3D comme une vraie maquette, se modifie a la phrase.</p>
-            <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Outil interne, pas encore public</button>
             </div>
           </div>
         </article>
@@ -1003,7 +947,7 @@
     <section class="section" id="outils">
       <div class="section-head">
         <p class="eyebrow">Outils gratuits</p>
-        <h2>21 outils gratuits, sans compte, + Office Studio (compte Atlas requis)</h2>
+        <h2>16 outils gratuits, sans compte, + Office Studio (compte Atlas requis)</h2>
       </div>
       <div class="app-grid">
         <article class="app-card">
@@ -1045,7 +989,7 @@
             </div>
             <p>Resout : reperer un FEC desequilibre avant de l'envoyer a l'expert-comptable. Verification par ecriture, pas juste le total. 100% local.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/fec-checker/index.html">Ouvrir l'outil</a>
               <span>Extrait du moteur FEC d'Atlas Studio Pro.</span>
             </div>
           </div>
@@ -1060,7 +1004,7 @@
             </div>
             <p>Resout : trouver les doublons, references orphelines et couts manquants dans une nomenclature avant fabrication.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/bom-auditor/index.html">Ouvrir l'outil</a>
               <span>Relie a General Design Studio.</span>
             </div>
           </div>
@@ -1075,38 +1019,8 @@
             </div>
             <p>Resout : transformer des notes et photos d'intervention en rapport propre, imprimable ou copiable en une minute.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/maintenance-report/index.html">Ouvrir l'outil</a>
               <span>Relie a <a href="https://atlas-studio.pro">Atlas Studio Pro</a>.</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card">
-          <div class="app-icon">FX</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>Factur-X Toolkit</h3>
-              <span class="tag tag-free">Gratuit</span>
-            </div>
-            <p>Resout : verifier ou generer le XML CII d'une facture electronique Factur-X avant l'obligation 2026-2027.</p>
-            <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
-              <span>Extrait du moteur Factur-X d'Atlas Studio Pro.</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card">
-          <div class="app-icon">BS</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>Bank Statement Extractor</h3>
-              <span class="tag tag-free">Gratuit</span>
-            </div>
-            <p>Resout : transformer un releve bancaire OFX/CSV (ou scanne, via OCR local) en tableau exploitable. Vos donnees ne quittent jamais le navigateur.</p>
-            <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
-              <span>100% local, y compris l'OCR.</span>
             </div>
           </div>
         </article>
@@ -1120,23 +1034,8 @@
             </div>
             <p>Resout : generer le calendrier des echeances fiscales et sociales d'une entreprise selon sa forme juridique.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/echeancier-fiscal/index.html">Ouvrir l'outil</a>
               <span>Dates et libelles uniquement, aucun taux invente.</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card">
-          <div class="app-icon">PDF</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>PDF Toolkit</h3>
-              <span class="tag tag-free">Gratuit</span>
-            </div>
-            <p>Resout : fusionner, decouper, reorganiser et faire pivoter des PDF, sans upload. Vrai rendu de page, pas une vignette generique.</p>
-            <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
-              <span>100% local, pdf-lib.</span>
             </div>
           </div>
         </article>
@@ -1150,38 +1049,8 @@
             </div>
             <p>Resout : generer des planches d'etiquettes QR/Code128/EAN13 imprimables, formats standards ou sur mesure.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/qr-barcode-generator/index.html">Ouvrir l'outil</a>
               <span>Extrait du moteur d'etiquettes d'Atlas Studio Pro.</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card">
-          <div class="app-icon">CK</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>Crypto Key Toolkit</h3>
-              <span class="tag tag-free">Gratuit</span>
-            </div>
-            <p>Resout : generer une paire de cles SSH (Ed25519/RSA) ou PGP directement dans le navigateur : aucune cle transmise.</p>
-            <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
-              <span>Web Crypto native + openpgp.js.</span>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card">
-          <div class="app-icon">EV</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>Evidence Vault</h3>
-              <span class="tag tag-free">Gratuit</span>
-            </div>
-            <p>Resout : prouver l'integrite d'un fichier (hash SHA-256 + horodatage, signature PGP optionnelle) sans tiers de confiance.</p>
-            <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
-              <span>Preuve locale, pas opposable legalement (pas de RFC 3161).</span>
             </div>
           </div>
         </article>
@@ -1195,7 +1064,7 @@
             </div>
             <p>Resout : transformer un texte reglementaire en checklist de conformite sourcee, exigence par exigence.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/compliance-compiler/index.html">Ouvrir l'outil</a>
               <span>Detection assistee, validation humaine obligatoire.</span>
             </div>
           </div>
@@ -1210,7 +1079,7 @@
             </div>
             <p>Resout : choisir le bon materiau d'impression 3D (17 references) selon usage, budget et tenue thermique/UV.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/material-genome/index.html">Ouvrir l'outil</a>
               <span>Relie a General Design Studio.</span>
             </div>
           </div>
@@ -1225,7 +1094,7 @@
             </div>
             <p>Resout : apprendre a arbitrer tresorerie/croissance/risque via une campagne de 10 decisions, comparaison de strategies incluse.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/money-data-game/index.html">Ouvrir l'outil</a>
               <span>Argent fictif, aucun conseil financier reel.</span>
             </div>
           </div>
@@ -1240,7 +1109,7 @@
             </div>
             <p>Resout : conserver matiere, fabrication, reparation et fin de vie d'un objet imprime 3D, lie a un QR auto-porte.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/product-passport-engine/index.html">Ouvrir l'outil</a>
               <span>Registre local, pas encore partage multi-machines.</span>
             </div>
           </div>
@@ -1255,7 +1124,7 @@
             </div>
             <p>Resout : vectoriser une image (raster vers SVG), editer les points d'ancrage, exporter en SVG/DXF a l'echelle reelle.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/vector-studio/index.html">Ouvrir l'outil</a>
               <span>100% local, imagetracerjs.</span>
             </div>
           </div>
@@ -1270,7 +1139,7 @@
             </div>
             <p>Resout : detecter BPM et tonalite de deux morceaux deposes, preparer une transition mixee en direct.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/ai-dj-pulse-studio/index.html">Ouvrir l'outil</a>
               <span>Aucune redistribution : lecture uniquement, jamais d'export.</span>
             </div>
           </div>
@@ -1285,7 +1154,7 @@
             </div>
             <p>Resout : simuler l'impot sur des plus-values crypto (methode fraction de capital, art. 150 VH bis) avant declaration.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/crypto-tax-simulator/index.html">Ouvrir l'outil</a>
               <span>Simulateur, pas declarant : validation humaine obligatoire.</span>
             </div>
           </div>
@@ -1300,7 +1169,7 @@
             </div>
             <p>Resout : transformer une image en pochoir decoupable en une seule piece, ponts anti-ilots automatiques.</p>
             <div class="app-actions">
-              <button class="btn btn-small btn-muted" type="button" disabled>Bientot en ligne</button>
+              <a class="btn btn-small" href="outils/pochoir-converter/index.html">Ouvrir l'outil</a>
               <span>Export HD/commercial/multi-couches en attente de paiement.</span>
             </div>
           </div>
@@ -1462,6 +1331,44 @@
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
 <script src="logo-3d.js?v=53990441"></script>
 <script src="tagline.js?v=38c0e5d1"></script>
-<script src="lampe-embed.js?v=e67175f4"></script>
+<!-- CHARGEMENT DIFFERE (25/08) : lampe-embed.js pese 305 Ko compresses, soit
+     88 % du poids de l'accueil, pour un configurateur que la plupart des
+     visiteurs ne descendent jamais ouvrir. On ne le charge qu'a l'approche de
+     son emplacement. L'URL reste dans un attribut « ...src=" » pour que
+     deploy/cache-bust.py continue de la versionner. -->
+<script id="lampeDiffere" data-src="lampe-embed.js?v=e67175f4"></script>
+<script>
+(function(){
+  var balise = document.getElementById('lampeDiffere');
+  var cible  = document.getElementById('lampe-embed-root');
+  if (!balise || !cible) return;
+  var lance = false;
+  function charger(){
+    if (lance) return; lance = true;
+    var s = document.createElement('script');
+    s.src = balise.getAttribute('data-src');
+    document.body.appendChild(s);
+  }
+  if ('IntersectionObserver' in window) {
+    // 700 px d'avance : le script est pret avant que le widget soit a l'ecran.
+    var io = new IntersectionObserver(function(entrees){
+      for (var i=0;i<entrees.length;i++) if (entrees[i].isIntersecting){ io.disconnect(); charger(); return; }
+    }, { rootMargin: '700px' });
+    io.observe(cible);
+  } else {
+    charger();   // navigateur sans observateur : comportement d'avant
+  }
+  /* FILETS. Un differe qui echoue laisse un widget VIDE, ce qui serait pire
+     que 305 Ko de trop : l'observateur ne se declenche jamais si la fenetre a
+     une hauteur nulle (onglet ouvert en arriere-plan, cas exotiques). On
+     charge donc aussi au premier geste du visiteur.
+     PAS de minuteur de secours : il chargerait le fichier pour TOUT LE MONDE
+     au bout de quelques secondes et annulerait l'economie. Sans geste, le
+     visiteur n'atteindra de toute facon jamais le widget. */
+  addEventListener('scroll', charger, { once: true, passive: true });
+  addEventListener('pointerdown', charger, { once: true, passive: true });
+  addEventListener('keydown', charger, { once: true });
+})();
+</script>
 </body>
 </html>

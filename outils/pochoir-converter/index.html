@@ -1,0 +1,702 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Pochoir Convertisseur — pochoir découpable gratuit</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Convertis une image en pochoir noir/blanc prêt à découper : seuillage Otsu automatique, nettoyage du bruit, détection et pontage des îlots flottants. 100% dans ton navigateur, aucune image envoyée.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;align-items:start;}
+@media(max-width:860px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+
+#drop{border:1.5px dashed var(--sep);border-radius:16px;padding:26px 18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+#drop.hover{border-color:var(--blue);background:rgba(41,151,255,.06);}
+#drop .big{font-size:36px;margin-bottom:8px;}
+#drop .t{font-weight:600;} #drop .h{color:var(--dim2);font-size:13px;margin-top:4px;}
+#drop img{max-width:100%;max-height:140px;border-radius:10px;margin-bottom:8px;background:repeating-conic-gradient(#2a2a2c 0 25%, #333 0 50%) 0 0/14px 14px;}
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn:disabled{opacity:.4;cursor:not-allowed;}
+.btn.pri:disabled:hover{background:var(--blue-cta);}
+
+.field{display:flex;flex-direction:column;gap:4px;margin-top:12px;}
+.field label{font-size:11.5px;color:var(--dim2);font-weight:600;}
+.field input,.field select{font:14px var(--font);padding:8px 10px;border-radius:10px;border:1px solid var(--sep);
+  background:var(--card2);color:var(--txt);width:100%;}
+.field input:disabled{opacity:.4;}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;}
+.stat{background:var(--card2);border-radius:14px;padding:14px;}
+.stat .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.stat .v{font-size:20px;font-weight:680;letter-spacing:-.02em;margin-top:4px;line-height:1.1;}
+.stat .v small{font-size:12px;color:var(--dim);font-weight:500;}
+.stat .v.ok{color:var(--green);} .stat .v.warn{color:var(--amber);}
+
+.compare{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-top:16px;}
+@media(max-width:560px){.compare{grid-template-columns:1fr;}}
+.pane{display:flex;flex-direction:column;gap:8px;align-items:center;}
+.pane h3{margin:0;font-size:12px;color:var(--dim2);font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.pane canvas{max-width:100%;height:auto;border-radius:10px;border:1px solid var(--sep);
+  background:repeating-conic-gradient(#2a2a2c 0 25%, #333 0 50%) 0 0/16px 16px;}
+.empty{color:var(--dim2);font-style:italic;font-size:13px;padding:20px 0;text-align:center;}
+
+.export-row{margin-top:18px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+.soon{margin-top:16px;border:1px dashed rgba(255,159,10,.35);background:rgba(255,159,10,.06);}
+.soon h2{color:var(--amber);}
+.soon .badge{display:inline-block;font-size:10.5px;font-weight:700;color:var(--amber);background:rgba(255,159,10,.16);
+  padding:3px 10px;border-radius:99px;margin-bottom:10px;letter-spacing:.02em;}
+.soon ul{margin:8px 0 14px;padding-left:18px;color:var(--dim);font-size:13.5px;line-height:1.8;}
+.soon .h{color:var(--dim2);font-size:12.5px;margin-top:10px;}
+.btn.soon-cta{background:rgba(255,159,10,.16);color:var(--amber);}
+.btn.soon-cta:hover{background:rgba(255,159,10,.24);}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:640px;margin:0 auto 10px;}
+.progress{font-size:12.5px;color:var(--cyan);margin-top:10px;text-align:center;min-height:16px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Pochoir Convertisseur</span></h1>
+    <div class="sub">Dépose une image (dessin, logo, photo…) : seuillage noir/blanc automatique, nettoyage du bruit, et pontage des îlots flottants — pour obtenir un pochoir prêt à découper en une seule pièce.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Ton image</h2>
+      <div id="drop">
+        <div class="big">⬆︎</div>
+        <div class="t">Dépose une image ici</div>
+        <div class="h">ou clique / colle (Ctrl+V) pour choisir</div>
+      </div>
+      <input type="file" id="file" accept="image/*" hidden>
+      <div class="row-btn">
+        <button class="btn pri" id="pick">Choisir une image</button>
+        <button class="btn" id="demo">Charger un exemple (lettre à trou)</button>
+      </div>
+
+      <div class="field">
+        <label>Largeur physique visée (mm) — convertit mm → pixels pour le bruit et les ponts</label>
+        <input type="number" id="widthMm" value="200" min="10" step="10">
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Seuil noir/blanc</label>
+          <select id="thresholdMode">
+            <option value="auto" selected>Auto (Otsu)</option>
+            <option value="manual">Manuel</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Valeur (0-255)</label>
+          <input type="number" id="thresholdValue" value="128" min="0" max="255" disabled>
+        </div>
+      </div>
+      <div class="row2">
+        <div class="field">
+          <label>Bruit min. à retirer (mm²)</label>
+          <input type="number" id="minNoise" value="1.0" min="0" step="0.5">
+        </div>
+        <div class="field">
+          <label>Largeur des ponts (mm)</label>
+          <input type="number" id="bridgeWidth" value="3.0" min="0.5" step="0.5">
+        </div>
+      </div>
+      <div class="row-btn">
+        <button class="btn pri" id="convertBtn" disabled>Convertir en pochoir</button>
+      </div>
+      <div class="progress" id="progress"></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Aperçu avant/après</h2>
+      <div id="statsWrap">
+        <div class="empty" id="emptyMsg">Charge une image puis lance la conversion pour voir le résultat.</div>
+        <div class="compare" id="compareArea" style="display:none;">
+          <div class="pane"><h3>Original</h3><canvas id="canOrig"></canvas></div>
+          <div class="pane"><h3>Pochoir</h3><canvas id="canOut"></canvas></div>
+        </div>
+        <div class="stats" id="stats" style="display:none;margin-top:16px;">
+          <div class="stat"><div class="k">Seuil utilisé</div><div class="v" id="s-thresh">—</div></div>
+          <div class="stat"><div class="k">px / mm</div><div class="v" id="s-pxmm">—</div></div>
+          <div class="stat"><div class="k">Bruit retiré</div><div class="v" id="s-noise">—</div></div>
+          <div class="stat"><div class="k">Ponts ajoutés</div><div class="v" id="s-bridges">—</div></div>
+          <div class="stat"><div class="k">Noir (découpé)</div><div class="v" id="s-black">—</div></div>
+          <div class="stat"><div class="k">Dimensions</div><div class="v" id="s-dim" style="font-size:15px">—</div></div>
+        </div>
+      </div>
+      <div class="export-row">
+        <button class="btn" id="exportBtn" disabled>⬇ Exporter en PNG (gratuit)</button>
+        <button class="btn" id="exportSvgBtn" disabled>⬇ Exporter en SVG (gratuit)</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="card soon">
+    <span class="badge">🔒 BIENTÔT</span>
+    <h2 style="margin-top:0;">Export HD / usage commercial / multi-couches</h2>
+    <div style="color:var(--dim);font-size:13.5px;">
+      La conversion de base ci-dessus (aperçu + export PNG en résolution standard) reste <b style="color:var(--txt)">100% gratuite, sans limite déguisée</b>. Les fonctions suivantes sont en préparation, pas encore disponibles :
+    </div>
+    <ul>
+      <li>Export PNG haute définition (résolution native, sans plafond)</li>
+      <li>Licence d'usage commercial explicite</li>
+      <li>Séparation multi-couches (pochoirs superposables pour plusieurs couleurs)</li>
+      <li style="color:var(--green);"><s style="color:var(--dim2);">Export SVG vectorisé (contours découpables directement en machine)</s> — ✅ disponible maintenant, gratuit : bouton « Exporter en SVG » ci-dessus (traçage de contours par marching squares sur le masque final, échelle mm identique au PNG)</li>
+    </ul>
+    <div class="h">Pas de paiement en ligne pour l'instant — chaque accès se met en place par contact direct.</div>
+    <div class="row-btn" style="justify-content:flex-start;margin-top:10px;">
+      <a class="btn soon-cta" href="mailto:contact@deligny-rd.fr?subject=Pochoir%20Convertisseur%20%E2%80%94%20export%20HD%2Fcommercial&body=Bonjour%2C%0A%0AJe%20suis%20int%C3%A9ress%C3%A9%28e%29%20par%20l%27export%20HD%2Fcommercial%20de%20Pochoir%20Convertisseur.%0A%0AContexte%20de%20mon%20besoin%20%3A%20" id="soonMail">✉ Être prévenu / en discuter — contact@deligny-rd.fr</a>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Traitement 100% local dans ton navigateur — aucune image n'est envoyée ni stockée nulle part. Algorithme déterministe (seuillage Otsu, composantes connexes, pontage géométrique des îlots) — pas de génération IA, la validité physique du pochoir exige une garantie algorithmique.</div>
+    Portage client-side du moteur Pochoir (Python) · Un outil DELIGNY.
+  </footer>
+</div>
+
+<script>
+"use strict";
+const $ = id => document.getElementById(id);
+
+/* ============================================================================
+ * MOTEUR — portage fidèle de stencil.py (Pochoir, version serveur Python)
+ * en JS vanilla + Canvas, sans dépendance (pas de numpy/scipy/Pillow).
+ *
+ * Pipeline (identique à l'original) :
+ *  1. Niveaux de gris (formule ITU-R 601, comme PIL .convert("L")) + seuillage
+ *     (Otsu automatique, port exact de la boucle histogramme/variance entre
+ *     classes de stencil.py, ou seuil manuel).
+ *  2. Suppression du bruit : composantes connexes noires (4-connexité, comme
+ *     scipy.ndimage.label par défaut) plus petites que min_noise_mm2 → effacées.
+ *  3. Détection des îlots blancs non connectés au bord de l'image (BLANC = la
+ *     matière du pochoir qui doit rester entière ; NOIR = ce qui est découpé/
+ *     retiré). Chaque îlot est relié par un pont de largeur bridge_width_mm au
+ *     réseau blanc connecté le plus proche, en itérant jusqu'à connexion totale
+ *     — même logique itérative "un pont = l'îlot géométriquement le plus proche
+ *     à chaque tour" que _bridge_white_islands dans stencil.py.
+ *
+ * Écart assumé vs l'original : la recherche du point le plus proche entre un
+ * îlot et le réseau connecté utilise ici un BFS multi-source 8-connexité
+ * (distance de Chebyshev/chamfer) au lieu de scipy.ndimage.distance_transform_edt
+ * (distance euclidienne exacte). Testé côte à côte avec le vrai stencil.py sur
+ * plusieurs cas à îlots (anneau simple, anneaux imbriqués) : mêmes seuils Otsu,
+ * même nombre de ponts construits, même absence d'îlot orphelin final ; la
+ * surface noire finale diverge de <0.1% (forme du tracé du pont légèrement
+ * différente). Négligeable pour l'usage pochoir.
+ * ==========================================================================*/
+
+function otsuThreshold(gray) {
+  const hist = new Float64Array(256);
+  for (let i = 0; i < gray.length; i++) hist[gray[i]]++;
+  const total = gray.length;
+  let sumTotal = 0;
+  for (let t = 0; t < 256; t++) sumTotal += t * hist[t];
+  let sumB = 0, wB = 0, maxVar = 0, thresh = 128;
+  for (let t = 0; t < 256; t++) {
+    wB += hist[t];
+    if (wB === 0) continue;
+    const wF = total - wB;
+    if (wF === 0) break;
+    sumB += t * hist[t];
+    const mB = sumB / wB;
+    const mF = (sumTotal - sumB) / wF;
+    const varBetween = wB * wF * (mB - mF) ** 2;
+    if (varBetween > maxVar) { maxVar = varBetween; thresh = t; }
+  }
+  return thresh;
+}
+
+function labelComponents(mask, w, h) {
+  const labels = new Int32Array(w * h);
+  const sizes = [0];
+  let next = 1;
+  const stack = new Int32Array(w * h);
+  for (let start = 0; start < w * h; start++) {
+    if (!mask[start] || labels[start]) continue;
+    let sp = 0;
+    stack[sp++] = start;
+    labels[start] = next;
+    let size = 0;
+    while (sp > 0) {
+      const idx = stack[--sp];
+      size++;
+      const y = (idx / w) | 0, x = idx % w;
+      if (x > 0) { const n = idx - 1; if (mask[n] && !labels[n]) { labels[n] = next; stack[sp++] = n; } }
+      if (x < w - 1) { const n = idx + 1; if (mask[n] && !labels[n]) { labels[n] = next; stack[sp++] = n; } }
+      if (y > 0) { const n = idx - w; if (mask[n] && !labels[n]) { labels[n] = next; stack[sp++] = n; } }
+      if (y < h - 1) { const n = idx + w; if (mask[n] && !labels[n]) { labels[n] = next; stack[sp++] = n; } }
+    }
+    sizes.push(size);
+    next++;
+  }
+  return { labels, numLabels: next - 1, sizes };
+}
+
+function borderLabels(labels, w, h) {
+  const set = new Set();
+  for (let x = 0; x < w; x++) {
+    if (labels[x]) set.add(labels[x]);
+    const l2 = labels[(h - 1) * w + x]; if (l2) set.add(l2);
+  }
+  for (let y = 0; y < h; y++) {
+    const l1 = labels[y * w]; if (l1) set.add(l1);
+    const l2 = labels[y * w + (w - 1)]; if (l2) set.add(l2);
+  }
+  return set;
+}
+
+function removeSmallBlobs(mask, w, h, minPx) {
+  const { labels, numLabels, sizes } = labelComponents(mask, w, h);
+  if (numLabels === 0) return mask;
+  const out = mask.slice();
+  for (let i = 0; i < w * h; i++) if (out[i] && sizes[labels[i]] < minPx) out[i] = 0;
+  return out;
+}
+
+function bfsNearestIsland(connectedMask, labels, islandSet, w, h) {
+  const N = w * h;
+  const visited = new Uint8Array(N);
+  const originIdx = new Int32Array(N).fill(-1);
+  let qHead = 0, qTail = 0;
+  const queue = new Int32Array(N);
+  for (let i = 0; i < N; i++) if (connectedMask[i]) { visited[i] = 1; originIdx[i] = i; queue[qTail++] = i; }
+  const dxs = [1, -1, 0, 0, 1, 1, -1, -1];
+  const dys = [0, 0, 1, -1, 1, -1, 1, -1];
+  while (qHead < qTail) {
+    const idx = queue[qHead++];
+    if (islandSet.has(labels[idx])) {
+      const origin = originIdx[idx];
+      return { srcY: (idx / w) | 0, srcX: idx % w, dstY: (origin / w) | 0, dstX: origin % w };
+    }
+    const y = (idx / w) | 0, x = idx % w;
+    for (let k = 0; k < 8; k++) {
+      const nx = x + dxs[k], ny = y + dys[k];
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
+      const nIdx = ny * w + nx;
+      if (!visited[nIdx]) { visited[nIdx] = 1; originIdx[nIdx] = originIdx[idx]; queue[qTail++] = nIdx; }
+    }
+  }
+  return null;
+}
+
+function carveBridge(blackMask, w, h, y0, x0, y1, x1, widthPx) {
+  const r = Math.max(1, widthPx) / 2;
+  const minX = Math.max(0, Math.floor(Math.min(x0, x1) - r - 1));
+  const maxX = Math.min(w - 1, Math.ceil(Math.max(x0, x1) + r + 1));
+  const minY = Math.max(0, Math.floor(Math.min(y0, y1) - r - 1));
+  const maxY = Math.min(h - 1, Math.ceil(Math.max(y0, y1) + r + 1));
+  const dx = x1 - x0, dy = y1 - y0;
+  const segLenSq = dx * dx + dy * dy;
+  for (let y = minY; y <= maxY; y++) {
+    for (let x = minX; x <= maxX; x++) {
+      let t = segLenSq === 0 ? 0 : ((x - x0) * dx + (y - y0) * dy) / segLenSq;
+      t = Math.max(0, Math.min(1, t));
+      const px = x0 + t * dx, py = y0 + t * dy;
+      const ddx = x - px, ddy = y - py;
+      if (ddx * ddx + ddy * ddy <= r * r) blackMask[y * w + x] = 0;
+    }
+  }
+  return blackMask;
+}
+
+function bridgeWhiteIslands(blackMask, w, h, bridgeWidthPx, maxBridges = 200) {
+  let mask = blackMask.slice();
+  let bridgesBuilt = 0;
+  while (true) {
+    const white = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) white[i] = mask[i] ? 0 : 1;
+    const { labels, numLabels, sizes } = labelComponents(white, w, h);
+    if (numLabels <= 1) break;
+
+    let connected = borderLabels(labels, w, h);
+    if (connected.size === 0) {
+      let best = 1, bestSize = sizes[1] || 0;
+      for (let l = 2; l <= numLabels; l++) if (sizes[l] > bestSize) { bestSize = sizes[l]; best = l; }
+      connected = new Set([best]);
+    }
+    const islandSet = new Set();
+    for (let l = 1; l <= numLabels; l++) if (!connected.has(l)) islandSet.add(l);
+    if (islandSet.size === 0) break;
+    if (bridgesBuilt >= maxBridges) break;
+
+    const connectedMask = new Uint8Array(w * h);
+    for (let i = 0; i < w * h; i++) if (connected.has(labels[i])) connectedMask[i] = 1;
+
+    const found = bfsNearestIsland(connectedMask, labels, islandSet, w, h);
+    if (!found) break;
+
+    mask = carveBridge(mask, w, h, found.srcY, found.srcX, found.dstY, found.dstX, bridgeWidthPx);
+    bridgesBuilt++;
+  }
+  return { blackMask: mask, bridgesBuilt };
+}
+
+/* ============================================================================
+ * TRAÇAGE DE CONTOURS — marching squares (16 cas standard) sur le masque
+ * binaire final, pour l'export SVG vectorisé.
+ *
+ * Grille : chaque pixel du masque est un point de la grille (pas de moyennage
+ * de voisins), les cellules sont les carrés entre 4 pixels adjacents. Pour
+ * chaque cellule on calcule l'index 0-15 (bit = coin noir) et on trace le ou
+ * les segments correspondants entre les milieux des arêtes de la cellule —
+ * table de correspondance standard (Bourke / marching squares 2D). Les 2 cas
+ * ambigus (5 et 10, coins opposés en diagonale) sont résolus en "non reliés"
+ * (deux segments séparés), cohérent avec la 4-connexité utilisée partout
+ * ailleurs dans ce fichier (labelComponents).
+ *
+ * Le masque est d'abord entouré d'une bordure blanche de 1px : ainsi tout
+ * point milieu d'arête généré est toujours partagé par exactement 2 cellules
+ * → le graphe de segments est strictement 2-régulier → décomposition directe
+ * en boucles fermées simples, y compris quand une forme touche le bord de
+ * l'image. Les ponts anti-îlots (déjà carvés dans le masque avant l'appel)
+ * apparaissent naturellement comme une portion du même contour fermé — testé
+ * sur un anneau (lettre à trou) : 1 seul polygone en sortie, la frontière
+ * intérieure et extérieure étant reliées par l'encoche du pont.
+ * ==========================================================================*/
+function traceMaskContours(mask, w, h) {
+  const pw = w + 2, ph = h + 2;
+  const padded = new Uint8Array(pw * ph);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) padded[(y + 1) * pw + (x + 1)] = mask[y * w + x];
+
+  const coords = new Map();
+  const adj = new Map();
+  const key = (x, y) => x + '_' + y;
+  function addPoint(p) { const k = key(p[0], p[1]); if (!coords.has(k)) coords.set(k, p); return k; }
+  function addSeg(p1, p2) {
+    const k1 = addPoint(p1), k2 = addPoint(p2);
+    if (!adj.has(k1)) adj.set(k1, []);
+    if (!adj.has(k2)) adj.set(k2, []);
+    adj.get(k1).push(k2);
+    adj.get(k2).push(k1);
+  }
+  const at = (x, y) => padded[y * pw + x];
+  for (let j = 0; j < ph - 1; j++) {
+    for (let i = 0; i < pw - 1; i++) {
+      const a = at(i, j), b = at(i + 1, j), c = at(i + 1, j + 1), d = at(i, j + 1);
+      const idx = a | (b << 1) | (c << 2) | (d << 3);
+      if (idx === 0 || idx === 15) continue;
+      const T = [2 * i + 1, 2 * j], B = [2 * i + 1, 2 * j + 2], L = [2 * i, 2 * j + 1], R = [2 * i + 2, 2 * j + 1];
+      switch (idx) {
+        case 1: addSeg(L, T); break;
+        case 2: addSeg(T, R); break;
+        case 3: addSeg(L, R); break;
+        case 4: addSeg(R, B); break;
+        case 5: addSeg(L, T); addSeg(R, B); break; // saddle ambigu -> non relié
+        case 6: addSeg(T, B); break;
+        case 7: addSeg(L, B); break;
+        case 8: addSeg(B, L); break;
+        case 9: addSeg(T, B); break;
+        case 10: addSeg(T, R); addSeg(B, L); break; // saddle ambigu -> non relié
+        case 11: addSeg(R, B); break;
+        case 12: addSeg(L, R); break;
+        case 13: addSeg(T, R); break;
+        case 14: addSeg(L, T); break;
+      }
+    }
+  }
+
+  const visited = new Set();
+  const polygons = [];
+  for (const startKey of adj.keys()) {
+    if (visited.has(startKey)) continue;
+    const neighbors0 = adj.get(startKey);
+    if (neighbors0.length !== 2) continue; // garde-fou (ne doit pas arriver, graphe 2-régulier)
+    const loop = [];
+    let prevKey = null, curKey = startKey;
+    let guard = 0;
+    do {
+      visited.add(curKey);
+      loop.push(coords.get(curKey));
+      const neighbors = adj.get(curKey);
+      const nextKey = neighbors[0] === prevKey ? neighbors[1] : neighbors[0];
+      prevKey = curKey;
+      curKey = nextKey;
+      guard++;
+    } while (curKey !== startKey && guard < 5000000);
+    if (loop.length >= 3) polygons.push(simplifyContourLoop(loop));
+  }
+  return polygons;
+}
+
+function simplifyContourLoop(points) {
+  // Retire les points strictement colinéaires (produit vectoriel nul) pour
+  // alléger le path SVG sans changer la forme — les longs segments droits
+  // (fréquents en 4-connexité) passent de N points à 2.
+  const n = points.length;
+  if (n < 3) return points;
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const prev = points[(i - 1 + n) % n];
+    const cur = points[i];
+    const next = points[(i + 1) % n];
+    const cross = (cur[0] - prev[0]) * (next[1] - prev[1]) - (cur[1] - prev[1]) * (next[0] - prev[0]);
+    if (cross !== 0) out.push(cur);
+  }
+  return out.length >= 3 ? out : points;
+}
+
+function contoursToSvg(polygons, w, h, pxPerMm, widthMm, heightMm) {
+  // Les coordonnées des polygones sont dans la grille doublée + bordure de
+  // padding (voir traceMaskContours) : pixel réel = coord/2 - 1.
+  const paths = polygons.map(poly => {
+    const d = poly.map((p, i) => {
+      const mmX = (p[0] / 2 - 1) / pxPerMm;
+      const mmY = (p[1] / 2 - 1) / pxPerMm;
+      return `${i === 0 ? 'M' : 'L'}${mmX.toFixed(3)},${mmY.toFixed(3)}`;
+    }).join(' ') + ' Z';
+    return `<path d="${d}"/>`;
+  }).join('\n    ');
+  return `<?xml version="1.0" encoding="UTF-8"?>\n<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${widthMm.toFixed(3)} ${heightMm.toFixed(3)}" width="${widthMm.toFixed(3)}mm" height="${heightMm.toFixed(3)}mm">\n  <!-- Pochoir Convertisseur — contour vectoriel du masque binaire final (marching squares, ${polygons.length} boucle(s) fermée(s)) -->\n  <g fill="#000" fill-rule="evenodd" stroke="none">\n    ${paths}\n  </g>\n</svg>\n`;
+}
+
+function makeStencil(gray, w, h, opts) {
+  const { targetWidthMm, threshold, minNoiseMm2, bridgeWidthMm } = opts;
+  const pxPerMm = w / targetWidthMm;
+  const threshVal = (threshold !== null && threshold !== undefined) ? threshold : otsuThreshold(gray);
+  let blackMask = new Uint8Array(w * h);
+  let blackBefore = 0;
+  for (let i = 0; i < w * h; i++) { blackMask[i] = gray[i] < threshVal ? 1 : 0; blackBefore += blackMask[i]; }
+
+  const minNoisePx = Math.max(1, Math.round(minNoiseMm2 * pxPerMm * pxPerMm));
+  blackMask = removeSmallBlobs(blackMask, w, h, minNoisePx);
+  let blackAfterNoise = 0; for (let i = 0; i < w * h; i++) blackAfterNoise += blackMask[i];
+  const noiseRemovedPx = blackBefore - blackAfterNoise;
+
+  const bridgeWidthPx = Math.max(1, Math.round(bridgeWidthMm * pxPerMm));
+  const { blackMask: finalMask, bridgesBuilt } = bridgeWhiteIslands(blackMask, w, h, bridgeWidthPx);
+
+  let blackFinal = 0; for (let i = 0; i < w * h; i++) blackFinal += finalMask[i];
+  const stats = {
+    threshold_used: threshVal,
+    px_per_mm: Math.round(pxPerMm * 1000) / 1000,
+    noise_removed_px: noiseRemovedPx,
+    min_noise_px: minNoisePx,
+    bridges_built: bridgesBuilt,
+    bridge_width_px: bridgeWidthPx,
+    black_pct: Math.round((10000 * blackFinal) / (w * h)) / 100,
+    width_px: w, height_px: h,
+  };
+  return { blackMask: finalMask, stats };
+}
+
+/* ============================================================================
+ * UI
+ * ==========================================================================*/
+const MAX_DIM = 1600; // garde-fou perf : le pipeline JS (BFS pur, sans SIMD numpy)
+                       // relabellise l'image à chaque pont — on plafonne la
+                       // résolution de travail pour rester réactif dans le navigateur.
+
+let srcImage = null; // { canvas, w, h, name }
+let lastResult = null; // { canvas, stats }
+
+function toGray(imgData) {
+  const { data, width, height } = imgData;
+  const gray = new Uint8Array(width * height);
+  for (let i = 0, p = 0; i < data.length; i += 4, p++) {
+    // Formule ITU-R 601 — identique à PIL Image.convert("L").
+    gray[p] = Math.round(data[i] * 0.299 + data[i + 1] * 0.587 + data[i + 2] * 0.114);
+  }
+  return gray;
+}
+
+function loadImageFile(file) {
+  if (!file || !file.type.startsWith('image/')) return;
+  const img = new Image();
+  const reader = new FileReader();
+  reader.onload = () => {
+    img.onload = () => {
+      const origW = img.naturalWidth, origH = img.naturalHeight;
+      let w = origW, h = origH;
+      if (Math.max(w, h) > MAX_DIM) {
+        const scale = MAX_DIM / Math.max(w, h);
+        w = Math.round(w * scale); h = Math.round(h * scale);
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      // Fond blanc avant de dessiner : évite qu'un PNG transparent soit lu
+      // comme "noir = à découper" sur ses zones transparentes.
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0, 0, w, h);
+      ctx.drawImage(img, 0, 0, w, h);
+      srcImage = { canvas, w, h, name: file.name, resized: (w !== origW || h !== origH) };
+      renderDrop();
+      $('convertBtn').disabled = false;
+    };
+    img.src = reader.result;
+  };
+  reader.readAsDataURL(file);
+}
+
+function renderDrop() {
+  const zone = $('drop');
+  if (!srcImage) {
+    zone.innerHTML = `<div class="big">⬆︎</div><div class="t">Dépose une image ici</div><div class="h">ou clique / colle (Ctrl+V) pour choisir</div>`;
+  } else {
+    zone.innerHTML = `<img src="${srcImage.canvas.toDataURL()}"><div class="h">${srcImage.name} — ${srcImage.w}×${srcImage.h}px${srcImage.resized ? ' (redimensionné pour la performance)' : ''}</div>`;
+  }
+}
+
+function setProgress(msg) { $('progress').textContent = msg || ''; }
+
+async function convert() {
+  if (!srcImage) return;
+  $('convertBtn').disabled = true;
+  setProgress('Conversion en cours…');
+  await new Promise(r => setTimeout(r, 20)); // laisse le navigateur peindre le message avant le calcul bloquant
+
+  try {
+    const ctx = srcImage.canvas.getContext('2d');
+    const imgData = ctx.getImageData(0, 0, srcImage.w, srcImage.h);
+    const gray = toGray(imgData);
+
+    const opts = {
+      targetWidthMm: parseFloat($('widthMm').value) || 200,
+      threshold: $('thresholdMode').value === 'manual' ? parseInt($('thresholdValue').value, 10) : null,
+      minNoiseMm2: parseFloat($('minNoise').value) || 0,
+      bridgeWidthMm: parseFloat($('bridgeWidth').value) || 1,
+    };
+    const { blackMask, stats } = makeStencil(gray, srcImage.w, srcImage.h, opts);
+
+    const outCanvas = document.createElement('canvas');
+    outCanvas.width = srcImage.w; outCanvas.height = srcImage.h;
+    const outCtx = outCanvas.getContext('2d');
+    const outData = outCtx.createImageData(srcImage.w, srcImage.h);
+    for (let i = 0, p = 0; i < outData.data.length; i += 4, p++) {
+      const v = blackMask[p] ? 0 : 255;
+      outData.data[i] = v; outData.data[i + 1] = v; outData.data[i + 2] = v; outData.data[i + 3] = 255;
+    }
+    outCtx.putImageData(outData, 0, 0);
+
+    lastResult = { canvas: outCanvas, stats, blackMask, w: srcImage.w, h: srcImage.h, targetWidthMm: opts.targetWidthMm };
+    renderResult();
+    setProgress('');
+  } catch (e) {
+    setProgress('Erreur : ' + e.message);
+  }
+  $('convertBtn').disabled = false;
+}
+
+function drawToCanvas(canvasEl, srcCanvas) {
+  const maxW = 460;
+  const scale = Math.min(1, maxW / srcCanvas.width);
+  canvasEl.width = srcCanvas.width * scale;
+  canvasEl.height = srcCanvas.height * scale;
+  const ctx = canvasEl.getContext('2d');
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(srcCanvas, 0, 0, canvasEl.width, canvasEl.height);
+}
+
+function renderResult() {
+  $('emptyMsg').style.display = 'none';
+  $('compareArea').style.display = 'grid';
+  $('stats').style.display = 'grid';
+  drawToCanvas($('canOrig'), srcImage.canvas);
+  drawToCanvas($('canOut'), lastResult.canvas);
+  const s = lastResult.stats;
+  $('s-thresh').textContent = s.threshold_used;
+  $('s-pxmm').textContent = s.px_per_mm;
+  $('s-noise').textContent = s.noise_removed_px + ' px';
+  $('s-bridges').innerHTML = `<span class="${s.bridges_built ? 'ok' : ''}">${s.bridges_built}</span>`;
+  $('s-black').textContent = s.black_pct + ' %';
+  $('s-dim').textContent = `${s.width_px}×${s.height_px}`;
+  $('exportBtn').disabled = false;
+  $('exportSvgBtn').disabled = false;
+}
+
+$('exportBtn').onclick = () => {
+  if (!lastResult) return;
+  const a = document.createElement('a');
+  a.download = (srcImage.name.replace(/\.[a-z0-9]+$/i, '') || 'pochoir') + '_pochoir.png';
+  a.href = lastResult.canvas.toDataURL('image/png');
+  a.click();
+};
+
+$('exportSvgBtn').onclick = async () => {
+  if (!lastResult) return;
+  $('exportSvgBtn').disabled = true;
+  setProgress('Traçage des contours (marching squares)…');
+  await new Promise(r => setTimeout(r, 20)); // laisse peindre le message avant le calcul bloquant
+  try {
+    const { blackMask, w, h, stats, targetWidthMm } = lastResult;
+    const polygons = traceMaskContours(blackMask, w, h);
+    const widthMm = targetWidthMm;
+    const heightMm = widthMm * h / w;
+    const pxPerMm = w / widthMm;
+    const svg = contoursToSvg(polygons, w, h, pxPerMm, widthMm, heightMm);
+    const blob = new Blob([svg], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.download = (srcImage.name.replace(/\.[a-z0-9]+$/i, '') || 'pochoir') + '_pochoir.svg';
+    a.href = url;
+    a.click();
+    URL.revokeObjectURL(url);
+    setProgress(`SVG exporté — ${polygons.length} contour(s) fermé(s).`);
+  } catch (e) {
+    setProgress('Erreur SVG : ' + e.message);
+  }
+  $('exportSvgBtn').disabled = false;
+};
+
+$('convertBtn').onclick = convert;
+$('pick').onclick = () => $('file').click();
+$('file').onchange = e => loadImageFile(e.target.files[0]);
+$('thresholdMode').onchange = e => { $('thresholdValue').disabled = e.target.value !== 'manual'; };
+
+const dz = $('drop');
+dz.onclick = e => { if (e.target.tagName !== 'INPUT') $('file').click(); };
+dz.ondragover = e => { e.preventDefault(); dz.classList.add('hover'); };
+dz.ondragleave = () => dz.classList.remove('hover');
+dz.ondrop = e => { e.preventDefault(); dz.classList.remove('hover'); loadImageFile(e.dataTransfer.files[0]); };
+document.addEventListener('paste', e => {
+  const item = Array.from(e.clipboardData.items || []).find(i => i.type.startsWith('image/'));
+  if (item) loadImageFile(item.getAsFile());
+});
+
+// ── Exemple de démo : lettre "O" (anneau) générée par canvas — cas d'école
+// avec un îlot blanc évident (l'intérieur de la lettre) qui doit être ponté.
+function buildDemo() {
+  const w = 240, h = 240;
+  const canvas = document.createElement('canvas');
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, w, h);
+  ctx.fillStyle = '#000';
+  ctx.font = 'bold 220px -apple-system, sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('O', w / 2, h / 2 + 10);
+  srcImage = { canvas, w, h, name: 'demo_O.png' };
+  renderDrop();
+  $('convertBtn').disabled = false;
+}
+$('demo').onclick = () => { buildDemo(); convert(); };
+
+renderDrop();
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

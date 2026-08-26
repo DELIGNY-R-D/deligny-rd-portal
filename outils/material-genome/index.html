@@ -1,0 +1,605 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Material Genome — sélecteur de matériau d'impression 3D</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Sélecteur gratuit de matériau d'impression 3D (FDM/résine) selon fonction, coût, disponibilité et tenue thermique/mécanique. Sans compte, sans inscription, 100% local.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;align-items:start;}
+@media(max-width:820px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+
+.field{margin-bottom:16px;}
+.field label{display:block;font-size:12.5px;font-weight:600;color:var(--dim);margin-bottom:6px;}
+.seg{display:flex;gap:6px;flex-wrap:wrap;}
+.seg button{flex:1;min-width:90px;font:600 12.5px var(--font);padding:9px 10px;border-radius:12px;border:1px solid var(--sep);background:var(--card2);color:var(--dim);cursor:pointer;transition:all .15s;}
+.seg button:hover{color:var(--txt);}
+.seg button.on{background:var(--blue-cta);border-color:var(--blue-cta);color:#fff;}
+select.sel{width:100%;font:500 13.5px var(--font);padding:10px 12px;border-radius:12px;border:1px solid var(--sep);background:var(--card2);color:var(--txt);appearance:none;cursor:pointer;}
+.check{display:flex;align-items:center;gap:8px;font-size:13.5px;color:var(--txt);cursor:pointer;padding:10px 12px;background:var(--card2);border-radius:12px;border:1px solid var(--sep);}
+.check input{width:16px;height:16px;accent-color:var(--blue-cta);}
+
+.rank-item{padding:14px 0;border-top:.5px solid var(--sep);cursor:pointer;}
+.rank-item:first-child{border-top:none;}
+.rank-head{display:flex;justify-content:space-between;align-items:baseline;gap:10px;}
+.rank-head .name{font-weight:650;font-size:15.5px;}
+.rank-head .name .pos{color:var(--dim2);font-weight:600;font-size:12px;margin-right:6px;}
+.rank-head .pct{font-weight:700;font-size:14px;font-variant-numeric:tabular-nums;}
+.bar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden;}
+.bar i{display:block;height:100%;border-radius:99px;}
+.reasons{margin-top:9px;display:flex;flex-direction:column;gap:4px;}
+.reason{font-size:12px;line-height:1.5;display:flex;gap:6px;}
+.reason .ic{flex-shrink:0;}
+.reason.ok{color:var(--dim);} .reason.bad{color:var(--dim);}
+.reason .ic.ok{color:var(--green);} .reason .ic.bad{color:var(--amber);}
+.hint-click{font-size:11px;color:var(--dim2);margin-top:6px;}
+
+.matgrid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:14px;}
+@media(max-width:820px){.matgrid{grid-template-columns:repeat(2,1fr);}}
+@media(max-width:520px){.matgrid{grid-template-columns:1fr;}}
+.mat-tile{background:var(--card2);border-radius:16px;padding:14px;cursor:pointer;border:1px solid transparent;transition:border-color .15s,transform .1s;}
+.mat-tile:hover{border-color:var(--sep);}
+.mat-tile .cat{font-size:10px;text-transform:uppercase;letter-spacing:.05em;color:var(--dim2);font-weight:600;}
+.mat-tile .nm{font-weight:650;font-size:15px;margin-top:2px;}
+.mat-tile .meta{margin-top:8px;font-size:11.5px;color:var(--dim);line-height:1.6;}
+.mat-tile .score{display:inline-block;margin-top:9px;font-size:11px;font-weight:700;padding:2px 9px;border-radius:99px;}
+
+section.block{margin-top:26px;}
+section.block h2{font-size:19px;font-weight:650;letter-spacing:-.01em;margin:0 0 4px;}
+section.block .h{color:var(--dim2);font-size:13px;margin-bottom:4px;}
+
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);backdrop-filter:blur(6px);display:none;align-items:flex-start;justify-content:center;padding:40px 16px;z-index:50;overflow-y:auto;}
+.overlay.on{display:flex;}
+.modal{background:var(--card);border-radius:22px;max-width:640px;width:100%;padding:26px;box-shadow:0 20px 60px rgba(0,0,0,.6);}
+.modal-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;}
+.modal-head .cat{font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--cyan);font-weight:700;}
+.modal-head h3{font-size:24px;font-weight:680;margin:4px 0 0;letter-spacing:-.02em;}
+.modal-close{background:rgba(255,255,255,.1);border:none;color:var(--txt);width:30px;height:30px;border-radius:99px;cursor:pointer;font-size:15px;flex-shrink:0;}
+.modal-close:hover{background:rgba(255,255,255,.18);}
+.spec-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:18px;}
+@media(max-width:480px){.spec-grid{grid-template-columns:1fr;}}
+.spec{background:var(--card2);border-radius:12px;padding:11px 13px;}
+.spec .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.spec .v{font-size:13.5px;margin-top:3px;font-weight:550;}
+.modal-lists{margin-top:18px;display:grid;grid-template-columns:1fr 1fr;gap:16px;}
+@media(max-width:480px){.modal-lists{grid-template-columns:1fr;}}
+.modal-lists h4{font-size:12px;color:var(--dim2);text-transform:uppercase;letter-spacing:.04em;margin:0 0 8px;}
+.modal-lists ul{margin:0;padding-left:16px;font-size:13px;color:var(--dim);line-height:1.6;}
+.modal-note{margin-top:16px;font-size:12.5px;color:var(--dim);background:var(--card2);border-radius:12px;padding:12px 14px;line-height:1.6;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:640px;margin:0 auto 10px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Material Genome</span></h1>
+    <div class="sub">Décris ta pièce, obtiens un classement des matériaux d'impression 3D les plus adaptés — avec l'explication de ce qui matche ou ne matche pas.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Contraintes de la pièce</h2>
+
+      <div class="field">
+        <label>Usage</label>
+        <div class="seg" id="f-usage">
+          <button data-v="interieur" class="on">Intérieur</button>
+          <button data-v="exterieur">Extérieur</button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>Exposition thermique attendue</label>
+        <select class="sel" id="f-thermal">
+          <option value="ambiante">Ambiante (&lt; 40 °C — pièce d'intérieur normale)</option>
+          <option value="moderee" selected>Modérée (40–60 °C — derrière une vitre, véhicule, étagère extérieure au soleil)</option>
+          <option value="forte">Forte (&gt; 60 °C — proche d'une source de chaleur, moteur, four, lampe halogène)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Résistance mécanique nécessaire</label>
+        <select class="sel" id="f-mech">
+          <option value="faible">Faible (décoratif, pas de contrainte)</option>
+          <option value="moyenne" selected>Moyenne (manipulation, usage régulier)</option>
+          <option value="forte">Forte (pièce mécanique, charge, chocs, usure)</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label>Budget indicatif</label>
+        <select class="sel" id="f-budget">
+          <option value="economique">Serré (&le; 25 €/kg env.)</option>
+          <option value="moyen" selected>Moyen (&le; 40 €/kg env.)</option>
+          <option value="peu_importe">Peu importe</option>
+        </select>
+      </div>
+
+      <div class="field">
+        <label class="check"><input type="checkbox" id="f-food"> Contact alimentaire nécessaire</label>
+      </div>
+      <div class="field" style="margin-bottom:0">
+        <label class="check"><input type="checkbox" id="f-flex"> La pièce doit être souple / flexible</label>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Classement recommandé</h2>
+      <div id="ranking"></div>
+      <div class="hint-click">Clique sur un matériau pour voir sa fiche détaillée.</div>
+    </div>
+  </div>
+
+  <section class="block">
+    <h2>Les 17 matériaux couverts</h2>
+    <div class="h">FDM : PLA, PLA+, PLA Silk, Wood-fill, PETG, PETG-CF, ABS, ASA, HIPS, PVA, TPU, TPE, Nylon (PA), PA-CF, PC · Résine : standard, haute température</div>
+    <div class="matgrid" id="matgrid"></div>
+  </section>
+
+  <footer>
+    <div class="disc">Valeurs indicatives généralistes issues de sources publiques largement documentées dans la communauté impression 3D (fabricants, fiches techniques, retours d'expérience) — à vérifier systématiquement sur la fiche technique du fabricant avant tout usage critique. Cet outil aide à orienter un choix, il ne remplace pas une fiche technique certifiée. Aucune donnée ne quitte ton navigateur.</div>
+    Un outil DELIGNY R&D.
+  </footer>
+</div>
+
+<div class="overlay" id="overlay">
+  <div class="modal" id="modal"></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+// ── Base matériaux — valeurs indicatives généralistes (communauté impression 3D) ──
+const MATERIALS = [
+  {
+    id:'pla', name:'PLA', category:'FDM',
+    printTemp:'190–220 °C', bedTemp:'20–60 °C (souvent sans plateau chauffant)',
+    uvScore:1, uvLabel:'Faible',
+    heatMin:55, heatMax:60,
+    flexType:'rigide', flexLabel:'Rigide, cassant sous choc',
+    costMin:15, costMax:25, costUnit:'kg',
+    foodSafe:'sous_conditions',
+    mechScore:2, mechUse:'Décoratif / pièce légère peu sollicitée',
+    difficulty:'Facile',
+    strengths:['Le plus facile à imprimer, tolérant aux réglages approximatifs','Excellent rendu de détail et bon état de surface','Faible odeur, pas d\'enceinte nécessaire','Le moins cher à l\'achat'],
+    weaknesses:['Se déforme dès qu\'il chauffe (voiture au soleil, radiateur, eau chaude)','Cassant : mauvaise tenue aux chocs et à la fatigue','Se dégrade et jaunit rapidement aux UV en extérieur'],
+    notes:'Le point de départ standard, mais pas un choix pour une pièce exposée à la chaleur, aux UV ou aux chocs.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — les valeurs ci-dessus sont des moyennes génériques communautaires qui varient significativement d\'un fabricant à l\'autre.'
+  },
+  {
+    id:'plaplus', name:'PLA+ (PLA tenace / PLA Pro)', category:'FDM',
+    printTemp:'200–220 °C', bedTemp:'20–60 °C',
+    uvScore:1, uvLabel:'Faible',
+    heatMin:55, heatMax:65,
+    flexType:'rigide', flexLabel:'Rigide, plus tenace que le PLA standard',
+    costMin:20, costMax:30, costUnit:'kg',
+    foodSafe:'sous_conditions',
+    mechScore:3, mechUse:'Pièce légère à usage régulier, un peu de résistance aux chocs',
+    difficulty:'Facile',
+    strengths:['Presque aussi simple à imprimer que le PLA standard','Meilleure résistance aux chocs / moins cassant','Bon compromis pour une première pièce fonctionnelle légère'],
+    weaknesses:['Tenue thermique quasi identique au PLA standard — ne pas laisser au soleil ou en voiture','Formulation propriétaire selon la marque : les valeurs réelles varient d\'un fabricant à l\'autre'],
+    notes:'"PLA+" n\'est pas un standard normalisé — les caractéristiques exactes dépendent du fabricant, mais la tenue thermique reste proche du PLA classique.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — "PLA+" recouvre des formulations propriétaires différentes selon la marque, les valeurs réelles peuvent s\'écarter sensiblement de ces moyennes.'
+  },
+  {
+    id:'petg', name:'PETG', category:'FDM',
+    printTemp:'220–250 °C', bedTemp:'70–80 °C',
+    uvScore:3, uvLabel:'Bonne',
+    heatMin:70, heatMax:80,
+    flexType:'semi-rigide', flexLabel:'Semi-rigide, bonne résistance aux chocs, légèrement élastique',
+    costMin:20, costMax:32, costUnit:'kg',
+    foodSafe:'sous_conditions',
+    mechScore:4, mechUse:'Pièce mécanique légère à moyenne, usage extérieur modéré',
+    difficulty:'Moyen',
+    strengths:['Bon compromis facilité / robustesse','Bonne résistance aux chocs et à l\'humidité','Utilisable en extérieur modéré (auvent, jardin, contenants)','Souvent le choix privilégié amateur pour un usage alimentaire occasionnel'],
+    weaknesses:['Filage (stringing) fréquent, réglages plus fins que le PLA','Peut trop adhérer au plateau ou à lui-même si mal réglé'],
+    notes:'Un des meilleurs compromis généralistes pour une pièce fonctionnelle qui doit sortir dehors sans exposition extrême.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — les valeurs ci-dessus sont des moyennes génériques communautaires qui varient significativement d\'un fabricant à l\'autre.'
+  },
+  {
+    id:'abs', name:'ABS', category:'FDM',
+    printTemp:'230–250 °C', bedTemp:'90–110 °C (enceinte fermée recommandée)',
+    uvScore:1, uvLabel:'Faible (jaunit et se fissure aux UV sans traitement)',
+    heatMin:95, heatMax:100,
+    flexType:'rigide', flexLabel:'Rigide et tenace, bonne résistance aux chocs',
+    costMin:20, costMax:28, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:4, mechUse:'Pièce mécanique, boîtier, pièce exposée à la chaleur modérée',
+    difficulty:'Difficile',
+    strengths:['Bonne résistance mécanique et aux chocs','Bonne tenue thermique (~95–100 °C)','Peut être lissé à la vapeur d\'acétone pour un fini brillant','S\'usine et se ponce facilement'],
+    weaknesses:['Déformation (warping) fréquente sans enceinte fermée','Émet des fumées/odeurs de styrène → ventilation nécessaire','Mauvaise tenue UV sans peinture ou vernis de protection'],
+    notes:'Historiquement le matériau technique de référence, largement remplacé par l\'ASA quand une tenue UV est nécessaire.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — les valeurs ci-dessus sont des moyennes génériques communautaires qui varient significativement d\'un fabricant à l\'autre.'
+  },
+  {
+    id:'asa', name:'ASA', category:'FDM',
+    printTemp:'240–260 °C', bedTemp:'90–110 °C (enceinte fermée recommandée)',
+    uvScore:4, uvLabel:'Excellente — conçu pour l\'extérieur',
+    heatMin:95, heatMax:100,
+    flexType:'rigide', flexLabel:'Rigide et tenace, proche de l\'ABS',
+    costMin:25, costMax:35, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:4, mechUse:'Pièce mécanique extérieure : boîtier, support, luminaire extérieur',
+    difficulty:'Difficile',
+    strengths:['Excellente tenue aux UV et aux intempéries — le matériau FDM grand public le plus adapté à l\'extérieur','Bonne résistance mécanique et thermique, proche de l\'ABS','Beaucoup moins de fissuration/jaunissement UV que l\'ABS sur la durée'],
+    weaknesses:['Nécessite une enceinte fermée comme l\'ABS (warping, fumées)','Plus cher que l\'ABS','Moins de coloris et de marques disponibles que le PLA/PETG'],
+    notes:'Le choix par défaut pour une pièce fonctionnelle destinée à rester dehors longtemps (mobilier extérieur, boîtiers, supports de plantes, signalétique).',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — les valeurs ci-dessus sont des moyennes génériques communautaires qui varient significativement d\'un fabricant à l\'autre.'
+  },
+  {
+    id:'tpu', name:'TPU (flexible)', category:'FDM',
+    printTemp:'210–230 °C', bedTemp:'20–60 °C (souvent sans plateau chauffant)',
+    uvScore:2, uvLabel:'Moyenne (variable selon la dureté Shore et la formulation)',
+    heatMin:60, heatMax:80,
+    flexType:'flexible', flexLabel:'Flexible / élastique (Shore A ~85–98 selon référence)',
+    costMin:25, costMax:40, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:2, mechUse:'Joint, gaine, amortisseur, semelle, pièce devant absorber un choc ou se déformer',
+    difficulty:'Difficile',
+    strengths:['Seul matériau vraiment souple/élastique de cette liste','Bonne résistance à l\'abrasion et aux chocs répétés','Idéal pour joints, gaines de câble, amortisseurs, semelles, poignées souples'],
+    weaknesses:['Impression lente et technique (extrudeur direct-drive fortement recommandé)','Ne remplace pas un matériau rigide pour une pièce structurelle','Comportement mécanique très variable selon la dureté Shore choisie'],
+    notes:'À choisir uniquement quand la pièce a besoin de flexibilité — inadapté dès qu\'une rigidité structurelle est requise.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence + dureté Shore) — les valeurs ci-dessus sont des moyennes génériques communautaires qui varient significativement selon le grade choisi.'
+  },
+  {
+    id:'nylon', name:'Nylon (PA)', category:'FDM',
+    printTemp:'240–270 °C', bedTemp:'70–100 °C (enceinte + étuve de séchage recommandées)',
+    uvScore:1, uvLabel:'Faible sans additif stabilisant',
+    heatMin:45, heatMax:80,
+    flexType:'semi-rigide', flexLabel:'Tenace, un peu flexible sous charge, très résistant à l\'usure',
+    costMin:30, costMax:55, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:5, mechUse:'Engrenage, charnière vivante, pièce d\'usure ou de frottement répété',
+    difficulty:'Difficile',
+    strengths:['Excellente résistance à l\'usure et à la fatigue — référence pour engrenages/charnières','Très bonne ténacité, résiste bien aux chocs répétés','Existe en versions renforcées fibre de verre/carbone pour plus de rigidité et de tenue thermique'],
+    weaknesses:['Extrêmement hygroscopique — doit être séché avant et pendant l\'impression, sinon qualité très dégradée','Warping important, enceinte fermée quasi obligatoire','Mauvaise tenue UV sans additif stabilisant', 'Tenue thermique très variable selon le grade (PA6, PA12, renforcé fibre) — vérifier la fiche technique précise'],
+    notes:'Le plus résistant mécaniquement de cette liste pour les pièces qui frottent ou fatiguent, mais aussi le plus exigeant à imprimer.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + grade PA6/PA12/renforcé) — les valeurs ci-dessus sont des moyennes génériques communautaires, la tenue thermique réelle varie fortement selon le grade exact.'
+  },
+  {
+    id:'resin_standard', name:'Résine standard (SLA/DLP/LCD)', category:'Résine',
+    printTemp:'Photopolymérisation UV (405 nm), pas de température d\'extrusion',
+    bedTemp:'—',
+    uvScore:1, uvLabel:'Faible (jaunit et devient cassante à l\'exposition UV prolongée)',
+    heatMin:45, heatMax:60,
+    flexType:'rigide', flexLabel:'Rigide et cassante, cassure nette sans déformation préalable',
+    costMin:30, costMax:55, costUnit:'L',
+    foodSafe:'non',
+    mechScore:2, mechUse:'Prototype visuel, figurine, bijouterie, pièce miniature de précision — pas de charge mécanique',
+    difficulty:'Moyen à difficile',
+    strengths:['Détail et finition de surface inégalés (couches très fines, pas de stries visibles)','Idéale pour prototypes visuels, figurines, bijouterie, pièces très détaillées','Grand choix de résines spécialisées'],
+    weaknesses:['Cassante — mauvaise tenue aux chocs et à la fatigue','Résine liquide non polymérisée irritante/toxique → gants, ventilation et EPI obligatoires','Post-traitement obligatoire (lavage IPA + post-cure UV) avant que la pièce atteigne ses propriétés finales','Pas adaptée à une pièce mécanique ou exposée aux intempéries'],
+    notes:'Coût exprimé en €/L (vendue au litre, pas au kg). Choix de précision visuelle, pas de robustesse.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta résine précise (marque + référence) — les valeurs ci-dessus sont des moyennes génériques communautaires qui varient significativement d\'une résine à l\'autre.'
+  },
+  {
+    id:'resin_hightemp', name:'Résine haute température (engineering)', category:'Résine',
+    printTemp:'Photopolymérisation UV, post-cure thermique poussée nécessaire',
+    bedTemp:'—',
+    uvScore:2, uvLabel:'Moyenne, variable selon formulation',
+    heatMin:100, heatMax:230,
+    flexType:'rigide', flexLabel:'Très rigide, encore plus cassante qu\'une résine standard',
+    costMin:60, costMax:110, costUnit:'L',
+    foodSafe:'non',
+    mechScore:3, mechUse:'Moule, gabarit, outillage exposé à la chaleur — pas de charge dynamique ni de choc',
+    difficulty:'Difficile',
+    strengths:['Tenue en température très supérieure aux résines standards — utile pour moules, gabarits, outillage thermique','Grande rigidité et précision dimensionnelle'],
+    weaknesses:['Très cassante — quasi aucune résistance aux chocs','Coût élevé, formulation technique','Post-cure précis et complet indispensable pour atteindre les valeurs annoncées (la tenue thermique réelle dépend fortement de la charge appliquée et du protocole de post-cure)','Manipulation et EPI identiques aux autres résines'],
+    notes:'La plage de tenue thermique annoncée (jusqu\'à ~230 °C) correspond aux mesures sous très faible charge après post-cure complet — sous charge réelle, la valeur utile est généralement bien plus proche de 100–130 °C. Coût en €/L.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta résine précise (marque + référence) — la tenue thermique réelle dépend fortement du protocole de post-cure appliqué, vérifie les conditions de test annoncées par le fabricant.'
+  },
+  {
+    id:'pc', name:'PC (Polycarbonate)', category:'FDM',
+    printTemp:'260–310 °C (buse haute température recommandée)', bedTemp:'100–120 °C (enceinte fermée obligatoire)',
+    uvScore:2, uvLabel:'Moyenne (jaunit aux UV sans stabilisant)',
+    heatMin:110, heatMax:130,
+    flexType:'rigide', flexLabel:'Rigide et très tenace, excellente résistance aux chocs',
+    costMin:35, costMax:55, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:5, mechUse:'Pièce mécanique très sollicitée, résistante aux chocs et à la chaleur : boîtier électronique, pièce d\'outillage',
+    difficulty:'Très difficile',
+    strengths:['Excellente résistance aux chocs et à la traction, parmi les plus solides de cette liste','Bonne tenue thermique (~110–130 °C)','Transparence possible sur les grades clairs, rare en FDM'],
+    weaknesses:['Nécessite une buse haute température (300 °C+) et souvent un hotend/plateau dédiés','Très hygroscopique, séchage indispensable avant impression','Warping important, enceinte fermée quasi obligatoire','Mauvaise tenue UV sans stabilisant, jaunit en extérieur non protégé'],
+    notes:'Le plus résistant mécaniquement et thermiquement de cette liste FDM courante, mais aussi le plus exigeant en matériel (hotend haute température, enceinte).',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — le PC regroupe des grades très différents (PC pur, PC-ABS, PC-PBT), la tenue réelle varie fortement selon le grade.'
+  },
+  {
+    id:'pacf', name:'PA-CF (Nylon chargé fibre de carbone)', category:'FDM',
+    printTemp:'260–290 °C', bedTemp:'80–110 °C (enceinte recommandée)',
+    uvScore:1, uvLabel:'Faible sans additif stabilisant',
+    heatMin:80, heatMax:150,
+    flexType:'rigide', flexLabel:'Très rigide, forte tenue à la flexion, peu élastique',
+    costMin:45, costMax:80, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:5, mechUse:'Pièce mécanique très sollicitée à rigidité maximale : support structurel, pièce technique, remplacement léger de pièce métallique',
+    difficulty:'Très difficile',
+    strengths:['Rigidité et résistance à la traction parmi les plus hautes de cette liste','Excellente stabilité dimensionnelle, peu de fluage sous charge','Tenue thermique nettement améliorée par la fibre de carbone par rapport au nylon pur'],
+    weaknesses:['Nécessite une buse en acier trempé/carbure — la fibre de carbone use l\'acier standard en quelques heures','Extrêmement hygroscopique, séchage impératif avant et pendant l\'impression','Anisotropie marquée : résistance très différente selon l\'axe d\'impression','Cher, difficile à imprimer sans matériel dédié'],
+    notes:'"PA-CF" regroupe plusieurs grades (PA6-CF, PA12-CF...) aux propriétés variables — c\'est le nylon renforcé le plus rigide de cette liste, au prix d\'un matériel dédié.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + grade PA6-CF/PA12-CF) — les valeurs ci-dessus sont des moyennes génériques, la tenue thermique et la rigidité varient fortement selon le grade exact.'
+  },
+  {
+    id:'pla_silk', name:'PLA Silk (soie)', category:'FDM',
+    printTemp:'200–230 °C (souvent plus chaud que le PLA standard pour l\'effet brillant)', bedTemp:'20–60 °C',
+    uvScore:1, uvLabel:'Faible',
+    heatMin:50, heatMax:58,
+    flexType:'rigide', flexLabel:'Rigide, souvent un peu plus cassant que le PLA standard',
+    costMin:22, costMax:35, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:2, mechUse:'Décoratif, objet d\'art, figurine, pièce visuelle non sollicitée',
+    difficulty:'Facile à moyen (filage et sous-extrusion plus fréquents que le PLA standard)',
+    strengths:['Fini brillant/satiné très esthétique, effet "soie" recherché pour les pièces décoratives','Globalement aussi facile à imprimer que le PLA standard','Large choix de couleurs et effets (multicolore, mère de perle)'],
+    weaknesses:['Souvent plus cassant que le PLA standard à cause des additifs qui donnent la brillance','Tenue thermique identique ou légèrement inférieure au PLA — pas pour l\'extérieur ni la chaleur','"Silk" n\'est pas un standard normalisé, qualité très variable d\'une marque à l\'autre'],
+    notes:'Variante esthétique du PLA, pas structurelle — à choisir pour le rendu visuel, pas pour la résistance.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — "silk" est un nom commercial non normalisé, les propriétés mécaniques réelles varient beaucoup d\'un fabricant à l\'autre.'
+  },
+  {
+    id:'wood', name:'Wood-fill (PLA bois)', category:'FDM',
+    printTemp:'190–210 °C (plus bas que le PLA standard pour ne pas brûler les fibres)', bedTemp:'20–60 °C',
+    uvScore:1, uvLabel:'Faible (le bois se dégrade encore plus vite que le PLA seul aux UV/humidité)',
+    heatMin:48, heatMax:55,
+    flexType:'rigide', flexLabel:'Rigide, plus cassant et plus poreux que le PLA standard',
+    costMin:25, costMax:40, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:1, mechUse:'Décoratif, objet artisanal avec rendu bois (ponçable, teignable)',
+    difficulty:'Moyen (buse plus large 0.5–0.6 mm recommandée, s\'use plus vite)',
+    strengths:['Rendu et toucher bois réalistes, peut être poncé/teinté/verni comme du vrai bois','Odeur agréable de bois chauffé à l\'impression','Buse plus large recommandée, limite le bourrage'],
+    weaknesses:['Plus fragile et cassant que le PLA pur — les particules de bois créent des points de faiblesse','Use la buse standard en laiton plus vite (particules abrasives)','Absorbe l\'humidité comme du vrai bois : gonfle et se fragilise si mal stocké','Tenue thermique identique ou inférieure au PLA de base'],
+    notes:'Un composite typiquement 70–85 % PLA + particules de bois — le comportement mécanique reste piloté par la matrice PLA, en moins bon.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — le taux de charge bois varie selon le fabricant et influence directement la fragilité et le rendu.'
+  },
+  {
+    id:'petgcf', name:'PETG-CF (PETG chargé fibre de carbone)', category:'FDM',
+    printTemp:'240–260 °C', bedTemp:'80–90 °C',
+    uvScore:3, uvLabel:'Bonne (héritée du PETG)',
+    heatMin:75, heatMax:85,
+    flexType:'rigide', flexLabel:'Rigide, très faible flexion, moins élastique que le PETG standard',
+    costMin:35, costMax:55, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:5, mechUse:'Pièce mécanique rigide très sollicitée en extérieur modéré : support structurel, pièce d\'outillage légère',
+    difficulty:'Difficile (buse abrasive nécessaire)',
+    strengths:['Rigidité nettement supérieure au PETG standard, peu de fluage','Bonne tenue UV/extérieur héritée du PETG','Bon état de surface mat, moins de filage que le PETG standard grâce à la charge'],
+    weaknesses:['Nécessite une buse en acier trempé/carbure (fibre de carbone abrasive)','Anisotropie marquée entre les couches','Plus cher que le PETG standard','Moins tenace aux chocs que le PETG pur — la fibre rigidifie mais fragilise'],
+    notes:'Un bon compromis rigidité/extérieur quand l\'ASA ou le PC ne sont pas nécessaires, mais demande un matériel adapté aux filaments abrasifs.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — le taux de charge fibre de carbone varie selon le fabricant et influence directement la rigidité annoncée.'
+  },
+  {
+    id:'hips', name:'HIPS (support soluble limonène)', category:'FDM',
+    printTemp:'220–250 °C', bedTemp:'90–110 °C (enceinte fermée recommandée)',
+    uvScore:1, uvLabel:'Faible',
+    heatMin:90, heatMax:100,
+    flexType:'rigide', flexLabel:'Rigide et léger, résistance aux chocs correcte',
+    costMin:20, costMax:30, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:3, mechUse:'Support soluble pour impressions ABS complexes en double extrusion, ou pièce légère peu sollicitée',
+    difficulty:'Difficile',
+    strengths:['Se dissout dans le limonène (d-limonène) → idéal comme support pour géométries complexes en ABS','Léger, facile à poncer et usiner','Bonne stabilité dimensionnelle, proche de l\'ABS'],
+    weaknesses:['Nécessite du limonène pour la dissolution (produit chimique, ventilation nécessaire)','Warping et retrait similaires à l\'ABS, enceinte fermée recommandée','Moins résistant mécaniquement qu\'un ABS ou ASA pur','Rarement choisi comme matériau de pièce finale — surtout utilisé comme support'],
+    notes:'Rarement choisi comme matériau de pièce finale — son usage principal est comme support soluble sur une imprimante double extrusion avec de l\'ABS.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — les valeurs ci-dessus sont des moyennes génériques, la solubilité et la vitesse de dissolution varient selon le fabricant.'
+  },
+  {
+    id:'pva', name:'PVA (support soluble à l\'eau)', category:'FDM',
+    printTemp:'190–220 °C', bedTemp:'20–60 °C (souvent utilisé avec du PLA en double extrusion)',
+    uvScore:1, uvLabel:'Faible',
+    heatMin:45, heatMax:55,
+    flexType:'rigide', flexLabel:'Rigide, mais quasiment jamais utilisé pour ses propriétés mécaniques',
+    costMin:40, costMax:70, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:1, mechUse:'Support soluble à l\'eau pour impressions complexes en double extrusion (souvent avec du PLA)',
+    difficulty:'Très difficile',
+    strengths:['Se dissout simplement à l\'eau tiède → support idéal pour surplombs et cavités inaccessibles','Compatible en température d\'impression avec le PLA (double extrusion facile)','Ne laisse aucune marque sur la pièce finale une fois dissous'],
+    weaknesses:['Extrêmement hygroscopique — se dégrade en quelques heures à l\'air libre si mal stocké (bac étanche + dessicant indispensables)','Cher au kg','Impression lente et délicate, bourrages fréquents','Quasiment jamais utilisé comme matériau de pièce finale'],
+    notes:'Un matériau de support, pas un matériau de pièce — utile uniquement en double extrusion pour dissoudre des géométries complexes sans laisser de marque.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + référence) — le PVA est particulièrement sensible aux conditions de stockage, vérifie les recommandations du fabricant avant achat.'
+  },
+  {
+    id:'tpe', name:'TPE (souple, variante du TPU)', category:'FDM',
+    printTemp:'210–230 °C', bedTemp:'20–60 °C (souvent sans plateau chauffant)',
+    uvScore:2, uvLabel:'Moyenne (variable selon la formulation)',
+    heatMin:55, heatMax:70,
+    flexType:'flexible', flexLabel:'Flexible / très élastique (Shore A ~60–90 selon référence, souvent plus mou que le TPU)',
+    costMin:25, costMax:45, costUnit:'kg',
+    foodSafe:'non',
+    mechScore:2, mechUse:'Pièce très souple à haute élasticité : bracelet, poignée anti-dérapante, amortisseur souple',
+    difficulty:'Très difficile',
+    strengths:['Élasticité et rebond souvent supérieurs au TPU sur les formulations les plus souples','Bon toucher "gomme" pour les pièces de préhension','Résistance à la déchirure correcte'],
+    weaknesses:['Impression encore plus délicate que le TPU — extrudeur direct-drive quasi obligatoire, vitesses très réduites','"TPE" est un terme générique regroupant des familles très différentes (SEBS, TPU, TPO...) aux propriétés variables','Ne convient à aucun usage structurel'],
+    notes:'Le TPU est en réalité une sous-famille du TPE — dans le commerce grand public, "TPE" désigne souvent des formulations encore plus souples et élastiques, avec une impression plus délicate.',
+    datasheetHint:'Cherche la fiche technique (TDS) de ta bobine précise (marque + dureté Shore) — "TPE" recouvre des familles chimiques différentes, les propriétés réelles varient fortement selon la référence exacte.'
+  },
+];
+
+// ── Constraints state ─────────────────────────────────────────────────────
+const state = { usage:'interieur', thermal:'moderee', mech:'moyenne', budget:'moyen', food:false, flexible:false };
+
+// ── Scoring ──────────────────────────────────────────────────────────────
+function scoreMaterial(m, c){
+  let score = 100;
+  const reasons = [];
+
+  // Usage / UV
+  if(c.usage==='exterieur'){
+    if(m.uvScore>=4){ reasons.push({ok:true, text:`Tenue UV excellente — conçu pour l'extérieur.`}); }
+    else if(m.uvScore===3){ score-=8; reasons.push({ok:true, text:`Bonne tenue UV, correcte pour un extérieur modéré.`}); }
+    else if(m.uvScore===2){ score-=28; reasons.push({ok:false, text:`Tenue UV moyenne — se fragilise à moyen terme sans protection (peinture, vernis).`}); }
+    else { score-=45; reasons.push({ok:false, text:`Faible tenue UV — se dégrade rapidement en extérieur non protégé.`}); }
+  } else {
+    reasons.push({ok:true, text:`Usage intérieur : la tenue UV n'est pas un facteur limitant ici.`});
+  }
+
+  // Thermal
+  const avgHeat=(m.heatMin+m.heatMax)/2;
+  const heatThreshold = c.thermal==='forte'?90 : c.thermal==='moderee'?65 : 40;
+  if(avgHeat>=heatThreshold){
+    reasons.push({ok:true, text:`Tenue thermique (~${m.heatMin}–${m.heatMax} °C) suffisante pour l'exposition indiquée.`});
+  } else {
+    const deficit = heatThreshold-avgHeat;
+    const penalty = Math.min(40, Math.round(deficit*1.2));
+    score-=penalty;
+    reasons.push({ok:false, text:`Tenue thermique (~${m.heatMin}–${m.heatMax} °C) probablement insuffisante pour l'exposition indiquée (risque de déformation).`});
+  }
+
+  // Food contact
+  if(c.food){
+    if(m.foodSafe==='sous_conditions'){
+      score-=10;
+      reasons.push({ok:true, text:`Contact alimentaire envisageable seulement avec filament certifié non coloré + post-traitement d'étanchéification + contact bref (jamais au lave-vaisselle).`});
+    } else {
+      score-=50;
+      reasons.push({ok:false, text:`Contact alimentaire non recommandé pour ce matériau.`});
+    }
+  }
+
+  // Mechanical
+  const mechThreshold = c.mech==='forte'?4 : c.mech==='moyenne'?3:1;
+  if(m.mechScore>=mechThreshold){
+    reasons.push({ok:true, text:`Résistance mécanique adaptée au besoin indiqué (${m.mechUse.toLowerCase()}).`});
+  } else {
+    const deficit=mechThreshold-m.mechScore;
+    score-=deficit*18;
+    reasons.push({ok:false, text:`Résistance mécanique probablement insuffisante pour un usage "${c.mech}".`});
+  }
+
+  // Flexibility
+  if(c.flexible){
+    if(m.flexType==='flexible'){ reasons.push({ok:true, text:`Matériau souple/élastique — correspond au besoin de flexibilité.`}); }
+    else { score-=55; reasons.push({ok:false, text:`Matériau rigide — ne convient pas si la pièce doit être souple.`}); }
+  } else if(m.flexType==='flexible'){
+    score-=15; reasons.push({ok:false, text:`Matériau souple — moins pertinent si aucune flexibilité n'est requise (préférer un matériau rigide).`});
+  }
+
+  // Budget
+  const avgCost=(m.costMin+m.costMax)/2;
+  const budgetThreshold = c.budget==='economique'?25: c.budget==='moyen'?40:Infinity;
+  if(avgCost<=budgetThreshold){
+    reasons.push({ok:true, text:`Coût indicatif ~${m.costMin}–${m.costMax} €/${m.costUnit} : compatible avec le budget indiqué.`});
+  } else {
+    const over=avgCost-budgetThreshold;
+    score-=Math.min(20, Math.round(over*0.6));
+    reasons.push({ok:false, text:`Coût indicatif ~${m.costMin}–${m.costMax} €/${m.costUnit} : au-dessus du budget indiqué.`});
+  }
+
+  score=Math.max(0,Math.min(100,Math.round(score)));
+  return {score, reasons};
+}
+
+function scoreColor(s){ return s>=70?'var(--green)': s>=40?'var(--amber)':'var(--red)'; }
+
+// ── Render ranking ───────────────────────────────────────────────────────
+function renderRanking(){
+  const ranked = MATERIALS.map(m=>({m, ...scoreMaterial(m,state)})).sort((a,b)=>b.score-a.score);
+  $('ranking').innerHTML = ranked.map((r,i)=>`
+    <div class="rank-item" data-id="${r.m.id}">
+      <div class="rank-head">
+        <div class="name"><span class="pos">#${i+1}</span>${r.m.name}</div>
+        <div class="pct" style="color:${scoreColor(r.score)}">${r.score}%</div>
+      </div>
+      <div class="bar"><i style="width:${r.score}%;background:${scoreColor(r.score)}"></i></div>
+      <div class="reasons">
+        ${r.reasons.map(rs=>`<div class="reason ${rs.ok?'ok':'bad'}"><span class="ic ${rs.ok?'ok':'bad'}">${rs.ok?'✓':'△'}</span><span>${rs.text}</span></div>`).join('')}
+      </div>
+    </div>`).join('');
+  document.querySelectorAll('#ranking .rank-item').forEach(el=>{
+    el.onclick=()=>openModal(el.dataset.id);
+  });
+  renderGrid(ranked);
+}
+
+// ── Render full grid ─────────────────────────────────────────────────────
+function renderGrid(ranked){
+  const byId = Object.fromEntries(ranked.map(r=>[r.m.id, r.score]));
+  $('matgrid').innerHTML = MATERIALS.map(m=>{
+    const s = byId[m.id];
+    return `<div class="mat-tile" data-id="${m.id}">
+      <div class="cat">${m.category}</div>
+      <div class="nm">${m.name}</div>
+      <div class="meta">
+        ${m.costMin}–${m.costMax} €/${m.costUnit} · ${m.difficulty}<br>
+        Tenue ~${m.heatMin}–${m.heatMax} °C · UV ${m.uvLabel.split(' ')[0]}
+      </div>
+      <span class="score" style="background:${scoreColor(s)}22;color:${scoreColor(s)}">${s}% pour tes critères</span>
+    </div>`;
+  }).join('');
+  document.querySelectorAll('.mat-tile').forEach(el=>{
+    el.onclick=()=>openModal(el.dataset.id);
+  });
+}
+
+// ── Modal détail ─────────────────────────────────────────────────────────
+function openModal(id){
+  const m = MATERIALS.find(x=>x.id===id);
+  if(!m) return;
+  $('modal').innerHTML = `
+    <div class="modal-head">
+      <div>
+        <div class="cat">${m.category}</div>
+        <h3>${m.name}</h3>
+      </div>
+      <button class="modal-close" id="mclose">✕</button>
+    </div>
+    <div class="spec-grid">
+      <div class="spec"><div class="k">Température d'impression</div><div class="v">${m.printTemp}</div></div>
+      <div class="spec"><div class="k">Plateau</div><div class="v">${m.bedTemp}</div></div>
+      <div class="spec"><div class="k">Résistance UV</div><div class="v">${m.uvLabel}</div></div>
+      <div class="spec"><div class="k">Tenue thermique (ramollissement approx.)</div><div class="v">~${m.heatMin}–${m.heatMax} °C</div></div>
+      <div class="spec"><div class="k">Flexibilité</div><div class="v">${m.flexLabel}</div></div>
+      <div class="spec"><div class="k">Coût indicatif</div><div class="v">${m.costMin}–${m.costMax} €/${m.costUnit}</div></div>
+      <div class="spec"><div class="k">Contact alimentaire</div><div class="v">${m.foodSafe==='sous_conditions'?'Sous conditions strictes':'Non recommandé'}</div></div>
+      <div class="spec"><div class="k">Difficulté d'impression</div><div class="v">${m.difficulty}</div></div>
+    </div>
+    <div class="spec" style="margin-top:10px"><div class="k">Usage recommandé</div><div class="v">${m.mechUse}</div></div>
+    <div class="modal-lists">
+      <div><h4>Points forts</h4><ul>${m.strengths.map(s=>`<li>${s}</li>`).join('')}</ul></div>
+      <div><h4>Points faibles</h4><ul>${m.weaknesses.map(s=>`<li>${s}</li>`).join('')}</ul></div>
+    </div>
+    <div class="modal-note">${m.notes}</div>
+    <div class="modal-note" style="margin-top:8px;border:1px solid var(--sep)">📄 <strong>Fiche technique&nbsp;:</strong> ${m.datasheetHint}</div>
+  `;
+  $('overlay').classList.add('on');
+  $('mclose').onclick=closeModal;
+}
+function closeModal(){ $('overlay').classList.remove('on'); }
+$('overlay').addEventListener('click', e=>{ if(e.target.id==='overlay') closeModal(); });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') closeModal(); });
+
+// ── Form wiring ──────────────────────────────────────────────────────────
+document.querySelectorAll('#f-usage button').forEach(b=>{
+  b.onclick=()=>{
+    document.querySelectorAll('#f-usage button').forEach(x=>x.classList.remove('on'));
+    b.classList.add('on');
+    state.usage=b.dataset.v;
+    renderRanking();
+  };
+});
+$('f-thermal').onchange=e=>{ state.thermal=e.target.value; renderRanking(); };
+$('f-mech').onchange=e=>{ state.mech=e.target.value; renderRanking(); };
+$('f-budget').onchange=e=>{ state.budget=e.target.value; renderRanking(); };
+$('f-food').onchange=e=>{ state.food=e.target.checked; renderRanking(); };
+$('f-flex').onchange=e=>{ state.flexible=e.target.checked; renderRanking(); };
+
+// init
+renderRanking();
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

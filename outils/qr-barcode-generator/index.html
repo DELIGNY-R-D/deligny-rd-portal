@@ -1,0 +1,514 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>QR & Code-barres Generator — planches d'étiquettes gratuites</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Génère gratuitement une planche PDF d'étiquettes QR ou code-barres (Code128/EAN13) à partir d'une liste de références. Sans compte, sans inscription, tout se calcule dans ton navigateur.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+.full{grid-column:1/-1;}
+
+textarea{width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:12px;color:var(--txt);
+  font:12.5px/1.5 var(--mono);padding:10px 12px;resize:vertical;min-height:74px;}
+textarea:focus{outline:none;border-color:var(--blue);}
+
+.row-btn{display:flex;gap:10px;margin-top:10px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn.export{opacity:.4;cursor:not-allowed;}
+.btn.export.ready{opacity:1;cursor:pointer;}
+.btn.sm{padding:5px 12px;font-size:12px;}
+.btn.danger{background:rgba(255,69,58,.15);color:var(--red);}
+.btn.danger:hover{background:rgba(255,69,58,.25);}
+
+table.items{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px;}
+table.items th{text-align:left;color:var(--dim2);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;padding:0 8px 8px;}
+table.items td{padding:4px;}
+table.items input{width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);
+  font:13px var(--font);padding:7px 9px;}
+table.items input:focus{outline:none;border-color:var(--blue);}
+table.items input.qty{text-align:center;}
+table.items td.del{width:34px;text-align:center;}
+.icon-btn{background:none;border:none;color:var(--dim2);cursor:pointer;font-size:15px;padding:4px;border-radius:8px;}
+.icon-btn:hover{color:var(--red);background:rgba(255,69,58,.12);}
+
+.total{margin-top:10px;font-size:12.5px;color:var(--dim2);}
+.total b{color:var(--txt);}
+
+fieldset{border:none;padding:0;margin:0 0 18px;}
+fieldset legend{font-size:12px;font-weight:600;color:var(--dim);margin-bottom:8px;padding:0;}
+.opt-row{display:flex;gap:8px;flex-wrap:wrap;}
+.opt{flex:1;min-width:100px;text-align:center;padding:10px 8px;border-radius:12px;background:var(--card2);border:1.5px solid transparent;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--dim);}
+.opt input{display:none;}
+.opt.active{border-color:var(--blue);color:var(--txt);background:rgba(41,151,255,.10);}
+.opt .k{font-size:18px;display:block;margin-bottom:3px;}
+
+select{width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:10px;color:var(--txt);
+  font:13px var(--font);padding:9px 11px;}
+.custom-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:10px;}
+.custom-grid label{font-size:11px;color:var(--dim2);display:block;margin-bottom:3px;}
+.custom-grid input{width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:8px;color:var(--txt);
+  font:13px var(--font);padding:7px 9px;}
+
+.check-row{display:flex;align-items:center;gap:8px;margin-top:4px;font-size:13px;color:var(--dim);}
+.check-row input{accent-color:var(--blue);}
+
+.warn-banner{background:rgba(255,159,10,.12);border:1px solid rgba(255,159,10,.3);color:var(--amber);
+  border-radius:12px;padding:10px 14px;font-size:12.5px;margin-bottom:14px;}
+.empty{color:var(--dim2);font-style:italic;font-size:13px;text-align:center;padding:30px 0;}
+
+#sheet{display:flex;flex-wrap:wrap;gap:2mm;justify-content:flex-start;background:#fff;border-radius:14px;padding:10mm;margin-top:8px;overflow:auto;max-height:640px;}
+.lbl{background:#fff;border:0.3mm dashed #999;border-radius:1.2mm;padding:1.6mm;display:flex;flex-direction:column;justify-content:space-between;overflow:hidden;flex-shrink:0;}
+.lbl .name{font:600 6.6pt/1.15 Arial,sans-serif;color:#000;max-height:2.4em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.lbl .imgbox{flex:1;display:flex;align-items:center;justify-content:center;min-height:0;}
+.lbl .imgbox img{max-width:100%;max-height:100%;object-fit:contain;}
+.lbl .code-text{font:5.8pt var(--mono);color:#555;text-align:center;letter-spacing:.02em;}
+.lbl.err{border-color:#ff453a;background:#fff3f2;}
+.lbl.err .imgbox{color:#c8291e;font:600 7pt Arial;text-align:center;padding:2mm;}
+
+.export-row{margin-top:18px;text-align:center;}
+.export-row .n{font-size:12px;color:var(--dim2);margin-top:8px;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:640px;margin:0 auto 10px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">QR & Code-barres Generator</span></h1>
+    <div class="sub">Colle ou saisis une liste de références, choisis QR ou code-barres, obtiens une planche PDF d'étiquettes imprimable — prête à découper.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Tes articles</h2>
+      <textarea id="csv" placeholder="Référence;Libellé;Quantité d'étiquettes&#10;REF-001;Vis M4x10;4"></textarea>
+      <div class="row-btn">
+        <button class="btn pri sm" id="import">Importer ce CSV</button>
+        <button class="btn sm" id="demo">Charger un exemple</button>
+      </div>
+
+      <table class="items" id="tbl">
+        <thead><tr><th style="width:26%">Référence</th><th>Libellé</th><th style="width:76px">Qté</th><th class="del"></th></tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+      <div class="row-btn"><button class="btn sm" id="addrow">+ Ajouter une ligne</button></div>
+      <div class="total">Lignes : <b id="t-lines">0</b> · Étiquettes à générer : <b id="t-labels">0</b></div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Réglages</h2>
+      <fieldset>
+        <legend>Type de code</legend>
+        <div class="opt-row" id="type-row">
+          <label class="opt active" data-v="qr"><input type="radio" name="type" value="qr" checked><span class="k">▦</span>QR code</label>
+          <label class="opt" data-v="code128"><input type="radio" name="type" value="code128"><span class="k">|︙|</span>Code128</label>
+          <label class="opt" data-v="ean13"><input type="radio" name="type" value="ean13"><span class="k">|｜|</span>EAN13</label>
+        </div>
+        <div class="check-row" id="ean-hint" style="display:none;color:var(--amber)">⚠︎ EAN13 exige des références 100 % numériques (12 ou 13 chiffres) — le chiffre de contrôle est calculé automatiquement si 12 chiffres sont fournis.</div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Contenu de l'étiquette</legend>
+        <div class="check-row"><input type="checkbox" id="show-name" checked><label for="show-name">Afficher le libellé</label></div>
+        <div class="check-row"><input type="checkbox" id="show-ref" checked><label for="show-ref">Afficher la référence en texte</label></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Format de planche</legend>
+        <select id="preset">
+          <option value="generic">Générique — 61 × 33 mm (3 col.)</option>
+          <option value="avery">Compatible Avery-type L7160 — 63,5 × 38,1 mm (3×7 = 21/planche)</option>
+          <option value="small">Petites étiquettes QR — 25 × 25 mm (dense)</option>
+          <option value="custom">Personnalisé…</option>
+        </select>
+        <div class="custom-grid" id="custom-grid" style="display:none">
+          <div><label>Largeur (mm)</label><input type="number" id="c-w" value="61" min="10" step="0.5"></div>
+          <div><label>Hauteur (mm)</label><input type="number" id="c-h" value="33" min="10" step="0.5"></div>
+          <div><label>Marge page (mm)</label><input type="number" id="c-m" value="8" min="0" step="0.5"></div>
+          <div><label>Écart horiz. (mm)</label><input type="number" id="c-gx" value="2" min="0" step="0.5"></div>
+          <div><label>Écart vert. (mm)</label><input type="number" id="c-gy" value="2" min="0" step="0.5"></div>
+        </div>
+        <div class="total" style="margin-top:8px">≈ <b id="t-perpage">—</b> étiquettes par page A4</div>
+      </fieldset>
+
+      <button class="btn pri" id="preview" style="width:100%">Générer l'aperçu</button>
+    </div>
+
+    <div class="card full">
+      <h2>3 · Aperçu de la planche</h2>
+      <div id="warn"></div>
+      <div id="sheet"><div class="empty">Importe des articles puis clique « Générer l'aperçu ».</div></div>
+      <div class="export-row">
+        <button class="btn export" id="export" disabled>⬇ Télécharger la planche PDF</button>
+        <div class="n" id="export-n"></div>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Génération 100 % locale : rien n'est envoyé à un serveur. Formats de planche fournis à titre indicatif — vérifie l'alignement avec une impression test avant d'utiliser des planches pré-découpées.</div>
+    Un outil DELIGNY R&D.
+  </footer>
+</div>
+
+<script type="importmap">{ "imports": {
+  "pdf-lib": "https://esm.sh/pdf-lib@1.17.1",
+  "qrcode": "https://esm.sh/qrcode@1.5.3",
+  "jsbarcode": "https://esm.sh/jsbarcode@3.11.6"
+} }</script>
+<script type="module">
+import { PDFDocument, StandardFonts, rgb } from 'pdf-lib';
+import QRCode from 'qrcode';
+import JsBarcode from 'jsbarcode';
+
+const $ = id => document.getElementById(id);
+const MM = 2.834645669; // pt per mm
+
+// ── Presets de planche (dimensions étiquette + marges/écarts page, en mm) ──
+const PRESETS = {
+  generic: { w:61, h:33, marginX:8, marginY:8, gapX:2, gapY:2 },
+  avery:   { w:63.5, h:38.1, marginX:7.2, marginY:15.15, gapX:2.5, gapY:0 },
+  small:   { w:25, h:25, marginX:10, marginY:10, gapX:2, gapY:2 },
+};
+const PAGE_W_MM = 210, PAGE_H_MM = 297;
+
+function getPreset(){
+  const v = $('preset').value;
+  if(v === 'custom'){
+    return {
+      w: parseFloat($('c-w').value)||61, h: parseFloat($('c-h').value)||33,
+      marginX: parseFloat($('c-m').value)||8, marginY: parseFloat($('c-m').value)||8,
+      gapX: parseFloat($('c-gx').value)||2, gapY: parseFloat($('c-gy').value)||2,
+    };
+  }
+  return PRESETS[v];
+}
+function gridDims(p){
+  const cols = Math.max(1, Math.floor((PAGE_W_MM - 2*p.marginX + p.gapX) / (p.w + p.gapX)));
+  const rows = Math.max(1, Math.floor((PAGE_H_MM - 2*p.marginY + p.gapY) / (p.h + p.gapY)));
+  return { cols, rows, perPage: cols*rows };
+}
+function updatePerPage(){
+  const { perPage } = gridDims(getPreset());
+  $('t-perpage').textContent = perPage;
+}
+
+// ── Type de code (boutons) ───────────────────────────────────────────────
+function currentType(){ return document.querySelector('input[name=type]:checked').value; }
+document.querySelectorAll('#type-row .opt').forEach(lbl=>{
+  lbl.addEventListener('click', ()=>{
+    document.querySelectorAll('#type-row .opt').forEach(o=>o.classList.remove('active'));
+    lbl.classList.add('active');
+    lbl.querySelector('input').checked = true;
+    $('ean-hint').style.display = currentType()==='ean13' ? 'block' : 'none';
+  });
+});
+
+$('preset').addEventListener('change', ()=>{
+  $('custom-grid').style.display = $('preset').value==='custom' ? 'grid' : 'none';
+  updatePerPage();
+});
+['c-w','c-h','c-m','c-gx','c-gy'].forEach(id=> $(id).addEventListener('input', updatePerPage));
+updatePerPage();
+
+// ── Données : liste d'articles éditable ─────────────────────────────────
+let ITEMS = [];
+function renderTable(){
+  $('tbody').innerHTML = ITEMS.map((it,i)=>`
+    <tr>
+      <td><input data-i="${i}" data-f="ref" value="${esc(it.ref)}" placeholder="REF-001"></td>
+      <td><input data-i="${i}" data-f="name" value="${esc(it.name)}" placeholder="Libellé"></td>
+      <td><input class="qty" type="number" min="0" data-i="${i}" data-f="qty" value="${it.qty}"></td>
+      <td class="del"><button class="icon-btn" data-del="${i}" title="Supprimer">✕</button></td>
+    </tr>`).join('');
+  $('tbody').querySelectorAll('input').forEach(inp=>{
+    inp.addEventListener('input', e=>{
+      const i = +e.target.dataset.i, f = e.target.dataset.f;
+      ITEMS[i][f] = f==='qty' ? (parseInt(e.target.value,10)||0) : e.target.value;
+      updateTotals();
+    });
+  });
+  $('tbody').querySelectorAll('[data-del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{ ITEMS.splice(+btn.dataset.del,1); renderTable(); updateTotals(); });
+  });
+  updateTotals();
+}
+function updateTotals(){
+  $('t-lines').textContent = ITEMS.length;
+  $('t-labels').textContent = ITEMS.reduce((s,it)=> s + (parseInt(it.qty,10)||0), 0);
+}
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+$('addrow').onclick = ()=>{ ITEMS.push({ref:'',name:'',qty:1}); renderTable(); };
+
+// ── Import CSV (virgule ou point-virgule, en-tête optionnel FR/EN) ───────
+function parseCSV(text){
+  const firstLine = text.split('\n')[0] || '';
+  const delim = (firstLine.split(';').length > firstLine.split(',').length) ? ';' : ',';
+  const rows=[]; let row=[], field='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1];
+    if(inQ){
+      if(c==='"' && n==='"'){ field+='"'; i++; }
+      else if(c==='"'){ inQ=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===delim){ row.push(field); field=''; }
+      else if(c==='\r'){ /* skip */ }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else field+=c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.length>1 || (r[0]||'').trim()!=='');
+}
+const COL_SYNONYMS = {
+  ref: ['reference','référence','ref','sku','code','partnumber','pn'],
+  name: ['designation','désignation','nom','name','description','libelle','libellé'],
+  qty: ['quantite','quantité','qty','quantity','qte','etiquettes','étiquettes'],
+};
+function norm(s){ return (s||'').toString().trim().toLowerCase().replace(/[\s_-]/g,''); }
+function detectCols(header){
+  const idx={};
+  header.forEach((h,i)=>{
+    const nh=norm(h);
+    for(const [key,syns] of Object.entries(COL_SYNONYMS)){
+      if(idx[key]===undefined && syns.includes(nh)) idx[key]=i;
+    }
+  });
+  return idx;
+}
+function importCSV(text){
+  const rows = parseCSV(text);
+  if(!rows.length) return;
+  let idx = detectCols(rows[0]);
+  let body = rows;
+  // en-tête détecté si au moins une colonne reconnue -> on saute la 1re ligne
+  if(idx.ref!==undefined || idx.name!==undefined || idx.qty!==undefined){
+    body = rows.slice(1);
+  } else {
+    idx = { ref:0, name:1, qty:2 }; // pas d'en-tête : ordre positionnel ref;libellé;qté
+  }
+  const items = body.map(r=>({
+    ref: (r[idx.ref] ?? '').trim(),
+    name: idx.name!==undefined ? (r[idx.name] ?? '').trim() : '',
+    qty: idx.qty!==undefined ? (parseInt((r[idx.qty]||'1').toString().trim(),10) || 1) : 1,
+  })).filter(it=> it.ref!=='' || it.name!=='');
+  if(items.length) ITEMS = items;
+  renderTable();
+}
+$('import').onclick = ()=> importCSV($('csv').value);
+
+function demoCSV(){
+  return [
+    'Référence;Libellé;Quantité',
+    'REF-001;Vis M4x10;4',
+    'REF-002;Écrou M4;4',
+    'REF-003;Roulement 608ZZ;2',
+    'REF-004;Plaque alu 3mm;1',
+  ].join('\n');
+}
+$('demo').onclick = ()=>{ $('csv').value = demoCSV(); importCSV($('csv').value); };
+$('csv').value = demoCSV();
+importCSV($('csv').value);
+
+// ── Génération des images (QR / code-barres) ──────────────────────────────
+async function makeQR(value){
+  return await QRCode.toDataURL(value, { margin: 1, width: 320, errorCorrectionLevel: 'M' });
+}
+function makeBarcode(value, format){
+  const canvas = document.createElement('canvas');
+  let ok = true;
+  try{
+    JsBarcode(canvas, value, {
+      format: format==='ean13' ? 'EAN13' : 'CODE128',
+      displayValue: false, margin: 6, width: 3, height: 90,
+      valid: v => { ok = ok && v; },
+    });
+  }catch(e){ ok = false; }
+  if(!ok) return null;
+  return canvas.toDataURL('image/png');
+}
+
+const MAX_LABELS = 400;
+
+async function buildLabels(){
+  const type = currentType();
+  const showName = $('show-name').checked;
+  const showRef = $('show-ref').checked;
+  const expanded = [];
+  ITEMS.forEach(it=>{
+    if(!it.ref) return;
+    const n = Math.max(0, Math.min(parseInt(it.qty,10)||0, 200));
+    for(let k=0;k<n;k++) expanded.push({ ref: it.ref.trim(), name: it.name });
+  });
+  const capped = expanded.slice(0, MAX_LABELS);
+  const truncatedCount = expanded.length - capped.length;
+
+  const cache = new Map();
+  const labels = [];
+  const errors = [];
+  for(const it of capped){
+    const key = type+'|'+it.ref;
+    let dataURL = cache.get(key);
+    if(dataURL === undefined){
+      if(type === 'qr'){
+        dataURL = await makeQR(it.ref);
+      } else {
+        dataURL = makeBarcode(it.ref, type);
+      }
+      cache.set(key, dataURL);
+    }
+    if(!dataURL) errors.push(it.ref);
+    labels.push({ ref: it.ref, name: it.name, dataURL, showName, showRef });
+  }
+  return { labels, errors: [...new Set(errors)], truncatedCount, type };
+}
+
+// ── Aperçu ────────────────────────────────────────────────────────────────
+let LAST = null;
+$('preview').onclick = async ()=>{
+  $('preview').disabled = true; $('preview').textContent = 'Génération…';
+  try{
+    LAST = await buildLabels();
+    renderPreview();
+  } finally {
+    $('preview').disabled = false; $('preview').textContent = 'Générer l’aperçu';
+  }
+};
+
+function renderPreview(){
+  const { labels, errors, truncatedCount } = LAST;
+  const p = getPreset();
+  let warnHtml = '';
+  if(errors.length) warnHtml += `<div class="warn-banner">⚠︎ ${errors.length} référence(s) non encodable(s) dans ce format et ignorée(s) : ${errors.slice(0,15).join(', ')}${errors.length>15?'…':''}. ${LAST.type==='ean13' ? 'Vérifie qu’elles sont bien 100% numériques (12 ou 13 chiffres).' : ''}</div>`;
+  if(truncatedCount>0) warnHtml += `<div class="warn-banner">⚠︎ ${truncatedCount} étiquette(s) au-delà de la limite de ${MAX_LABELS} n’ont pas été générées (performance navigateur). Exporte en plusieurs lots si besoin.</div>`;
+  $('warn').innerHTML = warnHtml;
+
+  if(!labels.length){
+    $('sheet').innerHTML = '<div class="empty">Aucune étiquette à afficher — vérifie tes articles et quantités.</div>';
+    $('export').disabled = true; $('export').classList.remove('ready');
+    $('export-n').textContent = '';
+    return;
+  }
+
+  $('sheet').innerHTML = labels.map(l=>{
+    if(!l.dataURL){
+      return `<div class="lbl err" style="width:${p.w}mm;height:${p.h}mm"><div class="imgbox">Non encodable<br>${esc(l.ref)}</div></div>`;
+    }
+    return `<div class="lbl" style="width:${p.w}mm;height:${p.h}mm">
+      ${l.showName ? `<div class="name">${esc(l.name||'')}</div>` : ''}
+      <div class="imgbox"><img src="${l.dataURL}" alt=""></div>
+      ${l.showRef ? `<div class="code-text">${esc(l.ref)}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const ok = labels.filter(l=>l.dataURL).length;
+  $('export').disabled = false; $('export').classList.add('ready');
+  $('export-n').textContent = `${ok} étiquette(s) prête(s) — ${gridDims(p).perPage} par page A4`;
+}
+
+// ── Export PDF ────────────────────────────────────────────────────────────
+function fitText(font, text, size, maxWidth){
+  let t = text || '';
+  if(font.widthOfTextAtSize(t, size) <= maxWidth) return t;
+  while(t.length>1 && font.widthOfTextAtSize(t+'…', size) > maxWidth) t = t.slice(0,-1);
+  return t.length ? t+'…' : '';
+}
+function drawFit(page, img, x, y, boxW, boxH){
+  const scale = Math.min(boxW/img.width, boxH/img.height);
+  const dw = img.width*scale, dh = img.height*scale;
+  page.drawImage(img, { x: x+(boxW-dw)/2, y: y+(boxH-dh)/2, width: dw, height: dh });
+}
+
+$('export').onclick = async ()=>{
+  if(!LAST || !LAST.labels.length) return;
+  const btn = $('export'); btn.disabled = true; const oldTxt = btn.textContent; btn.textContent = 'Génération du PDF…';
+  try{
+    const p = getPreset();
+    const { cols, rows, perPage } = gridDims(p);
+    const pageW = PAGE_W_MM*MM, pageH = PAGE_H_MM*MM;
+    const marginX = p.marginX*MM, marginY = p.marginY*MM, gapX = p.gapX*MM, gapY = p.gapY*MM;
+    const w = p.w*MM, h = p.h*MM;
+    const pad = 2*MM;
+
+    const pdfDoc = await PDFDocument.create();
+    const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const fontBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const imgCache = new Map();
+    async function getImg(dataURL){
+      if(imgCache.has(dataURL)) return imgCache.get(dataURL);
+      const base64 = dataURL.split(',')[1];
+      const img = await pdfDoc.embedPng(base64);
+      imgCache.set(dataURL, img);
+      return img;
+    }
+
+    let page = null, idxOnPage = 0;
+    for(const lab of LAST.labels){
+      if(!lab.dataURL) continue;
+      if(idxOnPage % perPage === 0){ page = pdfDoc.addPage([pageW, pageH]); idxOnPage = 0; }
+      const col = idxOnPage % cols, row = Math.floor(idxOnPage / cols);
+      const x = marginX + col*(w+gapX);
+      const yTop = pageH - marginY - row*(h+gapY);
+      const y = yTop - h;
+
+      page.drawRectangle({ x, y, width:w, height:h, borderColor: rgb(0.75,0.75,0.75), borderWidth: 0.6, borderDashArray: [3,2] });
+
+      const nameZoneH = lab.showName && lab.name ? Math.max(4.5*MM, h*0.24) : 1.2*MM;
+      const refZoneH = lab.showRef ? 4*MM : 1*MM;
+      if(lab.showName && lab.name){
+        const t = fitText(fontBold, lab.name, 7, w-2*pad);
+        page.drawText(t, { x: x+pad, y: y+h-nameZoneH+2, size:7, font:fontBold, color: rgb(0,0,0) });
+      }
+      const midY = y+refZoneH, midH = h-nameZoneH-refZoneH;
+      const img = await getImg(lab.dataURL);
+      drawFit(page, img, x+pad, midY, w-2*pad, Math.max(4, midH));
+      if(lab.showRef){
+        const t = fitText(font, lab.ref, 6, w-2*pad);
+        page.drawText(t, { x: x+pad, y: y+1.2*MM, size:6, font, color: rgb(0.3,0.3,0.3) });
+      }
+      idxOnPage++;
+    }
+
+    const bytes = await pdfDoc.save();
+    const blob = new Blob([bytes], { type:'application/pdf' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url; a.download = 'planche-etiquettes.pdf';
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(()=>URL.revokeObjectURL(url), 5000);
+  } finally {
+    btn.disabled = false; btn.textContent = oldTxt;
+  }
+};
+
+renderTable();
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

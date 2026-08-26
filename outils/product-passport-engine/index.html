@@ -1,0 +1,618 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Product Passport Engine — passeport produit gratuit</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Crée gratuitement un passeport produit (matière, fabrication, réparation, fin de vie) avec QR code auto-porté, pour objets imprimés en 3D et autres produits. Sans compte, sans backend, tout reste dans ton navigateur.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:680px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+.limit{display:block;max-width:680px;margin:14px auto 0;font-size:12.5px;color:var(--amber);background:rgba(255,159,10,.10);border:1px solid rgba(255,159,10,.28);border-radius:12px;padding:10px 14px;line-height:1.6;text-align:left;}
+.limit b{color:var(--txt);}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;align-items:start;}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+.full{grid-column:1/-1;}
+
+.field{margin-bottom:13px;}
+.field label{display:block;font-size:12px;color:var(--dim2);margin-bottom:5px;font-weight:600;}
+.field .req{color:var(--red);}
+.field input[type=text],.field input[type=date],.field textarea,.field select{
+  width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:10px;color:var(--txt);
+  font:13.5px var(--font);padding:9px 11px;
+}
+.field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--blue);}
+.field textarea{min-height:56px;resize:vertical;font-family:var(--font);}
+.field.err input,.field.err textarea{border-color:var(--red);}
+.inline{display:flex;gap:8px;}
+.inline .field{flex:1;margin-bottom:0;}
+.inline .btn{flex-shrink:0;align-self:stretch;}
+
+.row-btn{display:flex;gap:10px;margin-top:16px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn.export{opacity:.4;cursor:not-allowed;}
+.btn.export.ready{opacity:1;cursor:pointer;}
+.btn.sm{padding:6px 13px;font-size:12px;}
+.btn.danger{background:rgba(255,69,58,.15);color:var(--red);}
+.btn.danger:hover{background:rgba(255,69,58,.25);}
+
+fieldset{border:none;padding:0;margin:0 0 16px;}
+fieldset legend{font-size:12px;font-weight:600;color:var(--dim);margin-bottom:8px;padding:0;}
+.opt-row{display:flex;gap:8px;flex-wrap:wrap;}
+.opt{flex:1;min-width:140px;text-align:center;padding:9px 8px;border-radius:12px;background:var(--card2);border:1.5px solid transparent;cursor:pointer;font-size:12.5px;font-weight:600;color:var(--dim);}
+.opt input{display:none;}
+.opt.active{border-color:var(--blue);color:var(--txt);background:rgba(41,151,255,.10);}
+
+.editing-tag{display:inline-block;font-size:11px;font-weight:600;color:var(--amber);background:rgba(255,159,10,.12);border-radius:99px;padding:3px 10px;margin-bottom:12px;}
+
+.empty{color:var(--dim2);font-style:italic;font-size:13px;text-align:center;padding:26px 0;}
+
+/* Passport preview (in-page) */
+.passport-card{background:linear-gradient(160deg,#17171a,#1c1c1e);border:1px solid var(--sep);border-radius:18px;padding:20px;}
+.pp-ref{font-size:19px;font-weight:700;letter-spacing:-.01em;}
+.pp-eyebrow{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.07em;font-weight:600;margin-bottom:3px;}
+.pp-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-top:16px;font-size:13px;}
+.pp-f{border-top:.5px solid var(--sep);padding-top:9px;}
+.pp-f.full{grid-column:1/-1;}
+.pp-f .k{color:var(--dim2);font-size:10px;text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.pp-f .v{margin-top:3px;color:var(--txt);white-space:pre-wrap;line-height:1.45;}
+
+.qr-box{display:flex;gap:16px;align-items:flex-start;margin-top:18px;flex-wrap:wrap;padding-top:16px;border-top:.5px solid var(--sep);}
+.qr-box img{width:140px;height:140px;border-radius:12px;background:#fff;padding:8px;flex-shrink:0;image-rendering:pixelated;object-fit:contain;}
+.qr-ph{width:140px;height:140px;border-radius:12px;background:var(--card2);flex-shrink:0;display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:11px;text-align:center;padding:8px;}
+.qr-meta{flex:1;min-width:180px;font-size:12.5px;color:var(--dim2);line-height:1.6;}
+.qr-meta b{color:var(--txt);}
+.qr-verify{margin-top:6px;font-weight:600;font-size:12.5px;}
+.qr-verify.ok{color:var(--green);} .qr-verify.bad{color:var(--red);} .qr-verify.warn{color:var(--amber);}
+.qr-err{color:var(--red);font-size:12.5px;margin-top:8px;background:rgba(255,69,58,.1);border:1px solid rgba(255,69,58,.25);border-radius:10px;padding:8px 11px;}
+
+.export-row{margin-top:16px;display:flex;gap:10px;flex-wrap:wrap;}
+
+/* Saved list */
+.search-row{margin-bottom:14px;}
+.search-row input{width:100%;max-width:340px;background:var(--card2);border:1px solid var(--sep);border-radius:10px;color:var(--txt);font:13px var(--font);padding:9px 12px;}
+.search-row input:focus{outline:none;border-color:var(--blue);}
+table.list{width:100%;border-collapse:collapse;font-size:13px;}
+table.list th{text-align:left;color:var(--dim2);font-size:11px;text-transform:uppercase;letter-spacing:.04em;font-weight:600;padding:0 10px 8px;border-bottom:.5px solid var(--sep);}
+table.list td{padding:9px 10px;border-bottom:.5px solid var(--sep);vertical-align:top;}
+table.list tr:last-child td{border-bottom:none;}
+table.list .muted{color:var(--dim2);font-size:12px;}
+table.list .actions{white-space:nowrap;text-align:right;}
+.list-top{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;margin-bottom:4px;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:680px;margin:0 auto 10px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Product Passport Engine</span></h1>
+    <div class="sub">Crée le passeport d'un produit — matière, fabrication, réparation, fin de vie — avec sa page imprimable et son QR code. Pensé d'abord pour les objets imprimés en 3D (lampes, pièces de rechange…).</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+    <span class="limit"><b>Limite honnête (v0) :</b> ceci est un registre <b>local à cette machine</b> (localStorage du navigateur). Ce n'est pas une base partagée entre plusieurs appareils ou personnes — pour transférer un passeport ailleurs, utilise l'export/import JSON ou le fichier HTML téléchargé, qui EST le document.</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Nouveau passeport</h2>
+      <div id="edit-tag-wrap"></div>
+      <div class="field">
+        <label>Référence / nom du produit <span class="req">*</span></label>
+        <input type="text" id="f-ref" placeholder="LAMPE-E14-V2.1">
+      </div>
+      <div class="field">
+        <label>Matière(s) utilisée(s)</label>
+        <input type="text" id="f-mat" placeholder="PLA recyclé, laiton, câble textile…">
+      </div>
+      <div class="field">
+        <label>Date de fabrication</label>
+        <input type="date" id="f-made">
+      </div>
+      <div class="field">
+        <label>Numéro de lot / série</label>
+        <div class="inline">
+          <input type="text" id="f-lot" placeholder="LOT-20260727-4821">
+          <button class="btn sm" id="f-lot-gen" type="button">🎲 Générer</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Fournisseur des matières premières</label>
+        <input type="text" id="f-sup" placeholder="Filalab (FR) — PLA ; Douilles Pro (FR) — laiton">
+      </div>
+      <div class="field">
+        <label>Instructions de réparation</label>
+        <textarea id="f-rep" placeholder="Démontage, pièces de rechange, précautions…"></textarea>
+      </div>
+      <div class="field">
+        <label>Fin de vie — recyclable ?</label>
+        <select id="f-eolr">
+          <option value="">Non renseigné</option>
+          <option value="oui">Oui, recyclable</option>
+          <option value="partiel">Partiellement (à trier)</option>
+          <option value="non">Non, pas recyclable</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Fin de vie — comment (tri, dépôt, séparation matières…)</label>
+        <textarea id="f-eoli" placeholder="Ex : séparer le laiton du PLA avant recyclage…"></textarea>
+      </div>
+      <div class="row-btn">
+        <button class="btn pri" id="generate">Générer le passeport</button>
+        <button class="btn" id="demo">Charger un exemple</button>
+        <button class="btn" id="reset">Nouveau / réinitialiser</button>
+      </div>
+      <div class="hint-cols" style="margin-top:10px;font-size:11.5px;color:var(--dim2);">Enregistré automatiquement dans la liste ci-dessous (stockage local de ce navigateur) à chaque génération.</div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Aperçu du passeport & QR</h2>
+      <div id="preview-empty" class="empty">Remplis le formulaire puis clique « Générer le passeport ».</div>
+      <div id="preview-body" style="display:none">
+        <div class="passport-card">
+          <div class="pp-eyebrow">Passeport produit</div>
+          <div class="pp-ref" id="pp-ref">—</div>
+          <div class="pp-grid" id="pp-grid"></div>
+        </div>
+
+        <fieldset style="margin-top:16px">
+          <legend>Mode du QR code</legend>
+          <div class="opt-row" id="qr-mode-row">
+            <label class="opt active" data-v="embed"><input type="radio" name="qrmode" value="embed" checked>Auto-porté (données dans le QR)</label>
+            <label class="opt" data-v="url"><input type="radio" name="qrmode" value="url">URL hébergée (à héberger toi-même)</label>
+          </div>
+          <div class="field" id="qr-url-field" style="display:none;margin-top:10px">
+            <label>URL où tu vas héberger la page passeport exportée</label>
+            <input type="text" id="qr-url" placeholder="https://exemple.com/passeports/lampe-e14-v2-1.html">
+          </div>
+        </fieldset>
+
+        <div class="qr-box">
+          <div id="qr-holder"><div class="qr-ph">Clique « Générer le passeport »</div></div>
+          <div class="qr-meta" id="qr-meta">—</div>
+        </div>
+        <div id="qr-err"></div>
+
+        <div class="export-row">
+          <button class="btn export" id="dl-html" disabled>⬇ Page passeport (HTML)</button>
+          <button class="btn export" id="dl-qr" disabled>⬇ QR code (PNG)</button>
+          <button class="btn export" id="dl-json" disabled>⬇ Export JSON</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card full">
+      <h2>3 · Passeports enregistrés sur cette machine</h2>
+      <div class="list-top">
+        <div class="search-row"><input type="text" id="search" placeholder="Rechercher par référence ou lot…"></div>
+        <div class="row-btn" style="margin-top:0">
+          <button class="btn sm" id="import-json-btn">⬆ Importer un passeport JSON</button>
+          <input type="file" id="import-json" accept=".json,application/json" hidden>
+        </div>
+      </div>
+      <table class="list" id="list-table">
+        <thead><tr><th>Référence</th><th>Lot / série</th><th>Date fab.</th><th>Enregistré le</th><th></th></tr></thead>
+        <tbody id="list-tbody"></tbody>
+      </table>
+      <div id="list-empty" class="empty" style="display:none">Aucun passeport enregistré pour l'instant sur cette machine.</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Génération 100 % locale : rien n'est envoyé à un serveur. Le registre (liste ci-dessus) vit uniquement dans le stockage local de ce navigateur, sur cet appareil — pas de synchronisation multi-machines en v0. Exporte en JSON ou conserve le fichier HTML téléchargé pour archiver/transférer un passeport.</div>
+    Un outil DELIGNY R&D.
+  </footer>
+</div>
+
+<script type="importmap">{ "imports": {
+  "qrcode": "https://esm.sh/qrcode@1.5.3",
+  "jsqr": "https://esm.sh/jsqr@1.4.0"
+} }</script>
+<script type="module">
+import QRCode from 'qrcode';
+import jsQR from 'jsqr';
+
+const $ = id => document.getElementById(id);
+const LS_KEY = 'ppe_passports_v1';
+const MAX_QR_BYTES = 2900; // hard cap, byte-mode QR (level L, version 40) ≈ 2953 bytes
+
+function esc(s){ return (s||'').toString().replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function genUid(){ return 'pp_' + Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function genLot(){
+  const d = new Date();
+  const ymd = d.getFullYear() + String(d.getMonth()+1).padStart(2,'0') + String(d.getDate()).padStart(2,'0');
+  const rand = Math.floor(1000 + Math.random()*9000);
+  return `LOT-${ymd}-${rand}`;
+}
+function eolLabel(code){
+  return { oui:'Oui, recyclable', non:'Non, pas recyclable', partiel:'Partiellement (à trier)' }[code] || 'Non renseigné';
+}
+function slugify(s){
+  return (s||'produit').toString().trim().toLowerCase()
+    .normalize('NFD').replace(/[̀-ͯ]/g,'')
+    .replace(/[^a-z0-9]+/g,'-').replace(/^-+|-+$/g,'').slice(0,60) || 'produit';
+}
+function isValidURL(s){ try{ const u=new URL(s); return u.protocol==='http:'||u.protocol==='https:'; }catch(e){ return false; } }
+
+// ── Stockage local (localStorage) ───────────────────────────────────────────
+function loadList(){ try{ return JSON.parse(localStorage.getItem(LS_KEY)||'[]'); }catch(e){ return []; } }
+function saveList(list){ localStorage.setItem(LS_KEY, JSON.stringify(list)); }
+function upsertPassport(p){
+  const list = loadList();
+  const i = list.findIndex(x=>x.id===p.id);
+  if(i>=0) list[i]=p; else list.unshift(p);
+  saveList(list);
+}
+function deletePassport(id){ saveList(loadList().filter(x=>x.id!==id)); }
+
+// ── Formulaire ───────────────────────────────────────────────────────────────
+let EDIT_ID = null, EDIT_CREATED = null;
+
+function collectForm(){
+  const ref = $('f-ref').value.trim();
+  const fld = $('f-ref').closest('.field');
+  if(!ref){ fld.classList.add('err'); $('f-ref').focus(); return null; }
+  fld.classList.remove('err');
+  return {
+    id: EDIT_ID || genUid(),
+    ref,
+    mat: $('f-mat').value.trim(),
+    made: $('f-made').value,
+    lot: $('f-lot').value.trim(),
+    sup: $('f-sup').value.trim(),
+    rep: $('f-rep').value.trim(),
+    eolR: $('f-eolr').value,
+    eolI: $('f-eoli').value.trim(),
+    createdAt: EDIT_CREATED || new Date().toISOString(),
+  };
+}
+function loadIntoForm(p){
+  EDIT_ID = p.id; EDIT_CREATED = p.createdAt;
+  $('f-ref').value = p.ref||''; $('f-mat').value = p.mat||''; $('f-made').value = p.made||'';
+  $('f-lot').value = p.lot||''; $('f-sup').value = p.sup||''; $('f-rep').value = p.rep||'';
+  $('f-eolr').value = p.eolR||''; $('f-eoli').value = p.eolI||'';
+  renderEditTag();
+}
+function renderEditTag(){
+  $('edit-tag-wrap').innerHTML = EDIT_ID
+    ? `<div class="editing-tag">✎ Édition d'un passeport existant — régénérer met à jour l'entrée</div>` : '';
+}
+function resetForm(){
+  EDIT_ID = null; EDIT_CREATED = null;
+  ['f-ref','f-mat','f-made','f-lot','f-sup','f-rep','f-eoli'].forEach(id=> $(id).value='');
+  $('f-eolr').value = '';
+  $('f-made').value = new Date().toISOString().slice(0,10);
+  $('f-ref').closest('.field').classList.remove('err');
+  renderEditTag();
+  $('preview-empty').style.display = 'block';
+  $('preview-body').style.display = 'none';
+}
+$('f-lot-gen').onclick = ()=>{ $('f-lot').value = genLot(); };
+$('reset').onclick = resetForm;
+
+// ── QR : payload compact (mode auto-porté) ─────────────────────────────────
+function compactPayload(p){
+  const o = { v:1, id:p.id, ref:p.ref };
+  if(p.mat) o.mat = p.mat;
+  if(p.made) o.made = p.made;
+  if(p.lot) o.lot = p.lot;
+  if(p.sup) o.sup = p.sup;
+  if(p.rep) o.rep = p.rep;
+  if(p.eolR) o.eolR = p.eolR;
+  if(p.eolI) o.eolI = p.eolI;
+  o.t = p.createdAt;
+  return JSON.stringify(o);
+}
+async function makeQRDataURL(text){
+  // Pas de "width" forcé : un redimensionnement non entier par rapport au nombre de
+  // modules force le navigateur à interpoler l'image (même smoothing désactivé sur le
+  // canvas de vérification), ce qui abîme les angles des modules et casse la lecture
+  // (vérifié : ça fait littéralement échouer jsQR sur un payload réaliste). "scale" génère
+  // un pixel bloc net par module, à taille native — l'affichage est ensuite mis à l'échelle
+  // en CSS (image-rendering:pixelated), jamais en re-rasterisant le bitmap du QR lui-même.
+  for(const level of ['M','L']){
+    try{ return { dataURL: await QRCode.toDataURL(text, { margin:1, scale:6, errorCorrectionLevel:level }), level }; }
+    catch(e){ /* essaie le niveau suivant (capacité plus grande, correction d'erreur moindre) */ }
+  }
+  throw new Error('too-long');
+}
+function verifyQR(dataURL, expectedText){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{
+      try{
+        const canvas = document.createElement('canvas');
+        canvas.width = img.width; canvas.height = img.height;
+        const ctx = canvas.getContext('2d');
+        ctx.imageSmoothingEnabled = false; // sans ça, le navigateur lisse l'agrandissement du QR et casse la lecture jsQR
+        ctx.drawImage(img,0,0);
+        const data = ctx.getImageData(0,0,canvas.width,canvas.height);
+        const result = jsQR(data.data, data.width, data.height);
+        resolve(result ? result.data === expectedText : false);
+      }catch(e){ resolve(false); }
+    };
+    img.onerror = ()=> resolve(false);
+    img.src = dataURL;
+  });
+}
+
+// ── Mode QR (auto-porté vs URL hébergée) ────────────────────────────────────
+function currentQRMode(){ return document.querySelector('input[name=qrmode]:checked').value; }
+document.querySelectorAll('#qr-mode-row .opt').forEach(lbl=>{
+  lbl.addEventListener('click', ()=>{
+    document.querySelectorAll('#qr-mode-row .opt').forEach(o=>o.classList.remove('active'));
+    lbl.classList.add('active'); lbl.querySelector('input').checked = true;
+    $('qr-url-field').style.display = currentQRMode()==='url' ? 'block' : 'none';
+  });
+});
+
+// ── Page passeport autonome (fichier HTML téléchargeable, zéro dépendance) ──
+function fieldBlock(label, value, full){
+  if(!value) return '';
+  return `<div class="f${full?' full':''}"><div class="k">${esc(label)}</div><div class="v">${esc(value)}</div></div>`;
+}
+function buildPassportHTML(p, qrDataURL, mode, qrTarget){
+  const qrCaption = mode==='url'
+    ? `QR → page hébergée par toi : ${esc(qrTarget||'')}`
+    : 'QR auto-porté — contient les données ci-dessous, lisible hors-ligne avec n’importe quel lecteur QR';
+  return `<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Passeport produit — ${esc(p.ref)}</title>
+<style>
+:root{--bg:#000;--card:#1c1c1e;--sep:rgba(255,255,255,.10);--txt:#f5f5f7;--dim2:#86868b;--amber:#ff9f0a;
+--font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;}
+*{box-sizing:border-box;} body{margin:0;background:var(--bg);color:var(--txt);font:15px/1.55 var(--font);padding:32px 18px 60px;-webkit-font-smoothing:antialiased;}
+.wrap{max-width:640px;margin:0 auto;}
+.badge{font-size:11.5px;color:var(--amber);background:rgba(255,159,10,.10);border:1px solid rgba(255,159,10,.28);border-radius:12px;padding:10px 14px;line-height:1.6;margin-bottom:18px;}
+.card{background:linear-gradient(160deg,#17171a,#1c1c1e);border:1px solid var(--sep);border-radius:22px;padding:26px 24px;box-shadow:0 12px 40px rgba(0,0,0,.5);}
+.eyebrow{font-size:11px;color:var(--dim2);text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
+h1{font-size:24px;font-weight:700;letter-spacing:-.02em;margin:4px 0 18px;}
+.qrwrap{text-align:center;margin:14px 0 20px;}
+.qrwrap img{width:170px;height:170px;background:#fff;border-radius:14px;padding:10px;image-rendering:pixelated;object-fit:contain;}
+.qrcap{font-size:11px;color:var(--dim2);margin-top:8px;}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:14px 18px;margin-top:6px;}
+.f{border-top:.5px solid var(--sep);padding-top:10px;}
+.f.full{grid-column:1/-1;}
+.k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.v{margin-top:4px;white-space:pre-wrap;font-size:13.5px;}
+.meta{margin-top:22px;font-size:11px;color:var(--dim2);text-align:center;line-height:1.7;}
+@media print{
+  body{background:#fff;color:#000;padding:0;}
+  .badge{color:#000;background:#fff;border:1px solid #000;}
+  .card{background:#fff;border:1.5px solid #000;box-shadow:none;color:#000;}
+  .k{color:#333;} .v{color:#000;} .meta{color:#333;}
+  .qrwrap img{border:1px solid #000;}
+}
+</style></head><body><div class="wrap">
+<div class="badge">⚠️ Passeport produit v0 — document généré et enregistré localement. Ce n'est pas un registre en ligne consultable à distance : ce fichier HTML EST le document (à conserver, imprimer, ou joindre au produit).</div>
+<div class="card">
+<div class="eyebrow">Passeport produit</div>
+<h1>${esc(p.ref)}</h1>
+<div class="qrwrap"><img src="${qrDataURL}" alt="QR code du passeport"><div class="qrcap">${qrCaption}</div></div>
+<div class="grid">
+${fieldBlock('Matière(s)', p.mat)}
+${fieldBlock('Date de fabrication', p.made)}
+${fieldBlock('Lot / série', p.lot)}
+${fieldBlock('Fournisseur matières premières', p.sup)}
+${fieldBlock('Instructions de réparation', p.rep, true)}
+${fieldBlock('Fin de vie — recyclable ?', eolLabel(p.eolR))}
+${fieldBlock('Fin de vie — comment', p.eolI, true)}
+</div>
+</div>
+<div class="meta">Généré le ${esc(new Date(p.createdAt).toLocaleString('fr-FR'))} avec Product Passport Engine · DELIGNY R&D<br>ID interne : ${esc(p.id)}</div>
+</div><img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>`;
+}
+
+// ── Rendu aperçu (dans la page principale) ──────────────────────────────────
+function renderPreviewCard(p){
+  $('pp-ref').textContent = p.ref;
+  const rows = [
+    ['Matière(s)', p.mat], ['Date de fabrication', p.made], ['Lot / série', p.lot],
+    ['Fournisseur matières premières', p.sup],
+  ].map(([k,v])=> v ? `<div class="pp-f"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>` : '').join('');
+  const wide = [
+    ['Instructions de réparation', p.rep],
+    ['Fin de vie — recyclable ?', eolLabel(p.eolR)],
+    ['Fin de vie — comment', p.eolI],
+  ].map(([k,v])=> v ? `<div class="pp-f full"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>` : '').join('');
+  $('pp-grid').innerHTML = rows + wide;
+}
+
+function showQRError(msg){
+  $('qr-err').innerHTML = `<div class="qr-err">${esc(msg)}</div>`;
+}
+function clearQRError(){ $('qr-err').innerHTML = ''; }
+
+let LAST = null, LAST_HTML = null, LAST_QR_DATAURL = null;
+
+async function buildAndRender(p){
+  clearQRError();
+  const mode = currentQRMode();
+  let qrText, qrTarget = null;
+
+  if(mode === 'url'){
+    const url = $('qr-url').value.trim();
+    if(!isValidURL(url)){
+      showQRError('Renseigne une URL valide (http/https) avant de générer — c’est toi qui héberges la page passeport exportée à cette adresse.');
+      $('qr-holder').innerHTML = '<div class="qr-ph">URL manquante</div>';
+      $('qr-meta').textContent = '—';
+      disableDownloads(); return;
+    }
+    qrText = url; qrTarget = url;
+  } else {
+    qrText = compactPayload(p);
+  }
+
+  const bytes = new TextEncoder().encode(qrText).length;
+  let qrResult;
+  try{
+    qrResult = await makeQRDataURL(qrText);
+  }catch(e){
+    showQRError(`Trop de données pour un QR (${bytes} octets, max ≈ ${MAX_QR_BYTES}). Raccourcis les champs (réparation / fin de vie) ou bascule en mode « URL hébergée ».`);
+    $('qr-holder').innerHTML = '<div class="qr-ph">QR non généré</div>';
+    $('qr-meta').textContent = '—';
+    disableDownloads(); return;
+  }
+
+  const verified = await verifyQR(qrResult.dataURL, qrText);
+
+  $('qr-holder').innerHTML = `<img src="${qrResult.dataURL}" alt="QR code">`;
+  const capNote = mode === 'embed'
+    ? `Mode <b>auto-porté</b> : les données sont encodées directement dans le QR — aucune page à héberger, lisible hors-ligne par n'importe quel lecteur QR. Poids des données : <b>${bytes} octets</b> (correction d'erreur ${qrResult.level}, limite ≈ ${MAX_QR_BYTES} octets).`
+    : `Mode <b>URL hébergée</b> : le QR pointe vers <b>${esc(qrTarget)}</b>. C'est à toi d'y déposer le fichier HTML téléchargé ci-dessous — sans ça, le QR ne mènera nulle part.`;
+  $('qr-meta').innerHTML = capNote +
+    `<div class="qr-verify ${verified?'ok':'bad'}">${verified ? '✅ QR vérifié : relu automatiquement (jsQR) et identique aux données encodées' : '❌ Échec de la relecture automatique du QR — regénère'}</div>`;
+
+  LAST_HTML = buildPassportHTML(p, qrResult.dataURL, mode, qrTarget);
+  LAST_QR_DATAURL = qrResult.dataURL;
+  enableDownloads();
+}
+
+function enableDownloads(){
+  ['dl-html','dl-qr','dl-json'].forEach(id=>{ $(id).disabled=false; $(id).classList.add('ready'); });
+}
+function disableDownloads(){
+  ['dl-html','dl-qr','dl-json'].forEach(id=>{ $(id).disabled=true; $(id).classList.remove('ready'); });
+}
+
+function downloadBlob(content, filename, type){
+  const blob = new Blob([content], { type });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 5000);
+}
+function downloadDataURL(dataURL, filename){
+  const a = document.createElement('a'); a.href=dataURL; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+}
+
+$('dl-html').onclick = ()=>{ if(!LAST_HTML||!LAST) return; downloadBlob(LAST_HTML, `passeport-${slugify(LAST.ref)}.html`, 'text/html'); };
+$('dl-qr').onclick = ()=>{ if(!LAST_QR_DATAURL||!LAST) return; downloadDataURL(LAST_QR_DATAURL, `qr-${slugify(LAST.ref)}.png`); };
+$('dl-json').onclick = ()=>{ if(!LAST) return; downloadBlob(JSON.stringify(LAST,null,2), `passeport-${slugify(LAST.ref)}.json`, 'application/json'); };
+
+// ── Générer ──────────────────────────────────────────────────────────────────
+async function generatePassport(){
+  const p = collectForm();
+  if(!p) return;
+  LAST = p;
+  EDIT_ID = p.id; EDIT_CREATED = p.createdAt;
+  $('preview-empty').style.display = 'none';
+  $('preview-body').style.display = 'block';
+  renderPreviewCard(p);
+  await buildAndRender(p);
+  upsertPassport(p);
+  renderTable($('search').value);
+  renderEditTag();
+}
+$('generate').onclick = generatePassport;
+
+// ── Exemple (lampe imprimée 3D — cas d'usage cible) ─────────────────────────
+function loadDemo(){
+  resetForm();
+  $('f-ref').value = 'LAMPE-E14-V2.1';
+  $('f-mat').value = 'PLA recyclé (corps), laiton (douille E14), câble textile';
+  $('f-made').value = new Date().toISOString().slice(0,10);
+  $('f-lot').value = genLot();
+  $('f-sup').value = 'Filalab (FR) — PLA ; Douilles Pro (FR) — laiton';
+  $('f-rep').value = "Douille E14 standard démontable par 4 vis M3 (clé Allen 2mm). Corps imprimable en 3D — fichier STL disponible sur demande pour pièce de rechange. Ne pas immerger, nettoyer à sec.";
+  $('f-eolr').value = 'partiel';
+  $('f-eoli').value = "Séparer la douille en laiton (métal) du corps en PLA avant recyclage. PLA compostable en compostage industriel uniquement, pas au compost domestique.";
+  generatePassport();
+}
+$('demo').onclick = loadDemo;
+
+// ── Liste locale (localStorage) + recherche ─────────────────────────────────
+function renderTable(filter){
+  const f = (filter||'').trim().toLowerCase();
+  const list = loadList().filter(p=> !f || (p.ref||'').toLowerCase().includes(f) || (p.lot||'').toLowerCase().includes(f));
+  if(!list.length){
+    $('list-tbody').innerHTML = '';
+    $('list-empty').style.display = 'block';
+    $('list-empty').textContent = loadList().length ? 'Aucun résultat pour cette recherche.' : "Aucun passeport enregistré pour l'instant sur cette machine.";
+    return;
+  }
+  $('list-empty').style.display = 'none';
+  $('list-tbody').innerHTML = list.map(p=>`
+    <tr>
+      <td><b>${esc(p.ref)}</b></td>
+      <td class="muted">${esc(p.lot||'—')}</td>
+      <td class="muted">${esc(p.made||'—')}</td>
+      <td class="muted">${esc(new Date(p.createdAt).toLocaleDateString('fr-FR'))}</td>
+      <td class="actions">
+        <button class="btn sm" data-act="load" data-id="${esc(p.id)}">Charger</button>
+        <button class="btn sm danger" data-act="del" data-id="${esc(p.id)}">Supprimer</button>
+      </td>
+    </tr>`).join('');
+  $('list-tbody').querySelectorAll('[data-act=load]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const p = loadList().find(x=>x.id===btn.dataset.id);
+      if(!p) return;
+      loadIntoForm(p);
+      LAST = p;
+      $('preview-empty').style.display = 'none';
+      $('preview-body').style.display = 'block';
+      renderPreviewCard(p);
+      buildAndRender(p);
+      window.scrollTo({ top:0, behavior:'smooth' });
+    });
+  });
+  $('list-tbody').querySelectorAll('[data-act=del]').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      if(!confirm('Supprimer ce passeport de la liste locale ? (le fichier JSON/HTML déjà téléchargé n’est pas affecté)')) return;
+      deletePassport(btn.dataset.id);
+      renderTable($('search').value);
+    });
+  });
+}
+$('search').oninput = ()=> renderTable($('search').value);
+
+// ── Import JSON ──────────────────────────────────────────────────────────────
+$('import-json-btn').onclick = ()=> $('import-json').click();
+$('import-json').onchange = e=>{
+  const file = e.target.files[0]; if(!file) return;
+  const rd = new FileReader();
+  rd.onload = ()=>{
+    try{
+      const p = JSON.parse(rd.result);
+      if(!p || typeof p!=='object' || !p.ref){ alert('JSON invalide : champ "ref" manquant.'); return; }
+      p.id = p.id || genUid();
+      p.createdAt = p.createdAt || new Date().toISOString();
+      upsertPassport(p);
+      loadIntoForm(p);
+      LAST = p;
+      $('preview-empty').style.display = 'none';
+      $('preview-body').style.display = 'block';
+      renderPreviewCard(p);
+      buildAndRender(p);
+      renderTable($('search').value);
+    }catch(err){ alert('Impossible de lire ce fichier JSON : ' + err.message); }
+  };
+  rd.readAsText(file, 'utf-8');
+  e.target.value = '';
+};
+
+// ── Init ─────────────────────────────────────────────────────────────────────
+$('f-made').value = new Date().toISOString().slice(0,10);
+renderTable('');
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

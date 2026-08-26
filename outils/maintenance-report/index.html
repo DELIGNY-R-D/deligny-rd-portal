@@ -1,0 +1,253 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Maintenance Report — rapport d'intervention gratuit</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Génère un rapport d'intervention propre à partir de tes notes et photos : observations, actions réalisées, recommandations. Sans compte, rien n'est envoyé.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+@media(max-width:820px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+
+.fld{margin-bottom:14px;}
+.fld label{display:block;font-size:11px;color:var(--dim2);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.fld input[type=text],.fld input[type=date],.fld textarea{
+  width:100%;background:#141416;color:var(--txt);border:.5px solid var(--sep);border-radius:10px;
+  padding:9px 11px;font:14px var(--font);resize:vertical;
+}
+.fld textarea{min-height:64px;}
+.fld-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
+@media(max-width:520px){.fld-row{grid-template-columns:1fr;}}
+
+#drop{border:1.5px dashed var(--sep);border-radius:16px;padding:22px 18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+#drop.hover{border-color:var(--blue);background:rgba(41,151,255,.06);}
+#drop .big{font-size:32px;margin-bottom:6px;}
+#drop .t{font-weight:600;font-size:13px;} #drop .h{color:var(--dim2);font-size:12px;margin-top:3px;}
+.thumbs{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px;}
+.thumb{position:relative;width:64px;height:64px;border-radius:10px;overflow:hidden;border:.5px solid var(--sep);}
+.thumb img{width:100%;height:100%;object-fit:cover;display:block;}
+.thumb .x{position:absolute;top:2px;right:2px;background:rgba(0,0,0,.6);color:#fff;border:none;border-radius:99px;width:18px;height:18px;font-size:11px;cursor:pointer;line-height:1;}
+
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn.export{opacity:.4;cursor:not-allowed;} .btn.export.ready{opacity:1;cursor:pointer;}
+
+#preview{min-height:200px;}
+#preview .empty{color:var(--dim2);font-style:italic;font-size:13px;}
+.pv-block{margin-bottom:14px;}
+.pv-block .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;margin-bottom:4px;}
+.pv-block .v{white-space:pre-wrap;font-size:14px;}
+.pv-meta{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid var(--sep);}
+.pv-meta span{font-size:13px;} .pv-meta b{color:var(--dim2);font-weight:600;font-size:11px;text-transform:uppercase;display:block;}
+.pv-photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;}
+.pv-photos img{width:110px;height:110px;object-fit:cover;border-radius:10px;border:.5px solid var(--sep);}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:640px;margin:0 auto 10px;}
+
+/* Rapport imprimable */
+#report{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #report, #report *{visibility:visible;}
+  #report{display:block;position:absolute;top:0;left:0;width:100%;padding:0;color:#000;background:#fff;font-family:var(--font);}
+  .r-head{text-align:center;border-bottom:3px solid #000;padding-bottom:10px;margin-bottom:16px;}
+  .r-head h1{font-size:22px;margin:0 0 4px;letter-spacing:0;}
+  .r-meta{display:grid;grid-template-columns:1fr 1fr;gap:6px 20px;font-size:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #000;}
+  .r-block{margin-bottom:14px;} .r-block b{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+  .r-block div{white-space:pre-wrap;font-size:13px;}
+  .r-photos{display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;}
+  .r-photos img{width:140px;height:140px;object-fit:cover;border:1px solid #000;}
+  .r-foot{margin-top:24px;font-size:10px;text-align:center;color:#333;border-top:1px solid #000;padding-top:8px;}
+  .r-cta{margin-top:6px;font-size:11px;}
+}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Maintenance Report</span></h1>
+    <div class="sub">Notes + photos d'intervention → rapport propre, prêt à imprimer ou copier — en 1 minute.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Intervention</h2>
+      <div class="fld-row">
+        <div class="fld"><label>Client / site</label><input type="text" id="f-client" placeholder="Ex. Boulangerie Chevreau"></div>
+        <div class="fld"><label>Date</label><input type="date" id="f-date"></div>
+      </div>
+      <div class="fld"><label>Technicien</label><input type="text" id="f-tech" placeholder="Ton nom"></div>
+      <div class="fld"><label>Observations</label><textarea id="f-obs" placeholder="Ce qui a été constaté sur place…"></textarea></div>
+      <div class="fld"><label>Actions réalisées</label><textarea id="f-actions" placeholder="Ce qui a été fait…"></textarea></div>
+      <div class="fld"><label>Recommandations</label><textarea id="f-reco" placeholder="Ce qu'il faudrait faire ensuite…"></textarea></div>
+
+      <div class="fld"><label>Photos</label>
+        <div id="drop">
+          <div class="big">📷</div>
+          <div class="t">Dépose des photos ici</div>
+          <div class="h">ou clique pour choisir — restent sur ton appareil</div>
+        </div>
+        <input type="file" id="file" accept="image/*" multiple hidden>
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Aperçu du rapport</h2>
+      <div id="preview"><div class="empty">Remplis les champs à gauche — l'aperçu se met à jour en direct.</div></div>
+      <div class="row-btn">
+        <button class="btn" id="copyMd">📋 Copier en Markdown</button>
+        <button class="btn pri export" id="export" disabled>📄 Exporter (PDF)</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Rapport simple d'intervention — ne remplace pas une expertise réglementaire, une maintenance prédictive ou un diagnostic sécurité. Aucune donnée ne quitte ton navigateur.</div>
+    Un outil DELIGNY R&D · pour gérer devis, factures et suivi client : <a href="https://atlas-studio.pro" target="_blank" rel="noopener">Atlas Studio Pro</a>
+  </footer>
+</div>
+
+<div id="report">
+  <div class="r-head">
+    <h1>RAPPORT D'INTERVENTION</h1>
+    <div style="font-size:11px">Maintenance Report — DELIGNY R&D</div>
+  </div>
+  <div class="r-meta">
+    <div><b>Client / site :</b> <span id="r-client"></span></div>
+    <div><b>Date :</b> <span id="r-date"></span></div>
+    <div><b>Technicien :</b> <span id="r-tech"></span></div>
+  </div>
+  <div class="r-block"><b>Observations</b><div id="r-obs"></div></div>
+  <div class="r-block"><b>Actions réalisées</b><div id="r-actions"></div></div>
+  <div class="r-block"><b>Recommandations</b><div id="r-reco"></div></div>
+  <div class="r-block" id="r-photos-block" style="display:none"><b>Photos</b><div class="r-photos" id="r-photos"></div></div>
+  <div class="r-foot">Généré localement, aucune donnée envoyée · deligny-rd · <span class="r-cta">Gérer devis/factures/suivi client : atlas-studio.pro</span></div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+let PHOTOS=[]; // [{name, dataUrl}]
+
+// ── Photos (client-side uniquement, jamais envoyées) ────────────────────────
+function renderThumbs(){
+  $('thumbs').innerHTML=PHOTOS.map((p,i)=>`<div class="thumb"><img src="${p.dataUrl}" alt="${esc(p.name)}"><button class="x" onclick="removePhoto(${i})">✕</button></div>`).join('');
+  update();
+}
+function removePhoto(i){ PHOTOS.splice(i,1); renderThumbs(); }
+function addFiles(files){
+  const list=Array.from(files||[]).filter(f=>f.type.startsWith('image/'));
+  if(!list.length) return;
+  let pending=list.length;
+  list.forEach(f=>{
+    const rd=new FileReader();
+    rd.onload=()=>{ PHOTOS.push({name:f.name, dataUrl:rd.result}); if(--pending===0) renderThumbs(); };
+    rd.readAsDataURL(f);
+  });
+}
+$('file').onchange=e=>addFiles(e.target.files);
+const dz=$('drop');
+dz.onclick=()=>$('file').click();
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('hover');};
+dz.ondragleave=()=>dz.classList.remove('hover');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hover');addFiles(e.dataTransfer.files);};
+
+// ── Aperçu en direct ─────────────────────────────────────────────────────
+function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+function fields(){
+  return {
+    client: $('f-client').value.trim(), date: $('f-date').value,
+    tech: $('f-tech').value.trim(), obs: $('f-obs').value.trim(),
+    actions: $('f-actions').value.trim(), reco: $('f-reco').value.trim(),
+  };
+}
+function hasContent(f){ return f.client || f.obs || f.actions || f.reco || PHOTOS.length; }
+function fmtDate(d){ if(!d) return '—'; const [y,m,day]=d.split('-'); return `${day}/${m}/${y}`; }
+function update(){
+  const f=fields();
+  if(!hasContent(f)){ $('preview').innerHTML='<div class="empty">Remplis les champs à gauche — l\'aperçu se met à jour en direct.</div>'; $('export').disabled=true; $('export').classList.remove('ready'); return; }
+  const photosHtml=PHOTOS.length?`<div class="pv-block"><div class="k">Photos (${PHOTOS.length})</div><div class="pv-photos">${PHOTOS.map(p=>`<img src="${p.dataUrl}">`).join('')}</div></div>`:'';
+  $('preview').innerHTML=`
+    <div class="pv-meta">
+      <span><b>Client</b>${esc(f.client)||'—'}</span>
+      <span><b>Date</b>${fmtDate(f.date)}</span>
+      <span><b>Technicien</b>${esc(f.tech)||'—'}</span>
+    </div>
+    <div class="pv-block"><div class="k">Observations</div><div class="v">${esc(f.obs)||'—'}</div></div>
+    <div class="pv-block"><div class="k">Actions réalisées</div><div class="v">${esc(f.actions)||'—'}</div></div>
+    <div class="pv-block"><div class="k">Recommandations</div><div class="v">${esc(f.reco)||'—'}</div></div>
+    ${photosHtml}`;
+  const exp=$('export'); exp.disabled=false; exp.classList.add('ready');
+}
+['f-client','f-date','f-tech','f-obs','f-actions','f-reco'].forEach(id=>$(id).addEventListener('input',update));
+$('f-date').valueAsDate=new Date();
+
+// ── Export Markdown (copier-coller) ─────────────────────────────────────
+function toMarkdown(){
+  const f=fields();
+  const lines=[
+    `# Rapport d'intervention`, '',
+    `**Client / site :** ${f.client||'—'}`,
+    `**Date :** ${fmtDate(f.date)}`,
+    `**Technicien :** ${f.tech||'—'}`, '',
+    `## Observations`, f.obs||'—', '',
+    `## Actions réalisées`, f.actions||'—', '',
+    `## Recommandations`, f.reco||'—', '',
+  ];
+  if(PHOTOS.length) lines.push(`_(${PHOTOS.length} photo${PHOTOS.length>1?'s':''} jointe${PHOTOS.length>1?'s':''} — voir la version imprimée/PDF pour les visuels)_`, '');
+  lines.push('---', '_Généré avec Maintenance Report (DELIGNY R&D) — atlas-studio.pro_');
+  return lines.join('\n');
+}
+$('copyMd').onclick=async()=>{
+  const md=toMarkdown();
+  try{ await navigator.clipboard.writeText(md); toast('Markdown copié !'); }
+  catch(e){ const ta=document.createElement('textarea'); ta.value=md; document.body.appendChild(ta); ta.select(); document.execCommand('copy'); ta.remove(); toast('Markdown copié !'); }
+};
+function toast(msg){
+  let t=document.getElementById('toast');
+  if(!t){ t=document.createElement('div'); t.id='toast'; t.style.cssText='position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1c1c1e;color:#f5f5f7;padding:10px 18px;border-radius:99px;font:600 13px -apple-system,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.5);z-index:999;border:.5px solid rgba(255,255,255,.1)'; document.body.appendChild(t); }
+  t.textContent=msg; t.style.opacity='1';
+  clearTimeout(window.__toastT); window.__toastT=setTimeout(()=>{t.style.opacity='0';},1800);
+}
+
+// ── Export PDF (impression) ─────────────────────────────────────────────
+function buildReport(){
+  const f=fields();
+  $('r-client').textContent=f.client||'—';
+  $('r-date').textContent=fmtDate(f.date);
+  $('r-tech').textContent=f.tech||'—';
+  $('r-obs').textContent=f.obs||'—';
+  $('r-actions').textContent=f.actions||'—';
+  $('r-reco').textContent=f.reco||'—';
+  if(PHOTOS.length){
+    $('r-photos-block').style.display='';
+    $('r-photos').innerHTML=PHOTOS.map(p=>`<img src="${p.dataUrl}">`).join('');
+  } else {
+    $('r-photos-block').style.display='none';
+  }
+}
+$('export').onclick=()=>{ if($('export').disabled) return; buildReport(); window.print(); };
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

@@ -1,0 +1,574 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Money Data Game — simulateur de décisions (jeu éducatif)</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Jeu éducatif gratuit : pilote la trésorerie, la croissance et le risque d'un petit atelier fictif sur 10 décisions. Argent fictif, aucune donnée réelle, ce n'est pas un conseil financier.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:820px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:32px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.card{background:var(--card);border-radius:20px;padding:22px;box-shadow:0 8px 30px rgba(0,0,0,.5);margin-top:18px;}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;letter-spacing:0;}
+
+/* disclaimer */
+.disclaimer{border:1.5px solid rgba(255,159,10,.4);background:rgba(255,159,10,.08);border-radius:16px;padding:16px 18px;margin-top:20px;}
+.disclaimer .t{font-weight:650;color:var(--amber);font-size:14px;margin-bottom:6px;}
+.disclaimer .d{color:var(--dim);font-size:13px;line-height:1.6;}
+
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:18px;flex-wrap:wrap;}
+.btn{font:600 14px var(--font);padding:11px 22px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn.grn{background:var(--green);color:#00280f;} .btn.grn:hover{background:#28c04e;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+
+/* jauges */
+.gauges{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:4px;}
+.gauge{background:var(--card2);border-radius:14px;padding:12px 14px;}
+.gauge .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;display:flex;justify-content:space-between;}
+.gauge .v{font-size:19px;font-weight:680;letter-spacing:-.02em;margin-top:3px;}
+.gauge .bar{height:6px;border-radius:99px;background:rgba(255,255,255,.08);margin-top:8px;overflow:hidden;}
+.gauge .bar i{display:block;height:100%;border-radius:99px;transition:width .4s ease;}
+.gauge.cash .bar i{background:var(--cyan);}
+.gauge.growth .bar i{background:var(--green);}
+.gauge.risk .bar i{background:var(--red);}
+.delta{font-size:11px;font-weight:600;margin-left:6px;}
+.delta.up{color:var(--green);} .delta.down{color:var(--red);} .delta.zero{color:var(--dim2);}
+
+/* progression */
+.progress{display:flex;gap:5px;justify-content:center;margin:18px 0 4px;}
+.progress i{width:22px;height:5px;border-radius:99px;background:rgba(255,255,255,.14);}
+.progress i.done{background:var(--blue);}
+.progress i.cur{background:var(--cyan);}
+.step-label{text-align:center;color:var(--dim2);font-size:12px;font-weight:600;letter-spacing:.03em;text-transform:uppercase;margin-bottom:6px;}
+
+/* situation */
+.situation{margin-top:8px;}
+.situation h3{font-size:20px;font-weight:650;margin:0 0 8px;letter-spacing:-.01em;}
+.situation p{color:var(--dim);font-size:14.5px;margin:0 0 18px;}
+
+.choice{display:block;width:100%;text-align:left;background:var(--card2);border:1.5px solid var(--sep);border-radius:14px;padding:14px 16px;margin-bottom:10px;cursor:pointer;color:var(--txt);font:inherit;transition:border-color .15s,background .15s;}
+.choice:hover{border-color:var(--blue);background:rgba(41,151,255,.07);}
+.choice .lbl{font-weight:650;font-size:14.5px;}
+.choice .desc{color:var(--dim);font-size:13px;margin-top:4px;}
+.choice .prob{display:inline-block;margin-top:6px;font-size:11px;font-weight:600;color:var(--amber);background:rgba(255,159,10,.14);padding:2px 8px;border-radius:99px;}
+
+/* outcome */
+.outcome{background:var(--card2);border-radius:14px;padding:16px 18px;margin-top:14px;}
+.outcome .head{font-weight:650;font-size:15px;margin-bottom:6px;}
+.outcome .note{color:var(--dim);font-size:13.5px;margin-bottom:10px;}
+.outcome .effects{display:flex;gap:14px;flex-wrap:wrap;font-size:13px;}
+.outcome .effects b{font-weight:650;}
+
+/* bilan */
+.bilan-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-top:6px;}
+.bilan-stats .stat{background:var(--card2);border-radius:14px;padding:14px;text-align:center;}
+.bilan-stats .stat .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.bilan-stats .stat .v{font-size:22px;font-weight:680;margin-top:4px;}
+.verdict{margin-top:16px;padding:14px 16px;border-radius:14px;background:rgba(41,151,255,.08);border:1.5px solid rgba(41,151,255,.3);font-size:14px;}
+.verdict b{color:var(--cyan);}
+
+/* comparaison */
+table.cmp{width:100%;border-collapse:collapse;margin-top:10px;font-size:13.5px;}
+table.cmp th,table.cmp td{padding:9px 8px;border-bottom:.5px solid var(--sep);text-align:right;}
+table.cmp th:first-child,table.cmp td:first-child{text-align:left;}
+table.cmp th{color:var(--dim2);font-weight:600;font-size:11.5px;text-transform:uppercase;letter-spacing:.04em;}
+table.cmp tr.me{background:rgba(48,209,88,.08);}
+table.cmp tr.me td:first-child{color:var(--green);font-weight:650;}
+.cmp-note{color:var(--dim2);font-size:12px;margin-top:10px;line-height:1.6;}
+
+.history{margin-top:16px;}
+.history .h-item{display:flex;justify-content:space-between;gap:10px;padding:8px 0;border-top:.5px solid var(--sep);font-size:12.5px;color:var(--dim);}
+.history .h-item:first-child{border-top:none;}
+.history .h-item b{color:var(--txt);}
+
+.screen{display:none;}
+.screen.on{display:block;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:640px;margin:0 auto 10px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Money Data Game</span></h1>
+    <div class="sub">Simulateur éducatif : pilote un atelier fictif sur 10 décisions et apprends à arbitrer trésorerie, croissance et risque.</div>
+    <span class="free">100 % gratuit · sans compte · tout se calcule dans ton navigateur</span>
+  </header>
+
+  <!-- ═══════════ ÉCRAN ACCUEIL ═══════════ -->
+  <div class="screen on" id="screen-home">
+    <div class="disclaimer">
+      <div class="t">⚠️ Jeu éducatif — argent fictif</div>
+      <div class="d">
+        Money Data Game est un <b style="color:var(--txt)">jeu de simulation purement pédagogique</b>. La trésorerie, l'entreprise, les clients, les fournisseurs et les événements sont <b style="color:var(--txt)">entièrement fictifs</b>.
+        Aucune donnée de marché réelle ni en temps réel n'est utilisée. Ce jeu ne constitue <b style="color:var(--txt)">jamais</b> un conseil en investissement, une recommandation financière personnalisée, ni un outil de gestion réel.
+        Ne prends aucune décision financière réelle sur la base de ce jeu.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Le principe</h2>
+      <div class="situation">
+        <p style="margin-bottom:10px">Tu diriges <b style="color:var(--txt)">Atelier Lumen</b>, une petite entreprise fictive de fabrication, avec <b style="color:var(--txt)">50 000 € fictifs</b> de trésorerie de départ. Sur <b style="color:var(--txt)">10 tours</b>, tu vas affronter des situations inspirées de vrais dilemmes de gestion (délais de paiement, hausse des coûts, investissement, recrutement, concurrence…). Chaque choix a un effet chiffré, parfois avec une part de hasard affichée en clair.</p>
+        <p>À la fin, tu pourras <b style="color:var(--txt)">comparer ta partie</b> à 3 stratégies alternatives rejouées sur les mêmes 10 situations, pour voir ce qui se serait passé avec d'autres arbitrages.</p>
+      </div>
+      <div class="row-btn">
+        <button class="btn pri" id="btn-new-game">▶ Nouvelle partie</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ═══════════ ÉCRAN JEU ═══════════ -->
+  <div class="screen" id="screen-game">
+    <div class="progress" id="progress"></div>
+    <div class="step-label" id="step-label">Décision 1 / 10</div>
+
+    <div class="gauges">
+      <div class="gauge cash"><div class="k">Trésorerie <span class="delta" id="d-cash"></span></div><div class="v" id="v-cash">—</div><div class="bar"><i id="b-cash" style="width:50%"></i></div></div>
+      <div class="gauge growth"><div class="k">Croissance <span class="delta" id="d-growth"></span></div><div class="v" id="v-growth">—</div><div class="bar"><i id="b-growth" style="width:20%"></i></div></div>
+      <div class="gauge risk"><div class="k">Risque <span class="delta" id="d-risk"></span></div><div class="v" id="v-risk">—</div><div class="bar"><i id="b-risk" style="width:20%"></i></div></div>
+    </div>
+
+    <div class="card">
+      <div class="situation">
+        <h3 id="sit-title">—</h3>
+        <p id="sit-text">—</p>
+      </div>
+      <div id="choices"></div>
+      <div class="outcome" id="outcome" style="display:none">
+        <div class="head" id="out-head"></div>
+        <div class="note" id="out-note"></div>
+        <div class="effects" id="out-effects"></div>
+      </div>
+      <div class="row-btn" id="continue-row" style="display:none">
+        <button class="btn pri" id="btn-continue">Continuer →</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>Historique des décisions</h2>
+      <div class="history" id="history"><div style="color:var(--dim2);font-style:italic;font-size:13px">Aucune décision prise pour l'instant.</div></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ ÉCRAN BILAN ═══════════ -->
+  <div class="screen" id="screen-end">
+    <div class="card">
+      <h2>Bilan de partie — 10 décisions</h2>
+      <div class="bilan-stats">
+        <div class="stat"><div class="k">Trésorerie finale</div><div class="v" id="end-cash">—</div></div>
+        <div class="stat"><div class="k">Croissance</div><div class="v" id="end-growth">—</div></div>
+        <div class="stat"><div class="k">Risque</div><div class="v" id="end-risk">—</div></div>
+      </div>
+      <div class="verdict" id="verdict">—</div>
+      <div class="row-btn">
+        <button class="btn pri" id="btn-compare">📊 Comparer aux alternatives</button>
+        <button class="btn" id="btn-replay-1">↻ Rejouer</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Ta partie, décision par décision</h2>
+      <div class="history" id="end-history"></div>
+    </div>
+  </div>
+
+  <!-- ═══════════ ÉCRAN COMPARAISON ═══════════ -->
+  <div class="screen" id="screen-compare">
+    <div class="card">
+      <h2>Comparaison aux stratégies alternatives</h2>
+      <p style="color:var(--dim);font-size:13.5px;margin-top:0">Les 3 stratégies ci-dessous sont rejouées sur <b style="color:var(--txt)">exactement les mêmes 10 situations et le même tirage aléatoire</b> que ta partie — seuls les choix changent. Ça isole l'effet de tes décisions du hasard.</p>
+      <div style="overflow-x:auto">
+        <table class="cmp" id="cmp-table"></table>
+      </div>
+      <div class="cmp-note">Trésorerie de départ commune : 50 000 € fictifs · Croissance/Risque de départ : 20/100.</div>
+      <div class="row-btn">
+        <button class="btn" id="btn-back-end">← Retour au bilan</button>
+        <button class="btn pri" id="btn-replay-2">↻ Rejouer une partie</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Jeu éducatif, argent et scénarios fictifs, aucune donnée réelle — ne constitue jamais un conseil financier réel. Aucune donnée ne quitte ton navigateur.</div>
+    Un jeu DELIGNY R&D.
+  </footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+/* ── RNG déterministe (mulberry32) : un tirage indépendant par décision,
+   basé sur seed + index, pour que le hasard soit identique quel que soit
+   le choix fait (permet la comparaison stratégique et le replay). ────── */
+function mulberry32(seed){
+  return function(){
+    seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+    let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function rollFor(seed, i){ return mulberry32(seed + i*7919 + 1013)(); }
+
+/* ── Les 10 décisions ─────────────────────────────────────────────────
+   Chaque choix retourne {cash, growth, risk, note} en fonction du tirage r.
+   Les effets sont volontairement chiffrés et transparents. ─────────── */
+const DECISIONS = [
+{
+  title: "Un gros contrat, mais 90 jours pour être payé",
+  text: "Un client te propose un contrat de 18 000 € — ton plus gros de l'année — mais exige un paiement à 90 jours. Il faut produire et avancer les matières avant d'être payé.",
+  choices: [
+    { label:"Accepter tel quel", desc:"Tu avances la production sur ta trésorerie. Gros risque de tension de trésorerie, mais le contrat est sécurisé.",
+      effect:()=>({cash:-3000, growth:12, risk:10, note:"Tu avances 3 000 € de matières et de main-d'œuvre. Le contrat est signé, la croissance suit, mais ta trésorerie est plus tendue."}) },
+    { label:"Négocier un acompte de 30 %", desc:"Tu obtiens 5 400 € d'acompte immédiat, qui couvre une partie de la production.",
+      effect:()=>({cash:2400, growth:8, risk:4, note:"L'acompte de 5 400 € couvre une bonne partie de l'avance de production (≈3 000 €). Le contrat progresse sans plomber ta trésorerie."}) },
+    { label:"Refuser le contrat", desc:"Tu préserves ta trésorerie mais tu perds l'opportunité de croissance.",
+      effect:()=>({cash:0, growth:-2, risk:-3, note:"Aucun engagement pris. Trésorerie intacte, mais l'opportunité de croissance est perdue."}) },
+  ]
+},
+{
+  title: "Le prix d'une matière première augmente de 20 %",
+  text: "Ton fournisseur principal annonce +20 % sur une matière clé, soit environ 2 500 € de marge en moins par mois si rien ne change.",
+  choices: [
+    { label:"Absorber la hausse", desc:"Tu gardes tes prix, ta marge encaisse le choc. Bon pour la fidélité client.",
+      effect:()=>({cash:-2500, growth:1, risk:-2, note:"Tu gardes tes clients contents, mais ta marge est directement rognée de 2 500 €."}) },
+    { label:"Répercuter la hausse sur tes prix", desc:"Tu protèges ta marge, au risque de perdre des clients sensibles au prix.",
+      effect:(r)=>{
+        if(r<0.3) return {cash:-1000, growth:-7, risk:5, note:"Un client important a mal réagi à la hausse et est parti (tirage : 30 % de risque, réalisé)."};
+        return {cash:500, growth:-4, risk:5, note:"La hausse passe globalement, avec un peu de grogne côté clients (tirage : 70 % de chance, ce résultat)."};
+      } },
+    { label:"Chercher un fournisseur alternatif", desc:"Coût de transition immédiat, avec un risque qualité incertain — 60 % de chance que ça se passe bien.",
+      prob:"60 % de succès annoncés",
+      effect:(r)=>{
+        if(r<0.6) return {cash:-800, growth:6, risk:-4, note:"Le nouveau fournisseur tient ses promesses : qualité correcte, coûts maîtrisés (tirage : 60 % de chance, réalisé)."};
+        return {cash:-2800, growth:-5, risk:8, note:"Le nouveau fournisseur livre un lot défectueux, il faut réparer les dégâts (tirage : 40 % de risque, réalisé)."};
+      } },
+  ]
+},
+{
+  title: "Une machine plus rapide est disponible",
+  text: "Un revendeur te propose une machine qui doublerait ta capacité de production, pour 15 000 €.",
+  choices: [
+    { label:"Acheter comptant", desc:"Investissement lourd et immédiat, gain de productivité fort et durable.",
+      effect:()=>({cash:-15000, growth:15, risk:6, note:"La machine est payée intégralement. Ta capacité de production augmente nettement, mais ta trésorerie encaisse le coup."}) },
+    { label:"Financer par crédit (apport 3 000 €)", desc:"Tu étales le coût, mais tu ajoutes de la dette à ton bilan.",
+      effect:()=>({cash:-3000, growth:10, risk:10, note:"Apport de 3 000 € versé, le reste est financé par emprunt. Croissance au rendez-vous, mais tu portes désormais une dette."}) },
+    { label:"Ne pas investir", desc:"Tu restes prudent, mais ta capacité de production stagne.",
+      effect:()=>({cash:0, growth:-3, risk:-1, note:"Aucune dépense, mais tes concurrents équipés prennent l'avantage sur les gros volumes."}) },
+  ]
+},
+{
+  title: "Un salarié clé menace de partir",
+  text: "Ton meilleur technicien a reçu une offre concurrente. Le perdre serait un vrai coup dur pour la production.",
+  choices: [
+    { label:"Augmenter son salaire", desc:"Coût récurrent immédiat, mais tu sécurises ton savoir-faire.",
+      effect:()=>({cash:-2000, growth:2, risk:-6, note:"L'augmentation (équivalent 2 000 € sur l'année) le convainc de rester. Le risque opérationnel baisse nettement."}) },
+    { label:"Le laisser partir et recruter", desc:"Tu économises à court terme, mais le recrutement est incertain — 50/50.",
+      prob:"50 % de bonne recrue",
+      effect:(r)=>{
+        if(r<0.5) return {cash:-1000, growth:5, risk:2, note:"La nouvelle recrue s'intègre bien, l'atelier retrouve vite son rythme (tirage : 50 % de chance, réalisé)."};
+        return {cash:-1000, growth:-8, risk:13, note:"L'intégration se passe mal, la production ralentit plusieurs semaines (tirage : 50 % de risque, réalisé)."};
+      } },
+    { label:"Proposer une participation aux résultats", desc:"Pas de coût cash immédiat, engagement plus profond mais moins liquide.",
+      effect:()=>({cash:0, growth:4, risk:-4, note:"Il accepte de rester, motivé par l'intéressement. Aucun impact sur la trésorerie immédiate."}) },
+  ]
+},
+{
+  title: "Un client majeur paie en retard",
+  text: "Une facture de 9 000 € dépasse son échéance de plus de 30 jours. Ta trésorerie en dépend.",
+  choices: [
+    { label:"Relancer et attendre", desc:"Tu laisses une chance au client de régulariser — 70 % de chance qu'il paie intégralement.",
+      prob:"70 % de paiement intégral",
+      effect:(r)=>{
+        if(r<0.7) return {cash:9000, growth:0, risk:-6, note:"Le client régularise sous 30 jours suite à ta relance (tirage : 70 % de chance, réalisé)."};
+        return {cash:3000, growth:-2, risk:4, note:"Le client ne paie qu'une partie de la facture, le solde est incertain (tirage : 30 % de risque, réalisé)."};
+      } },
+    { label:"Céder la créance (affacturage, frais 5 %)", desc:"Tu récupères l'argent tout de suite, moins une commission.",
+      effect:()=>({cash:8550, growth:0, risk:-8, note:"La société d'affacturage te verse 8 550 € immédiatement (9 000 € moins 5 % de frais). Trésorerie sécurisée sur-le-champ."}) },
+    { label:"Couper la relation commerciale", desc:"Tu coupes court, au prix de la facture et du client.",
+      effect:()=>({cash:0, growth:-6, risk:-3, note:"Tu renonces à la créance et au client. Aucune rentrée d'argent, mais plus d'incertitude non plus."}) },
+  ]
+},
+{
+  title: "Une opportunité d'exporter vers un nouveau marché",
+  text: "Un distributeur étranger est intéressé par tes produits. C'est une piste de croissance, mais totalement inconnue.",
+  choices: [
+    { label:"Tester à petit volume", desc:"Approche prudente, faible engagement, gain modéré mais quasi certain.",
+      effect:()=>({cash:-1000, growth:5, risk:2, note:"Un premier petit envoi est réalisé. Retour d'expérience utile, croissance modérée."}) },
+    { label:"Investir fortement en prospection", desc:"Mise importante sur ce nouveau marché — 50 % de chance de vraie percée.",
+      prob:"50 % de percée commerciale",
+      effect:(r)=>{
+        if(r<0.5) return {cash:-2000, growth:18, risk:4, note:"La prospection paie : un vrai courant d'affaires démarre à l'export (tirage : 50 % de chance, réalisé)."};
+        return {cash:-6000, growth:2, risk:10, note:"La prospection ne débouche sur presque rien, l'investissement est en grande partie perdu (tirage : 50 % de risque, réalisé)."};
+      } },
+    { label:"Ignorer l'opportunité", desc:"Tu restes concentré sur ton marché local, sans risque ni gain.",
+      effect:()=>({cash:0, growth:0, risk:0, note:"Aucun changement. Tu restes sur ton marché habituel."}) },
+  ]
+},
+{
+  title: "Une panne informatique ou cyberattaque te menace",
+  text: "Ton informatique de gestion n'a jamais été sécurisée sérieusement. Le risque est réel mais encore abstrait.",
+  choices: [
+    { label:"Investir en sécurité préventive (2 000 €)", desc:"Dépense immédiate, risque fortement réduit.",
+      effect:()=>({cash:-2000, growth:0, risk:-12, note:"Sauvegardes, antivirus et accès sécurisés sont mis en place. Le risque informatique chute nettement."}) },
+    { label:"Ne rien faire", desc:"Tu économises la dépense — mais 25 % de risque d'incident coûteux cette année.",
+      prob:"25 % de risque d'incident",
+      effect:(r)=>{
+        if(r<0.25) return {cash:-8000, growth:-5, risk:15, note:"Un incident informatique paralyse l'atelier plusieurs jours et coûte cher à réparer (tirage : 25 % de risque, réalisé)."};
+        return {cash:0, growth:0, risk:3, note:"Rien ne se produit cette fois-ci, mais l'exposition reste entière pour la suite (tirage : 75 % de chance, réalisé)."};
+      } },
+    { label:"Souscrire une assurance cyber (800 €)", desc:"Coût modéré, risque partiellement couvert en cas d'incident.",
+      effect:(r)=>{
+        if(r<0.25) return {cash:-800, growth:0, risk:4, note:"Un incident survient mais l'assurance couvre l'essentiel des dégâts (tirage : 25 % de risque, réalisé, coût limité par l'assurance)."};
+        return {cash:-800, growth:0, risk:-6, note:"Aucun incident, mais tu es désormais couvert pour l'avenir (tirage : 75 % de chance, réalisé)."};
+      } },
+  ]
+},
+{
+  title: "Un concurrent baisse ses prix de 15 %",
+  text: "Un concurrent direct casse ses prix pour gagner des parts de marché sur ton segment.",
+  choices: [
+    { label:"Aligner tes prix", desc:"Tu défends ta position commerciale, mais ta marge encaisse le choc.",
+      effect:()=>({cash:-3000, growth:3, risk:2, note:"Tu alignes tes prix pour ne pas perdre de volume. La marge en pâtit directement."}) },
+    { label:"Différencier par la qualité et le service", desc:"Petit investissement, positionnement plus durable.",
+      effect:()=>({cash:-1500, growth:6, risk:-1, note:"Tu investis dans le service client et la qualité perçue plutôt que dans la guerre des prix."}) },
+    { label:"Ignorer et maintenir ta stratégie", desc:"Tu ne bouges pas — 50 % de risque de perdre des clients sensibles au prix.",
+      prob:"50 % de perte de clientèle",
+      effect:(r)=>{
+        if(r<0.5) return {cash:-2000, growth:-8, risk:5, note:"Une partie de la clientèle sensible au prix s'en va chez le concurrent (tirage : 50 % de risque, réalisé)."};
+        return {cash:0, growth:-1, risk:2, note:"Ta clientèle reste globalement fidèle malgré l'écart de prix (tirage : 50 % de chance, réalisé)."};
+      } },
+  ]
+},
+{
+  title: "Un petit concurrent en difficulté est à vendre",
+  text: "Un concurrent local, en difficulté financière, cherche un repreneur pour 20 000 € (activité complète) — ou juste son fonds de commerce pour 8 000 €.",
+  choices: [
+    { label:"Racheter l'activité complète (20 000 €)", desc:"Gros investissement, forte croissance potentielle, intégration risquée.",
+      effect:()=>({cash:-20000, growth:25, risk:15, note:"Le rachat double quasiment ta taille. La croissance est forte, mais l'intégration (équipe, machines, clients) est un vrai défi."}) },
+    { label:"Ne pas racheter", desc:"Tu restes prudent, un concurrent plus gros pourrait le racheter à ta place.",
+      effect:()=>({cash:0, growth:-2, risk:3, note:"Un acteur plus important rachète finalement le concurrent, renforçant la pression concurrentielle sur ton marché."}) },
+    { label:"Racheter juste le fonds de commerce (8 000 €)", desc:"Tu récupères surtout les clients, sans l'intégralité de la structure.",
+      effect:()=>({cash:-8000, growth:12, risk:6, note:"Tu récupères le portefeuille clients à moindre coût, sans les charges de structure du concurrent."}) },
+  ]
+},
+{
+  title: "Bilan annuel : réinvestir ou distribuer ?",
+  text: "L'atelier dégage 10 000 € de bénéfice cette année. Faut-il tout réinvestir, garder un coussin, ou distribuer largement ?",
+  choices: [
+    { label:"Tout réinvestir dans l'outil de production", desc:"Rien n'est distribué, tout part dans la croissance future.",
+      effect:()=>({cash:0, growth:15, risk:2, note:"Le bénéfice part intégralement en investissement productif. Aucune trésorerie disponible en plus, mais une base plus solide pour la suite."}) },
+    { label:"Distribuer une partie, garder un coussin", desc:"Équilibre entre disponibilité immédiate et prudence.",
+      effect:()=>({cash:5000, growth:5, risk:-3, note:"La moitié du bénéfice est distribuée, l'autre moitié renforce la trésorerie de sécurité."}) },
+    { label:"Distribuer largement", desc:"Tu maximises la trésorerie disponible tout de suite, au prix d'un coussin de sécurité réduit.",
+      effect:()=>({cash:9000, growth:-2, risk:8, note:"Presque tout le bénéfice est distribué. Trésorerie immédiate confortable, mais le coussin de sécurité de l'atelier s'amincit."}) },
+  ]
+},
+];
+
+/* ── Stratégies prédéfinies pour le mode comparaison (index de choix 0/1/2
+   pour chacune des 10 décisions), pensées pour être cohérentes et distinctes. */
+const STRATEGIES = {
+  prudent:   { name:"Stratégie Prudente",   picks:[2,0,2,0,1,0,0,1,1,1] },
+  agressif:  { name:"Stratégie Croissance agressive", picks:[0,1,0,1,2,1,1,0,0,0] },
+  equilibre: { name:"Stratégie Équilibrée", picks:[1,2,1,2,1,0,2,2,2,1] },
+};
+
+const START = { cash:50000, growth:20, risk:20 };
+
+/* ── Moteur de simulation pur (utilisé pour la partie jouée ET pour rejouer
+   les stratégies alternatives avec le même seed = mêmes tirages). ───────── */
+function simulate(seed, picks){
+  let state = {...START};
+  const log = [];
+  for(let i=0;i<DECISIONS.length;i++){
+    const dec = DECISIONS[i];
+    const choiceIdx = picks[i];
+    const choice = dec.choices[choiceIdx];
+    const r = rollFor(seed, i);
+    const eff = choice.effect(r);
+    state.cash += eff.cash;
+    state.growth = Math.max(0, Math.min(100, state.growth + eff.growth));
+    state.risk = Math.max(0, Math.min(100, state.risk + eff.risk));
+    log.push({ decision: dec.title, choice: choice.label, eff, state:{...state} });
+  }
+  return { final: state, log };
+}
+
+/* ── État de la partie en cours ──────────────────────────────────────── */
+let G = null; // { seed, i, cash, growth, risk, history:[{title,choice,eff}] }
+
+function newGame(){
+  G = {
+    seed: Math.floor(Date.now()%1e6) + Math.floor(Math.random()*1e6),
+    i: 0,
+    cash: START.cash, growth: START.growth, risk: START.risk,
+    history: [],
+  };
+  showScreen('screen-game');
+  renderStep();
+}
+
+function fmtEur(v){ return (v<0?'-':'') + Math.abs(Math.round(v)).toLocaleString('fr-FR') + ' €'; }
+function deltaSpan(v, unit){
+  if(v===0) return `<span class="delta zero">±0</span>`;
+  const cls = v>0?'up':'down';
+  const sign = v>0?'+':'';
+  return `<span class="delta ${cls}">${sign}${unit==='€'?fmtEur(v):v}</span>`;
+}
+
+function updateGauges(prevCash, prevGrowth, prevRisk){
+  $('v-cash').textContent = fmtEur(G.cash);
+  $('v-growth').textContent = Math.round(G.growth)+' / 100';
+  $('v-risk').textContent = Math.round(G.risk)+' / 100';
+  $('b-cash').style.width = Math.max(2,Math.min(100, (G.cash/70000)*100))+'%';
+  $('b-growth').style.width = G.growth+'%';
+  $('b-risk').style.width = G.risk+'%';
+  if(prevCash!==undefined){
+    $('d-cash').innerHTML = deltaSpan(Math.round(G.cash-prevCash),'€');
+    $('d-growth').innerHTML = deltaSpan(Math.round(G.growth-prevGrowth),'');
+    $('d-risk').innerHTML = deltaSpan(Math.round(G.risk-prevRisk),'');
+  } else {
+    $('d-cash').innerHTML=''; $('d-growth').innerHTML=''; $('d-risk').innerHTML='';
+  }
+  if(G.cash<0){ $('v-cash').style.color='var(--red)'; } else { $('v-cash').style.color=''; }
+}
+
+function renderProgress(){
+  $('progress').innerHTML = DECISIONS.map((_,idx)=>{
+    const cls = idx<G.i ? 'done' : (idx===G.i ? 'cur' : '');
+    return `<i class="${cls}"></i>`;
+  }).join('');
+  $('step-label').textContent = `Décision ${G.i+1} / ${DECISIONS.length}`;
+}
+
+function renderHistory(){
+  const el = $('history');
+  if(!G.history.length){ el.innerHTML = "<div style=\"color:var(--dim2);font-style:italic;font-size:13px\">Aucune décision prise pour l'instant.</div>"; return; }
+  el.innerHTML = G.history.map((h,idx)=>`<div class="h-item"><span><b>${idx+1}. ${h.title}</b> → ${h.choice}</span><span>${h.eff.cash>=0?'+':''}${fmtEur(h.eff.cash)} · croiss. ${h.eff.growth>=0?'+':''}${h.eff.growth} · risque ${h.eff.risk>=0?'+':''}${h.eff.risk}</span></div>`).join('');
+}
+
+function renderStep(){
+  updateGauges();
+  renderProgress();
+  renderHistory();
+  const dec = DECISIONS[G.i];
+  $('sit-title').textContent = dec.title;
+  $('sit-text').textContent = dec.text;
+  $('outcome').style.display='none';
+  $('continue-row').style.display='none';
+  $('choices').style.display='block';
+  $('choices').innerHTML = dec.choices.map((c,idx)=>`
+    <button class="choice" data-idx="${idx}">
+      <div class="lbl">${c.label}</div>
+      <div class="desc">${c.desc}</div>
+      ${c.prob?`<div class="prob">🎲 ${c.prob}</div>`:''}
+    </button>`).join('');
+  Array.from($('choices').querySelectorAll('.choice')).forEach(btn=>{
+    btn.onclick = ()=>choose(parseInt(btn.dataset.idx,10));
+  });
+}
+
+function choose(idx){
+  const dec = DECISIONS[G.i];
+  const choice = dec.choices[idx];
+  const r = rollFor(G.seed, G.i);
+  const eff = choice.effect(r);
+  const prevCash=G.cash, prevGrowth=G.growth, prevRisk=G.risk;
+  G.cash += eff.cash;
+  G.growth = Math.max(0, Math.min(100, G.growth + eff.growth));
+  G.risk = Math.max(0, Math.min(100, G.risk + eff.risk));
+  G.history.push({ title:dec.title, choice:choice.label, eff });
+
+  updateGauges(prevCash, prevGrowth, prevRisk);
+  renderHistory();
+
+  $('choices').style.display='none';
+  $('outcome').style.display='block';
+  $('out-head').textContent = choice.label;
+  $('out-note').textContent = eff.note;
+  $('out-effects').innerHTML = `
+    <span>Trésorerie ${deltaSpan(eff.cash,'€')}</span>
+    <span>Croissance ${deltaSpan(eff.growth,'')}</span>
+    <span>Risque ${deltaSpan(eff.risk,'')}</span>`;
+  $('continue-row').style.display='flex';
+  $('btn-continue').textContent = (G.i === DECISIONS.length-1) ? 'Voir le bilan →' : 'Continuer →';
+}
+
+$('btn-continue').onclick = ()=>{
+  G.i++;
+  if(G.i >= DECISIONS.length){ showEnd(); }
+  else { renderStep(); }
+};
+
+function verdictText(state){
+  const bankrupt = state.cash < 0;
+  const score = state.cash/1000 + state.growth*2 - state.risk*1.5;
+  let label, color;
+  if(bankrupt && state.risk>60){ label='🔴 Entreprise en péril — trésorerie négative et risque élevé.'; }
+  else if(bankrupt){ label="🟠 Trésorerie négative — l'atelier survit mais est sous tension."; }
+  else if(score>60){ label='🟢 Croissance maîtrisée — bon équilibre trésorerie / croissance / risque.'; }
+  else if(score>20){ label='🔵 Trajectoire correcte — des arbitrages globalement sains.'; }
+  else { label='🟠 Sur la corde raide — la trésorerie ou le risque limitent la marge de manœuvre.'; }
+  return `<b>Score global : ${score.toFixed(0)}</b><br>${label}`;
+}
+
+function showEnd(){
+  showScreen('screen-end');
+  $('end-cash').textContent = fmtEur(G.cash);
+  $('end-cash').style.color = G.cash<0?'var(--red)':'';
+  $('end-growth').textContent = Math.round(G.growth)+' / 100';
+  $('end-risk').textContent = Math.round(G.risk)+' / 100';
+  $('verdict').innerHTML = verdictText(G);
+  $('end-history').innerHTML = G.history.map((h,idx)=>`<div class="h-item"><span><b>${idx+1}. ${h.title}</b> → ${h.choice}</span><span>${h.eff.cash>=0?'+':''}${fmtEur(h.eff.cash)} · croiss. ${h.eff.growth>=0?'+':''}${h.eff.growth} · risque ${h.eff.risk>=0?'+':''}${h.eff.risk}</span></div>`).join('');
+}
+
+function showCompare(){
+  showScreen('screen-compare');
+  const myPicks = G.history.map((h,idx)=>DECISIONS[idx].choices.findIndex(c=>c.label===h.choice));
+  const rows = [
+    { name:'Toi', picks:myPicks, mine:true },
+    { name:STRATEGIES.prudent.name, picks:STRATEGIES.prudent.picks },
+    { name:STRATEGIES.agressif.name, picks:STRATEGIES.agressif.picks },
+    { name:STRATEGIES.equilibre.name, picks:STRATEGIES.equilibre.picks },
+  ].map(r=>({...r, sim: simulate(G.seed, r.picks)}));
+
+  let html = `<tr><th>Stratégie</th><th>Trésorerie</th><th>Croissance</th><th>Risque</th><th>Score</th></tr>`;
+  html += rows.map(r=>{
+    const f = r.sim.final;
+    const score = f.cash/1000 + f.growth*2 - f.risk*1.5;
+    return `<tr class="${r.mine?'me':''}"><td>${r.name}${r.mine?' (ta partie)':''}</td><td>${fmtEur(f.cash)}</td><td>${Math.round(f.growth)}/100</td><td>${Math.round(f.risk)}/100</td><td>${score.toFixed(0)}</td></tr>`;
+  }).join('');
+  $('cmp-table').innerHTML = html;
+}
+
+function showScreen(id){
+  document.querySelectorAll('.screen').forEach(s=>s.classList.remove('on'));
+  $(id).classList.add('on');
+  window.scrollTo(0,0);
+}
+
+$('btn-new-game').onclick = newGame;
+$('btn-compare').onclick = showCompare;
+$('btn-back-end').onclick = ()=>showScreen('screen-end');
+$('btn-replay-1').onclick = newGame;
+$('btn-replay-2').onclick = newGame;
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

@@ -1,0 +1,780 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Crypto Tax Simulator — simulateur de scénarios, pas une déclaration</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Simule l'impact fiscal (PFU/flat tax) de tes cessions crypto AVANT de déclarer — art. 150 VH bis, scénarios, anomalies, justificatifs. Un simulateur, pas une déclaration automatique. Sans compte, sans envoi de données.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:32px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:660px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.banner{max-width:820px;margin:18px auto 0;background:rgba(255,159,10,.10);border:1px solid rgba(255,159,10,.35);border-radius:16px;padding:14px 18px;font-size:13.5px;color:#ffd4a3;text-align:left;line-height:1.55;}
+.banner b{color:var(--amber);}
+
+.mode-select{max-width:820px;margin:16px auto 0;display:flex;gap:10px;flex-wrap:wrap;justify-content:center;}
+.mode-btn{flex:1;min-width:220px;font:inherit;text-align:left;background:var(--card);border:1px solid var(--sep);border-radius:14px;color:var(--txt);padding:12px 14px;cursor:pointer;font-weight:600;font-size:13.5px;transition:border-color .2s,background .2s;}
+.mode-btn span{display:block;font-weight:400;color:var(--dim2);font-size:11.5px;margin-top:2px;}
+.mode-btn:hover{border-color:var(--blue);}
+.mode-btn.flash{border-color:var(--blue);background:rgba(41,151,255,.10);}
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+@media(max-width:820px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);border:1px solid transparent;transition:border-color .3s;}
+.card.full{grid-column:1/-1;}
+.card.flash{border-color:var(--blue);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+.card h2 small{font-weight:500;color:var(--dim2);text-transform:none;}
+
+#drop{border:1.5px dashed var(--sep);border-radius:16px;padding:22px 16px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+#drop.hover{border-color:var(--blue);background:rgba(41,151,255,.06);}
+#drop .big{font-size:30px;margin-bottom:6px;}
+#drop .t{font-weight:600;font-size:13.5px;} #drop .h{color:var(--dim2);font-size:12px;margin-top:3px;}
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:12px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn.export{opacity:.4;cursor:not-allowed;}
+.btn.export.ready{opacity:1;cursor:pointer;}
+.btn.sm{padding:5px 11px;font-size:11.5px;}
+.btn.danger{background:rgba(255,69,58,.16);color:#ffb4ae;}
+.btn.danger:hover{background:rgba(255,69,58,.26);}
+
+.hint-cols{margin-top:12px;font-size:11.5px;color:var(--dim2);line-height:1.6;}
+.hint-cols b{color:var(--dim);}
+
+form.addrow{display:grid;grid-template-columns:repeat(6,1fr);gap:8px;margin-top:16px;}
+@media(max-width:980px){form.addrow{grid-template-columns:repeat(2,1fr);}}
+form.addrow label{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.04em;font-weight:600;display:block;margin-bottom:4px;}
+form.addrow input,form.addrow select{width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font);}
+form.addrow input:disabled{opacity:.35;}
+form.addrow .full6{grid-column:1/-1;display:flex;justify-content:flex-end;gap:8px;margin-top:2px;}
+
+table.tx{width:100%;border-collapse:collapse;margin-top:14px;font-size:12.5px;}
+table.tx th{text-align:left;color:var(--dim2);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:0 8px 6px;border-bottom:1px solid var(--sep);}
+table.tx td{padding:7px 8px;border-bottom:.5px solid var(--sep);color:var(--dim);}
+table.tx tr:last-child td{border-bottom:none;}
+table.tx td.mono{font-family:var(--mono);color:var(--txt);}
+table.tx .tag{display:inline-block;padding:1px 8px;border-radius:99px;font-size:10.5px;font-weight:600;}
+.tag.achat{background:rgba(100,210,255,.14);color:var(--cyan);}
+.tag.cession{background:rgba(255,159,10,.15);color:var(--amber);}
+.tag.echange{background:rgba(255,255,255,.10);color:var(--dim);}
+.rmv{cursor:pointer;color:var(--dim2);font-size:14px;} .rmv:hover{color:var(--red);}
+.empty{color:var(--dim2);font-style:italic;font-size:13px;}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.stat{background:var(--card2);border-radius:14px;padding:14px;}
+.stat .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.stat .v{font-size:22px;font-weight:680;letter-spacing:-.02em;margin-top:4px;line-height:1;}
+.stat .v small{font-size:12px;color:var(--dim);font-weight:500;}
+.stat .v.warn{color:var(--amber);} .stat .v.bad{color:var(--red);} .stat .v.ok{color:var(--green);}
+
+.yeartbl{width:100%;border-collapse:collapse;margin-top:10px;font-size:12.5px;}
+.yeartbl th{text-align:left;color:var(--dim2);font-weight:600;font-size:10.5px;text-transform:uppercase;letter-spacing:.04em;padding:6px 8px;border-bottom:1px solid var(--sep);}
+.yeartbl td{padding:8px;border-bottom:.5px solid var(--sep);}
+.yeartbl td.mono{font-family:var(--mono);}
+.badge{display:inline-block;font-size:10.5px;font-weight:600;padding:2px 9px;border-radius:99px;}
+.badge.ok{background:rgba(48,209,88,.14);color:var(--green);}
+.badge.warn{background:rgba(255,159,10,.15);color:var(--amber);}
+.badge.exo{background:rgba(100,210,255,.14);color:var(--cyan);}
+
+.risk{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:.5px solid var(--sep);}
+.risk:first-child{border-top:none;}
+.risk .ic{font-size:18px;flex-shrink:0;line-height:1.3;}
+.risk .body b{font-weight:600;} .risk .body .d{color:var(--dim);font-size:13.5px;margin-top:2px;}
+
+.scenario-form{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:6px;}
+@media(max-width:820px){.scenario-form{grid-template-columns:repeat(2,1fr);}}
+.scenario-note{font-size:12px;color:var(--dim2);margin-top:10px;}
+.delta{margin-top:14px;}
+.delta .row{display:flex;justify-content:space-between;padding:7px 0;border-top:.5px solid var(--sep);font-size:13px;}
+.delta .row:first-child{border-top:none;}
+.delta .row b{color:var(--txt);}
+.delta .row .pos{color:var(--amber);} .delta .row .neg{color:var(--green);}
+
+.checklist{margin-top:6px;}
+.check{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:.5px solid var(--sep);font-size:13px;}
+.check:first-child{border-top:none;}
+.check .st{flex-shrink:0;font-size:15px;}
+.check .body b{font-weight:600;} .check .body .d{color:var(--dim2);font-size:12px;margin-top:2px;}
+
+.gate{margin-top:16px;padding:14px;border-radius:14px;background:var(--card2);border:1px solid var(--sep);}
+.gate label{display:flex;gap:10px;align-items:flex-start;font-size:13px;color:var(--dim);cursor:pointer;}
+.gate input[type=checkbox]{margin-top:2px;flex-shrink:0;width:16px;height:16px;}
+
+.export-row{margin-top:18px;text-align:center;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:680px;margin:0 auto 10px;}
+footer .disc b{color:var(--dim);}
+
+/* Rapport imprimable */
+#report{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #report, #report *{visibility:visible;}
+  #report{display:block;position:absolute;top:0;left:0;width:100%;padding:0;color:#000;background:#fff;font-family:var(--mono);}
+  .r-head{text-align:center;border-bottom:3px solid #000;padding-bottom:10px;margin-bottom:14px;}
+  .r-head h1{font-size:20px;margin:0 0 4px;letter-spacing:0;}
+  .r-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #000;}
+  .r-warn{border:2px solid #000;padding:8px;font-size:12px;margin-bottom:16px;font-weight:700;text-align:center;}
+  .r-years{margin-bottom:16px;}
+  .r-years table{width:100%;border-collapse:collapse;font-size:11px;}
+  .r-years th,.r-years td{border:1px solid #000;padding:5px;text-align:left;}
+  .r-check{margin-bottom:16px;}
+  .r-check .line{padding:4px 0;border-bottom:1px dotted #999;font-size:12px;}
+  .r-audit{font-size:9px;word-break:break-all;margin-bottom:16px;}
+  .r-audit .h{padding:3px 0;border-bottom:1px dotted #999;}
+  .r-foot{margin-top:20px;font-size:10px;text-align:center;color:#333;}
+  .r-sign{margin-top:24px;font-size:11px;display:grid;grid-template-columns:1fr 1fr;gap:20px;}
+  .r-sign div{border-top:1px solid #000;padding-top:4px;}
+}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Crypto Tax Simulator</span></h1>
+    <div class="sub">Simule l'impact fiscal (PFU / flat tax, art. 150 VH bis) de tes cessions crypto <b>avant</b> de déclarer — scénarios, anomalies, justificatifs. Un simulateur, pas un outil de déclaration automatique.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+    <div class="banner">
+      <b>Ce que c'est :</b> un moteur de règles fiscales versionnées + une simulation de scénarios, couplés à une <b>validation humaine explicite</b> à chaque étape.<br>
+      <b>Ce que ce n'est PAS :</b> ce simulateur ne se présente pas comme une déclaration automatique incontestable — il ne dépose rien, ne transmet rien, ne certifie rien seul.<br>
+      <b>Aucune garantie juridique n'est donnée.</b> Fais valider tes chiffres par un professionnel qualifié (expert-comptable, avocat fiscaliste) avant toute déclaration.
+    </div>
+    <div class="mode-select">
+      <button class="mode-btn" id="mode-import" type="button">📥 Importer mon historique complet <span>tout ton historique, cession par cession</span></button>
+      <button class="mode-btn" id="mode-scenario" type="button">🧪 Scénario unique <span>teste UNE hypothèse ponctuelle</span></button>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card" id="card-import">
+      <h2>1 · Importer mon historique <small>(CSV en masse, ou ajout manuel)</small></h2>
+      <div id="drop">
+        <div class="big">⬆︎</div>
+        <div class="t">Dépose un .CSV ici</div>
+        <div class="h">ou clique pour choisir</div>
+      </div>
+      <div class="row-btn">
+        <button class="btn pri" id="pick">Choisir un fichier</button>
+        <button class="btn" id="demo">Charger un exemple</button>
+        <button class="btn" id="dl-example">⬇︎ Télécharger un CSV d'exemple</button>
+        <button class="btn" id="clear">Vider</button>
+      </div>
+      <input type="file" id="file" accept=".csv" hidden>
+      <div class="hint-cols">
+        <b>Format CSV</b> — colonnes canoniques (mêmes noms que le moteur de calcul source, <span style="font-family:var(--mono)">fiscus/models.py</span>) :
+        <span style="font-family:var(--mono)">date, type, asset, amount, value_eur, fees_eur, portfolio_value_eur, platform, ref</span>.
+        Seules <b>date</b>, <b>type</b> et <b>value_eur</b> sont obligatoires ; <b>portfolio_value_eur</b> est requis pour une <b>cession</b> (valeur globale du portefeuille au moment de la cession — art. 150 VH bis) ;
+        <b>amount</b>, <b>platform</b>, <b>ref</b> sont ignorées par le calcul si présentes. <b>type</b> attendu : achat / cession / echange.
+        Des en-têtes FR (date, type, actif, valeur, frais, valeur portefeuille) sont aussi reconnus, dans n'importe quel ordre.
+        Utilise « Télécharger un CSV d'exemple » pour le format exact, prêt à remplir avec ton propre historique.
+      </div>
+
+      <form class="addrow" id="addrow">
+        <div><label>Date</label><input type="date" id="f-date" required></div>
+        <div><label>Type</label>
+          <select id="f-type">
+            <option value="achat">Achat</option>
+            <option value="cession">Cession</option>
+            <option value="echange">Échange crypto↔crypto</option>
+          </select>
+        </div>
+        <div><label>Actif</label><input type="text" id="f-asset" placeholder="BTC" required></div>
+        <div><label>Valeur €</label><input type="number" step="0.01" id="f-value" placeholder="0.00" required></div>
+        <div><label>Frais €</label><input type="number" step="0.01" id="f-fees" placeholder="0.00"></div>
+        <div><label>Valeur portefeuille €<span style="opacity:.6"> (cession)</span></label><input type="number" step="0.01" id="f-vgp" placeholder="requis si cession"></div>
+        <div class="full6"><button type="submit" class="btn pri sm">+ Ajouter la transaction</button></div>
+      </form>
+
+      <table class="tx" id="tx-table" style="display:none">
+        <thead><tr><th>Date</th><th>Type</th><th>Actif</th><th>Valeur</th><th>Frais</th><th>Portef.</th><th></th></tr></thead>
+        <tbody id="tx-body"></tbody>
+      </table>
+      <div class="empty" id="tx-empty">Aucune transaction — charge un exemple ou ajoute-en une.</div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Synthèse par année <small>(art. 150 VH bis, PFU)</small></h2>
+      <div class="stats" id="stats">
+        <div class="stat"><div class="k">Transactions</div><div class="v" id="s-tx">—</div></div>
+        <div class="stat"><div class="k">Cessions imposables</div><div class="v" id="s-cessions">—</div></div>
+        <div class="stat"><div class="k">Impôt PFU estimé</div><div class="v" id="s-impot">—</div></div>
+      </div>
+      <div id="years-wrap" style="margin-top:16px"><div class="empty">Charge des transactions pour lancer la simulation.</div></div>
+
+      <h2 style="margin-top:22px">Détail des cessions <small>(calcul ligne par ligne, PTA après chaque cession — méthode fraction de capital)</small></h2>
+      <div id="cession-detail" style="overflow-x:auto"><div class="empty">—</div></div>
+
+      <h2 style="margin-top:22px">3 · Anomalies & points de vigilance</h2>
+      <div id="risks"><div class="empty">—</div></div>
+    </div>
+
+    <div class="card full" id="card-scenario">
+      <h2>4 · Scénario unique — teste un « et si » avant de déclarer</h2>
+      <div class="scenario-note">Ajoute une cession hypothétique (elle ne modifie PAS tes transactions ci-dessus) pour voir son impact sur l'impôt estimé, année par année.</div>
+      <form class="scenario-form" id="scenario-form">
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Date</label><input type="date" id="sc-date"></div>
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Actif</label><input type="text" id="sc-asset" placeholder="BTC" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Valeur de cession €</label><input type="number" step="0.01" id="sc-value" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Valeur portefeuille €</label><input type="number" step="0.01" id="sc-vgp" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
+      </form>
+      <div class="row-btn" style="justify-content:flex-start;margin-top:10px">
+        <button class="btn pri sm" id="sc-run">Simuler ce scénario</button>
+        <button class="btn sm" id="sc-clear">Effacer le scénario</button>
+      </div>
+      <div class="delta" id="sc-result"><div class="empty">Aucun scénario simulé.</div></div>
+    </div>
+
+    <div class="card full">
+      <h2>5 · Validation humaine — avant toute déclaration</h2>
+      <div class="checklist" id="checklist"><div class="empty">—</div></div>
+      <div class="gate">
+        <label>
+          <input type="checkbox" id="gate-check">
+          <span>Je certifie avoir vérifié ces chiffres avec mes propres relevés (exchanges/wallets), je comprends qu'<b>aucune garantie juridique</b> n'est donnée par cet outil, et je ferai valider ma déclaration par un professionnel qualifié avant tout dépôt.</span>
+        </label>
+      </div>
+      <div class="export-row">
+        <button class="btn export" id="export" disabled>📄 Générer le dossier de justificatifs (PDF)</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc"><b>Simulateur de scénarios, pas une déclaration automatique.</b> Ce simulateur ne se présente pas comme une déclaration automatique incontestable : c'est un moteur de règles versionnées + une validation humaine explicite. Aucune garantie juridique — valide tes chiffres avec un professionnel qualifié avant toute déclaration. Aucune donnée ne quitte ton navigateur.</div>
+    Moteur de calcul dérivé de <b>FISCUS</b> (art. 150 VH bis CGI). · Un outil DELIGNY R&D.
+  </footer>
+</div>
+
+<div id="report">
+  <div class="r-head">
+    <h1>CRYPTO TAX SIMULATOR — DOSSIER DE JUSTIFICATIFS</h1>
+    <div style="font-size:11px">Simulation, PAS une déclaration déposée — DELIGNY R&D</div>
+  </div>
+  <div class="r-meta">
+    <div><b>Généré le :</b> <span id="r-date"></span></div>
+    <div><b>Transactions :</b> <span id="r-tx"></span></div>
+    <div><b>Cessions imposables :</b> <span id="r-cessions"></span></div>
+    <div><b>Impôt PFU estimé total :</b> <span id="r-impot"></span></div>
+  </div>
+  <div class="r-warn">CE DOCUMENT EST UNE SIMULATION. IL NE REMPLACE PAS UNE DÉCLARATION ET N'ENGAGE AUCUNE GARANTIE JURIDIQUE. VALIDATION PAR UN PROFESSIONNEL QUALIFIÉ RECOMMANDÉE AVANT DÉPÔT.</div>
+  <div class="r-years"><div id="r-years-table"></div></div>
+  <div class="r-check">
+    <div id="r-checklist"></div>
+  </div>
+  <div class="r-audit">
+    <div style="font-weight:700;margin-bottom:4px">Chaîne d'audit (SHA-256, une empreinte par cession, chaînée à la précédente) :</div>
+    <div id="r-audit-chain"></div>
+  </div>
+  <div class="r-sign">
+    <div>Signature de l'utilisateur (vérification personnelle)</div>
+    <div>Date</div>
+  </div>
+  <div class="r-foot">Généré localement, aucune donnée envoyée · Régime art. 150 VH bis CGI (particuliers) · Un outil DELIGNY R&D</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+// ── Règles fiscales versionnées (portées de fiscus/rules/regles_<annee>.json) ──
+// taux_pfu = taux_ir_pfu + taux_prelevements_sociaux (cf. fiscus/rules.py:taux_pfu)
+const RULES = {
+  2024: { ir:0.128, ps:0.172, seuil:305, verifie_le:'2026-07-06', source:'CGI art. 150 VH bis · BOFiP BOI-RPPM-PVBMC-30' },
+  2025: { ir:0.128, ps:0.172, seuil:305, verifie_le:'2026-07-06', source:'CGI art. 150 VH bis · BOFiP BOI-RPPM-PVBMC-30' },
+  2026: { ir:0.128, ps:0.186, seuil:305, verifie_le:'2026-07-06', source:'CGI art. 150 VH bis · LFSS 2026 (loi 2025-1403, PS 17,2→18,6 %)' },
+};
+function rulesFor(year){
+  const years = Object.keys(RULES).map(Number).sort((a,b)=>a-b);
+  const fallback = years.filter(y=>y<=year);
+  const chosen = fallback.length ? fallback[fallback.length-1] : years[0];
+  const r = RULES[chosen];
+  return { ...r, annee_regle: chosen, pfu: r.ir + r.ps, fallback: chosen !== year };
+}
+function round2(v){ return Math.round((v + Number.EPSILON) * 100) / 100; }
+function fmtEur(v){ return v===null||v===undefined||isNaN(v) ? '—' : round2(v).toLocaleString('fr-FR',{minimumFractionDigits:2,maximumFractionDigits:2})+' €'; }
+function fmtPct(v){ return (v*100).toLocaleString('fr-FR',{minimumFractionDigits:1,maximumFractionDigits:1})+' %'; }
+
+// ── Moteur — art. 150 VH bis (portage direct de fiscus/engine.py) ──────────
+// fraction de capital = PTA net x (prix de cession / valeur globale du portefeuille)
+// plus-value          = prix de cession - frais de cession - fraction de capital
+// PTA net             = PTA net - fraction de capital
+// Échanges crypto-crypto : sursis d'imposition (PTA inchangé).
+function runEngine(txs){
+  const sorted = [...txs].sort((a,b)=> a.date < b.date ? -1 : a.date > b.date ? 1 : 0);
+  let pta = 0;
+  const events = [];
+  for(const tx of sorted){
+    const fees = Number(tx.fees_eur)||0;
+    if(tx.type === 'achat'){
+      pta += Number(tx.value_eur||0) + fees;
+    } else if(tx.type === 'cession'){
+      const vgp = Number(tx.portfolio_value_eur);
+      if(!vgp || vgp <= 0){
+        events.push({ ...tx, erreur: 'valeur_portefeuille_manquante' });
+        continue;
+      }
+      const prix = Number(tx.value_eur||0);
+      const fraction = pta * prix / vgp;
+      const pv = prix - fees - fraction;
+      pta -= fraction;
+      events.push({
+        date: tx.date, annee: new Date(tx.date+'T00:00:00').getFullYear(), asset: tx.asset,
+        prix_cession_eur: prix, frais_cession_eur: fees, valeur_globale_portefeuille_eur: vgp,
+        fraction_capital_eur: fraction, plus_value_eur: pv, pta_net_apres_eur: pta,
+      });
+    }
+    // echange : neutre, PTA inchangé (sursis d'imposition)
+  }
+  return { events, pta_final: pta };
+}
+
+function summarizeByYear(events){
+  const years = {};
+  for(const ev of events){
+    if(ev.erreur) continue;
+    const y = years[ev.annee] || (years[ev.annee] = { annee: ev.annee, nb_cessions:0, total_cessions_eur:0, plus_value_nette_eur:0 });
+    y.nb_cessions++;
+    y.total_cessions_eur += ev.prix_cession_eur;
+    y.plus_value_nette_eur += ev.plus_value_eur;
+  }
+  return Object.values(years).sort((a,b)=>a.annee-b.annee).map(y=>{
+    const r = rulesFor(y.annee);
+    const exonere = y.total_cessions_eur <= r.seuil;
+    const imposable = !exonere && y.plus_value_nette_eur > 0;
+    const impot = imposable ? y.plus_value_nette_eur * r.pfu : 0;
+    return { ...y, regles: r, exonere, imposable, impot_estime_eur: impot };
+  });
+}
+
+// ── Parseur CSV (portage bom-auditor) ───────────────────────────────────────
+function parseCSV(text){
+  const delim = (text.split('\n')[0].split(';').length > text.split('\n')[0].split(',').length) ? ';' : ',';
+  const rows=[]; let row=[], field='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1];
+    if(inQ){
+      if(c==='"' && n==='"'){ field+='"'; i++; }
+      else if(c==='"'){ inQ=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===delim){ row.push(field); field=''; }
+      else if(c==='\r'){ /* skip */ }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else field+=c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.length>1 || (r[0]||'').trim()!=='');
+}
+function norm(s){ return (s||'').toString().trim().toLowerCase().replace(/[\s_-]/g,''); }
+// Synonymes déclarés en clair (avec espaces/underscores) puis normalisés au chargement,
+// pour matcher à la fois le format canonique fiscus (date,type,asset,amount,value_eur,
+// fees_eur,portfolio_value_eur,platform,ref — cf. fiscus/models.py CANONICAL_COLUMNS et
+// samples/exemple_transactions.csv) et des en-têtes FR manuscrits.
+const COL_SYNONYMS_RAW = {
+  date: ['date'],
+  type: ['type','operation','opération'],
+  asset: ['actif','asset','crypto','token'],
+  value: ['valeur','value','montant','valeur eur','value eur','value_eur'],
+  fees: ['frais','fees','frais eur','fees eur','fees_eur'],
+  vgp: ['valeur portefeuille','portfolio','portfolio value','valeur globale portefeuille',
+        'portfolio eur','portfolio_eur','portfolio value eur','portfolio_value_eur'],
+};
+const COL_SYNONYMS = Object.fromEntries(
+  Object.entries(COL_SYNONYMS_RAW).map(([k,v])=>[k, v.map(norm)])
+);
+function detectCols(header){
+  const idx={};
+  header.forEach((h,i)=>{
+    const nh=norm(h);
+    for(const [key,syns] of Object.entries(COL_SYNONYMS)){
+      if(idx[key]===undefined && syns.includes(nh)) idx[key]=i;
+    }
+  });
+  return idx;
+}
+function normType(s){
+  const t = norm(s);
+  if(['achat','buy','acquisition'].includes(t)) return 'achat';
+  if(['cession','vente','sell','sale'].includes(t)) return 'cession';
+  if(['echange','échange','exchange','swap','trade'].includes(t)) return 'echange';
+  return t;
+}
+function csvToTx(rows){
+  if(rows.length<2) return [];
+  const idx = detectCols(rows[0]);
+  if(idx.date===undefined || idx.type===undefined || idx.value===undefined){
+    alert("CSV illisible : colonnes date / type / valeur introuvables (voir l'aide sous le dépôt de fichier).");
+    return [];
+  }
+  return rows.slice(1).map(r=>({
+    date: (r[idx.date]||'').trim(),
+    type: normType(r[idx.type]),
+    asset: idx.asset!==undefined ? (r[idx.asset]||'').trim() : '',
+    value_eur: parseFloat((r[idx.value]||'0').toString().replace(',','.'))||0,
+    fees_eur: idx.fees!==undefined ? parseFloat((r[idx.fees]||'0').toString().replace(',','.'))||0 : 0,
+    portfolio_value_eur: idx.vgp!==undefined ? (parseFloat((r[idx.vgp]||'').toString().replace(',','.'))||undefined) : undefined,
+  })).filter(t=>t.date && t.type);
+}
+
+// ── État ─────────────────────────────────────────────────────────────────
+let TX = [];
+let LAST = null;
+
+function renderTxTable(){
+  const body = $('tx-body');
+  if(!TX.length){
+    $('tx-table').style.display='none';
+    $('tx-empty').style.display='block';
+    return;
+  }
+  $('tx-table').style.display='table';
+  $('tx-empty').style.display='none';
+  body.innerHTML = TX.map((t,i)=>`
+    <tr>
+      <td class="mono">${t.date}</td>
+      <td><span class="tag ${t.type}">${t.type}</span></td>
+      <td>${t.asset||'—'}</td>
+      <td class="mono">${fmtEur(t.value_eur)}</td>
+      <td class="mono">${fmtEur(t.fees_eur)}</td>
+      <td class="mono">${t.portfolio_value_eur?fmtEur(t.portfolio_value_eur):'—'}</td>
+      <td><span class="rmv" data-i="${i}">✕</span></td>
+    </tr>`).join('');
+  body.querySelectorAll('.rmv').forEach(el=>{
+    el.onclick=()=>{ TX.splice(Number(el.dataset.i),1); recompute(); };
+  });
+}
+
+function recompute(){
+  renderTxTable();
+  if(!TX.length){
+    LAST=null;
+    $('s-tx').textContent='—'; $('s-cessions').textContent='—'; $('s-impot').textContent='—';
+    $('years-wrap').innerHTML='<div class="empty">Charge des transactions pour lancer la simulation.</div>';
+    $('cession-detail').innerHTML='<div class="empty">—</div>';
+    $('risks').innerHTML='<div class="empty">—</div>';
+    $('checklist').innerHTML='<div class="empty">—</div>';
+    $('gate-check').checked=false; $('gate-check').disabled=true;
+    updateGate();
+    return;
+  }
+  $('gate-check').disabled=false;
+  const { events, pta_final } = runEngine(TX);
+  const years = summarizeByYear(events);
+  LAST = { events, years, pta_final };
+  renderStats(events, years);
+  renderYears(years);
+  renderCessionDetail(events);
+  renderRisks(events, years);
+  renderChecklist(events, years);
+  updateGate();
+}
+
+function renderStats(events, years){
+  const validEvents = events.filter(e=>!e.erreur);
+  const totalImpot = years.reduce((s,y)=>s+y.impot_estime_eur,0);
+  $('s-tx').textContent = TX.length;
+  $('s-cessions').textContent = validEvents.length;
+  $('s-impot').innerHTML = totalImpot>0 ? `${fmtEur(totalImpot)}` : `<span class="ok">0 €</span>`;
+}
+
+function renderYears(years){
+  if(!years.length){ $('years-wrap').innerHTML='<div class="empty">Aucune cession imposable détectée.</div>'; return; }
+  const rows = years.map(y=>{
+    const statut = y.exonere
+      ? `<span class="badge exo">exonéré (≤ ${y.regles.seuil} €)</span>`
+      : y.imposable
+        ? `<span class="badge warn">imposable</span>`
+        : `<span class="badge ok">moins-value</span>`;
+    return `<tr>
+      <td>${y.annee}${y.regles.fallback?' <span style="opacity:.5">(règle '+y.regles.annee_regle+')</span>':''}</td>
+      <td class="mono">${y.nb_cessions}</td>
+      <td class="mono">${fmtEur(y.total_cessions_eur)}</td>
+      <td class="mono">${fmtEur(y.plus_value_nette_eur)}</td>
+      <td>${statut}</td>
+      <td class="mono">${fmtPct(y.regles.pfu)}</td>
+      <td class="mono">${fmtEur(y.impot_estime_eur)}</td>
+    </tr>`;
+  }).join('');
+  $('years-wrap').innerHTML = `<table class="yeartbl">
+    <thead><tr><th>Année</th><th>Cessions</th><th>Total cédé</th><th>PV nette</th><th>Statut</th><th>Taux PFU</th><th>Impôt est.</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div style="font-size:11.5px;color:var(--dim2);margin-top:8px">Seuil d'exonération 305 € (total des cessions de l'année) — art. 150 VH bis II-B. Option barème progressif possible (case 3CN) au lieu du PFU, non simulée ici.</div>`;
+}
+
+// Détail cession par cession — rejoue l'ordre chronologique du moteur (runEngine),
+// une ligne = un événement imposable (ou exclu), avec le PTA net après cette cession
+// (preuve que le PTA évolue transaction par transaction, comme fiscus/engine.py).
+function renderCessionDetail(events){
+  if(!events.length){ $('cession-detail').innerHTML='<div class="empty">Aucune cession dans l\'historique chargé.</div>'; return; }
+  const rows = events.map((e,i)=>{
+    if(e.erreur){
+      return `<tr><td class="mono">${i+1}</td><td class="mono">${e.date}</td><td>${e.asset||'—'}</td>
+        <td colspan="6" style="color:var(--red)">Exclue du calcul — valeur de portefeuille manquante</td></tr>`;
+    }
+    return `<tr>
+      <td class="mono">${i+1}</td>
+      <td class="mono">${e.date}</td>
+      <td>${e.asset||'—'}</td>
+      <td class="mono">${fmtEur(e.prix_cession_eur)}</td>
+      <td class="mono">${fmtEur(e.frais_cession_eur)}</td>
+      <td class="mono">${fmtEur(e.valeur_globale_portefeuille_eur)}</td>
+      <td class="mono">${fmtEur(e.fraction_capital_eur)}</td>
+      <td class="mono">${fmtEur(e.plus_value_eur)}</td>
+      <td class="mono">${fmtEur(e.pta_net_apres_eur)}</td>
+    </tr>`;
+  }).join('');
+  $('cession-detail').innerHTML = `<table class="yeartbl">
+    <thead><tr><th>#</th><th>Date</th><th>Actif</th><th>Prix cession</th><th>Frais</th><th>Valeur portef.</th><th>Fraction PTA déduite</th><th>Plus-value</th><th>PTA net après</th></tr></thead>
+    <tbody>${rows}</tbody></table>
+    <div style="font-size:11.5px;color:var(--dim2);margin-top:8px">Formule (par cession) : fraction PTA = PTA net avant × (prix de cession / valeur portefeuille) ; plus-value = prix de cession − frais − fraction PTA ; PTA net après = PTA net avant − fraction PTA. Le PTA diminue à chaque cession, comme dans le moteur source (fiscus/engine.py).</div>`;
+}
+
+function renderRisks(events, years){
+  const R = [];
+  const missingVgp = events.filter(e=>e.erreur==='valeur_portefeuille_manquante');
+  if(missingVgp.length) R.push(['🚫','warn', `${missingVgp.length} cession(s) sans valeur de portefeuille`,
+    `Le calcul art. 150 VH bis exige la valeur globale du portefeuille au moment de la cession — sans elle, ces cessions sont EXCLUES du calcul (non un 0€, une absence de donnée). Complète la colonne "valeur portefeuille".`]);
+  const fallbackYears = years.filter(y=>y.regles.fallback);
+  if(fallbackYears.length) R.push(['⚠️','warn', `Règles fiscales non vérifiées pour ${fallbackYears.map(y=>y.annee).join(', ')}`,
+    `Aucune règle publiée pour cette/ces année(s) — le taux le plus récent connu (${fallbackYears[0].regles.annee_regle}) est utilisé à titre indicatif. À reconfirmer avant déclaration.`]);
+  const noAchat = !TX.some(t=>t.type==='achat');
+  if(noAchat && TX.some(t=>t.type==='cession')) R.push(['🚫','warn', `Aucun achat renseigné`,
+    `Des cessions existent sans aucun achat dans l'historique → le PTA (prix total d'acquisition) part de 0, ce qui SURESTIME la plus-value. Ajoute l'historique complet des achats.`]);
+  const churnByYear = {};
+  years.forEach(y=>{ churnByYear[y.annee] = y.nb_cessions; });
+  const highChurn = years.filter(y=>y.nb_cessions>=20);
+  if(highChurn.length) R.push(['⚠️','warn', `Volume de cessions élevé (${highChurn.map(y=>y.annee+': '+y.nb_cessions).join(', ')})`,
+    `Sous fort volume de transactions, la méthode 150 VH bis "par cession" peut diverger d'un calcul par prix moyen pondéré (PMP) — recoupe avec une contre-vérification manuelle avant de déclarer, ou fais appel à un professionnel.`]);
+  if(!R.length) R.push(['✅','ok', 'Aucune anomalie détectée sur les données saisies', 'Cela ne dispense pas de la vérification humaine (section 5) ni de la validation par un professionnel.']);
+  $('risks').innerHTML = R.map(([ic,cl,t,d])=>`<div class="risk ${cl}"><div class="ic">${ic}</div><div class="body"><b>${t}</b><div class="d">${d}</div></div></div>`).join('');
+}
+
+function renderChecklist(events, years){
+  const validEvents = events.filter(e=>!e.erreur);
+  const missingVgp = events.length - validEvents.length;
+  const items = [
+    {
+      ok: missingVgp===0,
+      t: 'Intégrité du calcul',
+      d: missingVgp===0 ? 'Toutes les cessions ont une valeur de portefeuille — le calcul art. 150 VH bis est complet.' : `${missingVgp} cession(s) non calculée(s) faute de valeur de portefeuille.`,
+    },
+    {
+      ok: years.every(y=>y.nb_cessions<20),
+      t: 'Contre-vérification recommandée',
+      d: years.some(y=>y.nb_cessions>=20) ? 'Volume de cessions élevé sur au moins une année — recoupe avec une seconde méthode (PMP) ou un professionnel.' : 'Volume raisonnable — risque de divergence méthodologique faible.',
+    },
+    {
+      ok: years.every(y=>!y.regles.fallback),
+      t: 'Règles fiscales à jour',
+      d: years.every(y=>!y.regles.fallback) ? 'Chaque année simulée a une règle publiée et vérifiée (voir dates ci-dessous).' : 'Au moins une année utilise une règle de repli non vérifiée — à reconfirmer.',
+    },
+    {
+      ok: TX.length>0,
+      t: 'Justificatifs disponibles',
+      d: 'Vérifie que tu conserves les relevés d\'origine (export exchange/wallet) pour chaque transaction saisie — ce simulateur ne les stocke pas.',
+    },
+  ];
+  $('checklist').innerHTML = items.map(it=>`<div class="check"><div class="st">${it.ok?'✅':'⚠️'}</div><div class="body"><b>${it.t}</b><div class="d">${it.d}</div></div></div>`).join('');
+}
+
+function updateGate(){
+  const exp = $('export');
+  const ok = LAST && TX.length>0 && $('gate-check').checked;
+  exp.disabled = !ok;
+  exp.classList.toggle('ready', !!ok);
+}
+$('gate-check').addEventListener('change', updateGate);
+
+// ── Ajout manuel ─────────────────────────────────────────────────────────
+$('f-type').addEventListener('change', ()=>{
+  $('f-vgp').disabled = $('f-type').value !== 'cession';
+});
+$('addrow').addEventListener('submit', e=>{
+  e.preventDefault();
+  const type = $('f-type').value;
+  const tx = {
+    date: $('f-date').value,
+    type,
+    asset: $('f-asset').value.trim(),
+    value_eur: parseFloat($('f-value').value)||0,
+    fees_eur: parseFloat($('f-fees').value)||0,
+    portfolio_value_eur: type==='cession' ? (parseFloat($('f-vgp').value)||undefined) : undefined,
+  };
+  if(!tx.date || !tx.asset){ return; }
+  TX.push(tx);
+  $('addrow').reset();
+  $('f-vgp').disabled = true;
+  recompute();
+});
+
+// ── Import / démo ────────────────────────────────────────────────────────
+function loadFile(f){
+  if(!f) return;
+  const rd = new FileReader();
+  rd.onload = () => {
+    const rows = parseCSV(rd.result);
+    const parsed = csvToTx(rows);
+    if(parsed.length){ TX = TX.concat(parsed); recompute(); }
+  };
+  rd.readAsText(f, 'utf-8');
+}
+$('pick').onclick = () => $('file').click();
+$('file').onchange = e => loadFile(e.target.files[0]);
+const dz = $('drop');
+dz.onclick = () => $('file').click();
+dz.ondragover = e => { e.preventDefault(); dz.classList.add('hover'); };
+dz.ondragleave = () => dz.classList.remove('hover');
+dz.ondrop = e => { e.preventDefault(); dz.classList.remove('hover'); loadFile(e.dataTransfer.files[0]); };
+
+$('clear').onclick = () => { TX = []; recompute(); };
+
+// Exemple : montre le mécanisme PTA/fraction de capital sur 2 actifs, 2 années
+// (les rythmes/valeurs sont illustratifs, pas les vrais relevés de personne).
+function demoTx(){
+  return [
+    { date:'2024-01-15', type:'achat', asset:'BTC', value_eur:5000, fees_eur:10 },
+    { date:'2024-06-10', type:'achat', asset:'ETH', value_eur:2000, fees_eur:5 },
+    { date:'2024-11-20', type:'cession', asset:'BTC', value_eur:3000, fees_eur:8, portfolio_value_eur:9500 },
+    { date:'2025-03-05', type:'cession', asset:'ETH', value_eur:2500, fees_eur:6, portfolio_value_eur:6500 },
+    { date:'2026-02-01', type:'cession', asset:'BTC', value_eur:4000, fees_eur:10, portfolio_value_eur:4000 },
+  ];
+}
+$('demo').onclick = () => { TX = demoTx(); recompute(); };
+
+// Exemple téléchargeable : format CSV canonique, identique à
+// fiscus/samples/exemple_transactions.csv (même en-têtes, mêmes valeurs)
+// pour rester cohérent avec le moteur Python source plutôt que d'inventer un format.
+function exampleCSVText(){
+  return [
+    'date,type,asset,amount,value_eur,fees_eur,portfolio_value_eur,platform,ref',
+    '2024-01-10,achat,BTC,0.05,2000,10,,Kraken,K-001',
+    '2024-03-15,achat,ETH,1.2,3000,15,,Kraken,K-002',
+    '2024-08-20,echange,BTC,0.03,1500,3,,Kraken,K-003',
+    '2025-02-01,cession,ETH,0.5,1800,5,9000,Kraken,K-004',
+    '2025-05-12,cession,BTC,0.02,1200,4,7500,Kraken,K-005',
+    ''
+  ].join('\n');
+}
+$('dl-example').onclick = () => {
+  const blob = new Blob([exampleCSVText()], { type:'text/csv;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'exemple_transactions.csv';
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
+// ── Sélecteur de mode (navigation) ──────────────────────────────────────
+// Les deux modes partagent le même moteur : "Import" alimente l'historique réel
+// (section 1, manuel ou CSV en masse) ; "Scénario" teste UNE hypothèse ponctuelle
+// par-dessus cet historique (section 4). Le sélecteur amène à la bonne section.
+function flashCard(id){
+  const el = $(id);
+  el.scrollIntoView({ behavior:'smooth', block:'start' });
+  el.classList.add('flash');
+  setTimeout(()=>el.classList.remove('flash'), 1400);
+}
+$('mode-import').onclick = () => flashCard('card-import');
+$('mode-scenario').onclick = () => flashCard('card-scenario');
+
+// init : exemple chargé par défaut (comme bom-auditor)
+TX = demoTx();
+recompute();
+
+// ── Scénario ─────────────────────────────────────────────────────────────
+let SCENARIO = null;
+$('sc-run').addEventListener('click', e=>{
+  e.preventDefault();
+  const date = $('sc-date').value, asset = $('sc-asset').value.trim();
+  const value = parseFloat($('sc-value').value), vgp = parseFloat($('sc-vgp').value);
+  if(!date || !asset || !value || !vgp){ alert('Renseigne date, actif, valeur de cession et valeur de portefeuille pour le scénario.'); return; }
+  SCENARIO = { date, type:'cession', asset, value_eur:value, fees_eur:0, portfolio_value_eur:vgp };
+  renderScenario();
+});
+$('sc-clear').addEventListener('click', e=>{
+  e.preventDefault();
+  SCENARIO = null;
+  $('scenario-form').reset();
+  $('sc-result').innerHTML = '<div class="empty">Aucun scénario simulé.</div>';
+});
+function renderScenario(){
+  if(!SCENARIO || !TX.length){ return; }
+  const baseline = summarizeByYear(runEngine(TX).events);
+  const withScenario = summarizeByYear(runEngine([...TX, SCENARIO]).events);
+  const years = Array.from(new Set([...baseline.map(y=>y.annee), ...withScenario.map(y=>y.annee)])).sort();
+  const rows = years.map(y=>{
+    const b = baseline.find(x=>x.annee===y) || { impot_estime_eur:0, plus_value_nette_eur:0 };
+    const s = withScenario.find(x=>x.annee===y) || { impot_estime_eur:0, plus_value_nette_eur:0 };
+    const deltaImpot = s.impot_estime_eur - b.impot_estime_eur;
+    if(Math.abs(deltaImpot) < 0.005 && Math.abs(s.plus_value_nette_eur-b.plus_value_nette_eur) < 0.005) return '';
+    const cls = deltaImpot>0 ? 'pos' : deltaImpot<0 ? 'neg' : '';
+    return `<div class="row"><span>${y} — impôt PFU estimé</span><b>${fmtEur(b.impot_estime_eur)} → ${fmtEur(s.impot_estime_eur)} <span class="${cls}">(${deltaImpot>=0?'+':''}${fmtEur(deltaImpot)})</span></b></div>`;
+  }).filter(Boolean).join('');
+  $('sc-result').innerHTML = (rows || '<div class="empty">Le scénario ne change aucune année (vérifie la date/valeur).</div>')
+    + '<div class="scenario-note" style="margin-top:10px">Ce scénario n\'a RIEN ajouté à tes transactions réelles (section 1) — c\'est une simulation isolée.</div>';
+}
+
+// ── Export / dossier de justificatifs (chaîne SHA-256, portage engine.py) ──
+async function sha256Hex(str){
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(str));
+  return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,'0')).join('');
+}
+function canonical(obj){
+  const keys = Object.keys(obj).sort();
+  return JSON.stringify(obj, keys);
+}
+async function buildAuditChain(events){
+  let prev = '0'.repeat(64);
+  const chain = [];
+  for(const ev of events){
+    if(ev.erreur) continue;
+    const payload = {
+      date: ev.date, annee: ev.annee, asset: ev.asset,
+      prix_cession_eur: round2(ev.prix_cession_eur), frais_cession_eur: round2(ev.frais_cession_eur),
+      valeur_globale_portefeuille_eur: round2(ev.valeur_globale_portefeuille_eur),
+      fraction_capital_eur: round2(ev.fraction_capital_eur), plus_value_eur: round2(ev.plus_value_eur),
+    };
+    const h = await sha256Hex(prev + canonical(payload));
+    chain.push({ ...payload, hash_precedent: prev, hash: h });
+    prev = h;
+  }
+  return chain;
+}
+$('export').addEventListener('click', async () => {
+  if(!LAST || $('export').disabled) return;
+  const { events, years } = LAST;
+  const validEvents = events.filter(e=>!e.erreur);
+  const totalImpot = years.reduce((s,y)=>s+y.impot_estime_eur,0);
+  $('r-date').textContent = new Date().toLocaleString('fr-FR');
+  $('r-tx').textContent = TX.length;
+  $('r-cessions').textContent = validEvents.length;
+  $('r-impot').textContent = fmtEur(totalImpot);
+  $('r-years-table').innerHTML = `<table>
+    <tr><th>Année</th><th>Cessions</th><th>Total cédé</th><th>PV nette</th><th>Statut</th><th>Taux PFU</th><th>Impôt est.</th></tr>
+    ${years.map(y=>`<tr><td>${y.annee}</td><td>${y.nb_cessions}</td><td>${fmtEur(y.total_cessions_eur)}</td><td>${fmtEur(y.plus_value_nette_eur)}</td><td>${y.exonere?'exonéré':y.imposable?'imposable':'moins-value'}</td><td>${fmtPct(y.regles.pfu)}</td><td>${fmtEur(y.impot_estime_eur)}</td></tr>`).join('')}
+  </table>`;
+  const checklistText = document.querySelectorAll('#checklist .check .body b');
+  $('r-checklist').innerHTML = Array.from(checklistText).map(el=>`<div class="line">☑ ${el.textContent}</div>`).join('')
+    + `<div class="line">☑ Validé par l'utilisateur le ${new Date().toLocaleString('fr-FR')} (case cochée avant export)</div>`;
+  const chain = await buildAuditChain(events);
+  $('r-audit-chain').innerHTML = chain.map((c,i)=>`<div class="h"><b>#${i+1} ${c.date} ${c.asset}</b> — PV ${c.plus_value_eur}€ — hash ${c.hash}</div>`).join('') || '<div>Aucune cession valide à chaîner.</div>';
+  window.print();
+});
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

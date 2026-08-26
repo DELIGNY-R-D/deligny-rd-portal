@@ -1,0 +1,386 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>BOM Auditor — audit gratuit de nomenclature</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Analyse gratuite d'une nomenclature (BOM) CSV : doublons, références orphelines, coûts manquants, fournisseurs manquants, incohérences. Sans compte, sans inscription.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;}
+@media(max-width:820px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+
+#drop{border:1.5px dashed var(--sep);border-radius:16px;padding:30px 18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+#drop.hover{border-color:var(--blue);background:rgba(41,151,255,.06);}
+#drop .big{font-size:40px;margin-bottom:8px;}
+#drop .t{font-weight:600;} #drop .h{color:var(--dim2);font-size:13px;margin-top:4px;}
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn.export{opacity:.4;cursor:not-allowed;}
+.btn.export.ready{opacity:1;cursor:pointer;}
+
+.hint-cols{margin-top:14px;font-size:12px;color:var(--dim2);line-height:1.6;}
+.hint-cols b{color:var(--dim);}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.stat{background:var(--card2);border-radius:14px;padding:14px;}
+.stat .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.stat .v{font-size:23px;font-weight:680;letter-spacing:-.02em;margin-top:4px;line-height:1;}
+.stat .v small{font-size:13px;color:var(--dim);font-weight:500;}
+.stat .v.warn{color:var(--amber);} .stat .v.bad{color:var(--red);} .stat .v.ok{color:var(--green);}
+.badge{display:inline-block;margin-top:8px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;}
+.badge.ok{background:rgba(48,209,88,.14);color:var(--green);} .badge.warn{background:rgba(255,159,10,.15);color:var(--amber);}
+
+.risk{display:flex;gap:12px;align-items:flex-start;padding:12px 0;border-top:.5px solid var(--sep);}
+.risk:first-child{border-top:none;}
+.risk .ic{font-size:18px;flex-shrink:0;line-height:1.3;}
+.risk .body b{font-weight:600;} .risk .body .d{color:var(--dim);font-size:13.5px;margin-top:2px;}
+.empty{color:var(--dim2);font-style:italic;font-size:13px;}
+
+.export-row{margin-top:18px;text-align:center;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:640px;margin:0 auto 10px;}
+
+/* Rapport imprimable */
+#report{display:none;}
+@media print{
+  body *{visibility:hidden;}
+  #report, #report *{visibility:visible;}
+  #report{display:block;position:absolute;top:0;left:0;width:100%;padding:0;color:#000;background:#fff;font-family:var(--mono);}
+  .r-head{text-align:center;border-bottom:3px solid #000;padding-bottom:10px;margin-bottom:14px;}
+  .r-head h1{font-size:20px;margin:0 0 4px;letter-spacing:0;}
+  .r-meta{display:grid;grid-template-columns:1fr 1fr;gap:4px 20px;font-size:12px;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #000;}
+  .r-conf{text-align:center;font-size:16px;font-weight:700;margin-bottom:16px;padding:8px;border:2px solid #000;}
+  .r-stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px;font-size:12px;}
+  .r-stats div{border:1px solid #000;padding:6px;}
+  .r-check{margin-bottom:16px;}
+  .r-check .line{padding:4px 0;border-bottom:1px dotted #999;font-size:12px;}
+  .r-foot{margin-top:20px;font-size:10px;text-align:center;color:#333;}
+}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">BOM Auditor</span></h1>
+    <div class="sub">Dépose une nomenclature (BOM) en CSV : doublons, références orphelines, coûts et fournisseurs manquants, incohérences — en 3 secondes.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Ta nomenclature</h2>
+      <div id="drop">
+        <div class="big">⬆︎</div>
+        <div class="t">Dépose un .CSV ici</div>
+        <div class="h">ou clique pour choisir</div>
+      </div>
+      <div class="row-btn">
+        <button class="btn pri" id="pick">Choisir un fichier</button>
+        <button class="btn" id="demo">Charger un exemple</button>
+      </div>
+      <input type="file" id="file" accept=".csv" hidden>
+      <div class="hint-cols">
+        Colonnes reconnues (n'importe quel ordre, en français ou anglais) :<br>
+        <b>Référence</b> (Ref/SKU/Code) · <b>Désignation</b> (Nom/Name/Description) ·
+        <b>Quantité</b> (Qty/Quantity) · <b>Fournisseur</b> (Supplier) ·
+        <b>Coût unitaire</b> (Cost/PrixUnitaire) · <b>Parent</b> (ParentRef, optionnel — structure d'assemblage)
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Synthèse</h2>
+      <div class="stats" id="stats">
+        <div class="stat"><div class="k">Lignes</div><div class="v" id="s-lines">—</div></div>
+        <div class="stat"><div class="k">Coût total</div><div class="v" id="s-cost">—</div></div>
+        <div class="stat"><div class="k">Fournisseurs</div><div class="v" id="s-sup">—</div></div>
+        <div class="stat"><div class="k">Doublons</div><div class="v" id="s-dup">—</div></div>
+        <div class="stat"><div class="k">Références orph.</div><div class="v" id="s-orph">—</div></div>
+        <div class="stat"><div class="k">État</div><div class="v" id="s-state" style="font-size:15px">—</div></div>
+      </div>
+      <h2 style="margin-top:22px">3 · Anomalies</h2>
+      <div id="risks"><div class="empty">Charge une nomenclature pour lancer l'analyse.</div></div>
+      <div class="export-row">
+        <button class="btn export" id="export" disabled>📄 Exporter le rapport (PDF)</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Analyse indicative basée sur le fichier fourni — ne remplace pas une revue ERP/PLM. Aucune donnée ne quitte ton navigateur.</div>
+    Moteur d'analyse dérivé de <b>General Design Studio</b>. · Un outil DELIGNY.
+  </footer>
+</div>
+
+<div id="report">
+  <div class="r-head">
+    <h1>BOM AUDIT REPORT</h1>
+    <div style="font-size:11px">BOM Auditor — DELIGNY R&D</div>
+  </div>
+  <div class="r-meta">
+    <div><b>Fichier :</b> <span id="r-project"></span></div>
+    <div><b>Date :</b> <span id="r-date"></span></div>
+    <div><b>Lignes :</b> <span id="r-lines"></span></div>
+    <div><b>Coût total :</b> <span id="r-cost"></span></div>
+  </div>
+  <div class="r-conf" id="r-confidence"></div>
+  <div class="r-stats" id="r-stats"></div>
+  <div class="r-check">
+    <div id="r-checklist"></div>
+  </div>
+  <div class="r-foot">Analyse indicative, pas une revue ERP/PLM · Généré localement, aucune donnée envoyée · Un outil DELIGNY R&D</div>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+// ── Parseur CSV (virgule ou point-virgule, champs entre guillemets) ─────────
+function parseCSV(text){
+  const delim = (text.split('\n')[0].split(';').length > text.split('\n')[0].split(',').length) ? ';' : ',';
+  const rows=[]; let row=[], field='', inQ=false;
+  for(let i=0;i<text.length;i++){
+    const c=text[i], n=text[i+1];
+    if(inQ){
+      if(c==='"' && n==='"'){ field+='"'; i++; }
+      else if(c==='"'){ inQ=false; }
+      else field+=c;
+    } else {
+      if(c==='"') inQ=true;
+      else if(c===delim){ row.push(field); field=''; }
+      else if(c==='\r'){ /* skip */ }
+      else if(c==='\n'){ row.push(field); rows.push(row); row=[]; field=''; }
+      else field+=c;
+    }
+  }
+  if(field.length || row.length){ row.push(field); rows.push(row); }
+  return rows.filter(r=>r.length>1 || (r[0]||'').trim()!=='');
+}
+
+// ── Détection souple des colonnes (FR/EN, synonymes) ─────────────────────────
+const COL_SYNONYMS = {
+  ref: ['reference','référence','ref','sku','code','partnumber','pn'],
+  name: ['designation','désignation','nom','name','description','libelle','libellé'],
+  qty: ['quantite','quantité','qty','quantity','qte'],
+  supplier: ['fournisseur','supplier','vendor'],
+  cost: ['cout','coût','coutunitaire','coûtunitaire','cost','unitcost','prixunitaire','prix'],
+  parent: ['parent','parentref','parentreference','assembly'],
+};
+function norm(s){ return (s||'').toString().trim().toLowerCase().replace(/[\s_-]/g,''); }
+function detectCols(header){
+  const idx={};
+  header.forEach((h,i)=>{
+    const nh=norm(h);
+    for(const [key,syns] of Object.entries(COL_SYNONYMS)){
+      if(!idx[key] && syns.includes(nh)) idx[key]=i;
+    }
+  });
+  return idx;
+}
+
+// ── Analyse ───────────────────────────────────────────────────────────────
+function analyze(rows){
+  const header=rows[0], body=rows.slice(1);
+  const idx=detectCols(header);
+  const R=[]; // [icon, class, title, detail]
+
+  if(idx.ref===undefined){
+    R.push(['🚫','warn','Colonne référence introuvable',
+      `Aucune colonne reconnue parmi : ${COL_SYNONYMS.ref.join(', ')}. Impossible d'analyser sans identifiant de pièce.`]);
+    return { R, stats:{lines:body.length, cost:null, suppliers:0, dup:0, orph:0}, rows:[] };
+  }
+
+  const items=body.map((r,i)=>({
+    line:i+2, ref:(r[idx.ref]||'').trim(),
+    name: idx.name!==undefined ? (r[idx.name]||'').trim() : '',
+    qty: idx.qty!==undefined ? r[idx.qty] : undefined,
+    supplier: idx.supplier!==undefined ? (r[idx.supplier]||'').trim() : undefined,
+    cost: idx.cost!==undefined ? r[idx.cost] : undefined,
+    parent: idx.parent!==undefined ? (r[idx.parent]||'').trim() : undefined,
+  })).filter(it=>it.ref!=='' || it.name!=='');
+
+  // Références manquantes
+  const noRef=items.filter(it=>it.ref==='');
+  if(noRef.length) R.push(['⚠️','warn',`${noRef.length} ligne(s) sans référence`,
+    `Lignes : ${noRef.map(it=>it.line).slice(0,10).join(', ')}${noRef.length>10?'…':''}. Une pièce sans référence ne peut pas être tracée ni commandée.`]);
+
+  // Doublons exacts vs en désaccord
+  const byRef={};
+  items.forEach(it=>{ if(it.ref){ (byRef[it.ref]=byRef[it.ref]||[]).push(it); } });
+  let dupExact=0, dupConflict=0;
+  const conflictDetails=[];
+  for(const [ref,its] of Object.entries(byRef)){
+    if(its.length<2) continue;
+    const sameQty = new Set(its.map(it=>(it.qty||'').toString().trim())).size<=1;
+    const sameName = new Set(its.map(it=>it.name)).size<=1;
+    if(sameQty && sameName) dupExact++;
+    else { dupConflict++; conflictDetails.push(`${ref} (lignes ${its.map(it=>it.line).join(', ')})`); }
+  }
+  if(dupExact) R.push(['⚠️','warn',`${dupExact} référence(s) dupliquée(s) à l'identique`,
+    `Même référence répétée plusieurs fois avec les mêmes valeurs — probablement à fusionner en une seule ligne.`]);
+  if(dupConflict) R.push(['🚫','warn',`${dupConflict} référence(s) dupliquée(s) EN DÉSACCORD`,
+    `${conflictDetails.slice(0,5).join(' · ')}${conflictDetails.length>5?'…':''} — même référence mais quantité ou désignation différente selon la ligne. Erreur de saisie probable, à vérifier en priorité.`]);
+
+  // Quasi-doublons (typo probable : casse/espaces)
+  const seenNorm={};
+  items.forEach(it=>{ if(it.ref){ const k=norm(it.ref); (seenNorm[k]=seenNorm[k]||new Set()).add(it.ref); } });
+  const nearDups=Object.values(seenNorm).filter(s=>s.size>1).map(s=>[...s].join(' / '));
+  if(nearDups.length) R.push(['⚠️','warn',`${nearDups.length} référence(s) quasi-identique(s)`,
+    `${nearDups.slice(0,5).join(' · ')}${nearDups.length>5?'…':''} — variantes de casse/espaces d'une même référence, probable faute de frappe plutôt que deux pièces distinctes.`]);
+
+  // Quantités invalides
+  if(idx.qty!==undefined){
+    const badQty=items.filter(it=>{
+      const q=parseFloat((it.qty||'').toString().replace(',','.'));
+      return it.qty===undefined || it.qty==='' || isNaN(q) || q<=0;
+    });
+    if(badQty.length) R.push(['⚠️','warn',`${badQty.length} ligne(s) à quantité invalide ou nulle`,
+      `Lignes : ${badQty.map(it=>it.line).slice(0,10).join(', ')}${badQty.length>10?'…':''}.`]);
+  }
+
+  // Coûts manquants
+  let totalCost=null;
+  if(idx.cost!==undefined){
+    const missingCost=items.filter(it=>it.cost===undefined || it.cost.toString().trim()==='');
+    if(missingCost.length) R.push(['⚠️','warn',`${missingCost.length} ligne(s) sans coût unitaire`,
+      `Lignes : ${missingCost.map(it=>it.line).slice(0,10).join(', ')}${missingCost.length>10?'…':''} — coût total sous-estimé tant que ces lignes ne sont pas complétées.`]);
+    totalCost=items.reduce((s,it)=>{
+      const c=parseFloat((it.cost||'0').toString().replace(',','.'));
+      const q=parseFloat((it.qty||'1').toString().replace(',','.'));
+      return s + (isNaN(c)||isNaN(q) ? 0 : c*q);
+    },0);
+  }
+
+  // Fournisseurs manquants
+  let supplierCount=0;
+  if(idx.supplier!==undefined){
+    const missingSup=items.filter(it=>!it.supplier);
+    if(missingSup.length) R.push(['⚠️','warn',`${missingSup.length} ligne(s) sans fournisseur`,
+      `Lignes : ${missingSup.map(it=>it.line).slice(0,10).join(', ')}${missingSup.length>10?'…':''} — approvisionnement non tracé pour ces pièces.`]);
+    supplierCount = new Set(items.filter(it=>it.supplier).map(it=>norm(it.supplier))).size;
+  }
+
+  // Références parent orphelines (structure d'assemblage)
+  let orphCount=0;
+  if(idx.parent!==undefined){
+    const refSet=new Set(items.map(it=>it.ref));
+    const orphans=items.filter(it=>it.parent && !refSet.has(it.parent));
+    orphCount=orphans.length;
+    if(orphans.length) R.push(['🚫','warn',`${orphans.length} référence(s) parent introuvable(s)`,
+      `${orphans.slice(0,5).map(it=>`${it.ref}→${it.parent}`).join(' · ')}${orphans.length>5?'…':''} — ces pièces pointent vers un assemblage parent absent de la nomenclature.`]);
+  }
+
+  if(!R.length) R.push(['✅','ok','Aucune anomalie détectée', 'La nomenclature est cohérente sur les points vérifiés.']);
+
+  return {
+    R,
+    stats:{ lines: items.length, cost: totalCost, suppliers: supplierCount, dup: dupExact+dupConflict, orph: orphCount },
+    rows: items,
+  };
+}
+
+// ── Pipeline ─────────────────────────────────────────────────────────────
+let LAST=null, curFileName='Exemple';
+function run(rows){
+  if(!rows || rows.length<2){ alert('CSV illisible ou vide (il faut au moins un en-tête + 1 ligne).'); return; }
+  LAST=analyze(rows);
+  render();
+}
+function fmtEur(v){ return v===null ? '—' : v.toFixed(2)+' €'; }
+function render(){
+  if(!LAST) return;
+  const {R,stats}=LAST;
+  $('s-lines').textContent=stats.lines;
+  $('s-cost').innerHTML=stats.cost===null?'—':`${stats.cost.toFixed(0)}<small> €</small>`;
+  $('s-sup').textContent=stats.suppliers||'—';
+  $('s-dup').innerHTML=`<span class="${stats.dup?'warn':'ok'}">${stats.dup}</span>`;
+  $('s-orph').innerHTML=`<span class="${stats.orph?'warn':'ok'}">${stats.orph}</span>`;
+  const blocking=R.some(([ic])=>ic==='🚫');
+  const hasWarn=R.some(([,cl])=>cl==='warn');
+  $('s-state').innerHTML= blocking ? '<span class="badge warn">🔴 à corriger</span>'
+                         : hasWarn ? '<span class="badge warn">🟠 attention</span>'
+                         : '<span class="badge ok">🟢 propre</span>';
+  $('risks').innerHTML=R.map(([ic,cl,t,d])=>`<div class="risk ${cl}"><div class="ic">${ic}</div><div class="body"><b>${t}</b><div class="d">${d}</div></div></div>`).join('');
+  const exp=$('export'); exp.disabled=false; exp.classList.add('ready');
+}
+
+function confidence(R){
+  if(R.some(([ic])=>ic==='🚫')) return ['🔴','À CORRIGER AVANT UTILISATION'];
+  if(R.some(([,cl])=>cl==='warn')) return ['🟠','ATTENTION AVANT UTILISATION'];
+  return ['🟢','NOMENCLATURE PROPRE'];
+}
+function buildReport(){
+  if(!LAST) return;
+  const {R,stats}=LAST;
+  const [emoji,label]=confidence(R);
+  $('r-project').textContent=curFileName;
+  $('r-date').textContent=new Date().toLocaleDateString('fr-FR');
+  $('r-lines').textContent=stats.lines;
+  $('r-cost').textContent=fmtEur(stats.cost);
+  $('r-confidence').textContent=`${emoji} ${label}`;
+  $('r-stats').innerHTML=[
+    ['Lignes analysées', stats.lines],
+    ['Coût total estimé', fmtEur(stats.cost)],
+    ['Fournisseurs uniques', stats.suppliers||'—'],
+    ['Doublons', stats.dup],
+    ['Références orphelines', stats.orph],
+  ].map(([k,v])=>`<div><b>${k}</b><br>${v}</div>`).join('');
+  $('r-checklist').innerHTML=R.map(([ic,,t])=>`<div class="line">${ic==='✅'?'☑':'☐'} ${t}</div>`).join('');
+}
+$('export').onclick=()=>{ if(!LAST) return; buildReport(); window.print(); };
+
+// upload
+function loadFile(f){
+  if(!f) return;
+  curFileName=f.name.replace(/\.csv$/i,'');
+  const rd=new FileReader();
+  rd.onload=()=>run(parseCSV(rd.result));
+  rd.readAsText(f, 'utf-8');
+}
+$('pick').onclick=()=>$('file').click();
+$('file').onchange=e=>loadFile(e.target.files[0]);
+const dz=$('drop');
+dz.onclick=()=>$('file').click();
+dz.ondragover=e=>{e.preventDefault();dz.classList.add('hover');};
+dz.ondragleave=()=>dz.classList.remove('hover');
+dz.ondrop=e=>{e.preventDefault();dz.classList.remove('hover');loadFile(e.dataTransfer.files[0]);};
+
+// ── Exemple de démo (anomalies volontaires : doublon en désaccord, quasi-doublon,
+// quantité invalide, fournisseur manquant, parent orphelin) ─────────────────
+function demoCSV(){
+  return [
+    'Reference,Designation,Quantite,Fournisseur,CoutUnitaire,Parent',
+    'VIS-M4-10,Vis M4x10,20,Boulonnerie Plus,0.08,BRAS-01',
+    'VIS-M4-10,Vis M4x10,24,Boulonnerie Plus,0.09,BRAS-01',        // doublon EN DÉSACCORD (qty + coût différents)
+    'vis-m4-10 ,Vis M4x10,20,Boulonnerie Plus,0.08,BRAS-01',       // quasi-doublon (casse/espace)
+    'ECROU-M4,Écrou M4,20,Boulonnerie Plus,0.05,BRAS-01',
+    'PLAQUE-ALU-3,Plaque alu 3mm,1,,12.50,BRAS-01',                // fournisseur manquant
+    'ROULEMENT-608,Roulement 608ZZ,-2,SKF France,1.20,BRAS-01',    // quantité invalide (négative)
+    'BRAS-01,Sous-ensemble bras,1,,0,CHASSIS-99',                  // parent CHASSIS-99 introuvable
+  ].join('\n');
+}
+$('demo').onclick=()=>{ curFileName='Exemple BOM'; run(parseCSV(demoCSV())); };
+
+// init
+run(parseCSV(demoCSV()));
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

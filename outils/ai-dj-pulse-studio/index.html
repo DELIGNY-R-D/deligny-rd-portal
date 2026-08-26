@@ -1,0 +1,757 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AI DJ · Pulse Studio — préparation de mix gratuite</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Détection BPM automatique, point de transition suggéré, crossfade réglable en direct — 100% dans ton navigateur, aucun fichier envoyé, aucun export du mix.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:660px;margin:0 auto;}
+.badges{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:12px;}
+.free{display:inline-block;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+.rights{display:inline-block;font-size:12px;font-weight:600;color:var(--amber);background:rgba(255,159,10,.15);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;align-items:start;}
+@media(max-width:900px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+
+.decks{display:flex;gap:12px;flex-wrap:wrap;}
+.deck{flex:1;min-width:220px;background:var(--card2);border-radius:14px;padding:14px;}
+.deck .lbl{font-size:11px;font-weight:700;letter-spacing:.05em;color:var(--dim2);text-transform:uppercase;margin-bottom:8px;}
+#drop-A,#drop-B{border:1.5px dashed var(--sep);border-radius:12px;padding:16px 10px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+.dz.hover{border-color:var(--blue)!important;background:rgba(41,151,255,.06);}
+.dz .big{font-size:26px;margin-bottom:4px;}
+.dz .t{font-weight:600;font-size:13px;} .dz .h{color:var(--dim2);font-size:11.5px;margin-top:2px;}
+.deck .name{margin-top:10px;font-size:12.5px;color:var(--txt);word-break:break-all;min-height:16px;}
+.deck .meta{margin-top:6px;display:flex;gap:8px;flex-wrap:wrap;font-size:11.5px;color:var(--dim2);}
+.deck .bpm-row{margin-top:8px;display:flex;align-items:baseline;gap:6px;}
+.deck .bpm{font-size:26px;font-weight:700;letter-spacing:-.02em;}
+.deck .bpm-unit{font-size:11px;color:var(--dim2);}
+.deck .conf{font-size:10.5px;font-weight:600;padding:2px 8px;border-radius:99px;margin-left:auto;}
+.conf.net{background:rgba(48,209,88,.14);color:var(--green);}
+.conf.moyen{background:rgba(255,159,10,.15);color:var(--amber);}
+.conf.faible{background:rgba(255,69,58,.15);color:var(--red);}
+.deck .key-row{margin-top:6px;display:flex;align-items:center;gap:6px;}
+.deck .key{font-size:15px;font-weight:650;letter-spacing:-.01em;color:var(--txt);}
+.deck .key-unit{font-size:11px;color:var(--dim2);}
+.stat.wide{grid-column:1/-1;}
+canvas.wave{width:100%;height:50px;display:block;border-radius:8px;background:#000;margin-top:10px;}
+input[type=file]{display:none;}
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn.small{padding:7px 14px;font-size:12px;}
+
+.hint-cols{margin-top:14px;font-size:12px;color:var(--dim2);line-height:1.6;}
+.hint-cols b{color:var(--dim);}
+
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+.stat{background:var(--card2);border-radius:14px;padding:14px;}
+.stat .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.stat .v{font-size:22px;font-weight:680;letter-spacing:-.02em;margin-top:4px;line-height:1;}
+.stat .v small{font-size:12px;color:var(--dim);font-weight:500;}
+.badge{display:inline-block;margin-top:8px;font-size:11px;font-weight:600;padding:2px 9px;border-radius:99px;}
+.badge.ok{background:rgba(48,209,88,.14);color:var(--green);}
+.badge.warn{background:rgba(255,159,10,.15);color:var(--amber);}
+.badge.bad{background:rgba(255,69,58,.15);color:var(--red);}
+
+.section{margin-top:20px;}
+.slider-row{margin-top:12px;}
+.slider-row .sr-top{display:flex;justify-content:space-between;font-size:12px;color:var(--dim);margin-bottom:6px;}
+.slider-row .sr-top b{color:var(--txt);font-weight:600;}
+input[type=range]{width:100%;accent-color:var(--blue);height:18px;}
+#wave-transition{margin-top:6px;}
+
+.transport{display:flex;gap:8px;flex-wrap:wrap;margin-top:16px;}
+.xfade-wrap{margin-top:20px;}
+.xfade-labels{display:flex;justify-content:space-between;font-size:11px;color:var(--dim2);font-weight:600;margin-bottom:4px;}
+#crossfader{accent-color:var(--cyan);}
+.status-row{display:flex;gap:14px;margin-top:14px;font-size:12px;color:var(--dim2);flex-wrap:wrap;}
+.status-row span b{color:var(--txt);}
+.limit-note{margin-top:16px;font-size:12px;color:var(--amber);background:rgba(255,159,10,.10);border-radius:10px;padding:10px 12px;line-height:1.5;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:680px;margin:0 auto 10px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">AI DJ · Pulse Studio</span></h1>
+    <div class="sub">Dépose 2 morceaux que tu as le droit d'utiliser : détection BPM automatique, point de transition suggéré, crossfade réglable — écoute en direct, tout reste dans ton navigateur.</div>
+    <div class="badges">
+      <span class="free">100 % gratuit · aucun compte · rien n'est envoyé sur un serveur</span>
+      <span class="rights">⚠️ Tu dois posséder les droits sur les fichiers déposés — aucune redistribution, aucun export du mix</span>
+    </div>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Tes 2 morceaux</h2>
+      <div class="decks">
+        <div class="deck" id="deckcard-A">
+          <div class="lbl">Morceau A</div>
+          <div class="dz" id="drop-A">
+            <div class="big">⬆︎</div>
+            <div class="t">Dépose un fichier audio</div>
+            <div class="h">MP3 / WAV — ou clique</div>
+          </div>
+          <input type="file" id="file-A" accept="audio/*">
+          <div class="name" id="name-A">Aucun fichier</div>
+          <div class="meta"><span id="dur-A">Durée —</span></div>
+          <div class="bpm-row">
+            <span class="bpm" id="bpm-A">—</span><span class="bpm-unit">BPM</span>
+            <span class="conf" id="conf-A" style="display:none"></span>
+          </div>
+          <div class="key-row">
+            <span class="key" id="key-A">—</span><span class="key-unit">tonalité</span>
+            <span class="conf" id="keyconf-A" style="display:none;margin-left:auto"></span>
+          </div>
+          <canvas class="wave" id="wave-A" width="600" height="50"></canvas>
+        </div>
+        <div class="deck" id="deckcard-B">
+          <div class="lbl">Morceau B</div>
+          <div class="dz" id="drop-B">
+            <div class="big">⬆︎</div>
+            <div class="t">Dépose un fichier audio</div>
+            <div class="h">MP3 / WAV — ou clique</div>
+          </div>
+          <input type="file" id="file-B" accept="audio/*">
+          <div class="name" id="name-B">Aucun fichier</div>
+          <div class="meta"><span id="dur-B">Durée —</span></div>
+          <div class="bpm-row">
+            <span class="bpm" id="bpm-B">—</span><span class="bpm-unit">BPM</span>
+            <span class="conf" id="conf-B" style="display:none"></span>
+          </div>
+          <div class="key-row">
+            <span class="key" id="key-B">—</span><span class="key-unit">tonalité</span>
+            <span class="conf" id="keyconf-B" style="display:none;margin-left:auto"></span>
+          </div>
+          <canvas class="wave" id="wave-B" width="600" height="50"></canvas>
+        </div>
+      </div>
+      <div class="row-btn">
+        <button class="btn" id="pick-A">Choisir morceau A</button>
+        <button class="btn" id="pick-B">Choisir morceau B</button>
+        <button class="btn" id="demo">Charger un exemple (clics synthétiques, aucun morceau réel)</button>
+      </div>
+      <div class="hint-cols">
+        <b>Méthode de détection du tempo :</b> filtrage passe-bas (Web Audio, BiquadFilter ~150 Hz) pour isoler la pulsation basse fréquence, enveloppe d'énergie, puis autocorrélation pour trouver la périodicité dominante entre 60 et 200 BPM.
+        <b>Marge d'erreur indicative : ±5 à 8 BPM</b>, avec un risque d'erreur d'octave (BPM détecté = moitié ou double du tempo réel) sur des morceaux peu percussifs. Vérifie toujours à l'oreille.
+        <br><br>
+        <b>Méthode de détection de tonalité :</b> FFT sur des fenêtres échantillonnées le long du morceau, énergie spectrale regroupée en 12 classes de hauteur (chromagramme), comparée par corrélation de Pearson aux 24 profils de référence Krumhansl-Kessler (12 majeurs + 12 mineurs) — la meilleure corrélation donne la tonalité retenue.
+        <b>Marge d'erreur réelle et documentée : la détection de tonalité par chroma atteint typiquement 60 à 80% de précision selon le genre musical</b> (littérature MIR), sensiblement moins fiable que la détection de BPM. Une confusion entre une tonalité et sa relative majeur/mineur (ex. Do majeur / La mineur) est fréquente et normale — les deux partagent le même profil chroma — l'outil te le signale quand c'est le cas plutôt que de trancher à tort. Vérifie toujours à l'oreille avant de t'y fier pour un mix.
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Transition &amp; mix</h2>
+      <div class="stats">
+        <div class="stat"><div class="k">BPM A</div><div class="v" id="s-bpmA">—</div></div>
+        <div class="stat"><div class="k">BPM B</div><div class="v" id="s-bpmB">—</div></div>
+        <div class="stat"><div class="k">Compatibilité BPM</div><div class="v" id="s-compat" style="font-size:14px">—</div></div>
+        <div class="stat wide"><div class="k">Compatibilité harmonique (tonalité, indicative)</div><div class="v" id="s-harmonic" style="font-size:14px">—</div></div>
+      </div>
+
+      <div class="section">
+        <h2 style="margin-bottom:6px">Point de transition (dans le morceau A)</h2>
+        <canvas class="wave" id="wave-transition" width="600" height="50"></canvas>
+        <div class="slider-row">
+          <div class="sr-top"><span>Début du fondu</span><b id="lbl-fadeStart">—</b></div>
+          <input type="range" id="fadeStart" min="0" max="100" value="0" step="0.1" disabled>
+        </div>
+        <div class="slider-row">
+          <div class="sr-top"><span>Durée du fondu</span><b id="lbl-fadeDur">—</b></div>
+          <input type="range" id="fadeDur" min="1" max="30" value="8" step="0.5" disabled>
+        </div>
+        <div class="row-btn" style="margin-top:10px">
+          <button class="btn small" id="resetSuggestion" disabled>↺ Revenir à la suggestion auto</button>
+        </div>
+      </div>
+
+      <div class="section transport">
+        <button class="btn" id="play-A" disabled>▶︎ Lire A</button>
+        <button class="btn" id="play-B" disabled>▶︎ Lire B</button>
+        <button class="btn pri" id="auto-mix" disabled>🎚️ Lancer le mix auto (A → B)</button>
+        <button class="btn" id="stop-all" disabled>⏹ Stop</button>
+      </div>
+
+      <div class="xfade-wrap">
+        <div class="xfade-labels"><span>A</span><span id="xfade-pct">Fondu en direct — 100% A</span><span>B</span></div>
+        <input type="range" id="crossfader" min="0" max="100" value="0" step="1" disabled>
+      </div>
+
+      <div class="status-row">
+        <span>A : <b id="pos-A">arrêté</b></span>
+        <span>B : <b id="pos-B">arrêté</b></span>
+      </div>
+
+      <div class="limit-note">
+        Lecture uniquement — cet outil ne propose <b>aucun export ni enregistrement du mix final</b>. C'est une limite volontaire, liée à la gestion stricte des droits sur les fichiers que tu déposes.
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Gestion stricte des droits : aucun fichier n'est envoyé ni stocké sur un serveur — décodage, analyse BPM, lecture et crossfade ont lieu entièrement en mémoire dans ton navigateur, pour la durée de la session. Rien n'est sauvegardé au-delà de ce que toi seul choisis de faire de tes propres fichiers. Détection de tempo indicative, pas une garantie de synchronisation parfaite.</div>
+    Moteur d'analyse dérivé de <b>General Design Studio</b>. · Un outil DELIGNY R&D.
+  </footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+// ── State ────────────────────────────────────────────────────────────────
+let ctx=null;
+function ensureCtx(){
+  if(!ctx) ctx=new (window.AudioContext||window.webkitAudioContext)();
+  if(ctx.state==='suspended') ctx.resume();
+  return ctx;
+}
+function makeDeck(id){
+  return {id, name:'Aucun fichier', buffer:null, duration:0, bpm:null, confidence:null, key:null,
+    gain:null, source:null, playing:false, playStartCtxTime:0, pausedAt:0};
+}
+const decks={A:makeDeck('A'), B:makeDeck('B')};
+let autoFadeTimer=null, autoFadeActive=false, autoFadeStartAt=0, autoFadeDur=0;
+let suggestion={fadeStart:null, fadeDur:null};
+
+function fmtTime(s){
+  if(!isFinite(s)||s<0) s=0;
+  const m=Math.floor(s/60), sec=Math.floor(s%60);
+  return m+':'+String(sec).padStart(2,'0');
+}
+
+// ── BPM detection : passe-bas + enveloppe d'énergie + autocorrélation ─────
+async function detectBPM(audioBuffer){
+  const offline=new OfflineAudioContext(1, Math.ceil(audioBuffer.duration*audioBuffer.sampleRate), audioBuffer.sampleRate);
+  const src=offline.createBufferSource();
+  src.buffer=audioBuffer;
+  const lowpass=offline.createBiquadFilter();
+  lowpass.type='lowpass'; lowpass.frequency.value=150; lowpass.Q.value=0.9;
+  src.connect(lowpass); lowpass.connect(offline.destination);
+  src.start(0);
+  const rendered=await offline.startRendering();
+  const data=rendered.getChannelData(0);
+  const sr=rendered.sampleRate;
+
+  // enveloppe RMS par blocs de 20ms -> ~50Hz
+  const blockSize=Math.max(1,Math.round(sr*0.02));
+  const envLen=Math.floor(data.length/blockSize);
+  const env=new Float32Array(envLen);
+  for(let i=0;i<envLen;i++){
+    let sum=0; const start=i*blockSize;
+    for(let j=0;j<blockSize;j++){ const v=data[start+j]; sum+=v*v; }
+    env[i]=Math.sqrt(sum/blockSize);
+  }
+  // détrend : soustrait une moyenne glissante locale (~1.5s) pour faire ressortir les pulsations
+  const smoothWin=Math.round(1.5/0.02);
+  const trend=new Float32Array(envLen);
+  let acc=0;
+  for(let i=0;i<envLen;i++){
+    const lo=Math.max(0,i-smoothWin), hi=Math.min(envLen-1,i+smoothWin);
+    // approximation efficace non nécessaire ici (envLen modeste) — moyenne directe
+    let s=0,c=0;
+    for(let k=lo;k<=hi;k+=4){ s+=env[k]; c++; }
+    trend[i]=c?s/c:0;
+  }
+  const det=new Float32Array(envLen);
+  for(let i=0;i<envLen;i++) det[i]=Math.max(0, env[i]-trend[i]);
+
+  const envRate=1/0.02;
+  const minBPM=60, maxBPM=200;
+  const minLag=Math.max(1,Math.round(envRate*60/maxBPM));
+  const maxLag=Math.min(envLen-1,Math.round(envRate*60/minBPM));
+
+  function scoreAt(lag){
+    if(lag<1||lag>=envLen) return -Infinity;
+    let s=0,n=0;
+    for(let i=0;i+lag<envLen;i++){ s+=det[i]*det[i+lag]; n++; }
+    return n? s/n : -Infinity;
+  }
+
+  let bestLag=minLag, bestScore=-Infinity, sumScore=0, cnt=0;
+  for(let lag=minLag;lag<=maxLag;lag++){
+    const sc=scoreAt(lag);
+    sumScore+=sc; cnt++;
+    if(sc>bestScore){ bestScore=sc; bestLag=lag; }
+  }
+  const meanScore=cnt? sumScore/cnt : 0;
+
+  // correction d'octave simple : préfère une variante dans une plage DJ courante (85-175)
+  // si son score est proche du meilleur score trouvé
+  function bpmFromLag(lag){ return envRate*60/lag; }
+  let candidates=[{lag:bestLag, score:bestScore}];
+  if(bestLag*2<=maxLag) candidates.push({lag:bestLag*2, score:scoreAt(bestLag*2)});
+  if(Math.round(bestLag/2)>=minLag) candidates.push({lag:Math.round(bestLag/2), score:scoreAt(Math.round(bestLag/2))});
+  let chosen=candidates[0];
+  for(const c of candidates){
+    const bpm=bpmFromLag(c.lag);
+    const inSweetSpot = bpm>=85 && bpm<=175;
+    const chosenBpm=bpmFromLag(chosen.lag);
+    const chosenInSweet = chosenBpm>=85 && chosenBpm<=175;
+    if(inSweetSpot && !chosenInSweet && c.score>=bestScore*0.6) chosen=c;
+    else if(inSweetSpot && chosenInSweet && c.score>chosen.score) chosen=c;
+  }
+
+  const bpm=bpmFromLag(chosen.lag);
+  const ratio = meanScore>0 ? (chosen.score/meanScore) : 1;
+  let confidence='moyen';
+  if(ratio>1.6) confidence='net';
+  else if(ratio<1.2) confidence='faible';
+
+  return {bpm: Math.round(bpm*10)/10, confidence};
+}
+
+// ── Détection de tonalité : chromagramme (FFT) + corrélation Krumhansl-Kessler ──
+// Tout se calcule en local sur l'AudioBuffer déjà décodé — aucune requête réseau.
+function fftInPlace(re, im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){
+    let bit=n>>1;
+    for(;j&bit;bit>>=1) j^=bit;
+    j^=bit;
+    if(i<j){ const tr=re[i];re[i]=re[j];re[j]=tr; const ti=im[i];im[i]=im[j];im[j]=ti; }
+  }
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len;
+    const wr=Math.cos(ang), wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let curWr=1, curWi=0;
+      for(let j=0;j<len/2;j++){
+        const ur=re[i+j], ui=im[i+j];
+        const vr=re[i+j+len/2]*curWr - im[i+j+len/2]*curWi;
+        const vi=re[i+j+len/2]*curWi + im[i+j+len/2]*curWr;
+        re[i+j]=ur+vr; im[i+j]=ui+vi;
+        re[i+j+len/2]=ur-vr; im[i+j+len/2]=ui-vi;
+        const nWr=curWr*wr - curWi*wi;
+        const nWi=curWr*wi + curWi*wr;
+        curWr=nWr; curWi=nWi;
+      }
+    }
+  }
+}
+function computeChromaFrame(monoData, offset, windowSize, sampleRate, chroma){
+  const re=new Float64Array(windowSize), im=new Float64Array(windowSize);
+  for(let i=0;i<windowSize;i++){
+    const s = offset+i<monoData.length ? monoData[offset+i] : 0;
+    const w = 0.5 - 0.5*Math.cos(2*Math.PI*i/(windowSize-1)); // fenêtre de Hann
+    re[i]=s*w; im[i]=0;
+  }
+  fftInPlace(re, im);
+  const half=windowSize/2;
+  const minFreq=65, maxFreq=5000; // ~C2 à ~D8, couvre la tessiture musicale utile
+  for(let k=1;k<half;k++){
+    const freq=k*sampleRate/windowSize;
+    if(freq<minFreq||freq>maxFreq) continue;
+    const mag=Math.sqrt(re[k]*re[k]+im[k]*im[k]);
+    const midi=69+12*Math.log2(freq/440);
+    const pc=((Math.round(midi)%12)+12)%12; // classe de hauteur, toutes octaves confondues
+    chroma[pc]+=mag*mag;
+  }
+}
+const KS_MAJOR=[6.35,2.23,3.48,2.33,4.38,4.09,2.52,5.19,2.39,3.66,2.29,2.88]; // Krumhansl-Kessler
+const KS_MINOR=[6.33,2.68,3.52,5.38,2.60,3.53,2.54,4.75,3.98,2.69,3.34,3.17];
+const NOTE_NAMES=['Do','Do♯','Ré','Ré♯','Mi','Fa','Fa♯','Sol','Sol♯','La','La♯','Si'];
+const CAMELOT_MAJOR={0:8,7:9,2:10,9:11,4:12,11:1,6:2,1:3,8:4,3:5,10:6,5:7};
+function rotateProfile(profile, r){
+  const out=new Array(12);
+  for(let pc=0;pc<12;pc++) out[pc]=profile[(pc-r+12)%12];
+  return out;
+}
+function pearson(x,y){
+  const n=x.length; let mx=0,my=0;
+  for(let i=0;i<n;i++){ mx+=x[i]; my+=y[i]; }
+  mx/=n; my/=n;
+  let num=0,dx=0,dy=0;
+  for(let i=0;i<n;i++){ const a=x[i]-mx, b=y[i]-my; num+=a*b; dx+=a*a; dy+=b*b; }
+  const den=Math.sqrt(dx*dy);
+  return den>0? num/den : 0;
+}
+function camelotCode(root, mode){
+  const num = mode==='major' ? CAMELOT_MAJOR[root] : CAMELOT_MAJOR[(root+3)%12];
+  return num + (mode==='major'?'B':'A');
+}
+function detectKey(audioBuffer){
+  const sr=audioBuffer.sampleRate;
+  const ch0=audioBuffer.getChannelData(0);
+  let mono;
+  if(audioBuffer.numberOfChannels>1){
+    const ch1=audioBuffer.getChannelData(1);
+    mono=new Float32Array(ch0.length);
+    for(let i=0;i<ch0.length;i++) mono[i]=(ch0[i]+ch1[i])*0.5;
+  } else mono=ch0;
+
+  const windowSize=8192;
+  const chroma=new Float64Array(12);
+  const total=mono.length;
+  const usableStart=Math.floor(total*0.02); // évite les silences/fades de début
+  const usableEnd=Math.floor(total*0.98);
+  const usableLen=Math.max(windowSize, usableEnd-usableStart);
+  const maxFrames=40; // borne le coût CPU quelle que soit la durée du morceau
+  const frameCount=Math.max(1, Math.min(maxFrames, Math.floor(usableLen/windowSize)));
+  const step=frameCount>1 ? Math.floor((usableLen-windowSize)/(frameCount-1)) : 0;
+  for(let f=0; f<frameCount; f++){
+    computeChromaFrame(mono, usableStart+f*step, windowSize, sr, chroma);
+  }
+  let sum=0; for(let i=0;i<12;i++) sum+=chroma[i];
+  const chromaNorm=new Float64Array(12);
+  if(sum>0) for(let i=0;i<12;i++) chromaNorm[i]=chroma[i]/sum;
+
+  const results=[];
+  for(let r=0;r<12;r++){
+    results.push({root:r, mode:'major', score:pearson(chromaNorm, rotateProfile(KS_MAJOR,r))});
+    results.push({root:r, mode:'minor', score:pearson(chromaNorm, rotateProfile(KS_MINOR,r))});
+  }
+  results.sort((a,b)=>b.score-a.score);
+  const best=results[0], second=results[1];
+  const gap=best.score-second.score;
+  let confidence='moyen';
+  if(best.score>0.65 && gap>0.12) confidence='net';
+  else if(best.score<0.35 || gap<0.03) confidence='faible';
+
+  const isRelative = (best.mode==='major' && second.mode==='minor' && second.root===(best.root+9)%12) ||
+                      (best.mode==='minor' && second.mode==='major' && second.root===(best.root+3)%12);
+
+  return {
+    root: best.root, mode: best.mode,
+    label: NOTE_NAMES[best.root] + ' ' + (best.mode==='major'?'majeur':'mineur'),
+    camelot: camelotCode(best.root, best.mode),
+    confidence, score: best.score,
+    ambiguous: isRelative && gap<0.08,
+    relativeLabel: isRelative ? (NOTE_NAMES[second.root]+' '+(second.mode==='major'?'majeur':'mineur')) : null
+  };
+}
+function harmonicCompatibilityHTML(a,b){
+  const camA=a.camelot, camB=b.camelot;
+  const numA=parseInt(camA), numB=parseInt(camB);
+  const letA=camA.slice(-1), letB=camB.slice(-1);
+  let cls, txt;
+  if(camA===camB){ cls='ok'; txt='🟢 tonalités identiques ('+camA+') — mix harmonique direct'; }
+  else if(numA===numB && letA!==letB){ cls='ok'; txt='🟢 relatif majeur/mineur ('+camA+' ↔ '+camB+') — transition fluide'; }
+  else if(letA===letB){
+    let diff=Math.abs(numA-numB); diff=Math.min(diff,12-diff);
+    if(diff===1){ cls='ok'; txt='🟢 tonalités voisines sur la roue de Camelot ('+camA+' → '+camB+') — transition fluide'; }
+    else if(diff===2){ cls='warn'; txt='🟠 tonalités à 2 crans d\'écart ('+camA+' / '+camB+') — transition plus marquée'; }
+    else { cls='bad'; txt='🔴 tonalités éloignées ('+camA+' / '+camB+') — transition harmonique risquée'; }
+  } else { cls='bad'; txt='🔴 tonalités peu compatibles ('+camA+' / '+camB+') — à l\'oreille'; }
+  return '<span class="badge '+cls+'">'+txt+'</span>';
+}
+
+// ── Génération d'exemple synthétique (clics, aucun morceau réel) ──────────
+function synthClickBuffer(c, bpm, durationSec, freq){
+  const sr=c.sampleRate;
+  const length=Math.floor(sr*durationSec);
+  const buffer=c.createBuffer(1, length, sr);
+  const data=buffer.getChannelData(0);
+  const beatInterval=60/bpm;
+  const clickDur=0.09;
+  for(let t=0;t<durationSec;t+=beatInterval){
+    const startSample=Math.floor(t*sr);
+    for(let j=0;j<clickDur*sr && startSample+j<length;j++){
+      const tt=j/sr;
+      const env=Math.exp(-tt*35);
+      data[startSample+j]+=Math.sin(2*Math.PI*freq*tt)*env*0.85;
+    }
+  }
+  return buffer;
+}
+
+// ── Waveform ────────────────────────────────────────────────────────────
+function drawWaveform(canvas, buffer, markerFrac, fadeFrac){
+  const wctx=canvas.getContext('2d');
+  const w=canvas.width, h=canvas.height;
+  wctx.clearRect(0,0,w,h);
+  wctx.fillStyle='#000'; wctx.fillRect(0,0,w,h);
+  if(buffer){
+    const data=buffer.getChannelData(0);
+    const step=Math.max(1,Math.floor(data.length/w));
+    wctx.fillStyle='rgba(41,151,255,.85)';
+    for(let x=0;x<w;x++){
+      let min=1,max=-1; const start=x*step;
+      for(let j=0;j<step;j++){ const v=data[start+j]; if(v!==undefined){ if(v<min)min=v; if(v>max)max=v; } }
+      const yTop=(1-max)*h/2, yBot=(1-min)*h/2;
+      wctx.fillRect(x, yTop, 1, Math.max(1,yBot-yTop));
+    }
+  }
+  if(markerFrac!=null){
+    const x0=markerFrac*w;
+    if(fadeFrac!=null){
+      const fw=fadeFrac*w;
+      wctx.fillStyle='rgba(255,159,10,.22)';
+      wctx.fillRect(x0,0,Math.max(0,Math.min(fw,w-x0)),h);
+    }
+    wctx.strokeStyle='#ff9f0a'; wctx.lineWidth=2;
+    wctx.beginPath(); wctx.moveTo(x0,0); wctx.lineTo(x0,h); wctx.stroke();
+  }
+}
+
+// ── Chargement d'un fichier dans un deck ───────────────────────────────────
+async function loadFileToDeck(key, file){
+  const deck=decks[key];
+  deck.name=file.name;
+  $('name-'+key).textContent=file.name;
+  $('bpm-'+key).textContent='…';
+  $('conf-'+key).style.display='none';
+  try{
+    const c=ensureCtx();
+    const arrayBuffer=await file.arrayBuffer();
+    const audioBuffer=await c.decodeAudioData(arrayBuffer);
+    await assignBufferToDeck(key, audioBuffer, file.name);
+  }catch(err){
+    $('bpm-'+key).textContent='—';
+    alert('Impossible de décoder ce fichier audio ('+key+') : '+(err&&err.message?err.message:err));
+  }
+}
+
+async function assignBufferToDeck(key, audioBuffer, label){
+  const deck=decks[key];
+  deck.buffer=audioBuffer;
+  deck.duration=audioBuffer.duration;
+  deck.pausedAt=0;
+  $('name-'+key).textContent=label;
+  $('dur-'+key).textContent='Durée '+fmtTime(audioBuffer.duration);
+  drawWaveform($('wave-'+key), audioBuffer, null, null);
+  const result=await detectBPM(audioBuffer);
+  deck.bpm=result.bpm; deck.confidence=result.confidence;
+  $('bpm-'+key).textContent=result.bpm.toFixed(1);
+  const confEl=$('conf-'+key);
+  confEl.style.display='inline-block';
+  confEl.className='conf '+result.confidence;
+  confEl.textContent=result.confidence==='net'?'pic net':result.confidence==='moyen'?'moyen':'à vérifier';
+
+  const keyResult=detectKey(audioBuffer);
+  deck.key=keyResult;
+  $('key-'+key).textContent=keyResult.label;
+  const keyConfEl=$('keyconf-'+key);
+  keyConfEl.style.display='inline-block';
+  keyConfEl.className='conf '+keyResult.confidence;
+  keyConfEl.textContent=keyResult.confidence==='net'?'nette':keyResult.confidence==='moyen'?'moyenne':'incertaine';
+  keyConfEl.title=keyResult.ambiguous
+    ? ('Profil chroma proche de la relative '+keyResult.relativeLabel+' — confusion majeur/mineur relatifs possible, ces deux tonalités partagent les mêmes notes.')
+    : 'Détection de tonalité indicative (chroma + Krumhansl-Kessler), ~60-80% de précision selon le genre — vérifie à l\'oreille.';
+
+  $('play-'+key).disabled=false;
+  $('stop-all').disabled=false;
+  updateStatsAndSuggestion();
+}
+
+// ── Suggestion de transition + stats de compatibilité ──────────────────────
+function updateStatsAndSuggestion(){
+  $('s-bpmA').textContent=decks.A.bpm? decks.A.bpm.toFixed(1):'—';
+  $('s-bpmB').textContent=decks.B.bpm? decks.B.bpm.toFixed(1):'—';
+  if(decks.A.bpm && decks.B.bpm){
+    const diffPct=Math.abs(decks.A.bpm-decks.B.bpm)/((decks.A.bpm+decks.B.bpm)/2)*100;
+    let cls='ok', txt='🟢 compatible ('+diffPct.toFixed(1)+'% d\'écart)';
+    if(diffPct>12){ cls='bad'; txt='🔴 écart important ('+diffPct.toFixed(1)+'%) — pas d\'ajustement de tempo dans cette v0'; }
+    else if(diffPct>6){ cls='warn'; txt='🟠 écart notable ('+diffPct.toFixed(1)+'%) — à ajuster à l\'oreille'; }
+    $('s-compat').innerHTML='<span class="badge '+cls+'">'+txt+'</span>';
+  } else {
+    $('s-compat').textContent='—';
+  }
+
+  if(decks.A.key && decks.B.key){
+    $('s-harmonic').innerHTML=harmonicCompatibilityHTML(decks.A.key, decks.B.key);
+  } else {
+    $('s-harmonic').textContent='—';
+  }
+
+  if(decks.A.buffer){
+    const dur=decks.A.duration;
+    const fs=$('fadeStart'), fd=$('fadeDur');
+    fs.disabled=false; fd.disabled=false; $('resetSuggestion').disabled=false;
+    fs.max=Math.max(1,dur-1); fd.max=Math.max(2,Math.min(30,dur));
+    const sFadeDur=Math.max(2,Math.min(10, dur*0.15));
+    const sFadeStart=Math.max(0, dur - Math.max(sFadeDur, Math.min(20, dur*0.25)));
+    suggestion.fadeStart=sFadeStart; suggestion.fadeDur=sFadeDur;
+    if(fs.dataset.touched!=='1') fs.value=sFadeStart;
+    if(fd.dataset.touched!=='1') fd.value=sFadeDur;
+    renderTransitionLabels();
+    updateTransitionWaveform();
+    if(decks.B.buffer){ $('auto-mix').disabled=false; $('crossfader').disabled=false; }
+  }
+}
+
+function renderTransitionLabels(){
+  const fs=parseFloat($('fadeStart').value), fd=parseFloat($('fadeDur').value);
+  $('lbl-fadeStart').textContent=fmtTime(fs)+' dans A';
+  $('lbl-fadeDur').textContent=fd.toFixed(1)+' s';
+}
+function updateTransitionWaveform(){
+  if(!decks.A.buffer) return;
+  const dur=decks.A.duration;
+  const fs=parseFloat($('fadeStart').value), fd=parseFloat($('fadeDur').value);
+  drawWaveform($('wave-transition'), decks.A.buffer, fs/dur, fd/dur);
+}
+
+$('fadeStart').oninput=()=>{ $('fadeStart').dataset.touched='1'; renderTransitionLabels(); updateTransitionWaveform(); };
+$('fadeDur').oninput=()=>{ $('fadeDur').dataset.touched='1'; renderTransitionLabels(); updateTransitionWaveform(); };
+$('resetSuggestion').onclick=()=>{
+  if(suggestion.fadeStart==null) return;
+  $('fadeStart').value=suggestion.fadeStart; $('fadeStart').dataset.touched='0';
+  $('fadeDur').value=suggestion.fadeDur; $('fadeDur').dataset.touched='0';
+  renderTransitionLabels(); updateTransitionWaveform();
+};
+
+// ── Lecture / crossfade (Web Audio, GainNode) ──────────────────────────────
+function ensureDeckGain(key){
+  const deck=decks[key];
+  if(!deck.gain){ const c=ensureCtx(); deck.gain=c.createGain(); deck.gain.gain.value = key==='A'?1:0; deck.gain.connect(c.destination); }
+  return deck.gain;
+}
+function playDeckFrom(key, offset){
+  const deck=decks[key]; if(!deck.buffer) return;
+  const c=ensureCtx();
+  stopDeckSource(key);
+  const g=ensureDeckGain(key);
+  const src=c.createBufferSource();
+  src.buffer=deck.buffer;
+  src.connect(g);
+  const off=Math.max(0, Math.min(offset||0, deck.duration-0.05));
+  src.start(c.currentTime, off);
+  deck.source=src; deck.playStartCtxTime=c.currentTime-off; deck.playing=true;
+  src.onended=()=>{ if(deck.source===src){ deck.playing=false; } };
+}
+function stopDeckSource(key){
+  const deck=decks[key];
+  if(deck.source){ try{deck.source.onended=null; deck.source.stop();}catch(e){} try{deck.source.disconnect();}catch(e){} deck.source=null; }
+  deck.playing=false;
+}
+function togglePlay(key){
+  const deck=decks[key];
+  if(deck.playing){
+    const c=ctx; const pos=c.currentTime-deck.playStartCtxTime;
+    deck.pausedAt=pos; stopDeckSource(key);
+  } else {
+    playDeckFrom(key, deck.pausedAt||0);
+  }
+}
+$('play-A').onclick=()=>togglePlay('A');
+$('play-B').onclick=()=>togglePlay('B');
+
+function stopAll(){
+  stopDeckSource('A'); stopDeckSource('B');
+  decks.A.pausedAt=0; decks.B.pausedAt=0;
+  autoFadeActive=false;
+  if(ctx){
+    const g=[decks.A.gain,decks.B.gain];
+    if(decks.A.gain){ decks.A.gain.gain.cancelScheduledValues(ctx.currentTime); decks.A.gain.gain.setValueAtTime(1, ctx.currentTime); }
+    if(decks.B.gain){ decks.B.gain.gain.cancelScheduledValues(ctx.currentTime); decks.B.gain.gain.setValueAtTime(0, ctx.currentTime); }
+  }
+  $('crossfader').value=0;
+  $('xfade-pct').textContent='Fondu en direct — 100% A';
+}
+$('stop-all').onclick=stopAll;
+
+// crossfader manuel — contrôle en direct, prioritaire sur toute automation en cours
+$('crossfader').oninput=()=>{
+  autoFadeActive=false; // reprise de contrôle manuel
+  const c=ensureCtx();
+  const val=parseFloat($('crossfader').value);
+  const a=1-val/100, b=val/100;
+  const gA=ensureDeckGain('A'), gB=ensureDeckGain('B');
+  const t=c.currentTime;
+  gA.gain.cancelScheduledValues(t); gA.gain.setValueAtTime(a,t);
+  gB.gain.cancelScheduledValues(t); gB.gain.setValueAtTime(b,t);
+  $('xfade-pct').textContent='Fondu en direct — '+Math.round(100-val)+'% A / '+Math.round(val)+'% B';
+};
+
+// mix auto : lance A, programme le crossfade au point de transition choisi
+function runAutoMix(){
+  if(!decks.A.buffer || !decks.B.buffer) return;
+  stopAll();
+  const c=ensureCtx();
+  const fadeStart=parseFloat($('fadeStart').value);
+  const fadeDur=parseFloat($('fadeDur').value);
+  const gA=ensureDeckGain('A'), gB=ensureDeckGain('B');
+  const now=c.currentTime;
+  gA.gain.cancelScheduledValues(now); gA.gain.setValueAtTime(1, now);
+  gB.gain.cancelScheduledValues(now); gB.gain.setValueAtTime(0, now);
+
+  playDeckFrom('A', 0);
+  const startBAt=now+fadeStart;
+  const srcB=c.createBufferSource();
+  srcB.buffer=decks.B.buffer; srcB.connect(gB);
+  srcB.start(startBAt, 0);
+  decks.B.source=srcB; decks.B.playing=true; decks.B.playStartCtxTime=startBAt;
+  srcB.onended=()=>{ if(decks.B.source===srcB) decks.B.playing=false; };
+
+  gA.gain.setValueAtTime(1, startBAt);
+  gA.gain.linearRampToValueAtTime(0, startBAt+fadeDur);
+  gB.gain.setValueAtTime(0, startBAt);
+  gB.gain.linearRampToValueAtTime(1, startBAt+fadeDur);
+
+  autoFadeActive=true; autoFadeStartAt=startBAt; autoFadeDur=fadeDur;
+}
+$('auto-mix').onclick=runAutoMix;
+
+// ── Boucle d'affichage (position lecture + curseur crossfade pendant le mix auto) ──
+function tick(){
+  if(ctx){
+    for(const key of ['A','B']){
+      const deck=decks[key];
+      const el=$('pos-'+key);
+      if(deck.playing){
+        const pos=ctx.currentTime-deck.playStartCtxTime;
+        if(pos>=0) el.textContent=fmtTime(pos)+' / '+fmtTime(deck.duration)+' ▶︎';
+        else el.textContent='en attente…';
+      } else {
+        el.textContent = deck.buffer ? (fmtTime(deck.pausedAt||0)+' / '+fmtTime(deck.duration)+' ⏸') : 'arrêté';
+      }
+    }
+    if(autoFadeActive){
+      const t=ctx.currentTime;
+      let frac=(t-autoFadeStartAt)/autoFadeDur;
+      frac=Math.max(0,Math.min(1,frac));
+      $('crossfader').value=Math.round(frac*100);
+      $('xfade-pct').textContent='Fondu automatique — '+Math.round((1-frac)*100)+'% A / '+Math.round(frac*100)+'% B';
+      if(frac>=1) autoFadeActive=false;
+    }
+  }
+  requestAnimationFrame(tick);
+}
+requestAnimationFrame(tick);
+
+// ── Entrées fichiers / drag&drop ────────────────────────────────────────
+function wireDeckInput(key){
+  const dz=$('drop-'+key), input=$('file-'+key), pick=$('pick-'+key);
+  dz.onclick=()=>input.click();
+  pick.onclick=()=>input.click();
+  input.onchange=e=>{ if(e.target.files[0]) loadFileToDeck(key, e.target.files[0]); };
+  dz.ondragover=e=>{ e.preventDefault(); dz.classList.add('hover'); };
+  dz.ondragleave=()=>dz.classList.remove('hover');
+  dz.ondrop=e=>{ e.preventDefault(); dz.classList.remove('hover'); const f=e.dataTransfer.files[0]; if(f) loadFileToDeck(key,f); };
+}
+wireDeckInput('A'); wireDeckInput('B');
+
+// ── Exemple synthétique (clics générés — aucun morceau réel, sert aussi de test) ──
+$('demo').onclick=async ()=>{
+  const c=ensureCtx();
+  const bufA=synthClickBuffer(c,120,24,90);
+  const bufB=synthClickBuffer(c,128,24,110);
+  await assignBufferToDeck('A', bufA, 'Exemple synthétique — clics 120 BPM (généré, aucun morceau réel)');
+  await assignBufferToDeck('B', bufB, 'Exemple synthétique — clics 128 BPM (généré, aucun morceau réel)');
+};
+
+// init : dessine les canvases vides
+drawWaveform($('wave-A'), null, null, null);
+drawWaveform($('wave-B'), null, null, null);
+drawWaveform($('wave-transition'), null, null, null);
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

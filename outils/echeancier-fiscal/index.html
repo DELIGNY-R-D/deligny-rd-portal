@@ -1,0 +1,448 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Échéancier Fiscal &amp; Social — calendrier gratuit des échéances</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Génère gratuitement le calendrier des échéances fiscales et sociales de ton entreprise selon sa forme juridique (micro, EI, EURL, SASU, SAS, SARL). Sans compte, rien n'est envoyé, export .ics inclus.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;align-items:start;}
+@media(max-width:820px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+
+.fld{margin-bottom:14px;}
+.fld label{display:block;font-size:11px;color:var(--dim2);margin-bottom:5px;font-weight:600;text-transform:uppercase;letter-spacing:.04em;}
+.fld select,.fld input[type=date]{
+  width:100%;background:#141416;color:var(--txt);border:.5px solid var(--sep);border-radius:10px;
+  padding:9px 11px;font:14px var(--font);
+}
+.fld .h{color:var(--dim2);font-size:12px;margin-top:5px;}
+.chk{display:flex;align-items:center;gap:8px;margin-bottom:14px;}
+.chk input{width:16px;height:16px;}
+.chk label{font-size:13px;color:var(--txt);font-weight:500;}
+
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:16px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn.export{opacity:.4;cursor:not-allowed;} .btn.export.ready{opacity:1;cursor:pointer;}
+
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-bottom:16px;}
+.stat{background:var(--card2);border-radius:14px;padding:12px 14px;}
+.stat .k{font-size:10.5px;color:var(--dim2);text-transform:uppercase;letter-spacing:.05em;font-weight:600;}
+.stat .v{font-size:18px;font-weight:680;letter-spacing:-.02em;margin-top:4px;line-height:1.25;}
+
+#cal .empty{color:var(--dim2);font-style:italic;font-size:13px;}
+.month-hdr{font-size:11px;font-weight:700;color:var(--dim2);text-transform:uppercase;letter-spacing:.06em;margin:16px 0 6px;}
+.month-hdr:first-child{margin-top:0;}
+.item{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-top:.5px solid var(--sep);}
+.item:first-child,.month-hdr+.item{border-top:none;}
+.item .date{flex-shrink:0;width:44px;text-align:center;}
+.item .date .d{font-size:18px;font-weight:700;line-height:1;}
+.item .date .m{font-size:10px;color:var(--dim2);text-transform:uppercase;}
+.item .body{flex:1;min-width:0;}
+.item .body .lbl{font-weight:600;font-size:14px;}
+.item .body .desc{color:var(--dim);font-size:13px;margin-top:2px;}
+.item .body .act{color:var(--dim2);font-size:12.5px;margin-top:4px;font-style:italic;}
+.tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:99px;margin-left:8px;vertical-align:1px;}
+.tag.FISCALITÉ{background:rgba(41,151,255,.15);color:var(--blue);}
+.tag.SOCIAL{background:rgba(48,209,88,.14);color:var(--green);}
+.tag.JURIDIQUE{background:rgba(255,159,10,.15);color:var(--amber);}
+.tag.RÉMUNÉRATION{background:rgba(100,210,255,.15);color:var(--cyan);}
+.tag.COMPTABLE{background:rgba(255,255,255,.10);color:var(--dim);}
+.urg{font-size:11px;font-weight:600;flex-shrink:0;padding:2px 8px;border-radius:99px;white-space:nowrap;}
+.urg.soon{background:rgba(255,69,58,.15);color:var(--red);}
+.urg.mid{background:rgba(255,159,10,.15);color:var(--amber);}
+.urg.far{background:rgba(255,255,255,.08);color:var(--dim2);}
+
+.note{background:rgba(255,159,10,.08);border:.5px solid rgba(255,159,10,.25);border-radius:12px;padding:10px 12px;font-size:12.5px;color:var(--dim);margin-top:16px;}
+.note b{color:var(--amber);}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:680px;margin:0 auto 10px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Échéancier Fiscal &amp; Social</span></h1>
+    <div class="sub">Génère gratuitement le calendrier des échéances fiscales et sociales de ton entreprise selon sa forme juridique — sans compte.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Ta structure</h2>
+      <div class="fld">
+        <label>Forme juridique</label>
+        <select id="f-form">
+          <option value="micro">Micro-entreprise</option>
+          <option value="ei">Entreprise individuelle (EI, au réel)</option>
+          <option value="eurl">EURL</option>
+          <option value="sasu">SASU</option>
+          <option value="sas">SAS</option>
+          <option value="sarl">SARL</option>
+        </select>
+      </div>
+      <div class="fld" id="fld-regime">
+        <label>Régime de TVA</label>
+        <select id="f-regime">
+          <option value="franchise">Franchise en base (pas de TVA à déclarer)</option>
+          <option value="reel_simplifie">Réel simplifié (CA12 annuelle + 2 acomptes)</option>
+          <option value="reel_normal">Réel normal (CA3 mensuelle)</option>
+        </select>
+        <div class="h">Ne s'applique qu'aux sociétés (EURL/SASU/SAS/SARL) — sans effet sur micro/EI.</div>
+      </div>
+      <div class="fld" id="fld-close">
+        <label>Date de clôture d'exercice</label>
+        <input type="date" id="f-close">
+        <div class="h">Détermine les échéances liées à la clôture (liasse/IS, AG d'approbation, dépôt des comptes). Par défaut : 31/12.</div>
+      </div>
+      <div class="chk" id="fld-president">
+        <input type="checkbox" id="f-president">
+        <label for="f-president">Président rémunéré (assimilé-salarié, régime général)</label>
+      </div>
+
+      <div class="row-btn">
+        <button class="btn export" id="export" disabled>📅 Exporter le calendrier (.ics)</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Calendrier des échéances (12 prochains mois)</h2>
+      <div class="stats" id="stats">
+        <div class="stat"><div class="k">Échéances</div><div class="v" id="s-count">—</div></div>
+        <div class="stat"><div class="k">Prochaine</div><div class="v" id="s-next">—</div></div>
+      </div>
+      <div id="cal"><div class="empty">Choisis ta forme juridique pour générer le calendrier.</div></div>
+      <div class="note"><b>Limites :</b> ce sont des <b>dates d'échéance et documents à préparer</b> uniquement — aucun taux, aucun montant de cotisation ou d'impôt n'est calculé (ces référentiels changent chaque année et ne sont pas dans la logique portée ici). Échéances indicatives, calculées sur les régimes les plus courants ; à confirmer avec un expert-comptable.</div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Calendrier indicatif — ne remplace pas un conseil fiscal ou social. Aucune donnée ne quitte ton navigateur : rien n'est envoyé, rien n'est enregistré.</div>
+    Logique dérivée du moteur d'obligations d'<b>Atlas Studio Pro</b>. · Un outil DELIGNY R&amp;D
+  </footer>
+</div>
+
+<script>
+const $=id=>document.getElementById(id);
+
+// ─────────────────────────────────────────────────────────────────────────
+// Catalogue d'obligations — porté fidèlement depuis
+// atlas-backend/app/services/obligations.py (OBLIGATIONS + obligations_for).
+// Aucun taux/montant n'existe dans la source : seules dates + libellés sont
+// calculés ici.
+// ─────────────────────────────────────────────────────────────────────────
+const FISCAL='FISCALITÉ', SOCIAL='SOCIAL', JURIDIQUE='JURIDIQUE', REMU='RÉMUNÉRATION', COMPTABLE='COMPTABLE';
+const SOCIETES=['eurl','sasu','sas','sarl'];
+const ALL_FORMS=['micro','ei','eurl','sasu','sas','sarl'];
+const FORM_LABELS={
+  micro:'Micro-entreprise', ei:'Entreprise individuelle',
+  eurl:'EURL', sasu:'SASU', sas:'SAS', sarl:'SARL',
+};
+
+const OBLIGATIONS=[
+  // — Micro-entreprise —
+  {id:'micro_urssaf', forms:['micro'], category:SOCIAL,
+   label:"Déclaration de chiffre d'affaires URSSAF",
+   desc:"Déclarer le CA encaissé et payer les cotisations (mensuel ou trimestriel selon ton option).",
+   action:"Reporte ton CA encaissé sur autoentrepreneur.urssaf.fr.",
+   sched:{freq:'monthly', day:0}},
+  {id:'micro_seuil_tva', forms:['micro'], category:FISCAL,
+   label:"Surveillance du seuil de franchise de TVA",
+   desc:"Vérifier de ne pas dépasser le seuil de franchise en base (sinon TVA à facturer).",
+   action:"Suis ton CA cumulé sur l'année pour anticiper un dépassement de seuil.",
+   sched:{freq:'annual', month:12, day:15}},
+
+  // — Entreprise individuelle (au réel) —
+  {id:'ei_revenus_pro', forms:['ei'], category:FISCAL,
+   label:"Déclaration de revenus professionnels (n°2031 / 2042-C-PRO)",
+   desc:"Déclaration annuelle du résultat professionnel.",
+   action:"Prépare le FEC + journaux comptables pour ton expert-comptable.",
+   sched:{freq:'annual', month:5, day:18}},
+  {id:'ei_urssaf_ti', forms:['ei'], category:SOCIAL,
+   label:"Cotisations sociales (travailleur indépendant)",
+   desc:"Régularisation/échéancier URSSAF des indépendants.",
+   action:"Vérifie ton échéancier URSSAF.",
+   sched:{freq:'monthly', day:5}},
+
+  // — Sociétés (EURL/SASU/SAS/SARL) — TVA : 3 variantes selon le régime.
+  {id:'tva_ca3', forms:SOCIETES, category:FISCAL, regime:'reel_normal',
+   label:"Déclaration de TVA (CA3)",
+   desc:"Déclaration et paiement de la TVA (régime réel normal — mensuel ; vers le 15-24).",
+   action:"Prépare ta CA3 (TVA collectée/déductible) → reporte sur impots.gouv.fr.",
+   sched:{freq:'monthly', day:24}},
+  {id:'tva_ca12', forms:SOCIETES, category:FISCAL, regime:'reel_simplifie',
+   label:"Déclaration annuelle de TVA (CA12)",
+   desc:"Régime réel simplifié : une seule déclaration annuelle (2e jour ouvré après le 1er mai).",
+   action:"Agrège la TVA collectée/déductible de l'exercice.",
+   sched:{freq:'annual', month:5, day:5}},
+  {id:'tva_ca12_ac1', forms:SOCIETES, category:FISCAL, regime:'reel_simplifie',
+   label:"Acompte de TVA (juillet)",
+   desc:"Réel simplifié : 1er acompte semestriel de TVA (55 % de la TVA due de l'an dernier).",
+   action:"Vérifie l'avis d'acompte sur impots.gouv.fr.",
+   sched:{freq:'annual', month:7, day:24}},
+  {id:'tva_ca12_ac2', forms:SOCIETES, category:FISCAL, regime:'reel_simplifie',
+   label:"Acompte de TVA (décembre)",
+   desc:"Réel simplifié : 2e acompte semestriel de TVA (40 % de la TVA due de l'an dernier).",
+   action:"Vérifie l'avis d'acompte sur impots.gouv.fr.",
+   sched:{freq:'annual', month:12, day:24}},
+  {id:'tva_franchise_seuil', forms:SOCIETES, category:FISCAL, regime:'franchise',
+   label:"Surveillance du seuil de franchise de TVA",
+   desc:"Franchise en base : pas de TVA à déclarer, mais surveiller le dépassement des seuils.",
+   action:"Suis ton CA cumulé (sortie de franchise = TVA à facturer).",
+   sched:{freq:'annual', month:12, day:15}},
+  // SASU/SAS : le président est assimilé-salarié (régime général) → DSN si rémunéré.
+  {id:'president_dsn', forms:['sasu','sas'], category:SOCIAL, cond:'president_remunere',
+   label:"DSN + cotisations du président (assimilé-salarié)",
+   desc:"Président de SASU/SAS rémunéré : déclaration sociale nominative mensuelle + paiement URSSAF (régime général).",
+   action:"Édite le bulletin de paie du président, puis dépose la DSN (échéance le 5 ou le 15 selon l'effectif).",
+   sched:{freq:'monthly', day:15}},
+  {id:'is_acomptes', forms:SOCIETES, category:FISCAL,
+   label:"Acompte d'impôt sur les sociétés (IS)",
+   desc:"Acomptes trimestriels d'IS (15/03, 15/06, 15/09, 15/12).",
+   action:"Vérifie le montant de l'acompte (relevé n°2571).",
+   sched:{freq:'quarterly', months:[3,6,9,12], day:15}},
+  {id:'is_solde_liasse', forms:SOCIETES, category:FISCAL,
+   label:"Liasse fiscale + solde d'IS",
+   desc:"Télétransmission de la liasse fiscale et paiement du solde d'IS (clôture + ~4,5 mois).",
+   action:"Transmets le FEC + balance à ton expert-comptable pour la liasse.",
+   sched:{freq:'annual_close', offset:5, day:15}},
+  {id:'ag_approbation', forms:SOCIETES, category:JURIDIQUE,
+   label:"Assemblée d'approbation des comptes annuels",
+   desc:"Approbation des comptes dans les 6 mois suivant la clôture (PV + affectation du résultat).",
+   action:"Prépare le PV de décision de l'associé unique / de l'AG.",
+   sched:{freq:'annual_close', offset:6, day:0}},
+  {id:'depot_comptes', forms:SOCIETES, category:JURIDIQUE,
+   label:"Dépôt des comptes annuels au greffe",
+   desc:"Dépôt au greffe dans le mois suivant l'AG (2 mois si dépôt en ligne).",
+   action:"Prépare la liasse de dépôt (bilan, compte de résultat, annexe).",
+   sched:{freq:'annual_close', offset:7, day:0}},
+  {id:'registres', forms:SOCIETES, category:JURIDIQUE,
+   label:"Tenue des registres obligatoires",
+   desc:"Registre des décisions de l'associé unique / des assemblées, mouvements de titres.",
+   action:"Tiens à jour le registre des décisions / mouvements de titres.",
+   sched:{freq:'annual_close', offset:6, day:5}},
+  {id:'remuneration_dirigeant', forms:SOCIETES, category:REMU,
+   label:"Arbitrage rémunération / dividendes du dirigeant",
+   desc:"Optimiser avant la clôture le mix salaire / dividendes (impact charges & IR).",
+   action:"Compare les scénarios salaire vs dividendes avant la clôture.",
+   sched:{freq:'annual_close', offset:-1, day:30}},
+
+  // — Toutes formes (avec établissement) —
+  {id:'cfe', forms:ALL_FORMS, category:FISCAL,
+   label:"Cotisation Foncière des Entreprises (CFE)",
+   desc:"Paiement de la CFE (exonération possible la 1re année).",
+   action:"Vérifie ton avis sur impots.gouv.fr (espace professionnel).",
+   sched:{freq:'annual', month:12, day:15}},
+];
+
+// ── Portage des fonctions de calcul de dates (obligations.py) ──────────────
+function lastDay(y,m){ return new Date(y, m, 0).getDate(); } // m = 1..12
+function mk(y,m,day){ const ld=lastDay(y,m); return new Date(y, m-1, day===0?ld:Math.min(day,ld)); }
+function addMonths(y,m,k){
+  const idx=(m-1)+k;
+  const yy=y+Math.floor(idx/12);
+  const mm=((idx%12)+12)%12+1;
+  return [yy,mm];
+}
+function inRange(d,today,end){ return d.getTime()>=today.getTime() && d.getTime()<=end.getTime(); }
+
+function occurrences(sched, today, end, close){
+  const out=[];
+  if(sched.freq==='monthly'){
+    let y=today.getFullYear(), m=today.getMonth()+1;
+    while(new Date(y,m-1,1).getTime()<=end.getTime()){
+      const d=mk(y,m,sched.day);
+      if(inRange(d,today,end)) out.push(d);
+      [y,m]=addMonths(y,m,1);
+    }
+  } else if(sched.freq==='quarterly'){
+    for(const y of [today.getFullYear(), today.getFullYear()+1]){
+      for(const m of sched.months){
+        const d=mk(y,m,sched.day);
+        if(inRange(d,today,end)) out.push(d);
+      }
+    }
+  } else if(sched.freq==='annual'){
+    for(const y of [today.getFullYear(), today.getFullYear()+1]){
+      const d=mk(y,sched.month,sched.day);
+      if(inRange(d,today,end)) out.push(d);
+    }
+  } else if(sched.freq==='annual_close'){
+    for(const y of [today.getFullYear(), today.getFullYear()+1]){
+      const [yy,mm]=addMonths(y, close[0], sched.offset);
+      const d=mk(yy,mm,sched.day);
+      if(inRange(d,today,end)) out.push(d);
+    }
+  }
+  // tri + dédoublonnage (par timestamp)
+  const seen=new Set(); const uniq=[];
+  out.sort((a,b)=>a-b);
+  for(const d of out){ const k=d.getTime(); if(!seen.has(k)){ seen.add(k); uniq.push(d); } }
+  return uniq;
+}
+
+function condMet(cond, president){
+  if(cond==='president_remunere') return !!president;
+  return false;
+}
+
+// company: {form, regime, president, close:[month,day]}
+function obligationsFor(company, today, horizonMonths){
+  const [ey,em]=addMonths(today.getFullYear(), today.getMonth()+1, horizonMonths);
+  const end=mk(ey,em,lastDay(ey,em));
+  const items=[];
+  for(const ob of OBLIGATIONS){
+    if(!ob.forms.includes(company.form)) continue;
+    if(ob.regime && ob.regime!==company.regime) continue;
+    if(ob.cond && !condMet(ob.cond, company.president)) continue;
+    for(const due of occurrences(ob.sched, today, end, company.close)){
+      items.push({
+        id:ob.id, label:ob.label, category:ob.category,
+        description:ob.desc, action:ob.action,
+        due, daysUntil:Math.round((due-today)/86400000),
+      });
+    }
+  }
+  items.sort((a,b)=>a.due-b.due);
+  return items;
+}
+
+// ── UI ───────────────────────────────────────────────────────────────────
+const MONTHS_FR=['janv.','févr.','mars','avr.','mai','juin','juil.','août','sept.','oct.','nov.','déc.'];
+const MONTHS_FULL=['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+
+function readCompany(){
+  const form=$('f-form').value;
+  const regime=$('f-regime').value;
+  const president=$('f-president').checked;
+  let close=[12,31];
+  const cv=$('f-close').value;
+  if(cv){ const [y,m,d]=cv.split('-').map(Number); close=[m,d]; }
+  return {form, regime, president, close};
+}
+
+function toggleFields(){
+  const form=$('f-form').value;
+  const isSociete=SOCIETES.includes(form);
+  $('fld-regime').style.display = isSociete ? '' : 'none';
+  $('fld-close').style.display = isSociete ? '' : 'none';
+  $('fld-president').style.display = (form==='sasu'||form==='sas') ? '' : 'none';
+}
+
+let LAST=[];
+function render(){
+  toggleFields();
+  const company=readCompany();
+  const now=new Date();
+  const today=new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  LAST=obligationsFor(company, today, 12);
+
+  $('s-count').textContent=LAST.length;
+  $('s-next').textContent = LAST.length ? `${LAST[0].due.getDate()} ${MONTHS_FR[LAST[0].due.getMonth()]}` : '—';
+
+  if(!LAST.length){
+    $('cal').innerHTML='<div class="empty">Aucune échéance sur les 12 prochains mois pour cette configuration.</div>';
+    $('export').disabled=true; $('export').classList.remove('ready');
+    return;
+  }
+
+  let html=''; let curKey='';
+  for(const it of LAST){
+    const key=`${it.due.getFullYear()}-${it.due.getMonth()}`;
+    if(key!==curKey){ curKey=key; html+=`<div class="month-hdr">${MONTHS_FULL[it.due.getMonth()]} ${it.due.getFullYear()}</div>`; }
+    const urgCls = it.daysUntil<=7 ? 'soon' : it.daysUntil<=30 ? 'mid' : 'far';
+    html+=`<div class="item">
+      <div class="date"><div class="d">${it.due.getDate()}</div><div class="m">${MONTHS_FR[it.due.getMonth()]}</div></div>
+      <div class="body">
+        <span class="lbl">${esc(it.label)}</span><span class="tag ${it.category}">${it.category}</span>
+        <div class="desc">${esc(it.description)}</div>
+        <div class="act">→ ${esc(it.action)}</div>
+      </div>
+      <div class="urg ${urgCls}">${it.daysUntil===0?"aujourd'hui":it.daysUntil+' j'}</div>
+    </div>`;
+  }
+  $('cal').innerHTML=html;
+  $('export').disabled=false; $('export').classList.add('ready');
+}
+function esc(s){ return (s||'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
+
+['f-form','f-regime','f-close','f-president'].forEach(id=>{
+  $(id).addEventListener('change', render);
+  $(id).addEventListener('input', render);
+});
+
+// ── Export .ics (RFC 5545, généré 100% côté navigateur) ────────────────────
+function pad2(n){ return n<10?'0'+n:''+n; }
+function icsDate(d){ return `${d.getFullYear()}${pad2(d.getMonth()+1)}${pad2(d.getDate())}`; }
+function icsDateNext(d){ const n=new Date(d.getFullYear(),d.getMonth(),d.getDate()+1); return icsDate(n); }
+function escICS(s){ return (s||'').replace(/\\/g,'\\\\').replace(/;/g,'\\;').replace(/,/g,'\\,').replace(/\n/g,'\\n'); }
+function foldLine(line){
+  // RFC5545 : lignes limitées à 75 octets, repli avec un espace en continuation.
+  const bytes=line;
+  if(bytes.length<=75) return line;
+  let out=bytes.slice(0,75); let rest=bytes.slice(75);
+  while(rest.length>0){ out+='\r\n '+rest.slice(0,74); rest=rest.slice(74); }
+  return out;
+}
+function buildICS(items, company){
+  const now=new Date();
+  const stamp=`${icsDate(now)}T${pad2(now.getHours())}${pad2(now.getMinutes())}${pad2(now.getSeconds())}Z`;
+  const lines=['BEGIN:VCALENDAR','VERSION:2.0','PRODID:-//DELIGNY R&D//Echeancier Fiscal//FR','CALSCALE:GREGORIAN','METHOD:PUBLISH'];
+  items.forEach((it,i)=>{
+    const uid=`${it.id}-${icsDate(it.due)}-${i}@echeancier-fiscal.deligny-rd`;
+    const desc=`${it.description} ${it.action} — Échéance indicative, à confirmer avec un expert-comptable. Aucun taux/montant calculé.`;
+    lines.push('BEGIN:VEVENT');
+    lines.push(foldLine(`UID:${uid}`));
+    lines.push(`DTSTAMP:${stamp}`);
+    lines.push(`DTSTART;VALUE=DATE:${icsDate(it.due)}`);
+    lines.push(`DTEND;VALUE=DATE:${icsDateNext(it.due)}`);
+    lines.push(foldLine(`SUMMARY:${escICS(it.label)} (${FORM_LABELS[company.form]})`));
+    lines.push(foldLine(`DESCRIPTION:${escICS(desc)}`));
+    lines.push(foldLine(`CATEGORIES:${escICS(it.category)}`));
+    lines.push('END:VEVENT');
+  });
+  lines.push('END:VCALENDAR');
+  return lines.join('\r\n');
+}
+$('export').onclick=()=>{
+  if(!LAST.length) return;
+  const company=readCompany();
+  const ics=buildICS(LAST, company);
+  const blob=new Blob([ics], {type:'text/calendar;charset=utf-8'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  a.href=url; a.download=`echeancier-fiscal-${company.form}.ics`;
+  document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+};
+
+// ── Init ─────────────────────────────────────────────────────────────────
+$('f-form').value='micro';
+$('f-regime').value='franchise';
+{
+  const y=new Date().getFullYear();
+  $('f-close').value=`${y}-12-31`;
+}
+render();
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>

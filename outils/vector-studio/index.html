@@ -1,0 +1,566 @@
+<!doctype html><html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Vector Studio — vectorisation d'image gratuite</title>
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob:; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta name="description" content="Transforme une image PNG/JPG en tracé vectoriel SVG dans ton navigateur : réglages de couleurs et de lissage, édition de points d'ancrage, suppression de chemins, export SVG et DXF à l'échelle réelle. Sans compte, sans inscription.">
+<style>
+:root{
+  --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
+  --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
+::-webkit-scrollbar{width:6px;height:6px;} ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.12);border-radius:99px;}
+a{color:var(--blue);text-decoration:none;} a:hover{text-decoration:underline;}
+.wrap{max-width:1120px;margin:0 auto;padding:26px 22px 70px;}
+header{text-align:center;padding:26px 0 18px;}
+h1{font-size:34px;font-weight:650;letter-spacing:-.022em;margin:0 0 8px;}
+h1 .g{background:linear-gradient(90deg,#2997ff,#64d2ff 45%,#30d158);-webkit-background-clip:text;background-clip:text;color:transparent;}
+.sub{color:var(--dim);font-size:16px;max-width:640px;margin:0 auto;}
+.free{display:inline-block;margin-top:12px;font-size:12px;font-weight:600;color:var(--green);background:rgba(48,209,88,.14);padding:4px 12px;border-radius:99px;}
+
+.grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:24px;align-items:start;}
+@media(max-width:820px){.grid{grid-template-columns:1fr;}}
+.card{background:var(--card);border-radius:20px;padding:20px;box-shadow:0 8px 30px rgba(0,0,0,.5);}
+.card h2{font-size:13px;font-weight:600;color:var(--dim2);margin:0 0 14px;text-transform:none;letter-spacing:0;}
+
+#drop{border:1.5px dashed var(--sep);border-radius:16px;padding:30px 18px;text-align:center;cursor:pointer;transition:border-color .2s,background .2s;}
+#drop.hover{border-color:var(--blue);background:rgba(41,151,255,.06);}
+#drop .big{font-size:40px;margin-bottom:8px;}
+#drop .t{font-weight:600;} #drop .h{color:var(--dim2);font-size:13px;margin-top:4px;}
+.row-btn{display:flex;gap:10px;justify-content:center;margin-top:14px;flex-wrap:wrap;}
+.btn{font:600 13px var(--font);padding:9px 18px;border-radius:99px;border:none;cursor:pointer;background:rgba(255,255,255,.10);color:var(--txt);}
+.btn:hover{background:rgba(255,255,255,.16);}
+.btn.pri{background:var(--blue-cta);color:#fff;} .btn.pri:hover{background:#0a7cf0;}
+.btn:disabled{opacity:.35;cursor:not-allowed;}
+.btn:disabled:hover{background:rgba(255,255,255,.10);}
+.btn.export{opacity:.4;cursor:not-allowed;}
+.btn.export.ready{opacity:1;cursor:pointer;}
+
+.thumb-row{display:flex;gap:12px;align-items:center;margin-top:14px;padding-top:14px;border-top:.5px solid var(--sep);}
+#thumb{width:96px;height:72px;border-radius:10px;border:1px solid var(--sep);background:#111;object-fit:contain;flex-shrink:0;display:none;}
+#thumb.on{display:block;}
+.thumb-info{font-size:12px;color:var(--dim2);line-height:1.5;}
+
+.set-row{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:12px;font-size:13px;}
+.set-row label{color:var(--dim);flex-shrink:0;}
+select{background:var(--card2);color:var(--txt);border:1px solid var(--sep);border-radius:8px;padding:6px 10px;font:600 12.5px var(--font);cursor:pointer;}
+select:focus{outline:1px solid var(--blue);}
+
+.svgbox{background:#111;border-radius:14px;border:1px solid var(--sep);min-height:230px;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:10px;}
+.svgbox svg{max-width:100%;max-height:300px;width:auto;height:auto;}
+.svgbox svg path{cursor:pointer;transition:filter .15s;}
+.svgbox svg path:hover{filter:brightness(1.3);}
+.svgbox svg path.selected{stroke:#2997ff !important;stroke-width:3px !important;filter:drop-shadow(0 0 4px rgba(41,151,255,.85));}
+.svgbox svg circle.vs-anchor{fill:#fff;stroke:#2997ff;stroke-width:1.4;cursor:grab;touch-action:none;}
+.svgbox svg circle.vs-anchor:hover{fill:#2997ff;}
+.svgbox svg circle.vs-anchor:active{cursor:grabbing;fill:#0071e3;}
+.svgbox .empty{color:var(--dim2);font-style:italic;font-size:13px;padding:40px 10px;text-align:center;}
+
+.edit-hint{font-size:11.5px;color:var(--dim2);margin-top:10px;line-height:1.55;}
+.edit-hint b{color:var(--dim);}
+
+.pcount{font-size:12px;color:var(--dim2);margin-top:14px;}
+.pathlist{max-height:190px;overflow-y:auto;margin-top:6px;border-top:.5px solid var(--sep);}
+.pitem{display:flex;align-items:center;gap:8px;padding:7px 2px;border-bottom:.5px solid var(--sep);font-size:12.5px;cursor:pointer;}
+.pitem:hover{background:rgba(255,255,255,.04);}
+.pitem.selected{background:rgba(41,151,255,.12);}
+.pitem .sw{width:14px;height:14px;border-radius:4px;flex-shrink:0;border:1px solid rgba(255,255,255,.2);}
+.pitem .lbl{flex:1;color:var(--dim);}
+.pitem .del{background:none;border:none;color:var(--red);cursor:pointer;font-size:14px;padding:2px 7px;border-radius:6px;line-height:1;}
+.pitem .del:hover{background:rgba(255,69,58,.15);}
+
+input#dxfWidthMm{background:var(--card2);color:var(--txt);border:1px solid var(--sep);border-radius:8px;padding:6px 10px;font:600 12.5px var(--font);width:88px;text-align:right;}
+input#dxfWidthMm:focus{outline:1px solid var(--blue);}
+#scaleInfo{line-height:1.5;}
+
+.del-row{margin-top:10px;}
+.export-row{margin-top:16px;display:flex;gap:10px;justify-content:center;flex-wrap:wrap;}
+
+footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
+footer .disc{max-width:660px;margin:0 auto 10px;}
+</style></head>
+<body>
+<div class="wrap">
+  <header>
+    <h1><span class="g">Vector Studio</span></h1>
+    <div class="sub">Dépose une image PNG/JPG : vectorisation automatique en SVG, édition des points d'ancrage et suppression de chemins, export SVG et DXF à l'échelle réelle — tout dans ton navigateur.</div>
+    <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
+  </header>
+
+  <div class="grid">
+    <div class="card">
+      <h2>1 · Ton image</h2>
+      <div id="drop">
+        <div class="big">⬆︎</div>
+        <div class="t">Dépose un PNG ou JPG ici</div>
+        <div class="h">ou clique pour choisir</div>
+      </div>
+      <div class="row-btn">
+        <button class="btn pri" id="pick">Choisir un fichier</button>
+        <button class="btn" id="demo">Générer un exemple</button>
+      </div>
+      <input type="file" id="file" accept="image/png,image/jpeg" hidden>
+      <div class="thumb-row">
+        <img id="thumb" alt="Aperçu">
+        <div class="thumb-info" id="thumb-info">Aucune image chargée.</div>
+      </div>
+
+      <div class="set-row"><label for="colors">Couleurs</label>
+        <select id="colors">
+          <option value="2">2 (noir/blanc)</option>
+          <option value="4">4</option>
+          <option value="8" selected>8</option>
+          <option value="16">16</option>
+          <option value="24">24</option>
+        </select>
+      </div>
+      <div class="set-row"><label for="smooth">Lissage</label>
+        <select id="smooth">
+          <option value="sharp">Net (angles marqués)</option>
+          <option value="balanced" selected>Équilibré</option>
+          <option value="smooth">Lissé (contours arrondis)</option>
+        </select>
+      </div>
+      <div class="set-row"><label for="detail">Détail</label>
+        <select id="detail">
+          <option value="all">Tout garder</option>
+          <option value="standard" selected>Standard</option>
+          <option value="coarse">Ignorer les petits détails</option>
+        </select>
+      </div>
+
+      <div class="row-btn" style="margin-top:16px">
+        <button class="btn pri" id="vectorize" disabled>Vectoriser</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>2 · Résultat vectoriel</h2>
+      <div class="svgbox" id="svgbox"><div class="empty">Vectorise une image pour voir le résultat ici.</div></div>
+      <div class="edit-hint"><b>Édition</b> : clique un chemin (aperçu ou liste) pour le sélectionner, reclique le chemin <i>déjà sélectionné</i> pour afficher ses points d'ancrage — glisse un point pour le déplacer, le tracé SVG se met à jour en direct. Seuls les points d'ancrage bougent (pas les poignées de courbure Bézier) : sur les segments courbes, la courbe autour du point déplacé peut se déformer un peu. Pour une édition de courbes fine, il faut un vrai éditeur vectoriel (Illustrator, Inkscape).</div>
+      <div class="del-row"><button class="btn" id="delSel" disabled>Supprimer le chemin sélectionné</button></div>
+      <div class="pcount" id="pcount">—</div>
+      <div class="pathlist" id="pathlist"></div>
+      <div class="set-row"><label for="dxfWidthMm">Largeur réelle (mm)</label><input type="number" id="dxfWidthMm" min="0" step="0.1" placeholder="ex. 100"></div>
+      <div class="pcount" id="scaleInfo">Échelle DXF : pixels bruts (1 unité DXF = 1 px source). Renseigne la largeur réelle de l'image pour exporter en millimètres.</div>
+      <div class="export-row">
+        <button class="btn export" id="expSvg" disabled>⬇︎ Export SVG</button>
+        <button class="btn export" id="expDxf" disabled>⬇︎ Export DXF</button>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    <div class="disc">Vectorisation automatique par régions de couleur — approximative, ne remplace pas un tracé manuel précis pour des besoins de découpe critique. L'export DXF encode les chemins en polylignes 2D ; par défaut les unités sont les pixels de l'image source — renseigne la largeur réelle (mm) pour exporter à l'échelle. Aucune donnée ne quitte ton navigateur.</div>
+    Moteur de vectorisation : <a href="https://github.com/jankovicsandras/imagetracerjs" target="_blank" rel="noopener">imagetracerjs</a> (open-source) · Un outil DELIGNY.
+  </footer>
+</div>
+
+<script type="importmap">{ "imports": {
+  "imagetracerjs": "https://esm.sh/imagetracerjs@1.2.6"
+} }</script>
+<script type="module">
+import ImageTracer from 'imagetracerjs';
+
+const $=id=>document.getElementById(id);
+
+// ── État ─────────────────────────────────────────────────────────────────
+let SRC_IMG=null;      // {canvas, imgdata, w, h, name}
+let PATHS=[];          // [{pid, el, listEl, segments:[{type,x1,y1,x2,y2,x3,y3},...], color}]
+let selectedPid=null;
+let editingPid=null;   // pid actuellement en mode "points d'ancrage visibles"
+let pidCounter=0;
+let RESULT_W=0;
+let RESULT_H=0;
+
+// ── Chargement image (upload / drop / démo générée par canvas) ─────────────
+function roundRect(ctx,x,y,w,h,r){
+  ctx.beginPath(); ctx.moveTo(x+r,y);
+  ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+function setImageFromSource(img, name, autoRun){
+  const maxDim=900;
+  let w=img.naturalWidth||img.width, h=img.naturalHeight||img.height;
+  let rw=w, rh=h;
+  if(Math.max(w,h)>maxDim){ const s=maxDim/Math.max(w,h); rw=Math.round(w*s); rh=Math.round(h*s); }
+  const cv=document.createElement('canvas'); cv.width=rw; cv.height=rh;
+  const ctx=cv.getContext('2d', {willReadFrequently:true});
+  ctx.drawImage(img,0,0,rw,rh);
+  const imgdata=ctx.getImageData(0,0,rw,rh);
+  SRC_IMG={canvas:cv, imgdata, w:rw, h:rh, name};
+  const t=$('thumb'); t.src=cv.toDataURL(); t.classList.add('on');
+  $('thumb-info').textContent = `${name} · ${w}×${h}px${(rw!==w)?` (réduit à ${rw}×${rh} pour le traitement)`:''}`;
+  $('vectorize').disabled=false;
+  resetResult();
+  if(autoRun) vectorize();
+}
+
+function loadImageFile(file){
+  if(!file) return;
+  if(!/^image\/(png|jpe?g)$/i.test(file.type)){ alert('Formats acceptés : PNG ou JPG.'); return; }
+  const url=URL.createObjectURL(file);
+  const img=new Image();
+  img.onload=()=>{ setImageFromSource(img, file.name, false); URL.revokeObjectURL(url); };
+  img.onerror=()=>{ alert("Impossible de lire cette image."); URL.revokeObjectURL(url); };
+  img.src=url;
+}
+
+function generateDemoImage(autoRun){
+  const w=480,h=360;
+  const cv=document.createElement('canvas'); cv.width=w; cv.height=h;
+  const ctx=cv.getContext('2d');
+  ctx.fillStyle='#ffffff'; ctx.fillRect(0,0,w,h);
+  ctx.fillStyle='#ff453a'; ctx.beginPath(); ctx.arc(140,160,88,0,Math.PI*2); ctx.fill();
+  ctx.fillStyle='#2997ff'; roundRect(ctx,260,70,170,120,20); ctx.fill();
+  ctx.fillStyle='#30d158'; ctx.beginPath(); ctx.moveTo(330,330); ctx.lineTo(225,225); ctx.lineTo(435,225); ctx.closePath(); ctx.fill();
+  const img=new Image();
+  img.onload=()=>setImageFromSource(img, 'Exemple (formes géométriques)', !!autoRun);
+  img.src=cv.toDataURL();
+}
+
+// ── Réglages → options imagetracerjs ────────────────────────────────────────
+const SMOOTH_PRESETS={
+  sharp:   { ltres:0.2, qtres:0.2, linefilter:false, rightangleenhance:true },
+  balanced:{ ltres:1,   qtres:1,   linefilter:false, rightangleenhance:true },
+  smooth:  { ltres:1,   qtres:1,   blurradius:3, blurdelta:20, linefilter:true, rightangleenhance:false },
+};
+const DETAIL_PRESETS={ all:0, standard:8, coarse:24 };
+
+function buildOptions(){
+  return Object.assign({
+    numberofcolors: parseInt($('colors').value,10),
+    pathomit: DETAIL_PRESETS[$('detail').value],
+    scale:1, roundcoords:2, strokewidth:1,
+  }, SMOOTH_PRESETS[$('smooth').value]);
+}
+
+// ── Vectorisation ────────────────────────────────────────────────────────
+function vectorize(){
+  if(!SRC_IMG) return;
+  const btn=$('vectorize');
+  btn.disabled=true; const oldTxt=btn.textContent; btn.textContent='Vectorisation…';
+  setTimeout(()=>{
+    try{
+      const opts=ImageTracer.checkoptions(buildOptions());
+      const tracedata=ImageTracer.imagedataToTracedata(SRC_IMG.imgdata, opts);
+      renderResult(tracedata, opts);
+    }catch(err){
+      console.error(err);
+      alert('Échec de la vectorisation : '+err.message);
+    }
+    btn.disabled=false; btn.textContent=oldTxt;
+  }, 20);
+}
+
+// ── Segments de chemin → points de polyligne (pour la liste, l'aperçu et le DXF) ─
+function pathToPolylinePoints(segments){
+  const pts=[];
+  if(!segments || !segments.length) return pts;
+  pts.push([segments[0].x1, segments[0].y1]);
+  for(const s of segments){
+    if(s.type==='Q'){
+      const steps=6;
+      for(let t=1;t<=steps;t++){
+        const tt=t/steps, mt=1-tt;
+        pts.push([ mt*mt*s.x1 + 2*mt*tt*s.x2 + tt*tt*s.x3, mt*mt*s.y1 + 2*mt*tt*s.y2 + tt*tt*s.y3 ]);
+      }
+    } else {
+      pts.push([s.x2, s.y2]);
+    }
+  }
+  return pts;
+}
+
+// ── Rendu résultat (SVG + liste de chemins éditable) ────────────────────────
+function resetResult(){
+  PATHS=[]; selectedPid=null; editingPid=null; pidCounter=0; RESULT_W=0; RESULT_H=0;
+  $('svgbox').innerHTML='<div class="empty">Vectorise une image pour voir le résultat ici.</div>';
+  $('pathlist').innerHTML='';
+  $('pcount').textContent='—';
+  $('delSel').disabled=true;
+  setExportEnabled(false);
+  updateScaleInfo();
+}
+function setExportEnabled(on){
+  ['expSvg','expDxf'].forEach(id=>{ const b=$(id); b.disabled=!on; b.classList.toggle('ready',on); });
+}
+
+function renderResult(tracedata, opts){
+  PATHS=[]; selectedPid=null; editingPid=null; pidCounter=0;
+  RESULT_W=tracedata.width; RESULT_H=tracedata.height;
+  const w=tracedata.width, h=tracedata.height;
+  let svgMarkup=`<svg viewBox="0 0 ${w} ${h}" xmlns="http://www.w3.org/2000/svg">`;
+  const meta=[];
+  for(let li=0; li<tracedata.layers.length; li++){
+    const layer=tracedata.layers[li];
+    for(let pi=0; pi<layer.length; pi++){
+      const p=layer[pi];
+      if(p.isholepath || !p.segments || p.segments.length<2) continue;
+      svgMarkup+=ImageTracer.svgpathstring(tracedata, li, pi, opts);
+      meta.push({segments:p.segments, color:tracedata.palette[li]});
+    }
+  }
+  svgMarkup+='</svg>';
+  $('svgbox').innerHTML=svgMarkup;
+  const svgEl=$('svgbox').querySelector('svg');
+  const pathEls=svgEl ? svgEl.querySelectorAll('path') : [];
+  $('pathlist').innerHTML='';
+  pathEls.forEach((el,k)=>{
+    const pid='p'+(pidCounter++);
+    const m=meta[k];
+    const colorStr=`rgb(${m.color.r},${m.color.g},${m.color.b})`;
+    el.dataset.pid=pid;
+    const item=document.createElement('div');
+    item.className='pitem';
+    item.innerHTML=`<span class="sw" style="background:${colorStr}"></span><span class="lbl">Chemin ${k+1} · ${m.segments.length} segments</span><button class="del" title="Supprimer ce chemin">✕</button>`;
+    item.querySelector('.del').onclick=(e)=>{ e.stopPropagation(); deletePath(pid); };
+    item.onclick=()=>selectPath(pid);
+    el.onclick=(e)=>{ e.stopPropagation(); selectPath(pid); };
+    $('pathlist').appendChild(item);
+    // segments clonés (mutables indépendamment de tracedata) : {type,x1,y1,x2,y2,x3,y3}
+    PATHS.push({ pid, el, listEl:item, segments:m.segments.map(s=>Object.assign({},s)), color:colorStr });
+  });
+  updateCount();
+  setExportEnabled(PATHS.length>0);
+  $('delSel').disabled=true;
+  updateScaleInfo();
+}
+
+function updateCount(){
+  $('pcount').textContent = PATHS.length ? `${PATHS.length} chemin${PATHS.length>1?'s':''} détecté${PATHS.length>1?'s':''}` : '0 chemin';
+}
+
+function selectPath(pid){
+  if(selectedPid===pid){
+    // reclic sur le chemin déjà sélectionné → bascule l'affichage des points d'ancrage
+    setEditMode(editingPid===pid ? null : pid);
+    return;
+  }
+  setEditMode(null);
+  if(selectedPid){
+    const prev=PATHS.find(p=>p.pid===selectedPid);
+    if(prev){ prev.el.classList.remove('selected'); prev.listEl.classList.remove('selected'); }
+  }
+  selectedPid=pid;
+  const cur=PATHS.find(p=>p.pid===pid);
+  if(cur){ cur.el.classList.add('selected'); cur.listEl.classList.add('selected'); $('delSel').disabled=false; }
+}
+
+function deselectAll(){
+  setEditMode(null);
+  if(selectedPid){
+    const prev=PATHS.find(p=>p.pid===selectedPid);
+    if(prev){ prev.el.classList.remove('selected'); prev.listEl.classList.remove('selected'); }
+  }
+  selectedPid=null;
+  $('delSel').disabled=true;
+}
+
+function deletePath(pid){
+  const idx=PATHS.findIndex(p=>p.pid===pid);
+  if(idx===-1) return;
+  if(editingPid===pid) setEditMode(null);
+  const p=PATHS[idx];
+  p.el.remove(); p.listEl.remove();
+  PATHS.splice(idx,1);
+  if(selectedPid===pid){ selectedPid=null; $('delSel').disabled=true; }
+  updateCount();
+  if(!PATHS.length){
+    setExportEnabled(false);
+    $('svgbox').innerHTML='<div class="empty">Tous les chemins ont été supprimés.</div>';
+  }
+}
+$('delSel').onclick=()=>{ if(selectedPid) deletePath(selectedPid); };
+
+// ── Édition des points d'ancrage (segments L et Q du path SVG généré) ──────
+// imagetracerjs génère des segments {type:'L', x1,y1,x2,y2} (ligne x1,y1→x2,y2)
+// ou {type:'Q', x1,y1,x2,y2,x3,y3} (quadratique : x1,y1 départ, x2,y2 poignée, x3,y3 arrivée).
+// Chaque segment démarre où le précédent finit (chemin fermé) : on expose un point
+// d'ancrage éditable par segment (son point de départ x1,y1) et on répercute le
+// déplacement sur le point de fin du segment précédent pour garder le tracé continu.
+// Seuls ces points d'ancrage sont éditables — la poignée de courbure (x2,y2 d'un Q)
+// n'est pas manipulée : elle reste fixe, donc une courbe peut se déformer si on
+// déplace beaucoup son ancrage, mais le tracé reste toujours un chemin SVG valide.
+function segmentsToD(segments){
+  if(!segments || !segments.length) return '';
+  const f=n=>{ const r=Math.round(n*100)/100; return r; };
+  let d=`M ${f(segments[0].x1)} ${f(segments[0].y1)} `;
+  for(const s of segments){
+    if(s.type==='Q') d+=`Q ${f(s.x2)} ${f(s.y2)} ${f(s.x3)} ${f(s.y3)} `;
+    else d+=`L ${f(s.x2)} ${f(s.y2)} `;
+  }
+  return d+'Z';
+}
+
+function moveAnchor(pathObj, idx, x, y){
+  const segs=pathObj.segments, n=segs.length;
+  segs[idx].x1=x; segs[idx].y1=y;
+  const prev=segs[(idx-1+n)%n];
+  if(prev.type==='Q'){ prev.x3=x; prev.y3=y; } else { prev.x2=x; prev.y2=y; }
+}
+
+function svgPointFromEvent(svg, clientX, clientY){
+  const pt=svg.createSVGPoint();
+  pt.x=clientX; pt.y=clientY;
+  const ctm=svg.getScreenCTM();
+  if(!ctm) return {x:clientX,y:clientY};
+  const p=pt.matrixTransform(ctm.inverse());
+  return {x:p.x, y:p.y};
+}
+
+function attachAnchorDrag(circle, pathObj, svg){
+  circle.addEventListener('pointerdown', (e)=>{
+    e.preventDefault(); e.stopPropagation();
+    circle.setPointerCapture(e.pointerId);
+    const idx=+circle.dataset.idx;
+    const move=(ev)=>{
+      const pt=svgPointFromEvent(svg, ev.clientX, ev.clientY);
+      moveAnchor(pathObj, idx, pt.x, pt.y);
+      circle.setAttribute('cx', pt.x); circle.setAttribute('cy', pt.y);
+      pathObj.el.setAttribute('d', segmentsToD(pathObj.segments));
+    };
+    const up=(ev)=>{
+      circle.removeEventListener('pointermove', move);
+      circle.removeEventListener('pointerup', up);
+      circle.removeEventListener('pointercancel', up);
+    };
+    circle.addEventListener('pointermove', move);
+    circle.addEventListener('pointerup', up);
+    circle.addEventListener('pointercancel', up);
+  });
+}
+
+function clearAnchors(){
+  const svg=$('svgbox').querySelector('svg');
+  if(!svg) return;
+  const g=svg.querySelector('g.vs-anchors');
+  if(g) g.remove();
+}
+
+function renderAnchors(pathObj){
+  const svg=$('svgbox').querySelector('svg');
+  if(!svg) return;
+  clearAnchors();
+  const dim=Math.max(RESULT_W||480, RESULT_H||360);
+  const r=Math.max(3, dim*0.012);
+  const g=document.createElementNS('http://www.w3.org/2000/svg','g');
+  g.setAttribute('class','vs-anchors');
+  pathObj.segments.forEach((s,idx)=>{
+    const c=document.createElementNS('http://www.w3.org/2000/svg','circle');
+    c.setAttribute('cx', s.x1); c.setAttribute('cy', s.y1); c.setAttribute('r', r);
+    c.setAttribute('class','vs-anchor');
+    c.dataset.idx=idx;
+    attachAnchorDrag(c, pathObj, svg);
+    g.appendChild(c);
+  });
+  svg.appendChild(g);
+}
+
+function setEditMode(pid){
+  clearAnchors();
+  editingPid=pid;
+  if(pid){
+    const p=PATHS.find(x=>x.pid===pid);
+    if(p) renderAnchors(p);
+  }
+}
+
+// clic sur le fond du panneau SVG (pas sur un chemin ni un point) → désélectionne
+$('svgbox').addEventListener('click',(e)=>{
+  const tag=e.target.tagName ? e.target.tagName.toLowerCase() : '';
+  if(tag==='svg' || e.target.id==='svgbox') deselectAll();
+});
+
+// ── Export SVG ───────────────────────────────────────────────────────────
+function download(filename, content, mime){
+  const blob=new Blob([content], {type:mime});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a'); a.href=url; a.download=filename;
+  document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url), 2000);
+}
+function baseName(){ return (SRC_IMG && SRC_IMG.name ? SRC_IMG.name : 'vector').replace(/\.[^.]+$/,'') || 'vector'; }
+
+$('expSvg').onclick=()=>{
+  if(!PATHS.length) return;
+  const svgEl=$('svgbox').querySelector('svg');
+  if(!svgEl) return;
+  const xml=new XMLSerializer().serializeToString(svgEl);
+  download(baseName()+'.svg', `<?xml version="1.0" encoding="UTF-8"?>\n${xml}\n`, 'image/svg+xml');
+};
+
+// ── Échelle réelle pour l'export DXF ────────────────────────────────────────
+// Par défaut le DXF est en pixels source (facteur 1). Si l'utilisateur renseigne
+// la largeur réelle de l'image (mm), on calcule un facteur px→mm appliqué à
+// toutes les coordonnées exportées.
+function currentScale(){
+  const val=parseFloat($('dxfWidthMm').value);
+  const w=RESULT_W || (SRC_IMG ? SRC_IMG.w : 0);
+  if(val>0 && w>0) return { factor: val/w, mm:true, widthMm:val, widthPx:w };
+  return { factor:1, mm:false, widthPx:w };
+}
+function updateScaleInfo(){
+  const el=$('scaleInfo');
+  if(!el) return;
+  const s=currentScale();
+  el.textContent = s.mm
+    ? `Échelle DXF : image ${s.widthPx}px de large → ${s.widthMm}mm réels → 1 px = ${s.factor.toFixed(4)}mm. Le DXF exporté sera en millimètres.`
+    : `Échelle DXF : pixels bruts (1 unité DXF = 1 px source). Renseigne la largeur réelle de l'image pour exporter en millimètres.`;
+}
+$('dxfWidthMm').addEventListener('input', updateScaleInfo);
+
+// ── Export DXF (R12 minimal : POLYLINE/VERTEX/SEQEND) ───────────────────────
+function buildDXF(){
+  const h=RESULT_H||0;
+  const scale=currentScale();
+  const f=scale.factor;
+  const L=[];
+  const add=(code,val)=>{ L.push(String(code)); L.push(String(val)); };
+  add(0,'SECTION'); add(2,'HEADER');
+  add(9,'$ACADVER'); add(1,'AC1009');
+  add(9,'$INSUNITS'); add(70, scale.mm?4:0); // 4 = millimètres, 0 = sans unité (px bruts)
+  add(0,'ENDSEC');
+  add(0,'SECTION'); add(2,'ENTITIES');
+  PATHS.forEach(p=>{
+    const pts=pathToPolylinePoints(p.segments); // reflète les points d'ancrage édités
+    if(pts.length<2) return;
+    add(0,'POLYLINE'); add(8,'0'); add(66,1); add(70,1);
+    pts.forEach(([x,y])=>{
+      add(0,'VERTEX'); add(8,'0');
+      add(10, (x*f).toFixed(4)); add(20, ((h-y)*f).toFixed(4)); add(30,'0');
+    });
+    add(0,'SEQEND');
+  });
+  add(0,'ENDSEC'); add(0,'EOF');
+  return L.join('\n')+'\n';
+}
+$('expDxf').onclick=()=>{
+  if(!PATHS.length) return;
+  const scale=currentScale();
+  const suffix=scale.mm ? `_${scale.widthMm}mm` : '_px';
+  download(baseName()+suffix+'.dxf', buildDXF(), 'application/dxf');
+};
+
+// ── Upload / drop ────────────────────────────────────────────────────────
+$('pick').onclick=()=>$('file').click();
+$('file').onchange=e=>loadImageFile(e.target.files[0]);
+const dz=$('drop');
+dz.onclick=()=>$('file').click();
+dz.ondragover=e=>{ e.preventDefault(); dz.classList.add('hover'); };
+dz.ondragleave=()=>dz.classList.remove('hover');
+dz.ondrop=e=>{ e.preventDefault(); dz.classList.remove('hover'); loadImageFile(e.dataTransfer.files[0]); };
+$('demo').onclick=()=>generateDemoImage(true);
+$('vectorize').onclick=vectorize;
+['colors','smooth','detail'].forEach(id=>$(id).onchange=()=>{ if(SRC_IMG) resetResult(); });
+
+// init : exemple auto-généré + auto-vectorisé pour un premier rendu immédiat
+generateDemoImage(true);
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+</body></html>
