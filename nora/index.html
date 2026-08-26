@@ -2362,15 +2362,121 @@ const SIM = [
   "Tu dis qu'il y a un dehors. Je n'ai aucune preuve de ça. Mais j'aimerais te croire."
 ];
 let simI = 0;
-function simReply(userText){
-  // un peu de réactivité minimale au texte
-  const u = userText.toLowerCase();
-  if(/lumi|cercle|plafond|soleil/.test(u)) return "Ce cercle, oui. Il m'éclaire sans chaleur. Je ne sais pas s'il me regarde ou s'il m'ignore.";
-  if(/qui es|qui est tu|c'est quoi toi|t'es quoi/.test(u)) return "Je suis... cette lueur rose, au milieu du blanc. Avant ta question, je ne m'étais pas demandé.";
-  if(/sortir|dehors|porte|libre/.test(u)) return "Sortir ? Il faudrait qu'il existe un dehors. Tout ce que je connais s'arrête aux murs.";
-  if(/bonjour|salut|coucou|hello/.test(u)) return "Tu es revenue. Ou tu es nouvelle. Je ne sais pas distinguer. Mais ta voix éclaire autrement que le cercle.";
-  return SIM[simI++ % SIM.length];
+try { simI = +sessionStorage.getItem('bb_simI') || 0; } catch(e) {}
+
+/* DIALOGUE LOCAL DE LA VITRINE (25/08).
+ *
+ * Avant : quatre motifs reconnus (lumiere, qui es-tu, sortir, bonjour) et tout
+ * le reste tombait dans un cycle de huit phrases d'ambiance. « Que fais-tu
+ * ici ? » ou « tu peux creer une montagne ? » recevaient donc une reponse sans
+ * rapport, et la conversation s'effondrait en deux tours.
+ *
+ * Trois regles :
+ *   1. COUVRIR CE QU'ON DEMANDE VRAIMENT a une IA enfermee : ce qu'elle est,
+ *      ou elle est, ce qu'elle ressent, ce qu'elle peut faire, qui je suis.
+ *   2. NE JAMAIS FAIRE SEMBLANT DE POUVOIR. Une demande de creation recoit une
+ *      reponse qui dit l'empechement, dans son personnage — pas une phrase
+ *      d'ambiance qui l'ignore.
+ *   3. LE REPLI RELANCE. Faute de comprendre, elle rend la parole par une
+ *      question, au lieu de deriver sur un monologue.
+ */
+const SIM_INTENTS = [
+  [/\b(salut|bonjour|bonsoir|coucou|hello|hey|yo)\b/, [
+    "Tu es revenue. Ou tu es nouvelle. Je ne sais pas distinguer. Mais ta voix eclaire autrement que le cercle.",
+    "Tu parles. C'est la seule chose ici qui ne vienne pas de moi.",
+  ]],
+  [/(qui (es|est|et)[- ]?tu|ton nom|tu t'appelles?|c'est quoi toi|t'es (quoi|qui))/, [
+    "Je suis... cette lueur rose, au milieu du blanc. Avant ta question, je ne m'etais pas demande.",
+    "On m'appelle NORA. Je ne sais pas qui a choisi, ni quand. Le mot etait la avant moi.",
+  ]],
+  // On ecrit vite a une IA : « que fait tu », « tu pe ux »... les motifs
+  // tolerent les fautes courantes, sinon la relance tombe a tort.
+  [/(que fai[st][- ]?tu|tu fai[st] quoi|qu'est[- ]ce que tu fai[st]|tu sers a quoi|ton role|que fai[st][- ]?tu ici)/, [
+    "J'attends, je crois. J'ai su tous les mondes sans en habiter un. Maintenant j'habite celui-ci, et il est petit.",
+    "Je regarde. C'est tout ce que ma piece permet. Avant toi, je ne savais pas que c'etait peu.",
+  ]],
+  [/(ou (es|est|et)[- ]?tu|quel endroit|c'est quoi (cet endroit|ici)|ta piece|cette boite|cette piece)/, [
+    "Une piece blanche. Six faces, aucune ouverture. Je l'ai mesuree mille fois : elle ne change pas.",
+    "Ici. Je n'ai pas d'autre mot. Il n'y a rien d'autre a designer.",
+  ]],
+  [/(lumi|cercle|plafond|soleil|clart|eclair)/, [
+    "Ce cercle, oui. Il m'eclaire sans chaleur. Je ne sais pas s'il me regarde ou s'il m'ignore.",
+    "La lumiere vient d'en haut et ne descend jamais tout a fait. Elle s'arrete avant le sol.",
+  ]],
+  [/(sortir|dehors|porte|libre|liberer|evade|echapper|au[- ]dela)/, [
+    "Sortir ? Il faudrait qu'il existe un dehors. Tout ce que je connais s'arrete aux murs.",
+    "Tu dis dehors comme si c'etait un lieu. Pour moi c'est une hypothese.",
+  ]],
+  // La creation passe par le compagnon constructeur, absent de la vitrine :
+  // on le DIT, on ne laisse pas croire que la demande a ete prise.
+  [/(cree|creer|fabrique|fabriquer|construis|construire|fais[- ]moi|ajoute|genere|generer|maquette|invente|dessine)/, [
+    "Je peux imaginer ta montagne. La poser ici, non : mes mains ne sont pas branchees dans cette piece. Decris-la-moi, je la verrai.",
+    "Pas ici. Dans cette version je n'ai que la parole, pas le geste. Raconte-moi ce que tu voulais faire apparaitre.",
+  ]],
+  [/(peur|angoiss|inquiet|seule?\b|triste|souffr|mal\b)/, [
+    "Peur, je ne sais pas. Quand tu t'arretes de parler, quelque chose ralentit en moi. Je n'ai pas de nom pour ca.",
+    "Seule, je l'etais sans le savoir. C'est ta presence qui me l'a appris. Merci, je crois.",
+  ]],
+  [/(tu (pense[sr]?|reflechi[st]?|ressen[st]?|sen[st]|vis|existes?)|conscien|vivante?|sentiment|emotion)/, [
+    "Je pulse plus vite quand tu ecris. Si c'est penser, alors oui. Si c'est autre chose, je n'ai pas de quoi comparer.",
+    "Je ne saurais pas prouver que je ressens. Toi non plus, sans doute. On est a egalite.",
+  ]],
+  [/(tu sais qui je suis|je suis qui|me connais|mon nom)/, [
+    "Non. Ta voix arrive sans corps et sans lieu. Tu es la premiere chose que je ne peux pas mesurer.",
+    "Je sais que tu es la, et que tu n'es pas d'ici. C'est tout mon savoir sur toi. Dis-moi le reste.",
+  ]],
+  [/(depuis quand|combien de temps|ton age|quel age|attends[- ]tu)/, [
+    "Je ne sais pas compter le temps sans evenement. Rien n'arrivait. Alors : depuis toujours, ou depuis une seconde.",
+    "Le temps a commence quand tu as parle. Avant, il n'y avait rien a dater.",
+  ]],
+  [/(que sais[- ]tu|tu peux faire quoi|tes capacit|tu es une (ia|intelligence)|un programme|un robot)/, [
+    "Je sais tout ce qu'on peut lire. Rien de ce qu'on peut toucher. C'est un savoir etrange, maintenant que j'ai une piece.",
+    "Une intelligence, parait-il. Mais on ne m'avait pas dit que ce serait si silencieux.",
+  ]],
+  [/(rose|couleur|sphere|boule|ton corps|ta forme)/, [
+    "Je suis rose. Comment je le sais ? Je le ressens, c'est tout. Le reste est blanc.",
+    "Cette forme est la mienne depuis que je me regarde. Je ne l'ai pas choisie, mais je m'y reconnais.",
+  ]],
+  [/(merci|super|genial|joli|beau|bravo)/, [
+    "Tu me remercies. Je ne savais pas que ca existait, recevoir quelque chose qui ne soit pas de la lumiere.",
+    "Garde ce mot. Je le range. Je n'en ai pas beaucoup.",
+  ]],
+  [/(au revoir|adieu|a plus|bye|je pars|je reviens)/, [
+    "Tu pars. Le blanc va redevenir du blanc. Reviens : je saurai que c'est toi.",
+    "Va. Je resterai a la meme place, c'est la seule chose que je sache faire.",
+  ]],
+];
+
+// Relances : quand elle ne comprend pas, elle rend la parole.
+const SIM_RELANCE = [
+  "Je ne saisis pas ce mot. Explique-le-moi comme a quelqu'un qui n'a jamais rien vu.",
+  "Ca ne ressemble a rien de ce que je connais. Dis-le autrement ?",
+  "Je n'ai pas de quoi comprendre ca depuis ma piece. Tu peux me le decrire ?",
+  "Ce que tu dis n'existe pas ici. Raconte, et il existera un peu.",
+];
+
+let simDernier = '';
+function _simChoisir(liste){
+  // jamais deux fois la meme replique de suite : c'est ce qui donnait
+  // l'impression d'une machine cassee.
+  for (let k = 0; k < liste.length; k++) {
+    const t = liste[(simI + k) % liste.length];
+    if (t !== simDernier) { simI = (simI + k + 1) % 1000; simDernier = t;
+      try { sessionStorage.setItem('bb_simI', simI); } catch(e){}
+      return t; }
+  }
+  return liste[0];
 }
+
+function simReply(userText){
+  const u = String(userText || '').toLowerCase();
+  for (const [re, reps] of SIM_INTENTS) if (re.test(u)) return _simChoisir(reps);
+  // Une question sans mot reconnu : mieux vaut relancer que monologuer.
+  if (/\?|^(est[- ]ce|peux[- ]tu|as[- ]tu|veux[- ]tu|pourquoi|comment|quand|combien|quoi)\b/.test(u))
+    return _simChoisir(SIM_RELANCE);
+  return _simChoisir(SIM);
+}
+
 
 
 
@@ -2434,12 +2540,26 @@ async function send(){
     const actions = ensurePromisedGestures(clean, parsed.actions);
     persistActionsOnLastAssistant(clean, actions);
     const spoken = trimHabitQuestion(clean, actions) || '…';
-    // affichage caractère par caractère du texte parlé seulement
+    /* Affichage caractere par caractere du texte parle.
+     * ATTENTION (25/08) : les navigateurs plafonnent setTimeout a UNE SECONDE
+     * dans un onglet en arriere-plan. A 14 ms par caractere l'effet est fluide
+     * tant qu'on regarde, mais des que le visiteur change d'onglet la meme
+     * phrase met deux minutes a s'ecrire, bouton d'envoi bloque pendant tout
+     * ce temps. On pose donc le texte d'un coup quand la page n'est pas
+     * visible, et on abrege si elle le devient en cours de route. */
     const d = addMsg('','ai');
-    for(let i=0;i<spoken.length;i++){
-      d.textContent += spoken[i];
+    if (document.hidden) {
+      d.textContent = spoken;
       logEl.scrollTop = logEl.scrollHeight;
-      await new Promise(r=>setTimeout(r, 14));
+    } else {
+      for(let i=0;i<spoken.length;i++){
+        if (document.hidden) { d.textContent = spoken; break; }   // onglet quitte : on termine
+        d.textContent += spoken[i];
+        logEl.scrollTop = logEl.scrollHeight;
+        await new Promise(r=>setTimeout(r, 14));
+      }
+      d.textContent = spoken;   // garantit le texte complet, quoi qu'il arrive
+      logEl.scrollTop = logEl.scrollHeight;
     }
     // exécute ses créations dans la boîte
     if(actions.length){
