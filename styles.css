@@ -734,10 +734,25 @@ h3 {
     border-right: 0;
   }
 }
+/* TELEPHONE, ECRAN HAUT (portrait) : 640 px fixes laissaient une grande
+   bande de page vide sous la demo alors que le jeu, lui, etouffait. On prend
+   la hauteur reelle du viewport (dvh, qui exclut les barres du navigateur)
+   en gardant de quoi voir le titre au-dessus et le bouton en dessous. */
+@media (max-width: 700px) {
+  .atlas-embed iframe, .nano-embed iframe {
+    height: 78vh;
+    height: 78dvh;
+    min-height: 460px;
+  }
+}
+
+/* ECRAN BAS (telephone en paysage) : la hauteur suit le viewport, sinon il
+   faut faire defiler la page pour voir le bas de la fenetre de jeu. */
 @media (max-height: 520px) {
   .atlas-embed iframe, .nano-embed iframe {
-    height: calc(100vh - 88px);
-    height: calc(100dvh - 88px);
+    height: calc(100vh - 56px);
+    height: calc(100dvh - 56px);
+    min-height: 320px;
   }
 }
 
@@ -1188,5 +1203,174 @@ img.app-banner {
   .store-list div {
     align-items: flex-start;
     flex-direction: column;
+  }
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   STORE (section Offre) — chaque savoir-faire presente comme une application
+
+   Le probleme d'origine : sept prestations decrites en paragraphes, avec pour
+   seule identite deux initiales dans un carre bleu (« DL », « SA »). Rien ne
+   les distinguait, et l'oeil ne pouvait pas les parcourir.
+
+   Trois partis, tous au service de la lecture en rayon :
+     1. UN LOGO DESSINE PAR APPLICATION. Un pictogramme qui dit la fonction
+        (accolades pour le code, rack pour l'hebergement, bouclier pour la
+        securite) se reconnait sans etre lu, contrairement a des initiales.
+     2. L'ETAT EST UNE DONNEE, PAS UN ORNEMENT. Un store affiche toujours si
+        l'article est disponible. Ici : en production, bientot public, ou
+        travaux de recherche. C'est ce que le visiteur cherche en premier.
+     3. LA PREUVE SOUS LA FICHE. Chaque application porte le fait verifiable
+        qui la soutient, separe du discours par un filet.
+   ══════════════════════════════════════════════════════════════════════ */
+
+.store {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
+  gap: 12px;
+  margin-top: 26px;
+}
+
+.store-app {
+  display: grid;
+  grid-template-columns: 56px 1fr;
+  grid-template-areas:
+    "logo tete"
+    "logo texte"
+    "note note";
+  gap: 4px 16px;
+  align-content: start;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  transition: border-color 0.15s ease, box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.store-app:hover {
+  border-color: rgba(124, 92, 191, 0.32);
+  box-shadow: var(--shadow-lift);
+  transform: translateY(-2px);
+}
+
+/* Le logo : squircle plein, pictogramme au trait blanc. La teinte differe par
+   application pour qu'on retrouve chacune d'un coup d'oeil dans le rayon. */
+.store-logo {
+  grid-area: logo;
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 15px;
+  background: var(--store-teinte, var(--blue));
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.22);
+}
+
+.store-logo svg {
+  width: 30px;
+  height: 30px;
+  display: block;
+}
+
+.store-tete {
+  grid-area: tete;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 10px;
+}
+
+.store-tete h3 {
+  margin: 0;
+  font-size: 17px;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+
+/* Etat de disponibilite : la donnee que le visiteur cherche en premier. */
+.store-etat {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+
+.store-etat.dispo {
+  background: rgba(46, 125, 70, 0.12);
+  color: #1f5c32;
+}
+
+.store-etat.bientot {
+  background: rgba(181, 132, 34, 0.15);
+  color: #7a5807;
+}
+
+.store-etat.labo {
+  background: rgba(74, 93, 126, 0.14);
+  color: #3b4c68;
+}
+
+.store-app > p {
+  grid-area: texte;
+  margin: 6px 0 0;
+  font-size: 14.5px;
+  line-height: 1.6;
+  color: var(--ink-dim);
+}
+
+/* Pied de fiche : la preuve verifiable, puis l'action. Le filet les separe du
+   discours commercial qui precede. */
+.store-note {
+  grid-area: note;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 16px;
+  padding-top: 13px;
+  border-top: 1px solid var(--line-2);
+}
+
+.store-note span {
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--muted);
+  max-width: 34ch;
+}
+
+@media (max-width: 560px) {
+  .store {
+    grid-template-columns: 1fr;
+  }
+
+  .store-app {
+    grid-template-columns: 46px 1fr;
+    gap: 4px 13px;
+    padding: 17px;
+  }
+
+  .store-logo {
+    width: 46px;
+    height: 46px;
+    border-radius: 13px;
+  }
+
+  .store-logo svg {
+    width: 25px;
+    height: 25px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .store-app {
+    transition: none;
+  }
+
+  .store-app:hover {
+    transform: none;
   }
 }

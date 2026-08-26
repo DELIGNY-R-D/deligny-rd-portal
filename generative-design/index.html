@@ -34,6 +34,42 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
 /* ── LAYOUT ──────────────────────────────────────────── */
 #main { height: calc(100vh - 36px); display: flex; }
 
+/* TELEPHONE (25/08) : en portrait, la barre d'outils et le panneau de chat
+   encadraient la scene et il ne restait qu'une bande de quelques pixels pour
+   l'objet. On empile : outils en bandeau horizontal defilant, la scene prend
+   la place restante, le chat passe dessous en hauteur limitee. dvh et non vh
+   pour exclure les barres du navigateur mobile. */
+@media (max-width: 860px) {
+  #main { flex-direction: column; height: calc(100dvh - 36px); }
+  #toolbar {
+    width: 100%; height: auto; max-height: 74px;
+    flex-direction: row; align-items: center; gap: 10px;
+    overflow-x: auto; overflow-y: hidden;
+    border-right: 0; border-bottom: 1px solid #ebebeb;
+    padding: 6px 8px; flex: 0 0 auto;
+  }
+  #toolbar .tg { display: flex; flex-direction: row; gap: 4px; margin: 0; }
+  #toolbar .tg-title { display: none; }        /* les intitules de groupe mangent la largeur */
+  #viewports { flex: 1 1 auto; min-height: 0; }
+  #chat {
+    width: 100%; flex: 0 0 auto; max-height: 32dvh;
+    border-left: 0; border-top: 1px solid #ebebeb;
+  }
+}
+
+/* Paysage : l'ecran est bas, on rend la hauteur a la scene et le chat
+   retrouve sa colonne, plus etroite. */
+@media (max-width: 980px) and (orientation: landscape) {
+  #main { flex-direction: row; height: calc(100dvh - 36px); }
+  #toolbar {
+    width: auto; max-height: none; flex-direction: column;
+    overflow-x: hidden; overflow-y: auto;
+    border-right: 1px solid #ebebeb; border-bottom: 0;
+  }
+  #toolbar .tg { flex-direction: column; }
+  #chat { width: 232px; max-height: none; border-left: 1px solid #ebebeb; border-top: 0; }
+}
+
 /* ── TOOLBAR ─────────────────────────────────────────── */
 #toolbar {
   width: 80px; border-right: 1px solid #ebebeb;
@@ -476,48 +512,106 @@ import { buildShape } from './shapes_cad.js?v=29c48d31';
 
 /* ── COPILOTE HORS LIGNE (vitrine deligny-rd.fr) ──────────────────────────
  * La version applicative envoie la phrase a /api/intent, qui la traduit en
- * {type, params}. Le portail est un site statique : pas de backend. Comme la
- * geometrie et les reglages sont deja calcules ici, il suffit de remplacer
- * cette traduction par une lecture par mots-cles pour que la demonstration
- * fonctionne entierement dans le navigateur.
- * On SCORE les correspondances au lieu de retenir la premiere : « lampe
- * suspendue E27 » contient « suspendue » (abat-jour) et « lampe » + « e27 » ;
- * le premier-match repondait abat-jour, le score repond lampe. */
+ * {type, params}. Le portail est statique : pas de backend. La geometrie et
+ * les reglages etant deja calcules ici, il suffit de remplacer cette
+ * traduction par une lecture par mots-cles.
+ *
+ * Les types sont ceux que buildShape sait REELLEMENT construire (24 formes,
+ * voir shapes_cad.js). Piege corrige le 25/08 : la premiere version reprenait
+ * la liste de la v3 et proposait « lamp », qui n'existe pas ici — la v4
+ * repondait « Shape inconnue ». Il n'y a pas de lampe entiere dans la
+ * bibliotheque : une lampe s'y dessine comme un abat-jour (shade). */
 const VITRINE_TYPES = [
-  ['lamp_kinetic', ['cinetique','cinétique','mobile','rotatif','tournant']],
-  ['shade_lamelles',['lamelle','lamelles','claustra','persienne','stries']],
-  ['shade',        ['abat-jour','abat jour','abatjour','suspension','suspendue','diffuseur']],
-  ['lamp',         ['lampe','luminaire','lampadaire','applique','e27','e14','gu10']],
-  ['table',        ['table','bureau','console','gueridon','guéridon']],
-  ['chair',        ['chaise','siege','siège','tabouret','assise','fauteuil']],
-  ['vase',         ['vase','pot','cache-pot','soliflore','jardiniere','jardinière']],
-  ['box',          ['boite','boîte','bac','rangement','coffret','caisse','etui','étui']],
-  ['gear',         ['engrenage','pignon','roue dentee','roue dentée','denture']],
-  ['gyroid_shell', ['gyroide','gyroïde','coque','lattice','treillis','structure']],
+  ['lamp_kinetic',      ['cinetique','cinétique','mobile','rotatif','tournant']],
+  ['shade_lamelles',    ['lamelle','lamelles','claustra','persienne','stries','strie']],
+  ['penrose_shade',     ['penrose','pavage','quasi-cristal']],
+  ['phyllotaxis_shade', ['phyllotaxie','tournesol','graines','fibonacci']],
+  ['shade_facette',     ['facette','facettes','facette','origami','polygonal']],
+  ['shade',             ['abat-jour','abat jour','abatjour','lampe','luminaire','suspension','suspendue','diffuseur','applique','lampadaire']],
+  ['phi_vase',          ['nombre d\'or','nombre d or','vase dore','proportion doree']],
+  ['vase',              ['vase','pot','cache-pot','soliflore','jardiniere','jardinière']],
+  ['golden_helix',      ['helice','hélice','spirale','torsade','vrille']],
+  ['gyroid_shell',      ['gyroide','gyroïde','coque','lattice','treillis','structure']],
+  ['hex_panel',         ['hexagone','hexagonal','nid d\'abeille','nid d abeille','panneau']],
+  ['shelf',             ['etagere','étagère','tablette','rayonnage','plateau mural']],
+  ['bracket',           ['equerre','équerre','support','patte','fixation','ferrure']],
+  ['table',             ['table','bureau','console','gueridon','guéridon']],
+  ['chair',             ['chaise','siege','siège','tabouret','assise','fauteuil']],
+  ['vehicle_4x4',       ['vehicule','véhicule','voiture','4x4','buggy','camion']],
+  ['gear',              ['engrenage','pignon','roue dentee','roue dentée','denture']],
+  ['spring',            ['ressort','spire','amortisseur']],
+  ['torus',             ['tore','anneau','donut','couronne']],
+  ['tube',              ['tube','tuyau','conduit','manchon']],
+  ['cone',              ['cone','cône','conique','entonnoir']],
+  ['sphere',            ['sphere','sphère','boule','globe','bille']],
+  ['spline_lathe',      ['revolution','révolution','tourne','tourné','profil']],
+  ['box',               ['boite','boîte','bac','rangement','coffret','caisse','etui','étui']],
 ];
+
 function vitrineAnalyse(prompt) {
-  const t = String(prompt||'').toLowerCase();
+  const brut = String(prompt || '').toLowerCase();
+  // Les douilles portent un nombre (E27, E14, GU10) qui n'est PAS une cote :
+  // sans ce retrait, « lampe E27 » donnait un diametre de 27 mm.
+  const douille = (brut.match(/\b(e27|e14|gu10)\b/) || [])[0];
+  const t = brut.replace(/\b(e27|e14|gu10)\b/g, ' ');
+
+  // On SCORE au lieu de retenir la premiere correspondance : « lampe
+  // suspendue » contient deux mots de familles differentes.
   let type = null, meilleur = 0;
   VITRINE_TYPES.forEach(([id, mots]) => {
     const n = mots.reduce((a, m) => a + (t.includes(m) ? 1 : 0), 0);
     if (n > meilleur) { meilleur = n; type = id; }
   });
   if (!type) return null;
-  // Cotes : « 120 cm », « 180 mm », « 1,2 m » -> millimetres. La plus grande
-  // va a la hauteur, la suivante au diametre : c'est l'ordre dans lequel on
-  // decrit un objet a l'oral.
-  const params = {}, cotes = [];
+
+  /* COTES. Deux lectures, dans cet ordre :
+   *  1. NOMMEE : « hauteur 240 », « diametre 160 » — la phrase dit elle-meme
+   *     a quoi sert le nombre, on la croit.
+   *  2. IMPLICITE : sinon on devine, et la devinette depend de l'objet.
+   *     « table ronde 120 cm » designe un DIAMETRE, pas une hauteur : une
+   *     table de 1,20 m de haut n'existe pas. Le mobilier a une hauteur
+   *     d'usage stable (une table se tient vers 75 cm) alors que sa largeur
+   *     varie ; pour un vase ou un abat-jour c'est l'inverse. */
+  const enMm = (v, u) => { v = parseFloat(String(v).replace(',', '.'));
+    if (u === 'cm') v *= 10; else if (u && u.trim() === 'm') v *= 1000; return Math.round(v); };
+  const nommee = (mots) => {
+    const m = t.match(new RegExp('(?:' + mots + ')\\D{0,12}?(\\d+(?:[.,]\\d+)?)\\s*(mm|cm|m\\b)?', 'i'));
+    return m ? enMm(m[1], m[2]) : null;
+  };
+  let haut = nommee('hauteur|haut de|haute de|de haut');
+  let diam = nommee('diametre|diamètre|diam|largeur|large de|de large|rond de');
+
+  const libres = [];
   const re = /(\d+(?:[.,]\d+)?)\s*(mm|cm|m\b)?/g;
   let m;
   while ((m = re.exec(t)) !== null) {
-    let v = parseFloat(m[1].replace(',', '.'));
-    const u = m[2] || 'mm';
-    if (u === 'cm') v *= 10; else if (u.trim() === 'm') v *= 1000;
-    if (v >= 20 && v <= 3000) cotes.push(Math.round(v));
+    const v = enMm(m[1], m[2]);
+    if (v >= 20 && v <= 3000 && v !== haut && v !== diam) libres.push(v);
   }
-  cotes.sort((a, b) => b - a);
-  ['height','dia','width','depth'].forEach((k, i) => { if (cotes[i] != null) params[k] = cotes[i]; });
-  ['E27','E14','GU10'].forEach(d => { if (t.includes(d.toLowerCase())) params.socket = d; });
+  libres.sort((a, b) => b - a);
+
+  const MOBILIER = ['table', 'chair', 'shelf', 'vehicle_4x4'];
+  if (MOBILIER.includes(type)) {
+    // la plus grande cote decrit l'encombrement, pas la hauteur
+    if (diam == null && libres.length) diam = libres.shift();
+    if (haut == null && libres.length) haut = libres.shift();
+  } else {
+    if (haut == null && libres.length) haut = libres.shift();
+    if (diam == null && libres.length) diam = libres.shift();
+  }
+
+  const params = {};
+  if (haut != null) params.height = haut;
+  // Le nom du diametre change selon la forme : un vase parle de maxDia, un
+  // abat-jour de topDia et bottomDia. Renseigner le mauvais champ ferait
+  // perdre la cote demandee, le builder gardant sa valeur par defaut.
+  if (diam != null) {
+    if (type === 'vase' || type === 'phi_vase') { params.maxDia = diam; params.baseDia = Math.round(diam * 0.66); }
+    else if (type.startsWith('shade') || type === 'penrose_shade' || type === 'phyllotaxis_shade') {
+      params.topDia = diam; params.bottomDia = Math.round(diam * 0.6);
+    } else { params.dia = diam; }
+  }
+  if (douille) params.socket = douille.toUpperCase();
   return { type, params };
 }
 
@@ -1265,7 +1359,15 @@ function initThree() {
   cams.back  = mk(); cams.back.position.set(0,0,-600);  cams.back.lookAt(0,0,0);
   renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
   renderer.setPixelRatio(window.devicePixelRatio);
-  window.addEventListener('resize', resize);
+  /* VUE 3D PAR DEFAUT (25/08). Le studio ouvrait sur les quatre vues
+ * orthographiques : sur un telephone en portrait, chaque vue fait quelques
+ * dizaines de pixels et l'objet devient invisible. On bascule en 3D libre au
+ * demarrage — toggleView initialise aussi la camera perspective et les
+ * controles d'orbite, donc on passe par elle plutot que de dupliquer ce code.
+ * Le bouton « ⊞ Plan » reste la pour retrouver les vues cotees. */
+addEventListener('DOMContentLoaded', () => { try { if (viewMode === 'plan') window.toggleView(); } catch(e){} });
+
+window.addEventListener('resize', resize);
   resize();
   initInput(canvas);
   requestAnimationFrame(loop);

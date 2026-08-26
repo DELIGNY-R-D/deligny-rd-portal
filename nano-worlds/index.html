@@ -244,6 +244,30 @@ if('serviceWorker' in navigator){
   html.ui-topo #topoZoomWrap{top:calc(16vh + 16vh + 62px + env(safe-area-inset-top))!important}
   html.ui-topo #topoNew{height:30px!important;padding:0 10px!important;font-size:11px!important;font-weight:600!important;border-radius:9px!important}
   html.ui-topo #camReset{width:30px!important;height:30px!important;font-size:14px!important;border-radius:9px!important;right:calc(132px + env(safe-area-inset-right))!important}
+
+  /* TELEPHONE (25/08) : sur un ecran de poche, les commandes mangeaient le
+     paysage — c'est pourtant lui qu'on vient voir. Tout est reduit d'environ
+     un sixieme, sans descendre sous ~26 px de cible tactile, et le dock
+     remonte puisque le cluster du haut est devenu plus court. */
+  @media (max-width: 820px), (max-height: 620px) {
+    html.ui-topo #bar .tool{min-width:37px!important;height:33px!important;font-size:7.5px!important;border-radius:7px!important}
+    html.ui-topo #bar .tool .ic{font-size:11px!important}
+    html.ui-topo #bar{gap:3px!important;top:112px!important;bottom:8px!important}
+    html.ui-topo #top{gap:4px!important}
+    html.ui-topo #top .card{padding:2px 6px!important;font-size:10px!important;min-height:26px!important;border-radius:8px!important;gap:5px}
+    html.ui-topo #top .card input[type=range]{width:48px!important;height:10px!important}
+    html.ui-topo #quickActions button{font-size:10px!important}
+    html.ui-topo .topoWrap{padding:3px 7px!important;min-height:26px!important;border-radius:8px!important;gap:5px}
+    html.ui-topo .topoLbl{font-size:9px!important;margin-right:4px}
+    html.ui-topo #topoOrbitWrap input{width:min(40vw,200px)!important;height:10px!important}
+    html.ui-topo #topoOrbitWrap{bottom:calc(46px + env(safe-area-inset-bottom))!important}
+    html.ui-topo .topoVert input{width:11px!important;height:13vh!important}
+    html.ui-topo .topoVert{padding:6px 5px!important;gap:3px}
+    html.ui-topo #topoTiltWrap{top:calc(13vh + env(safe-area-inset-top))!important}
+    html.ui-topo #topoZoomWrap{top:calc(13vh + 13vh + 54px + env(safe-area-inset-top))!important}
+    html.ui-topo #topoNew{height:26px!important;padding:0 8px!important;font-size:10px!important;border-radius:8px!important}
+    html.ui-topo #camReset{width:26px!important;height:26px!important;font-size:12px!important;border-radius:8px!important;right:calc(116px + env(safe-area-inset-right))!important}
+  }
 </style>
 </head>
 <body>
@@ -8997,13 +9021,13 @@ function onDown(e){ if(mode!=='sculpt')return; pointerNDC(e); const p=hitTerrain
     // Au doigt on vise rarement juste : si le point touche la berge, on cherche
     // le plan d'eau le plus proche dans le rayon du pinceau plutot que de ne
     // rien faire en silence (les toasts sont desactives : aucun retour possible).
-    if(!placeBoat(p.x,p.z)){
+    if(!placeBoat(p.x,p.z,'voilier')){   // vitrine : QUE des voiliers
       const r=Math.max(4,+sizeEl.value)*0.7;
       let bx=0,bz=0,bw=0.2;
       for(let a=0;a<24;a++)for(let t=1;t<=4;t++){ const an=a/24*6.28, dd=r*t/4,
         x=p.x+Math.cos(an)*dd, z=p.z+Math.sin(an)*dd, w=_wat(x,z);
         if(w>bw){bw=w;bx=x;bz=z;} }
-      if(bw>0.2)placeBoat(bx,bz);
+      if(bw>0.2)placeBoat(bx,bz,'voilier');
     } return;}
   if(tool==='port'){makePort(p.x,p.z); return;}
   if(tool==='meteorite'){launchMeteor(p.x,p.z); return;}
