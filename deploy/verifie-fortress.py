@@ -184,6 +184,33 @@ def controle(chemin: str) -> tuple:
                 if emp not in attr_dir:
                     bloquants.append(f"gestionnaire inline sans empreinte declaree : {e[:44]}… [{emp}]")
 
+    # 1ter. RESSOURCE CHARGEE MAIS INTERDITE PAR LA CSP.
+    # Lacune trouvee le 28/08 : contact.html declarait `default-src 'none'`
+    # SANS script-src, tout en chargeant un fichier .js. Le navigateur bloquait
+    # le script sans bruit, la page paraissait normale et une fonction entiere
+    # manquait — exactement l'incident du 25/08, sous une autre forme, et le
+    # controle ne l'attrapait pas. On verifie desormais que la directive qui
+    # gouverne CHAQUE type de ressource presente autorise bien 'self'.
+    if csp:
+        auto = lambda d: ("'self'" in d) or ("*" in d) or ("https:" in d)
+        if re.search(r'<script\b[^>]*\bsrc="(?!https?:|//)', s) and not auto(script_dir):
+            bloquants.append(f"script de fichier charge mais interdit par la CSP "
+                             f"({script_dir.split()[0] if script_dir else 'default-src'} n'autorise pas 'self')")
+        style_dir = directive(csp, "style-src-elem", "style-src")
+        if re.search(r'<link\b[^>]*\brel="stylesheet"', s) and not auto(style_dir):
+            bloquants.append("feuille de style chargee mais interdite par la CSP")
+
+    # 1quater. ATTRIBUTS style= sous une CSP qui les refuse.
+    # Meme mecanique silencieuse : la mise en forme ne s'applique pas, et rien
+    # ne le signale. Les empreintes ne valent pas pour les attributs sans
+    # 'unsafe-hashes' (regle distincte, comme pour onclick).
+    if csp:
+        style_attr = directive(csp, "style-src-attr", "style-src")
+        n_style = len(re.findall(r'\sstyle="[^"]+"', s))
+        if n_style and "'unsafe-inline'" not in style_attr:
+            bloquants.append(f"{n_style} attribut(s) style= bloques par la CSP "
+                             f"(il faut 'unsafe-inline' sur style-src-attr, ou sortir ces styles)")
+
     # 2. Ressources chargees : soumises a la CSP, et doivent exister
     base = os.path.dirname(chemin)
     ressources = [next((x for x in t if x), '') for t in RE_RESSOURCE.findall(s)]

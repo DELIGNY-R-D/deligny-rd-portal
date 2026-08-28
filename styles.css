@@ -1491,3 +1491,104 @@ img.app-banner {
   .intension-sequence .is-trait { animation: none; opacity: 0; }
   .intension-sequence .is-rendu { animation: none; opacity: 1; }
 }
+
+/* COMPOSEUR DE DEMANDE (page contact, 28/08).
+   Trois clics au lieu d'une page blanche. Les choix sont des pastilles, pas
+   des champs : on repond en lisant, sans rien avoir a formuler. */
+.cp-carte { margin-bottom: 14px; }
+
+.cp-ligne {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+  margin-top: 16px;
+  padding: 8px 10px;
+  margin-left: -10px;
+  border-radius: 12px;
+  transition: background 0.3s ease;
+}
+
+/* Sujet manquant : on le signale la ou il faut agir, sans fenetre ni alerte. */
+.cp-ligne.cp-manque { background: rgba(189, 79, 28, 0.09); }
+
+.cp-legende {
+  flex: 0 0 auto;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.cp-options { display: flex; flex-wrap: wrap; gap: 7px; }
+
+.cp-choix {
+  padding: 7px 13px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--ink-dim);
+  font: 500 13.5px var(--font-body);
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
+}
+
+.cp-choix:hover { border-color: rgba(124, 92, 191, 0.4); color: var(--ink); }
+
+.cp-choix.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+
+.cp-texte {
+  display: block;
+  width: 100%;
+  margin-top: 16px;
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  font: 400 14.5px/1.6 var(--font-body);
+  resize: vertical;
+}
+
+.cp-texte:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.cp-envoyer { margin-top: 14px; }
+
+/* Sans sujet choisi, le bouton reste visible mais montre qu'il n'est pas
+   pret : le masquer laisserait croire a une page incomplete. */
+.cp-envoyer[aria-disabled="true"] { opacity: 0.45; cursor: not-allowed; }
+
+.cp-note {
+  margin: 10px 0 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+/* Styles sortis des attributs style= (28/08) : la CSP `style-src 'self'` les
+   bloquait, la mise en page etait donc degradee sans que rien ne l'indique. */
+.ml-corps { max-width: 760px; }
+.ml-titre { margin-top: 26px; }
+
+.ct-carte { padding: 24px 28px; }
+.cp-carte { padding: 24px 28px; }
+.ct-figure { margin: 0; }
+.ct-titre { margin-top: 6px; }
+
+.ct-intro {
+  color: var(--muted);
+  line-height: 1.7;
+  margin-bottom: 4px;
+}
+
+.ct-infos {
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.ct-action { margin-top: 18px; }

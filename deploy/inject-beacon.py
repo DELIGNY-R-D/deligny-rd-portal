@@ -42,8 +42,12 @@ def corrige(contenu: str, nom_page: str) -> str:
         contenu = contenu.replace("img-src 'self' data:;",
                                   f"img-src 'self' data: {API_HOST};")
     if "deligny/api/px" not in contenu and "</body>" in contenu:
+        # PAS DE style= INLINE (28/08). La CSP des pages est `style-src 'self'`
+        # sans 'unsafe-inline' : l'attribut etait bloque sur les 39 pages qui
+        # portent la balise, sans bruit. Un pixel 1x1 en fin de corps n'a de
+        # toute facon pas besoin d'etre deplace hors ecran pour etre invisible.
         balise = (f'<img src="{API_PX}?page={nom_page}" alt="" width="1" height="1" '
-                  f'style="position:absolute;left:-9999px" loading="eager">\n')
+                  f'loading="eager">\n')
         contenu = contenu.replace("</body>", balise + "</body>")
     return contenu
 

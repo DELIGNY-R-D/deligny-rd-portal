@@ -367,3 +367,21 @@
     padding-right: 20px;
   }
 }
+
+/* Teinte par projet (28/08). Ces valeurs etaient posees en `style="--projet:…"`
+   sur chaque article : la CSP du site est `style-src 'self'` sans
+   'unsafe-inline', et l'attribut etait donc BLOQUE — les cinq projets
+   s'affichaient sans leur couleur, sans que rien ne le signale. */
+.lb-projet--purple { --projet: var(--purple); }
+.lb-projet--gold   { --projet: var(--gold); }
+.lb-projet--accent { --projet: var(--accent); }
+.lb-projet--green  { --projet: var(--green); }
+.lb-projet--blue   { --projet: var(--blue); }
+
+/* Les quatre couches du diagramme d'architecture. Meme cause que les projets :
+   la valeur etait posee en attribut style=, bloque par la CSP, et le diagramme
+   s'affichait sans ses couleurs. */
+.lb-couche--1 { --couche: #a58ce0; }
+.lb-couche--2 { --couche: #e0834f; }
+.lb-couche--3 { --couche: #7fb894; }
+.lb-couche--4 { --couche: #8aa4cc; }

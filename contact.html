@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Contact DELIGNY R&D, SAS, 231 rue Saint-Honoré, 75001 Paris. Écrire à contact@deligny-rd.fr." />
   <title>Contact - DELIGNY R&D</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="img/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="img/favicon.png" sizes="32x32" type="image/png" />
@@ -17,7 +17,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/contact.html" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=cd1f04f1" />
+  <link rel="stylesheet" href="styles.css?v=e133dbd3" />
 </head>
 <body>
   <header class="topbar">
@@ -68,19 +68,29 @@
     </section>
 
     <section class="section split">
-      <figure class="footer-scene" style="margin:0">
+      <figure class="footer-scene ct-figure">
         <img src="img/contact-paris.png" alt="Illustration du quartier de la Place Vendome, Paris 1er" loading="lazy" width="1558" height="1010" />
         <figcaption>231 Rue Saint-Honoré, 75001 Paris</figcaption>
       </figure>
-      <div class="desk-card" style="padding:24px 28px">
+      <div class="desk-card cp-carte">
+        <p class="eyebrow">Dites-nous l'essentiel</p>
+        <h2 class="ct-titre">Trois clics, et le message est ecrit.</h2>
+        <p class="ct-intro">
+          Pas de formulaire a rallonge : choisissez, ajoutez deux phrases,
+          le courriel s'ouvre deja redige.
+        </p>
+        <div id="composeur"></div>
+      </div>
+
+      <div class="desk-card ct-carte">
         <p class="eyebrow">Informations professionnelles</p>
-        <h2 style="margin-top:6px">DELIGNY R&amp;D</h2>
-        <p style="color:var(--muted);line-height:1.7">
+        <h2 class="ct-titre">DELIGNY R&amp;D</h2>
+        <p class="ct-infos">
           SAS au capital de 1 000 €<br />
           231 Rue Saint-Honoré, 75001 Paris, FR<br />
           SIREN&nbsp;: 107503807, RCS Paris
         </p>
-        <p style="margin-top:18px">
+        <p class="ct-action">
           <a class="btn btn-small btn-primary" href="mailto:contact@deligny-rd.fr">Envoyer un email</a>
         </p>
       </div>
@@ -98,6 +108,7 @@
     </div>
   </footer>
 <div class="sovereign-badge"><span class="flags"><svg class="flag-icon" viewBox="0 0 3 2" width="18" height="12" role="img" aria-label="France"><rect width="1" height="2" fill="#0055A4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#EF4135"/></svg><svg class="flag-icon" viewBox="0 0 3 2" width="18" height="12" role="img" aria-label="Union europeenne"><rect width="3" height="2" fill="#003399"/><g fill="#FFCC00"><circle cx="1.5" cy="0.35" r="0.09"/><circle cx="1.825" cy="0.437" r="0.09"/><circle cx="2.063" cy="0.675" r="0.09"/><circle cx="2.15" cy="1.0" r="0.09"/><circle cx="2.063" cy="1.325" r="0.09"/><circle cx="1.825" cy="1.563" r="0.09"/><circle cx="1.5" cy="1.65" r="0.09"/><circle cx="1.175" cy="1.563" r="0.09"/><circle cx="0.937" cy="1.325" r="0.09"/><circle cx="0.85" cy="1.0" r="0.09"/><circle cx="0.937" cy="0.675" r="0.09"/><circle cx="1.175" cy="0.437" r="0.09"/></g></svg></span><span>Entreprise souveraine</span></div>
-<img src="https://atlas-studio.pro/deligny/api/px?page=contact" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+<img src="https://atlas-studio.pro/deligny/api/px?page=contact" alt="" width="1" height="1" loading="eager">
+  <script src="contact-composeur.js?v=91d49124"></script>
 </body>
 </html>
