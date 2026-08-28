@@ -95,3 +95,16 @@ a.vl-favori:hover,a.vl-favori:focus-visible{transform:translateY(-2px);box-shado
 .vl-favori-promesse{margin-top:8px !important;color:var(--muted);font-size:.86rem}
 .vl-favori-promesse b{color:var(--gold);font-weight:600}
 @media (prefers-reduced-motion:reduce){a.vl-favori{transition:none}a.vl-favori:hover{transform:none}}
+
+/* Les deux grilles ci-dessous ont un nombre de cartes FIXE (neuf rubriques,
+   six projets). `auto-fit` les repartissait sur cinq et quatre colonnes, ce qui
+   laissait des rangees finales bancales (5+4 et 4+2). Trois colonnes tombent
+   juste dans les deux cas : 3x3 et 2x3. */
+@media (min-width:981px){
+  .vl-rubriques{grid-template-columns:repeat(3,1fr)}
+  .vl-favoris{grid-template-columns:repeat(3,1fr)}
+}
+@media (min-width:641px) and (max-width:980px){
+  .vl-rubriques{grid-template-columns:repeat(2,1fr)}
+  .vl-favoris{grid-template-columns:repeat(2,1fr)}
+}
