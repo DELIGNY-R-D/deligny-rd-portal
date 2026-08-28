@@ -396,3 +396,14 @@ if (document.readyState === "loading") {
 } else {
   cablerOutils();
 }
+
+
+/* La zone de depot portait un onclick= inline. La CSP de la page est
+   `script-src 'self'` : le navigateur bloquait ce gestionnaire SILENCIEUSEMENT,
+   et cliquer la zone n'ouvrait donc jamais le selecteur de fichier (trouve le
+   25/08 par deploy/verifie-fortress.py). Le meme comportement, en JS servi. */
+(function () {
+  var zone = document.getElementById('depot');
+  var champ = document.getElementById('fichier');
+  if (zone && champ) zone.addEventListener('click', function () { champ.click(); });
+})();
