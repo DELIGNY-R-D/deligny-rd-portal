@@ -45,14 +45,33 @@ echo "== 4/6  Publication des ASSETS (js, css, images, fontes) =="
 # voie. On AJOUTE, on ne retire pas : aucun --delete, aucun `git rm` d'asset
 # dans cette etape. Le menage se fait dans un lot ULTERIEUR, quand plus aucun
 # HTML en circulation ne peut y renvoyer.
-if git diff --cached --name-status 2>/dev/null | grep -qE "^D.*\.(js|css|png|jpg|jpeg|svg|webp|woff2)$"; then
+# Deux defauts corriges le 29/08, tous les deux silencieux :
+#
+#  1. `git add -A -- '*.jpg' '*.jpeg' ...` echouait EN ENTIER (« pathspec ne
+#     correspond a aucun fichier ») des qu'une extension etait absente du
+#     depot : jpeg, webp et woff2 le sont. Le `|| true` avalait l'erreur, plus
+#     rien n'etait mis en scene, et les assets partaient donc dans le MEME
+#     commit que le HTML. La publication en deux temps n'a jamais separe quoi
+#     que ce soit depuis sa creation.
+#  2. Le controle anti-suppression inspectait l'INDEX, alors qu'il s'executait
+#     AVANT que le moindre fichier y soit ajoute : il ne pouvait rien voir.
+#
+# On lit donc l'arbre de travail, pas l'index, et on n'enumere que ce qui
+# existe reellement.
+EXT='\.(js|css|png|jpg|jpeg|svg|webp|woff2)$'
+SUPPRIMES=$(git ls-files -d | grep -Ei "$EXT" || true)
+if [ -n "$SUPPRIMES" ]; then
   echo "ARRET : suppression d'asset detectee dans ce lot."
-  git diff --cached --name-status | grep -E "^D.*\.(js|css|png|jpg|jpeg|svg|webp|woff2)$" | sed "s/^/   /"
+  echo "$SUPPRIMES" | sed "s/^/   /"
   echo "   Un HTML en cache peut encore reclamer ce fichier."
   echo "   Publier l'ajout d'abord, supprimer dans un lot ULTERIEUR."
   exit 1
 fi
-git add -A -- '*.js' '*.css' '*.png' '*.jpg' '*.jpeg' '*.svg' '*.webp' '*.woff2' 2>/dev/null || true
+ASSETS=$(git ls-files -mo --exclude-standard | grep -Ei "$EXT" || true)
+if [ -n "$ASSETS" ]; then
+  echo "$ASSETS" | sed "s/^/   + /"
+  echo "$ASSETS" | tr '\n' '\0' | xargs -0 git add --
+fi
 if ! git diff --cached --quiet; then
   git commit -q -m "$MSG (assets)"
   git push -q origin main
