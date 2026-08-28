@@ -187,6 +187,28 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
 #send-btn:hover { background: #333; }
 #send-btn:disabled { background: #ddd; cursor: default; }
 
+/* ── DESIGN HEALTH ───────────────────────────────────── */
+#design-health {
+  border-top: 1px solid #ebebeb;
+  padding: 10px 12px 8px;
+  flex-shrink: 0;
+  background: #fafafa;
+}
+.dh-header { display:flex; align-items:center; justify-content:space-between; margin-bottom:7px; }
+.dh-title  { font-size:8px; letter-spacing:.13em; font-family:'DM Mono',monospace; color:#bbb; text-transform:uppercase; user-select:none; }
+.dh-machine-label { font-size:9px; font-family:'DM Mono',monospace; color:#d4d4d4; }
+.dh-row { display:flex; align-items:center; gap:7px; padding:3px 0; border-bottom:1px solid #f2f2f2; cursor:default; }
+.dh-row:last-of-type { border-bottom:none; }
+.dh-row.metric { border-top:1px solid #f0f0f0; margin-top:3px; padding-top:4px; }
+.dh-dot { font-size:9px; flex-shrink:0; transition:color .35s; width:10px; text-align:center; }
+.dh-dot.pass { color:#22c55e; } .dh-dot.warn { color:#f59e0b; }
+.dh-dot.fail { color:#ef4444; } .dh-dot.na   { color:#d8d8d8; }
+.dh-dot.icon { color:#c0c0c0; font-size:10px; }
+.dh-key { flex:1; font-size:11px; color:#888; white-space:nowrap; }
+.dh-val { font-family:'DM Mono',monospace; font-size:11px; color:#444; text-align:right; white-space:nowrap; }
+.dh-val.pass { color:#22c55e; } .dh-val.warn { color:#f59e0b; }
+.dh-val.fail { color:#ef4444; } .dh-val.na   { color:#ccc; }
+
 /* ── TOAST ───────────────────────────────────────────── */
 #toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -489,6 +511,39 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
         <span class="hint-ex" onclick="fillPrompt('support tablette incliné 15°')">support tablette incliné 15°</span>
       </div>
     </div>
+    <!-- ── DESIGN HEALTH ─────────────────────── -->
+    <div id="design-health" style="display:none">
+      <div class="dh-header">
+        <span class="dh-title">DESIGN HEALTH</span>
+        <span class="dh-machine-label">Ender-3 S1 · PLA · ∅0.4</span>
+      </div>
+      <div class="dh-row">
+        <span class="dh-dot na" id="dh-geo-dot">●</span>
+        <span class="dh-key">Géométrie</span>
+        <span class="dh-val na" id="dh-geo-val">—</span>
+      </div>
+      <div class="dh-row">
+        <span class="dh-dot na" id="dh-print-dot">●</span>
+        <span class="dh-key">Impression</span>
+        <span class="dh-val na" id="dh-print-val">—</span>
+      </div>
+      <div class="dh-row">
+        <span class="dh-dot na" id="dh-asm-dot">●</span>
+        <span class="dh-key">Assemblage</span>
+        <span class="dh-val na" id="dh-asm-val">N/A</span>
+      </div>
+      <div class="dh-row metric">
+        <span class="dh-dot icon">◈</span>
+        <span class="dh-key">Coût mat.</span>
+        <span class="dh-val" id="dh-cost-val">—</span>
+      </div>
+      <div class="dh-row">
+        <span class="dh-dot icon">◷</span>
+        <span class="dh-key">Temps impr.</span>
+        <span class="dh-val" id="dh-time-val">—</span>
+      </div>
+    </div>
+
     <div id="input-row">
       <textarea id="prompt" placeholder="Décris un objet…" rows="1"></textarea>
       <button id="send-btn" onclick="sendPrompt()">↑</button>
@@ -1535,6 +1590,7 @@ function loadShape(type, params) {
   document.getElementById('btn-push').disabled = !blenderOk;
   currentSpec = { type, params };
   if (measureOn) refreshMeasure();
+  updateDesignHealth(geo);
 }
 
 // ── OBJ EXPORT ────────────────────────────────────────
@@ -1588,6 +1644,113 @@ function initChat() {
   ta.addEventListener('keydown', e => { if (e.key==='Enter' && !e.shiftKey) { e.preventDefault(); window.sendPrompt(); } });
   ta.addEventListener('input', () => { ta.style.height='auto'; ta.style.height=Math.min(ta.scrollHeight,96)+'px'; });
 }
+// ── DESIGN HEALTH (Ender-3 S1 · PLA · ∅0.4) ──────────
+const _DH_BUILD = { x: 220, y: 220, z: 270 };
+const _DH_MAT   = { density: 1.24, cost_per_g: 0.020, Tg: 60 };
+
+function _dhVolume(geo) {
+  const p = geo.attributes.position, idx = geo.index;
+  if (!p) return 0;
+  let vol = 0;
+  const n = idx ? idx.count : p.count;
+  for (let i = 0; i < n; i += 3) {
+    const ai=idx?idx.getX(i):i, bi=idx?idx.getX(i+1):i+1, ci=idx?idx.getX(i+2):i+2;
+    const ax=p.getX(ai),ay=p.getY(ai),az=p.getZ(ai);
+    const bx=p.getX(bi),by=p.getY(bi),bz=p.getZ(bi);
+    const cx=p.getX(ci),cy=p.getY(ci),cz=p.getZ(ci);
+    vol += ax*(by*cz-bz*cy) + bx*(cy*az-cz*ay) + cx*(ay*bz-az*by);
+  }
+  return Math.abs(vol) / 6;
+}
+
+function _dhOverhangRatio(geo) {
+  const p = geo.attributes.position, idx = geo.index;
+  if (!p) return 0;
+  let over = 0, total = 0;
+  const n = idx ? idx.count : p.count;
+  const step = Math.max(3, Math.floor(n / 900) * 3);
+  for (let i = 0; i < n; i += step) {
+    const ai=idx?idx.getX(i):i, bi=idx?idx.getX(i+1):i+1, ci=idx?idx.getX(i+2):i+2;
+    const ax=p.getX(ai),ay=p.getY(ai),az=p.getZ(ai);
+    const bx=p.getX(bi),by=p.getY(bi),bz=p.getZ(bi);
+    const cx=p.getX(ci),cy=p.getY(ci),cz=p.getZ(ci);
+    const ex=bx-ax,ey=by-ay,ez=bz-az, fx=cx-ax,fy=cy-ay,fz=cz-az;
+    const nx=ey*fz-ez*fy, ny=ez*fx-ex*fz;
+    const len=Math.sqrt(nx*nx+ny*ny+(ex*fy-ey*fx)**2);
+    if (len<1e-9){total++;continue;}
+    if (ny/len < -0.64) over++;
+    total++;
+  }
+  return total > 0 ? over/total : 0;
+}
+
+function _dhSet(key, status, label) {
+  const dot = document.getElementById(`dh-${key}-dot`);
+  const val = document.getElementById(`dh-${key}-val`);
+  if (dot) dot.className = `dh-dot ${status}`;
+  if (val) { val.className = `dh-val ${status}`; val.textContent = label; }
+}
+
+function updateDesignHealth(geo) {
+  const el = document.getElementById('design-health');
+  if (!el) return;
+  el.style.display = 'block';
+
+  // Géométrie
+  const p2 = geo.attributes.position;
+  const triCount = geo.index ? geo.index.count/3 : (p2 ? p2.count/3 : 0);
+  let geoOk = triCount > 0;
+  if (p2) for (let i = 0; i < Math.min(p2.count, 30); i++) { if (isNaN(p2.getX(i))) { geoOk = false; break; } }
+  _dhSet('geo', geoOk ? 'pass' : 'fail', geoOk ? `${Math.round(triCount)} △` : 'ERREUR');
+
+  // Impression
+  geo.computeBoundingBox();
+  const sz = geo.boundingBox.getSize(new THREE.Vector3());
+  const maxDim = Math.max(sz.x, sz.y, sz.z);
+  const fitsPlate = sz.x <= _DH_BUILD.x && sz.y <= _DH_BUILD.y && sz.z <= _DH_BUILD.z;
+  const wallParam = currentSpec?.params?.wall ?? null;
+  const minWall   = wallParam !== null ? wallParam : Math.min(sz.x, sz.y, sz.z);
+  const overRatio = _dhOverhangRatio(geo);
+  if (!fitsPlate) {
+    _dhSet('print', 'fail', `${maxDim.toFixed(0)}mm > ${Math.max(_DH_BUILD.x,_DH_BUILD.y,_DH_BUILD.z)}mm lit`);
+  } else if (minWall < 0.4) {
+    _dhSet('print', 'fail', `Paroi ${minWall.toFixed(1)}mm < ∅buse`);
+  } else if (minWall < 0.8) {
+    _dhSet('print', 'warn', `Paroi ${minWall.toFixed(1)}mm fragile`);
+  } else if (overRatio > 0.12) {
+    _dhSet('print', 'warn', `Surplombs ~${Math.round(overRatio*100)}%`);
+  } else {
+    _dhSet('print', 'pass', 'PASS');
+  }
+
+  // Assemblage
+  const asmP = currentSpec?.params || {};
+  if (asmP.bore && asmP.bore > 0) {
+    _dhSet('asm', 'warn', `Bore ∅${asmP.bore}mm +0.30mm comp.`);
+  } else if (asmP.pivotDia && asmP.pivotDia > 0) {
+    _dhSet('asm', 'pass', `Pivot ∅${asmP.pivotDia}mm → logmt ∅${(asmP.pivotDia+0.40).toFixed(1)}mm`);
+  } else if (asmP.numHoles && asmP.numHoles > 0 && asmP.holeRadius) {
+    _dhSet('asm', 'pass', `${asmP.numHoles}×∅${(asmP.holeRadius*2).toFixed(0)}mm`);
+  } else {
+    _dhSet('asm', 'na', 'N/A');
+  }
+
+  // Coût + temps
+  const vol_cm3  = _dhVolume(geo) / 1000;
+  const fill     = 0.43;
+  const weight_g = vol_cm3 * _DH_MAT.density * fill;
+  const cost     = weight_g * _DH_MAT.cost_per_g;
+  const time_min = vol_cm3 * 18 * fill;
+  const cv = document.getElementById('dh-cost-val');
+  if (cv) cv.textContent = cost < 0.01 ? '< 0,01 €' : cost.toFixed(2).replace('.',',') + ' €';
+  const tv = document.getElementById('dh-time-val');
+  if (tv) {
+    if (time_min < 1) tv.textContent = '< 1 min';
+    else if (time_min < 60) tv.textContent = `${Math.round(time_min)} min`;
+    else tv.textContent = `${Math.floor(time_min/60)}h${String(Math.round(time_min%60)).padStart(2,'0')}`;
+  }
+}
+
 window.sendPrompt = async () => {
   const ta = document.getElementById('prompt');
   const text = ta.value.trim(); if (!text) return;
