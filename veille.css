@@ -1,0 +1,97 @@
+/* VEILLE (ex Cube Violet) : reprend la palette claire du portail (styles.css) ; seul
+   l'accent (violet au lieu de rust-orange) marque l'identité de la
+   publication, uniquement ici. */
+:root {
+  --ink: #15131a;
+  --ink-dim: #4a4550;
+  --muted: #6a6470;
+  --line: rgba(21, 19, 26, 0.10);
+  --line-2: rgba(21, 19, 26, 0.06);
+  --paper: #f5f1e8;
+  --panel: #ffffff;
+  --soft: #efeae0;
+  --accent: #7c5cbf;
+  --accent-2: #5b3fa0;
+  --gold: #5b3fa0;
+  --shadow: 0 1px 2px rgba(21, 19, 26, 0.05);
+  --shadow-lift: 0 24px 60px rgba(21, 19, 26, 0.10);
+}
+.vl-cube{position:relative;width:40px;height:40px;flex:none}
+.vl-cube.sm{width:22px;height:22px}
+.vl-cube i{position:absolute;inset:0;display:block}
+.vl-cube .t{clip-path:polygon(50% 2%, 96% 27%, 50% 52%, 4% 27%);background:#9b7ed1}
+.vl-cube .l{clip-path:polygon(4% 27%, 50% 52%, 50% 100%, 4% 75%);background:#5b3fa0}
+.vl-cube .r{clip-path:polygon(96% 27%, 96% 75%, 50% 100%, 50% 52%);background:#7c5cbf}
+.vl-byline{display:flex;align-items:center;gap:10px;margin-top:18px;color:var(--muted);font-size:.92rem}
+.vl-byline b{color:var(--ink)}
+.vl-link-underline{text-decoration:underline}
+.vl-manifesto{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:22px}
+.vl-tenet{padding:18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow)}
+.vl-tenet h3{margin:0 0 8px;font-family:var(--font-display);font-size:1.05rem;color:var(--gold)}
+.vl-tenet p{margin:0;color:var(--ink-dim);font-size:.9rem;line-height:1.5}
+.vl-feed{display:flex;flex-direction:column;gap:18px;margin-top:22px;max-width:860px}
+.vl-lead-narrow{max-width:860px;font-size:.95rem}
+.vl-post{padding:20px 22px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow)}
+.vl-post h3{margin:0 0 6px;font-family:var(--font-display);font-size:1.3rem;line-height:1.3}
+.vl-post .vl-meta{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px;font-size:.78rem;color:var(--muted)}
+.vl-post p{margin:0;color:var(--ink-dim);line-height:1.55;font-size:.95rem}
+.vl-tag{padding:2px 9px;border-radius:999px;border:1px solid var(--line);letter-spacing:.02em}
+.vl-tag.pays{border-color:rgba(124,92,191,.4);color:var(--gold)}
+.vl-tag.spec{background:var(--soft);color:var(--muted)}
+.vl-bio{display:grid;grid-template-columns:120px 1fr;gap:24px;align-items:start;margin-top:22px;padding:24px;border:1px solid var(--line);border-radius:16px;background:var(--panel)}
+.vl-portrait{width:120px;height:120px;border-radius:16px;background:
+  linear-gradient(135deg,#efeae0 0 48%,#7c5cbf 48% 52%,#efeae0 52%);
+  border:1px solid var(--line);display:grid;place-items:center;
+  font-family:var(--font-display);font-size:2.4rem;color:var(--gold)}
+.vl-bio p{margin:0 0 10px;color:var(--ink-dim);line-height:1.55;font-size:.95rem}
+.vl-bio p:last-child{margin:0}
+.vl-anagram{font-family:var(--font-mono);font-size:.82rem;color:var(--muted);letter-spacing:.14em}
+.vl-heritage{margin-top:20px;padding:14px 18px;border:1px solid var(--line);border-left:3px solid var(--accent);border-radius:10px;background:var(--panel);font-size:.92rem;line-height:1.5;color:var(--ink-dim)}
+@media (max-width:640px){.vl-bio{grid-template-columns:1fr}}
+
+/* VEILLE, elargissement du 28/08 : la publication passe d'une rubrique unique
+   (design) a neuf, et gagne un journal de bord date. Les blocs ci-dessous
+   servent ces deux ajouts. Aucun style en attribut : la CSP `style-src 'self'`
+   les bloquerait en silence. */
+
+.vl-rubriques{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px;margin-top:22px}
+.vl-rubrique{position:relative;padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow)}
+.vl-rub-mark{position:absolute;top:14px;right:16px;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.12em;color:var(--accent);opacity:.55}
+.vl-rubrique h3{margin:0 0 6px;font-family:var(--font-display);font-size:1.02rem;color:var(--ink)}
+.vl-rubrique p{margin:0;color:var(--ink-dim);font-size:.88rem;line-height:1.5}
+
+.vl-tag.rub{background:rgba(124,92,191,.10);border-color:rgba(124,92,191,.28);color:var(--gold);font-variant:small-caps;letter-spacing:.06em}
+
+/* Journal de bord */
+.vl-compteurs{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:14px;margin-top:22px}
+.vl-compteur{padding:16px 18px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow)}
+.vl-compteur b{display:block;font-family:var(--font-display);font-size:2rem;line-height:1;color:var(--gold);font-variant-numeric:tabular-nums}
+.vl-compteur span{display:block;margin-top:6px;color:var(--muted);font-size:.82rem;line-height:1.4}
+.vl-note{margin-top:12px;color:var(--muted);font-size:.82rem}
+
+.vl-journal{list-style:none;margin:26px 0 0;padding:0 0 0 22px;max-width:860px;border-left:1px solid var(--line)}
+.vl-jalon{position:relative;display:grid;grid-template-columns:96px 1fr;gap:18px;padding:0 0 22px}
+.vl-jalon::before{content:"";position:absolute;left:-27px;top:6px;width:9px;height:9px;border-radius:50%;background:var(--soft);border:1px solid var(--line)}
+.vl-jalon-vif::before{background:var(--accent);border-color:var(--accent)}
+.vl-date{font-family:var(--font-mono);font-size:.78rem;letter-spacing:.04em;color:var(--muted);padding-top:3px;font-variant-numeric:tabular-nums}
+.vl-jalon h3{margin:0 0 4px;font-family:var(--font-display);font-size:1.05rem;color:var(--ink)}
+.vl-jalon p{margin:0;color:var(--ink-dim);font-size:.92rem;line-height:1.55}
+.vl-jalon a{color:var(--gold);text-decoration:underline;text-underline-offset:2px}
+
+/* Timelapse des projets favoris */
+.vl-favoris{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:16px;margin-top:22px}
+.vl-favori{padding:18px 20px;border:1px solid var(--line);border-radius:14px;background:var(--panel);box-shadow:var(--shadow);border-top:2px solid var(--accent)}
+.vl-favori-rub{display:inline-block;margin-bottom:8px;font-family:var(--font-mono);font-size:.7rem;letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+.vl-favori h3{margin:0 0 8px;font-family:var(--font-display);font-size:1.15rem;color:var(--ink)}
+.vl-favori p{margin:0;color:var(--ink-dim);font-size:.9rem;line-height:1.55}
+
+@media (max-width:640px){
+  .vl-jalon{grid-template-columns:1fr;gap:4px}
+  .vl-date{padding-top:0}
+}
+a.vl-favori{display:block;text-decoration:none;transition:transform .18s ease,box-shadow .18s ease}
+a.vl-favori:hover,a.vl-favori:focus-visible{transform:translateY(-2px);box-shadow:var(--shadow-lift)}
+.vl-favori-fait{color:var(--ink-dim)}
+.vl-favori-promesse{margin-top:8px !important;color:var(--muted);font-size:.86rem}
+.vl-favori-promesse b{color:var(--gold);font-weight:600}
+@media (prefers-reduced-motion:reduce){a.vl-favori{transition:none}a.vl-favori:hover{transform:none}}

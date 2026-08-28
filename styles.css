@@ -1592,3 +1592,31 @@ img.app-banner {
 }
 
 .ct-action { margin-top: 18px; }
+
+/* MISE EN PAGE CONTACT (28/08).
+   Le probleme mesure : `.split` est une grille a deux colonnes, la page lui
+   donnait TROIS cartes. Le flux automatique les rangeait image | formulaire
+   puis coordonnees | rien. Le formulaire (764 px) etant bien plus haut que
+   l'image (418 px), cela creusait 346 px de vide sous l'image et 283 px a
+   droite des coordonnees : 1281 px de section pour 764 px de contenu utile.
+   On place donc explicitement : image et coordonnees empilees a gauche,
+   formulaire sur toute la hauteur a droite. L'image s'etire pour que les deux
+   colonnes se terminent au meme trait. */
+.ct-grille { align-items: stretch; }
+.ct-grille > .ct-figure { grid-column: 1; grid-row: 1; margin: 0; }
+.ct-grille > .ct-carte { grid-column: 1; grid-row: 2; margin: 0; }
+.ct-grille > .cp-carte { grid-column: 2; grid-row: 1 / span 2; margin-bottom: 0; }
+.ct-grille > .ct-figure img { height: 100%; object-fit: cover; }
+
+@media (max-width: 860px) {
+  /* Une seule colonne : on rend la main au flux, sinon le formulaire irait
+     chercher une deuxieme colonne qui n'existe plus. Ordre retrouve celui du
+     document : image, formulaire, coordonnees. */
+  .ct-grille > .ct-figure,
+  .ct-grille > .ct-carte,
+  .ct-grille > .cp-carte {
+    grid-column: auto;
+    grid-row: auto;
+  }
+  .ct-grille > .ct-figure img { height: auto; }
+}

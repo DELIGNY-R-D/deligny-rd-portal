@@ -64,16 +64,27 @@ fi
 echo "== 5/6  Verification que chaque asset repond 200 =="
 # On ne controle que les assets VERSIONNES : leur URL est neuve, donc jamais
 # presente dans un cache, ce qui rend la mesure fiable.
-mapfile -t URLS < <(git ls-files '*.html' | xargs grep -ho '\(src\|href\|data-src\)="[^"]*\.\(js\|css\)?v=[0-9a-f]\{8\}"' 2>/dev/null \
-                    | sed 's/.*="//;s/"$//' | sort -u | head -40)
+# `mapfile` n'existe qu'a partir de bash 4 ; macOS n'expedie que la 3.2, et le
+# script s'arretait ici sur « command not found ». Cette etape, qui est la
+# raison d'etre de la publication en deux temps, n'avait donc jamais tourne.
+# On passe par un fichier temporaire, lisible par tous les shells.
+LISTE="$(mktemp)"
+trap 'rm -f "$LISTE"' EXIT
+# La resolution des chemins relatifs est deleguee a un script dedie : une URL
+# ecrite dans nano-worlds/index.html designe nano-worlds/…, pas la racine.
+python3 deploy/urls-versionnees.py > "$LISTE"
+NB_URLS=$(wc -l < "$LISTE" | tr -d ' ')
+echo "   $NB_URLS URL(s) versionnee(s) a verifier"
 for i in $(seq 1 12); do
   manquants=0
-  for u in "${URLS[@]:-}"; do
+  while IFS= read -r u; do
     [ -z "$u" ] && continue
     code=$(curl -s -o /dev/null -w '%{http_code}' "$BASE/${u#/}")
-    [ "$code" = "200" ] || manquants=$((manquants+1))
-  done
-  [ "$manquants" -eq 0 ] && { echo "   tous les assets repondent 200"; break; }
+    [ "$code" = "200" ] || { manquants=$((manquants+1)); dernier="$u ($code)"; }
+  done < "$LISTE"
+  [ "$manquants" -eq 0 ] && { echo "   les $NB_URLS assets repondent 200"; break; }
+  [ "$i" = "12" ] && { echo "ARRET : $manquants asset(s) toujours absents, dernier : ${dernier:-?}."
+                       echo "   Publier le HTML maintenant ferait mettre un 404 en cache."; exit 1; }
   echo "   $manquants asset(s) pas encore en ligne, nouvelle tentative ($i/12)"
   sleep 15
 done
