@@ -1620,3 +1620,10 @@ img.app-banner {
   }
   .ct-grille > .ct-figure img { height: auto; }
 }
+
+/* 29/08 : empreinte forcee. `styles.css?v=4fe724c1` a ete servi puis mis en
+   cache AVANT que la correction de la page contact n'atteigne la production,
+   parce que le commit dit « (assets) » ne contenait aucun asset (voir le
+   correctif de l'etape 4 de deploy/publie.sh). Des caches tiennent donc une
+   feuille perimee sous cette clef. On change le contenu pour obtenir une URL
+   qui n'a jamais existe : aucun cache ne peut en detenir une vieille version. */
