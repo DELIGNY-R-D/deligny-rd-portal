@@ -1337,38 +1337,6 @@
      son emplacement. L'URL reste dans un attribut « ...src=" » pour que
      deploy/cache-bust.py continue de la versionner. -->
 <script id="lampeDiffere" data-src="lampe-embed.js?v=e67175f4"></script>
-<script>
-(function(){
-  var balise = document.getElementById('lampeDiffere');
-  var cible  = document.getElementById('lampe-embed-root');
-  if (!balise || !cible) return;
-  var lance = false;
-  function charger(){
-    if (lance) return; lance = true;
-    var s = document.createElement('script');
-    s.src = balise.getAttribute('data-src');
-    document.body.appendChild(s);
-  }
-  if ('IntersectionObserver' in window) {
-    // 700 px d'avance : le script est pret avant que le widget soit a l'ecran.
-    var io = new IntersectionObserver(function(entrees){
-      for (var i=0;i<entrees.length;i++) if (entrees[i].isIntersecting){ io.disconnect(); charger(); return; }
-    }, { rootMargin: '700px' });
-    io.observe(cible);
-  } else {
-    charger();   // navigateur sans observateur : comportement d'avant
-  }
-  /* FILETS. Un differe qui echoue laisse un widget VIDE, ce qui serait pire
-     que 305 Ko de trop : l'observateur ne se declenche jamais si la fenetre a
-     une hauteur nulle (onglet ouvert en arriere-plan, cas exotiques). On
-     charge donc aussi au premier geste du visiteur.
-     PAS de minuteur de secours : il chargerait le fichier pour TOUT LE MONDE
-     au bout de quelques secondes et annulerait l'economie. Sans geste, le
-     visiteur n'atteindra de toute facon jamais le widget. */
-  addEventListener('scroll', charger, { once: true, passive: true });
-  addEventListener('pointerdown', charger, { once: true, passive: true });
-  addEventListener('keydown', charger, { once: true });
-})();
-</script>
+<script src="lampe-differe.js?v=e55d4aba"></script>
 </body>
 </html>
