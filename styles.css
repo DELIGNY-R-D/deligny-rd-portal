@@ -1374,3 +1374,45 @@ img.app-banner {
     transform: none;
   }
 }
+
+/* INTENSION — preuves avant/apres (28/08).
+   L'outil n'est pas montrable en direct : son serveur vit en atelier, et
+   aucun tunnel n'est ouvert vers un reseau local. On montre donc ce qu'il
+   PRODUIT, tire de sessions reelles : a gauche le trait, a droite le rendu.
+   Le filet central est la couture du diptyque, il aide a lire l'image comme
+   un avant/apres et non comme une seule scene. */
+.intension-preuve {
+  margin: 0 0 14px;
+}
+
+.intension-preuve img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+}
+
+.intension-preuve figcaption {
+  margin-top: 7px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.intension-galerie {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 10px;
+  margin: 14px 0 4px;
+}
+
+.intension-galerie img {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+}
