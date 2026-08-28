@@ -77,6 +77,18 @@ footer .disc{max-width:640px;margin:0 auto 10px;}
   .r-check .line{padding:4px 0;border-bottom:1px dotted #999;font-size:12px;}
   .r-foot{margin-top:20px;font-size:10px;text-align:center;color:#333;}
 }
+
+/* Appel discret, montre seulement apres un export reussi (25/08). Les outils
+   restent entierement gratuits : ce lien ne borne rien, il ouvre une porte. */
+#suiteAtelier{margin:18px 0 0;padding:13px 15px;border:1px solid var(--line,#2a2f37);
+  border-radius:12px;display:none;align-items:center;gap:12px;flex-wrap:wrap;
+  font:400 13.5px/1.5 system-ui,-apple-system,"Segoe UI",sans-serif;opacity:.94}
+#suiteAtelier span{flex:1;min-width:220px}
+#suiteAtelier a{white-space:nowrap;text-decoration:none;font-weight:600;
+  padding:7px 13px;border-radius:999px;border:1px solid currentColor}
+#suiteAtelier button{background:none;border:0;color:inherit;opacity:.55;
+  cursor:pointer;font-size:17px;line-height:1;padding:2px 4px}
+@media print{#suiteAtelier{display:none!important}}
 </style></head>
 <body>
 <div class="wrap">
@@ -345,7 +357,7 @@ function buildReport(){
   ].map(([k,v])=>`<div><b>${k}</b><br>${v}</div>`).join('');
   $('r-checklist').innerHTML=R.map(([ic,,t])=>`<div class="line">${ic==='✅'?'☑':'☐'} ${t}</div>`).join('');
 }
-$('export').onclick=()=>{ if(!LAST) return; buildReport(); window.print(); };
+$('export').onclick=()=>{ if(!LAST) return; buildReport(); window.print(); if(window.__ctaAtelier) window.__ctaAtelier(); };
 
 // upload
 function loadFile(f){
@@ -381,6 +393,36 @@ $('demo').onclick=()=>{ curFileName='Exemple BOM'; run(parseCSV(demoCSV())); };
 
 // init
 run(parseCSV(demoCSV()));
+
+/* Le CTA se montre au retour de l'impression, pas avant : window.print() rend
+   la main une fois la boite de dialogue fermee, qu'on ait imprime ou annule.
+   Un refus se souvient (sessionStorage) pour ne pas harceler. */
+(function(){
+  /* L'element est cherche A L'APPEL, pas au chargement : ce script s'execute
+     avant la fin du corps de page, et un getElementById immediat rendait null.
+     La fonction n'etait alors jamais definie et le CTA ne s'affichait jamais
+     (constate le 25/08 en testant l'export). */
+  function bloc(){ return document.getElementById('suiteAtelier'); }
+  function refuse(){ try{ return sessionStorage.getItem('dlg_cta')==='off'; }catch(e){ return false; } }
+  document.addEventListener('click', function(e){
+    if(e.target && e.target.id==='suiteAtelierX'){
+      var z=bloc(); if(z) z.style.display='none';
+      try{ sessionStorage.setItem('dlg_cta','off'); }catch(err){}
+    }
+  });
+  window.__ctaAtelier=function(){
+    if(refuse()) return;
+    var z=bloc(); if(!z) return;
+    z.style.display='flex';
+    try{ z.scrollIntoView({block:'nearest',behavior:'smooth'}); }catch(e){}
+  };
+})();
 </script>
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" style="position:absolute;left:-9999px" loading="eager">
+
+<div id="suiteAtelier" role="note">
+  <span>Besoin d'un workflow atelier avancé ou personnalisé&nbsp;?</span>
+  <a href="https://deligny-rd.fr/contact.html">En parler</a>
+  <button type="button" id="suiteAtelierX" aria-label="Fermer">×</button>
+</div>
 </body></html>
