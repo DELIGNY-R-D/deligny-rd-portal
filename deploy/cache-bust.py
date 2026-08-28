@@ -49,6 +49,11 @@ def pages() -> list:
     # reference par aucune page doit tout de meme voir SES imports versionnes.
     mods = subprocess.run(["git", "ls-files", "generative-design/*.js"], cwd=RACINE,
                           capture_output=True, text=True).stdout.split()
+
+    # Les fixtures de deploy/tests/ portent des fautes VOLONTAIRES et des
+    # empreintes calculees sur leur contenu EXACT : les modifier casserait
+    # le test de non-regression du controle de publication.
+    out = [p for p in out if not p.startswith("deploy/tests/")]
     return out + mods
 
 

@@ -31,7 +31,10 @@ RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 def pages() -> list:
     out = subprocess.run(["git", "ls-files", "*.html"], cwd=RACINE,
                          capture_output=True, text=True).stdout.split()
-    return [f for f in out if not f.startswith("art/")]
+    # deploy/tests/ : fixtures aux empreintes calculees sur leur contenu EXACT,
+    # les modifier casserait le test de non-regression du controle.
+    return [f for f in out
+            if not f.startswith("art/") and not f.startswith("deploy/tests/")]
 
 
 def corrige(contenu: str, nom_page: str) -> str:
