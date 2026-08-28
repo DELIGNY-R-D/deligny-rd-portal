@@ -24,11 +24,17 @@
   var hote = document.getElementById('composeur');
   if (!hote) return;
 
+  // Les identifiants correspondent aux cartes du store (section Offre) : un
+  // lien « ?sujet=heberge » depuis une carte arrive ici avec le bon choix deja
+  // fait, et le visiteur n'a plus qu'a ecrire deux phrases.
   var SUJETS = [
-    { id: 'logiciel',  titre: 'Un logiciel sur mesure',        objet: 'Projet logiciel' },
-    { id: 'fabrique',  titre: 'Concevoir ou fabriquer un objet', objet: 'Conception et fabrication' },
-    { id: 'heberge',   titre: 'Heberger ou infogerer',          objet: 'Hebergement' },
-    { id: 'autre',     titre: 'Autre chose',                    objet: 'Prise de contact' },
+    { id: 'logiciel',    titre: 'Un logiciel sur mesure',          objet: 'Projet logiciel' },
+    { id: 'saas',        titre: 'Atlas en abonnement',             objet: 'Abonnement Atlas Studio Pro' },
+    { id: 'site',        titre: 'Un site internet',                objet: 'Site internet' },
+    { id: 'heberge',     titre: 'Heberger ou infogerer',           objet: 'Hebergement' },
+    { id: 'agent',       titre: 'Automatiser des taches',          objet: 'Agent AI et automatisation' },
+    { id: 'fabrication', titre: 'Concevoir ou fabriquer un objet', objet: 'Conception et fabrication' },
+    { id: 'autre',       titre: 'Autre chose',                     objet: 'Prise de contact' },
   ];
   var DELAIS = ['Des que possible', 'Dans le mois', 'Ce trimestre', 'Pas encore fixe'];
 
@@ -98,7 +104,11 @@
     var corps = [
       'Bonjour,',
       '',
-      'Demande : ' + choix.sujet.titre + '.',
+      (choix.mode === 'devis'
+        ? 'Demande : un devis personnalise pour ' + choix.sujet.titre.toLowerCase() + '.'
+        : choix.mode === 'offre'
+          ? 'Demande : l\'offre « ' + choix.sujet.titre + ' », telle que presentee sur le site.'
+          : 'Demande : ' + choix.sujet.titre + '.'),
       'Echeance : ' + (choix.delai || 'a preciser') + '.',
       '',
       (champ.value.trim() || '[decrivez votre besoin en deux phrases]'),
@@ -111,6 +121,31 @@
       + '?subject=' + encodeURIComponent(objet)
       + '&body=' + encodeURIComponent(corps);
   }
+
+  /* PRE-REMPLISSAGE DEPUIS LE STORE.
+   * Une carte de l'offre mene ici avec ?sujet=<id> et ?mode=offre|devis. Le
+   * sujet est alors deja coche : le visiteur arrive dans une conversation
+   * commencee, pas devant un questionnaire. Le mode change seulement la phrase
+   * d'entree du courriel — prendre l'offre telle quelle, ou demander du sur
+   * mesure — car ce sont deux intentions differentes pour la meme prestation. */
+  var params = new URLSearchParams(location.search);
+  var vise = params.get('sujet');
+  var mode = params.get('mode') === 'devis' ? 'devis' : (params.get('mode') === 'offre' ? 'offre' : null);
+
+  if (vise) {
+    var idx = -1;
+    SUJETS.forEach(function (o, i) { if (o.id === vise) idx = i; });
+    if (idx >= 0) {
+      var pastilles = hote.querySelectorAll('.cp-ligne')[0].querySelectorAll('.cp-choix');
+      if (pastilles[idx]) pastilles[idx].click();
+    }
+  }
+  if (mode === 'devis') {
+    champ.placeholder = 'Votre contexte en deux phrases : le besoin, et pour combien de personnes.';
+  } else if (mode === 'offre') {
+    champ.placeholder = 'Deux phrases sur votre situation, pour qu\'on cadre l\'offre.';
+  }
+  choix.mode = mode;
 
   champ.addEventListener('input', majEtat);
   envoyer.addEventListener('click', function (e) {
