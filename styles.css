@@ -1416,3 +1416,78 @@ img.app-banner {
   border-radius: 10px;
   border: 1px solid var(--line);
 }
+
+/* INTENSION — sequence animee (28/08).
+   Le trait se revele de gauche a droite, comme il a ete trace, puis le rendu
+   prend sa place ; la boucle repart apres une pause pour laisser le temps de
+   lire l'image finale.
+   HONNETETE : ce sont DEUX etats reels, le croquis d'une session et son rendu.
+   Ce n'est pas une capture du rendu progressif : produire les etapes
+   intermediaires demande des appels au moteur d'image, donc une cle, donc une
+   decision. La legende dit « le trait se construit, le rendu suit », pas
+   « rendu en direct ». */
+.intension-sequence {
+  position: relative;
+  margin: 0 0 14px;
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  background: var(--paper);
+  aspect-ratio: 16 / 10;
+}
+
+.intension-sequence img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.intension-sequence .is-trait {
+  /* le trait apparait de gauche a droite, puis s'efface sous le rendu */
+  animation: is-tracer 11s cubic-bezier(.4, 0, .2, 1) infinite;
+}
+
+.intension-sequence .is-rendu {
+  opacity: 0;
+  animation: is-reveler 11s ease-in-out infinite;
+}
+
+.intension-sequence figcaption {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 7px 11px;
+  background: linear-gradient(to top, rgba(21, 19, 26, 0.62), rgba(21, 19, 26, 0));
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+@keyframes is-tracer {
+  0%   { clip-path: inset(0 100% 0 0); opacity: 1; }
+  34%  { clip-path: inset(0 0 0 0);    opacity: 1; }   /* trait complet */
+  46%  { clip-path: inset(0 0 0 0);    opacity: 1; }   /* on le laisse lire */
+  58%  { clip-path: inset(0 0 0 0);    opacity: 0; }   /* le rendu prend le relais */
+  92%  { clip-path: inset(0 0 0 0);    opacity: 0; }
+  100% { clip-path: inset(0 100% 0 0); opacity: 1; }
+}
+
+@keyframes is-reveler {
+  0%, 46% { opacity: 0; }
+  58%     { opacity: 1; }
+  92%     { opacity: 1; }
+  100%    { opacity: 0; }
+}
+
+/* Mouvement reduit : on montre le rendu, fixe. Personne ne doit subir une
+   boucle d'animation. */
+@media (prefers-reduced-motion: reduce) {
+  .intension-sequence .is-trait { animation: none; opacity: 0; }
+  .intension-sequence .is-rendu { animation: none; opacity: 1; }
+}
