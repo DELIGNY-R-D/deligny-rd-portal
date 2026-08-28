@@ -21,16 +21,37 @@ cd "$(dirname "$0")/.."
 MSG="${1:?message de commit requis}"
 BASE="https://deligny-rd.fr"
 
-echo "== 1/5  Controle de la forteresse statique =="
+echo "== 1/6  Non-regression du controle lui-meme =="
+# Un garde-fou qui s'est mis a taire les fautes est pire que pas de garde-fou :
+# on verifie d'abord qu'il alerte ET qu'il se tait quand il faut.
+python3 deploy/tests/test_verifie_fortress.py >/dev/null || {
+  echo "ARRET : le controle ne se comporte plus comme prevu (lancer le test pour voir)."; exit 1; }
+echo "   controle conforme"
+
+echo "== 2/6  Controle de la forteresse statique =="
 python3 deploy/verifie-fortress.py || { echo "ARRET : corriger les points bloquants."; exit 1; }
 
-echo "== 2/5  Empreintes de contenu (cache-bust) et balises =="
+echo "== 3/6  Empreintes de contenu (cache-bust) et balises =="
 python3 deploy/cache-bust.py
 python3 deploy/csp-studio.py      || true
 python3 deploy/csp-nano-worlds.py || true
 python3 deploy/inject-beacon.py   || true
 
-echo "== 3/5  Publication des ASSETS (js, css, images, fontes) =="
+echo "== 4/6  Publication des ASSETS (js, css, images, fontes) =="
+# NE JAMAIS SUPPRIMER UN ANCIEN ASSET VERSIONNE ICI.
+# Un HTML deja servi peut rester des heures dans le cache d'un visiteur ou d'un
+# edge Cloudflare et continuer de reclamer l'ancienne URL (…?v=<ancien hash>).
+# Effacer ce fichier casserait ces pages-la, sans qu'aucun controle local ne le
+# voie. On AJOUTE, on ne retire pas : aucun --delete, aucun `git rm` d'asset
+# dans cette etape. Le menage se fait dans un lot ULTERIEUR, quand plus aucun
+# HTML en circulation ne peut y renvoyer.
+if git diff --cached --name-status 2>/dev/null | grep -qE "^D.*\.(js|css|png|jpg|jpeg|svg|webp|woff2)$"; then
+  echo "ARRET : suppression d'asset detectee dans ce lot."
+  git diff --cached --name-status | grep -E "^D.*\.(js|css|png|jpg|jpeg|svg|webp|woff2)$" | sed "s/^/   /"
+  echo "   Un HTML en cache peut encore reclamer ce fichier."
+  echo "   Publier l'ajout d'abord, supprimer dans un lot ULTERIEUR."
+  exit 1
+fi
 git add -A -- '*.js' '*.css' '*.png' '*.jpg' '*.jpeg' '*.svg' '*.webp' '*.woff2' 2>/dev/null || true
 if ! git diff --cached --quiet; then
   git commit -q -m "$MSG (assets)"
@@ -40,7 +61,7 @@ else
   echo "   aucun asset modifie"
 fi
 
-echo "== 4/5  Verification que chaque asset repond 200 =="
+echo "== 5/6  Verification que chaque asset repond 200 =="
 # On ne controle que les assets VERSIONNES : leur URL est neuve, donc jamais
 # presente dans un cache, ce qui rend la mesure fiable.
 mapfile -t URLS < <(git ls-files '*.html' | xargs grep -ho '\(src\|href\|data-src\)="[^"]*\.\(js\|css\)?v=[0-9a-f]\{8\}"' 2>/dev/null \
@@ -57,7 +78,7 @@ for i in $(seq 1 12); do
   sleep 15
 done
 
-echo "== 5/5  Publication des PAGES =="
+echo "== 6/6  Publication des PAGES =="
 git add -A
 if ! git diff --cached --quiet; then
   git commit -q -m "$MSG"

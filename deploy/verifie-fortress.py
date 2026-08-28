@@ -32,6 +32,8 @@ Sortie : 0 si tout va bien, 1 si un point bloquant est trouve.
 """
 from __future__ import annotations
 
+import base64
+import hashlib
 import os
 import re
 import sys
@@ -39,7 +41,9 @@ import sys
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # Dossiers hors perimetre : bibliotheques tierces livrees telles quelles.
-IGNORE = ("/vendor/", "/node_modules/", "/.git/")
+# Les fixtures de deploy/tests/ contiennent des fautes VOLONTAIRES : elles sont
+# le materiel du test de non-regression, pas des pages du site.
+IGNORE = ("/vendor/", "/node_modules/", "/.git/", "/deploy/tests/")
 
 RE_CSP = re.compile(r'http-equiv="Content-Security-Policy"\s+content="([^"]*)"', re.I)
 RE_SCRIPT = re.compile(r'<script\b([^>]*)>(.*?)</script>', re.I | re.S)
@@ -94,6 +98,16 @@ def directive(csp: str, *noms: str) -> str:
     return ""
 
 
+def empreinte_csp(contenu: str) -> str:
+    """Empreinte CSP d'un contenu inline, au format `'sha256-<base64>'`.
+
+    Meme calcul que deploy/csp-studio.py et que le navigateur : SHA-256 des
+    octets UTF-8 du contenu EXACT place entre les balises, encode en base64.
+    """
+    h = hashlib.sha256(contenu.encode("utf-8")).digest()
+    return "'sha256-" + base64.b64encode(h).decode("ascii") + "'"
+
+
 def resout(base: str, u: str) -> str:
     """Chemin sur disque d'une URL locale.
 
@@ -124,25 +138,51 @@ def controle(chemin: str) -> tuple:
     # l'empreinte de son contenu ('sha256-...') ou par un nonce. C'est ce que
     # fait deploy/csp-studio.py sur la page du Studio lampe, et c'est plus sur
     # que 'unsafe-inline' : seule CETTE version exacte du script s'execute.
-    inline_ok = (not csp
-                 or "'unsafe-inline'" in script_dir
-                 or "'sha256-" in script_dir or "'sha384-" in script_dir
-                 or "'sha512-" in script_dir or "'nonce-" in script_dir)
+    # AUTORISATION DE L'INLINE, SCRIPT PAR SCRIPT.
+    # Piege corrige le 25/08 : considerer qu'un 'sha256-...' present dans la CSP
+    # autorise TOUS les inline de la page est faux et dangereux. Une empreinte
+    # n'autorise QUE le script dont elle est le hash ; un second inline ajoute
+    # ensuite serait bloque par le navigateur et passerait ici sans alerte —
+    # exactement le scenario qu'on veut empecher. On recalcule chaque empreinte.
+    tout_inline_ok = (not csp) or ("'unsafe-inline'" in script_dir)
+    nonce_ok = "'nonce-" in script_dir     # nonce pose a la volee, non verifiable ici
 
-    # 1. Script inline sous une CSP qui l'interdit
-    if not inline_ok:
+    # 1. Chaque script inline doit etre autorise, individuellement
+    if not tout_inline_ok:
         for attrs, corps in RE_SCRIPT.findall(s):
-            if "src=" in attrs.lower():
+            a = attrs.lower()
+            if "src=" in a:
                 continue
-            if 'type="application/ld+json"' in attrs.lower() or 'type="importmap"' in attrs.lower():
+            if 'type="application/ld+json"' in a or 'type="importmap"' in a:
                 continue          # donnees, pas du code executable
-            if corps.strip():
-                extrait = corps.strip().splitlines()[0][:58]
-                bloquants.append(f"script INLINE bloque par la CSP ({script_dir.split()[0]}) : {extrait}…")
-        n_evt = len(RE_ONEVT.findall(s))
-        attr_dir = directive(csp, "script-src-attr", "script-src")
-        if n_evt and "'unsafe-inline'" not in attr_dir:
-            bloquants.append(f"{n_evt} gestionnaire(s) inline (onclick=…) bloques par la CSP")
+            if not corps.strip():
+                continue
+            if nonce_ok and "nonce=" in a:
+                continue
+            emp = empreinte_csp(corps)
+            if emp in script_dir:
+                continue          # cet inline PRECIS est autorise par son hash
+            extrait = corps.strip().splitlines()[0][:50]
+            motif = "empreinte absente de la CSP" if "'sha256-" in script_dir else "inline interdit"
+            bloquants.append(f"script INLINE bloque ({motif}) : {extrait}… [{emp}]")
+
+    # 1bis. Gestionnaires d'attribut (onclick=…). Le navigateur ne les accepte
+    # QUE via 'unsafe-inline', ou via 'unsafe-hashes' ACCOMPAGNE du hash du code
+    # de l'attribut. Une empreinte seule, sans 'unsafe-hashes', ne suffit pas :
+    # regle a part, souvent ignoree, et c'est elle qui a rendu muette la zone de
+    # depot de NODUS.
+    attr_dir = directive(csp, "script-src-attr", "script-src")
+    if csp and "'unsafe-inline'" not in attr_dir:
+        evts = RE_ONEVT.findall(s)
+        if evts and "'unsafe-hashes'" not in attr_dir:
+            bloquants.append(f"{len(evts)} gestionnaire(s) inline (onclick=…) : la CSP exige "
+                             "'unsafe-hashes' + empreinte, ou il faut passer par un fichier")
+        elif evts:
+            for e in evts:
+                code = e.split('="', 1)[1].rstrip('"')
+                emp = empreinte_csp(code)
+                if emp not in attr_dir:
+                    bloquants.append(f"gestionnaire inline sans empreinte declaree : {e[:44]}… [{emp}]")
 
     # 2. Ressources chargees : soumises a la CSP, et doivent exister
     base = os.path.dirname(chemin)
