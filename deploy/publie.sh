@@ -72,8 +72,16 @@ if [ -n "$ASSETS" ]; then
   echo "$ASSETS" | sed "s/^/   + /"
   echo "$ASSETS" | tr '\n' '\0' | xargs -0 git add --
 fi
-if ! git diff --cached --quiet; then
-  git commit -q -m "$MSG (assets)"
+# On commit EXPLICITEMENT la liste d'assets, jamais l'index entier : si
+# l'appelant a fait un `git add -A` avant de lancer ce script (arrive le
+# 29/08), un `git commit` nu emporterait le HTML avec les assets et
+# annulerait toute la publication en deux temps, sans un mot.
+AUTRES=$(git diff --cached --name-only | grep -Ev "$EXT" || true)
+if [ -n "$AUTRES" ]; then
+  echo "   note : $(echo "$AUTRES" | wc -l | tr -d ' ') fichier(s) non-asset deja en scene, ils attendront l'etape 6"
+fi
+if [ -n "$ASSETS" ]; then
+  echo "$ASSETS" | tr '\n' '\0' | xargs -0 git commit -q -m "$MSG (assets)" --
   git push -q origin main
   echo "   assets pousses, attente de leur mise en ligne..."
 else
