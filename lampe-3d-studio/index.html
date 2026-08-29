@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-daWIjTF/bGqU1jxngEkb/v5Tb6rfnrbAcY18mOGcDy4='; style-src-attr 'unsafe-inline'; script-src 'sha256-f+FN8rTXYx4z4VVeF0mU7V/OUeNyh0NsfCpJqfooPYk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-daWIjTF/bGqU1jxngEkb/v5Tb6rfnrbAcY18mOGcDy4='; style-src-attr 'unsafe-inline'; script-src 'sha256-kSjIr6gvEhSGYSabBPqrjCB57H8tvqyEgbTAwqwKHH0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -944,7 +944,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
   <footer>
     <div class="disc">Configurateur indicatif — dimensions et prix estimés, à valider par l'atelier avant fabrication. Aucune donnée ne quitte
     ton navigateur tant que tu n'envoies pas l'email.</div>
-    Moteur dérivé de <b>General Design Studio</b>. · Un outil DELIGNY R&D.
+    Un outil DELIGNY R&D.
   </footer>
 </div>
 
@@ -6060,7 +6060,7 @@ function renderBlenderBlock(){
     box.innerHTML = `<div class="disc-small"><b>Rendu photo Blender — moteur local requis.</b><br>
       Ce rendu calcule une vraie photo de TA géométrie, sans aucune IA : mêmes triangles que le STL,
       matériau PLA, éclairage trois points, ombre portée. Il tourne sur ta machine via le moteur
-      General Design Studio (port 4555) et Blender. ${AI.mixed
+      le moteur local (port 4555) et Blender. ${AI.mixed
         ? "Cette page étant servie en HTTPS, le navigateur interdit d'appeler la machine locale : ouvre-la en local."
         : "Lance le moteur (<code>python3 server.py</code>) pour l'activer."}</div>`;
     return;
@@ -6167,19 +6167,19 @@ function renderAIBlock(){
       Cette page est servie en <b>HTTPS</b> ; le navigateur interdit d'appeler le moteur local
       (<code>http://127.0.0.1:4555</code>) depuis une page sécurisée. Ce n'est pas une panne, c'est une règle
       du navigateur. Ouvre la même page <b>en local</b> (le cockpit, sur <code>127.0.0.1:4567</code>) avec le
-      moteur General Design Studio lancé, et le rendu AI apparaîtra. Le <b>rendu studio ci-dessus fonctionne
+      moteur local lancé, et le rendu AI apparaîtra. Le <b>rendu studio ci-dessus fonctionne
       partout et hors ligne</b> — c'est lui qui montre la géométrie exacte.</div>`;
     return;
   }
   if(!AI.ok){
     box.innerHTML = `<div class="disc-small"><b>Rendu AI (type KeyShot) — moteur local non détecté.</b><br>
       Ce configurateur est une page statique : <b>aucune clé d'API n'y est stockée</b>, il ne peut donc pas appeler
-      un service d'image tout seul. Le rendu AI passe par le moteur <b>General Design Studio</b> lancé sur ta machine
+      un service d'image tout seul. Le rendu AI passe par le <b>moteur local</b> lancé sur ta machine
       (<code>python3 server.py</code>, port 4555), qui détient la clé côté serveur. Le rendu studio ci-dessus, lui,
       fonctionne partout et hors ligne.</div>`;
     return;
   }
-  box.innerHTML = `<div class="disc-small"><b>Moteur AI local détecté (General Design Studio, port 4555).</b>
+  box.innerHTML = `<div class="disc-small"><b>Moteur AI local détecté (port 4555).</b>
     Le rendu studio ci-dessus est envoyé au moteur d'image <b>fal</b> en img2img : l'image part chez un service externe,
     la géométrie non — <b>l'AI ne produit que des pixels, le STL exporté n'est jamais modifié</b>. Chaque appel est facturé
     sur ta clé.</div>
