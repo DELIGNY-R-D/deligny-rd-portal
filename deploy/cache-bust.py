@@ -41,6 +41,15 @@ REF = re.compile(r'((?:href|src)=")([^"?]+\.(?:css|js))(?:\?v=[0-9a-f]{8})?(")')
 # le probleme ne peut plus se produire.
 IMPORT = re.compile(r"""((?:from|import)\s+['"])(\.{1,2}/[^'"?]+\.js)(?:\?v=[0-9a-f]{8})?(['"])""")
 
+# Les icones (favicon, apple-touch-icon) sont des assets comme les autres, et
+# elles echappaient au versionnage : le 29/08, le passage du D orange a la
+# couronne, puis l'arrondi des coins, seraient restes invisibles derriere le
+# cache pour qui avait deja charge la version precedente. On ne versionne QUE
+# les liens d'icone, pas toutes les images : un <img> de contenu n'a pas les
+# memes enjeux et la reecriture en masse serait risquee.
+ICONE = re.compile(r'(<link[^>]*rel="[^"]*icon[^"]*"[^>]*href=")'
+                   r'([^"?:]+\.(?:svg|png|ico))(?:\?v=[0-9a-f]{8})?(")')
+
 
 def pages() -> list:
     out = subprocess.run(["git", "ls-files", "*.html"], cwd=RACINE,
@@ -75,7 +84,7 @@ def corrige(contenu: str, dossier_page: str) -> str:
         if not h:
             return m.group(0)
         return f"{pre}{url}?v={h}{post}"
-    return IMPORT.sub(remplace, REF.sub(remplace, contenu))
+    return ICONE.sub(remplace, IMPORT.sub(remplace, REF.sub(remplace, contenu)))
 
 
 def main() -> int:

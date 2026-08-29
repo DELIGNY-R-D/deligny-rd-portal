@@ -14,7 +14,9 @@ import re
 import subprocess
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-MOTIF = re.compile(r'(?:src|href|data-src)="([^"]*\.(?:js|css)\?v=[0-9a-f]{8})"')
+# Depuis le 29/08 les icones portent aussi une empreinte (voir cache-bust.py) :
+# elles entrent donc dans la verification de contenu, au meme titre que le CSS.
+MOTIF = re.compile(r'(?:src|href|data-src)="([^"]*\.(?:js|css|svg|png|ico)\?v=[0-9a-f]{8})"')
 
 pages = subprocess.run(["git", "ls-files", "*.html"], cwd=RACINE,
                        capture_output=True, text=True, check=True).stdout.split()
