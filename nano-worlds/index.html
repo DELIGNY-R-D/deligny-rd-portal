@@ -221,16 +221,21 @@ if('serviceWorker' in navigator){
   html.ui-topo .topoWrap{position:fixed;z-index:30;display:flex;align-items:center;gap:7px;background:rgba(16,20,27,.78);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:6px 10px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#eaf0f7}
   html.ui-topo #topoOrbitWrap{left:50%;transform:translateX(-50%);bottom:calc(58px + env(safe-area-inset-bottom))}
   html.ui-topo #topoOrbitWrap input{width:min(38vw,300px);accent-color:#4aa8ff}
-  html.ui-topo .topoVert{right:calc(10px + env(safe-area-inset-right));flex-direction:column;padding:8px 7px;gap:5px}
-  html.ui-topo .topoVert .topoLbl{margin:0}
-  html.ui-topo .topoVert input{writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;appearance:slider-vertical;width:18px;height:22vh;accent-color:#4aa8ff}
+  html.ui-topo .topoVert{right:calc(10px + env(safe-area-inset-right));flex-direction:column;padding:6px 5px;gap:4px}
+  html.ui-topo .topoVert .topoLbl{margin:0;font-size:9px}
+  /* 29/08 : « Inclinaison » occupait 22vh, soit 186 px sur un iPhone, plus son
+     cadre : un tiers de la hauteur utile pour un reglage secondaire. Ramene a
+     15vh et aminci, ce qui rejoint d'ailleurs l'intention ecrite plus haut. */
+  html.ui-topo .topoVert input{writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;appearance:slider-vertical;width:14px;height:15vh;accent-color:#4aa8ff}
   html.ui-topo #topoTiltWrap{top:calc(14vh + env(safe-area-inset-top))}
-  html.ui-topo #topoZoomWrap{top:calc(14vh + 22vh + 74px + env(safe-area-inset-top))}
+  html.ui-topo #topoZoomWrap{top:calc(14vh + 15vh + 62px + env(safe-area-inset-top))}
   /* UNIFORMISATION (23/08) : memes tailles, memes rayons, meme police, meme accent.
      Boutons : 30 px de haut, 11 px. Outils du dock : 44x40, 8 px. Curseurs : 12 px
      d'epaisseur, horizontaux 60 px (cartes) / 240 px max (Pivoter), verticaux 16vh. */
-  html.ui-topo #bar .tool{min-width:44px!important;height:40px!important;font-size:8px!important;border-radius:8px!important;gap:1px}
-  html.ui-topo #bar .tool .ic{font-size:13px!important}
+  /* 29/08 : boutons reduits de 30 % a la demande (44x40 -> 31x28). La police
+     et l'icone suivent la meme reduction, sinon le texte deborde de la case. */
+  html.ui-topo #bar .tool{min-width:31px!important;height:28px!important;font-size:6px!important;border-radius:6px!important;gap:0}
+  html.ui-topo #bar .tool .ic{font-size:10px!important}
   html.ui-topo #bar{gap:4px;padding-top:6px;top:132px!important}
   html.ui-topo #top .card{padding:3px 8px!important;font-size:11px!important;border-radius:9px!important;min-height:30px;display:flex;align-items:center;gap:6px}
   html.ui-topo #top .card input[type=range]{width:60px!important;height:12px!important;accent-color:#4aa8ff}
