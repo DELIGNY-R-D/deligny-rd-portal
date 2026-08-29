@@ -1987,6 +1987,7 @@ function reseatStructures(){
   if(tA)rebuildTrees(); if(lA&&typeof rebuildLeafy==='function')rebuildLeafy(); if(fA&&typeof rebuildFlowers==='function')rebuildFlowers(); if(bA)rebuildBushes();
   if(typeof reseatFlora==='function') reseatFlora();                   // flore variée recollée au sol
   if(typeof reseatBeachAndFalls==='function') reseatBeachAndFalls();   // parasols/baigneurs/cascades recollés sur le terrain courant (anti-lévitation)
+  if(typeof reseatTelecabines==='function') reseatTelecabines();      // télécabines : stations, pylônes et câble recollés au relief courant
 }
 // recolle beachers (parasols/serviettes/plagistes au sol, baigneurs à la surface de l\'eau) + cascades après édition de relief
 function reseatBeachAndFalls(){
@@ -3776,18 +3777,21 @@ function makeTelecabine(ax,az,bx,bz){
     const roof=new THREE.Mesh(new THREE.CylinderGeometry(W*0.6,W*0.6,D*1.12,18,1,false,0,Math.PI),roofMat); roof.rotation.x=Math.PI/2; roof.rotation.z=Math.PI/2; roof.position.y=floorY+1.18; roof.castShadow=true; sg.add(roof);
     const fascia=new THREE.Mesh(new THREE.BoxGeometry(W*1.16,0.32,0.18),frameMat); fascia.position.set(0,floorY+1.0,toward*D*0.56); sg.add(fascia);   // bandeau coloré côté ligne
     const wheel=new THREE.Mesh(new THREE.TorusGeometry(0.66,0.12,10,22),wheelMat); wheel.position.set(0,floorY+1.0,toward*D*0.52); wheel.castShadow=true; sg.add(wheel);              // POULIE ROUGE verticale
-    const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.42,12),legMat); hub.rotation.x=Math.PI/2; hub.position.set(0,floorY+1.0,toward*D*0.52); sg.add(hub); }
-  station(ax,az,ya,1); station(bx,bz,yb,-1);                                                // toward = vers la ligne (entrée/sortie face au câble)
+    const hub=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.16,0.42,12),legMat); hub.rotation.x=Math.PI/2; hub.position.set(0,floorY+1.0,toward*D*0.52); sg.add(hub);  return sg; }
+  const sgA=station(ax,az,ya,1), sgB=station(bx,bz,yb,-1);                                   // toward = vers la ligne (entrée/sortie face au câble)
   const topA=new THREE.Vector3(ax,ya+cy,az), topB=new THREE.Vector3(bx,yb+cy,bz);
   // pylônes intermédiaires
   const nTow=Math.min(4,Math.floor(dl/16));
+  const tows=[];
   for(let i=1;i<=nTow;i++){ const f=i/(nTow+1), tx=ax+dx*f, tz=az+dz*f, ty=gndY(tx,tz), top=(ya+cy)*(1-f)+(yb+cy)*f, th=Math.max(1,top-ty);
     const tw=new THREE.Mesh(new THREE.CylinderGeometry(0.16,0.26,th,8),legMat); tw.position.set(tx,ty+th/2,tz); tw.castShadow=true; group.add(tw);
-    const arm=new THREE.Mesh(new THREE.BoxGeometry(sep*2+0.5,0.1,0.1),legMat); arm.position.set(tx,ty+th-0.05,tz); arm.rotation.y=ang; group.add(arm); }
+    const arm=new THREE.Mesh(new THREE.BoxGeometry(sep*2+0.5,0.1,0.1),legMat); arm.position.set(tx,ty+th-0.05,tz); arm.rotation.y=ang; group.add(arm);
+    tows.push({mesh:tw,arm,tx,tz,f,h0:th}); }   // h0 : hauteur de la geometrie, pour la remettre a l'echelle apres erosion
   // 2 brins de câble
   const cabLine=new THREE.LineBasicMaterial({color:0x15171a});
+  const cables=[];
   for(const s of[-1,1]){ const oA=topA.clone().add(new THREE.Vector3(px*sep*s,0,pz*sep*s)), oB=topB.clone().add(new THREE.Vector3(px*sep*s,0,pz*sep*s));
-    group.add(new THREE.Line(new THREE.BufferGeometry().setFromPoints([oA,oB]),cabLine)); }
+    const ln=new THREE.Line(new THREE.BufferGeometry().setFromPoints([oA,oB]),cabLine); group.add(ln); cables.push({line:ln,s}); }
   // === CABINES (4 formes réalistes : œuf / capsule longue / caisson / bulle) avec bandeau de vitres ===
   function makeCabin(){ const g=new THREE.Group();
     const grip=new THREE.Mesh(new THREE.BoxGeometry(0.18,0.1,0.16),new THREE.MeshStandardMaterial({color:0x2a2e34,metalness:.7})); grip.position.y=-0.02; g.add(grip);   // pince
@@ -3803,7 +3807,7 @@ function makeTelecabine(ax,az,bx,bz){
     g.traverse(o=>{if(o.isMesh)o.castShadow=true;});
     group.add(g); return g; }
   const cabins=[]; for(let i=0;i<nCab;i++) cabins.push({mesh:makeCabin(),phase:(i/nCab)*2});
-  const tc={topA,topB,group,cabins,px,pz,sep,sp:0.05+R()*0.05,ax,az,bx,bz}; telecabines.push(tc); return tc;
+  const tc={topA,topB,group,cabins,px,pz,sep,sp:0.05+R()*0.05,ax,az,bx,bz,cy,sgA,sgB,tows,cables}; telecabines.push(tc); return tc;
 }
 // 💥 DESTRUCTION TÉLÉCABINE (Bapt) : station/pylône en MORCEAUX, le CÂBLE tombe, les CABINES se séparent et chutent comme des débris
 function _telShatter(tc){
@@ -3831,6 +3835,41 @@ function updateTelecabines(dt){ for(let ti=telecabines.length-1;ti>=0;ti--){ con
     let hit=false; if(typeof pilotedCar!=='undefined'&&pilotedCar&&near(pilotedCar))hit=true;
     if(!hit&&typeof cars3d!=='undefined')for(const a of cars3d){ if(near(a)){hit=true;break;} }
     if(hit){ tc._cd=1.3; if(hitTelecabine(tc))continue; } } } }
+
+/* ANTI-LEVITATION DES TELECABINES (29/08).
+   makeTelecabine ne lisait le sol qu'UNE FOIS, a la construction : hauteur des
+   deux stations, pied et hauteur de chaque pylone, altitude du cable. Creuser
+   sous une ligne existante laissait donc l'installation en l'air, et l'elever
+   l'enterrait. Les rochers, batiments, flore et plage avaient deja leur
+   fonction de recalage ; la telecabine avait ete oubliee.
+   On resample le terrain et on repose : stations au sol, pylones du sol
+   jusqu'au cable, cable entre les deux stations. Les cabines suivent seules,
+   puisqu'elles interpolent entre topA et topB. */
+function reseatTelecabines(){
+  if(typeof telecabines==='undefined')return;
+  for(const tc of telecabines){
+    if(!tc||tc.cy==null)continue;
+    const ya=gndY(tc.ax,tc.az), yb=gndY(tc.bx,tc.bz);
+    if(tc.sgA)tc.sgA.position.y=ya;
+    if(tc.sgB)tc.sgB.position.y=yb;
+    tc.topA.y=ya+tc.cy; tc.topB.y=yb+tc.cy;
+    if(tc.tows)for(const t of tc.tows){
+      const ty=gndY(t.tx,t.tz);
+      const top=(ya+tc.cy)*(1-t.f)+(yb+tc.cy)*t.f;
+      const th=Math.max(1,top-ty);
+      t.mesh.scale.y=th/(t.h0||th);      // la geometrie garde sa hauteur d'origine
+      t.mesh.position.y=ty+th/2;
+      if(t.arm)t.arm.position.y=ty+th-0.05;
+    }
+    if(tc.cables)for(const c of tc.cables){
+      const oA=new THREE.Vector3(tc.topA.x+tc.px*tc.sep*c.s, tc.topA.y, tc.topA.z+tc.pz*tc.sep*c.s);
+      const oB=new THREE.Vector3(tc.topB.x+tc.px*tc.sep*c.s, tc.topB.y, tc.topB.z+tc.pz*tc.sep*c.s);
+      c.line.geometry.setFromPoints([oA,oB]);
+      if(c.line.geometry.attributes.position)c.line.geometry.attributes.position.needsUpdate=true;
+      c.line.geometry.computeBoundingSphere();
+    }
+  }
+}
 function clearTelecabines(){for(const tc of telecabines){scene.remove(tc.group);scene.remove(tc.cabin);}telecabines.length=0;teleStart=null;}
 
 //=== BARRAGE = MUR COURBE dessiné (retient l\'eau = réservoir) + ÉLECTRICITÉ ===
