@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>General Design Studio - DELIGNY R&amp;D</title>
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src http://localhost:4555 http://127.0.0.1:4555 https://moteur.deligny-rd.fr">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter', sans-serif; font-size: 13px; overflow: hidden; }
@@ -1751,6 +1751,29 @@ function updateDesignHealth(geo) {
   }
 }
 
+/* Backends tentés dans l'ordre : studio local (dev) → moteur public (prod).
+ * Si aucun ne répond, on revient au parser vitrine par mots-clés. */
+const _API_CANDIDATES = [
+  'http://localhost:4555/api/intent',
+  'http://127.0.0.1:4555/api/intent',
+  'https://moteur.deligny-rd.fr/api/intent',
+];
+let _apiUrl = null;
+
+async function _resolveApi() {
+  if (_apiUrl) return _apiUrl;
+  for (const u of _API_CANDIDATES) {
+    try {
+      const r = await fetch(u, { method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({prompt:'ping',mode:'probe'}),
+        signal: AbortSignal.timeout(1500) });
+      if (r.ok || r.status < 500) { _apiUrl = u; return u; }
+    } catch {}
+  }
+  return null;
+}
+
 window.sendPrompt = async () => {
   const ta = document.getElementById('prompt');
   const text = ta.value.trim(); if (!text) return;
@@ -1759,11 +1782,37 @@ window.sendPrompt = async () => {
   addMsg('user', text);
   const thinking = addMsg('ai', '…');
   try {
-    const spec = vitrineAnalyse(text);
-    if (!spec || !spec.type) throw new Error('type non reconnu \u2014 essaie « lampe », « vase », « table », « chaise », « bo\u00eete », « engrenage », « coque gyro\u00efde »');
-    thinking.querySelector('.bubble').textContent =
-      `${spec.type}${spec.params ? ' — '+paramSummary(spec.params) : ''}`;
-    loadShape(spec.type, spec.params || {});
+    let spec = null;
+
+    // 1. Backend (local ou public)
+    const apiUrl = await _resolveApi();
+    if (apiUrl) {
+      try {
+        const r = await fetch(apiUrl, {
+          method:'POST', headers:{'Content-Type':'application/json'},
+          body: JSON.stringify({prompt: text, mode:'create'}),
+          signal: AbortSignal.timeout(30000),
+        });
+        if (r.ok) {
+          const data = await r.json();
+          if (data.spec?.type && data.spec.type !== 'unsupported') spec = data.spec;
+        }
+      } catch { _apiUrl = null; }
+    }
+
+    // 2. Fallback parser vitrine
+    if (!spec) {
+      const v = vitrineAnalyse(text);
+      if (v?.type) spec = { type: v.type, params: v.params || {} };
+    }
+
+    if (!spec) throw new Error('forme non reconnue — essaie « lampe », « vase », « table », « chaise », « boîte », « engrenage », « gyroïde », « ressort », « tore »');
+
+    const { type, params } = spec;
+    let lbl = type;
+    if (params && Object.keys(params).length) lbl += ' — ' + paramSummary(params);
+    thinking.querySelector('.bubble').textContent = lbl;
+    loadShape(type, params || {});
   } catch(e) { thinking.querySelector('.bubble').textContent = `Erreur : ${e.message}`; }
   btn.disabled = false; ta.focus();
 };
