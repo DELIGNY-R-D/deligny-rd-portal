@@ -1759,3 +1759,40 @@ img.app-banner {
   line-height: 1.6;
   color: var(--ink-dim);
 }
+
+/* PAGE LOGICIELS (29/08). Une fiche par logiciel : ce qu'il fait, trois points
+   concrets, ou il en est, et les portes ouvertes. L'etat vient AVANT la
+   description : un visiteur doit savoir s'il peut l'ouvrir avant de lire ce
+   qu'il fait. */
+.lg-liste { display: grid; gap: 16px; margin-top: 24px; }
+.lg-fiche {
+  padding: 22px 24px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.lg-tete { display: flex; align-items: center; gap: 14px; }
+.lg-sigle {
+  flex: none;
+  width: 46px; height: 46px;
+  display: grid; place-items: center;
+  border-radius: 12px;
+  background: var(--soft);
+  border: 1px solid var(--line);
+  font-family: var(--font-mono);
+  font-size: 14px; letter-spacing: .04em;
+  color: var(--purple);
+}
+.lg-tete h2 { margin: 0 0 4px; font-family: var(--font-display); font-size: 1.25rem; letter-spacing: -0.01em; }
+.lg-quoi { margin: 14px 0 0; font-size: 1rem; line-height: 1.65; color: var(--ink-dim); }
+.lg-points { margin: 12px 0 0; padding-left: 20px; }
+.lg-points li { margin: 0 0 6px; font-size: .94rem; line-height: 1.55; color: var(--ink-dim); }
+.lg-etat {
+  margin: 14px 0 0; padding: 10px 14px;
+  border-left: 3px solid var(--line);
+  font-size: .88rem; line-height: 1.55; color: var(--muted);
+}
+.lg-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+
+@media (min-width: 900px) { .lg-liste { grid-template-columns: repeat(2, 1fr); } }
