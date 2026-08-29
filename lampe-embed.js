@@ -2569,12 +2569,43 @@ const PAD = {l:64, r:16, t:14, b:46};
  * côté miroir sortait du canevas — on ne voyait que des chevrons tronqués dans
  * la marge des cotes. Le rayon se lit désormais de part et d'autre de l'axe,
  * et cliquer À GAUCHE ajoute le même point qu'à droite (|x-axe|). */
-function pAxisX(){ return PAD.l + (pc.width-PAD.l-PAD.r)/2; }
-function pDemiL(){ return (pc.width-PAD.l-PAD.r)/2; }
+
+/* DEFINITION DU CANEVAS DE COUPE (29/08).
+ * Le dessin etait calcule en 480x440 puis etire par le CSS jusqu'a ~1150 px de
+ * large : un agrandissement de 2,4x, d'ou des chiffres et des filets flous.
+ * On garde le systeme de coordonnees LOGIQUE a 480x440 — toute la geometrie,
+ * la detection des points et les reglettes en dependent — et on augmente
+ * seulement la memoire de rendu, en mettant le contexte a l'echelle. Plafonne
+ * a 3x : au-dela on paie de la memoire sans que l'oeil y gagne. */
+const PCL = {w:480, h:440};
+function pcW(){ return PCL.w; }
+function pcH(){ return PCL.h; }
+function ajusterDefinitionProfil(){
+  const r = pc.getBoundingClientRect();
+  if(!r.width) return;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const ech = Math.max(1, Math.min((r.width / PCL.w) * dpr, 3));
+  const w = Math.round(PCL.w * ech), h = Math.round(PCL.h * ech);
+  if(pc.width !== w || pc.height !== h){ pc.width = w; pc.height = h; }
+}
+function pAxisX(){ return PAD.l + (pcW()-PAD.l-PAD.r)/2; }
+
+/* Le canevas suit la largeur de sa colonne : quand celle-ci change, la
+   definition calculee au premier dessin n'est plus la bonne. On redessine,
+   apres une pause, pour ne pas recalculer a chaque pixel du glissement. */
+(function(){
+  let t = null;
+  addEventListener('resize', function(){
+    clearTimeout(t);
+    t = setTimeout(function(){ try{ drawProfile(); }catch(_){} }, 150);
+  }, {passive:true});
+})();
+
+function pDemiL(){ return (pcW()-PAD.l-PAD.r)/2; }
 function pMapX(r){ return pAxisX() + (r/bounds().maxR) * pDemiL(); }
-function pMapY(h){ return pc.height - PAD.b - (h/bounds().maxH) * (pc.height-PAD.t-PAD.b); }
+function pMapY(h){ return pcH() - PAD.b - (h/bounds().maxH) * (pcH()-PAD.t-PAD.b); }
 function pUnmapX(x){ return Math.min(bounds().maxR, Math.abs(x-pAxisX()) / pDemiL() * bounds().maxR); }
-function pUnmapY(y){ return Math.max(0,(pc.height-PAD.b-y) / (pc.height-PAD.t-PAD.b) * bounds().maxH); }
+function pUnmapY(y){ return Math.max(0,(pcH()-PAD.b-y) / (pcH()-PAD.t-PAD.b) * bounds().maxH); }
 
 // Pente du segment par rapport à la verticale (toujours positive) — sert à
 // décrire la forme, pas à juger l'imprimabilité.
@@ -2619,7 +2650,10 @@ const accA = a => { const h = PAL.acc.replace('#','');
   return `rgba(${(n>>16)&255},${(n>>8)&255},${n&255},${a})`; };
 
 function drawProfile(){
-  const w=pc.width,h=pc.height;
+  ajusterDefinitionProfil();
+  const w=pcW(), h=pcH();
+  // le contexte travaille en coordonnees logiques, quelle que soit la definition
+  pctx.setTransform(pc.width/PCL.w, 0, 0, pc.height/PCL.h, 0, 0);
   pctx.clearRect(0,0,w,h);
   pctx.fillStyle=PAL.fond; pctx.fillRect(0,0,w,h);
   const bH = bounds().maxH, axisX = pAxisX();
@@ -2627,11 +2661,30 @@ function drawProfile(){
 
   // Règle graduée : filets horizontaux discrets tous les 20 mm, graduations
   // sur une réglette à gauche (mineure 10 mm, majeure 20 mm, cote tous les 40).
-  for(let hh=0; hh<=bH; hh+=20){
+  /* QUADRILLAGE (29/08). AVANT : des filets horizontaux tous les 20 mm et
+   * RIEN a la verticale — ce n'etait pas un quadrillage, et un rayon ne se
+   * lisait qu'en redescendant jusqu'a la reglette du bas. Les deux sens se
+   * croisent desormais tous les 10 mm, sur trois niveaux (10 discret, 20
+   * moyen, 40 marque), et les cotes sont posees tous les 20 mm quand la place
+   * le permet. */
+  const filet = a => PAL.grille.replace(/[\d.]+\)$/, a + ')');
+  const niveau = v => (v % 40 === 0) ? filet('.22') : (v % 20 === 0 ? filet('.12') : filet('.055'));
+  pctx.lineWidth = 1;
+  for(let hh=0; hh<=bH; hh+=10){
     const y=pMapY(hh);
-    pctx.strokeStyle = (hh%40===0) ? PAL.grille : PAL.grille.replace(/[\d.]+\)$/,'.045)');
-    pctx.lineWidth=1;
+    pctx.strokeStyle = niveau(hh);
     pctx.beginPath(); pctx.moveTo(PAD.l,y); pctx.lineTo(w-PAD.r,y); pctx.stroke();
+  }
+  {
+    const rMax = bounds().maxR, bas = pMapY(0);
+    for(let rr=0; rr<=rMax; rr+=10){
+      pctx.strokeStyle = niveau(rr);
+      for(const s of (rr===0 ? [0] : [-1,1])){
+        const x = pMapX(s*rr);
+        if(x < PAD.l - 0.5 || x > w - PAD.r + 0.5) continue;
+        pctx.beginPath(); pctx.moveTo(x, PAD.t); pctx.lineTo(x, bas); pctx.stroke();
+      }
+    }
   }
   pctx.strokeStyle=PAL.grilleMaj; pctx.lineWidth=1;
   pctx.beginPath(); pctx.moveTo(PAD.l-6,pMapY(0)); pctx.lineTo(PAD.l-6,pMapY(bH)); pctx.stroke();
@@ -2641,7 +2694,11 @@ function drawProfile(){
     pctx.beginPath(); pctx.moveTo(PAD.l-6,y); pctx.lineTo(PAD.l-6-(maj?7:4),y); pctx.stroke();
   }
   pctx.fillStyle=PAL.texte; pctx.font=MONO; pctx.textAlign='right';
-  for(let hh=0; hh<=bH; hh+=40){ pctx.fillText(hh+' mm', PAD.l-17, pMapY(hh)+3); }
+  {
+    const ecart = Math.abs(pMapY(0) - pMapY(20));
+    const pas = ecart >= 22 ? 20 : 40;      // jamais de cotes qui se touchent
+    for(let hh=0; hh<=bH; hh+=pas){ pctx.fillText(hh+' mm', PAD.l-17, pMapY(hh)+3); }
+  }
 
   /* REGLETTE HORIZONTALE (demande Baptiste) : le zero est SUR l'axe de
    * rotation, et on lit le RAYON de part et d'autre.
@@ -2667,7 +2724,9 @@ function drawProfile(){
       }
     }
     pctx.fillStyle = PAL.texte; pctx.font = MONO; pctx.textAlign = 'center';
-    for(let rr = 0; rr <= maxR; rr += 40){
+    const ecartR = Math.abs(pMapX(20) - pMapX(0));
+    const pasR = ecartR >= 26 ? 20 : 40;    // « 100 » fait 22 px en 10 px de fonte
+    for(let rr = 0; rr <= maxR; rr += pasR){
       for(const s of (rr === 0 ? [0] : [-1, 1]))
         pctx.fillText(String(rr), pMapX(s * rr), yR + 17);
     }
@@ -2780,7 +2839,7 @@ function nearestPoint(x,y){
 }
 function canvasPos(e){
   const rect=pc.getBoundingClientRect();
-  const sx=pc.width/rect.width, sy=pc.height/rect.height;
+  const sx=pcW()/rect.width, sy=pcH()/rect.height;
   const cx = (e.touches?e.touches[0].clientX:e.clientX)-rect.left;
   const cy = (e.touches?e.touches[0].clientY:e.clientY)-rect.top;
   return {x:cx*sx, y:cy*sy};
@@ -2790,7 +2849,7 @@ pc.addEventListener('mousedown', e=>{
   const idx = nearestPoint(x,y);
   if(idx>=0){ state.selected=idx; dragIdx=idx; renderAll(); return; }
   // add new point at clicked location if within drawing area
-  if(x>=PAD.l && x<=pc.width-PAD.r && y>=PAD.t && y<=pc.height-PAD.b){
+  if(x>=PAD.l && x<=pcW()-PAD.r && y>=PAD.t && y<=pcH()-PAD.b){
     const r = pUnmapX(x), h = pUnmapY(y);
     const np = {h,r};
     state.profile.push(np);
@@ -2834,7 +2893,7 @@ pc.addEventListener('touchstart', e=>{
   const {x,y}=canvasPos(e);
   const idx=nearestPoint(x,y);
   if(idx>=0){ state.selected=idx; dragIdx=idx; renderAll(); return; }
-  if(x>=PAD.l && x<=pc.width-PAD.r && y>=PAD.t && y<=pc.height-PAD.b){
+  if(x>=PAD.l && x<=pcW()-PAD.r && y>=PAD.t && y<=pcH()-PAD.b){
     const np={h:pUnmapY(y), r:pUnmapX(x)};
     state.profile.push(np);
     normalizeProfile();

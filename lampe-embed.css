@@ -156,8 +156,15 @@ body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
  * sont à l'écran en même temps, c'est ce qui compte. */
 #lampe-embed-root .vgrid3{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
 #lampe-embed-root .vgrid3 > :nth-child(3){grid-column:1 / -1;}
-@media(max-width:1000px){#lampe-embed-root .vgrid3{grid-template-columns:1fr;}
-  #lampe-embed-root .vgrid3 > :nth-child(3){grid-column:auto;}}
+/* 29/08 : voir le commentaire du studio. Entre 701 et 1000 px les trois vues
+   s'empilaient ; le plancher est desormais coupe en pleine largeur, coque et
+   rendu cote a cote. */
+@media(max-width:1000px){
+  #lampe-embed-root .vgrid3{grid-template-columns:1fr 1fr;}
+  #lampe-embed-root .vgrid3 > :nth-child(1){grid-column:1 / -1;}
+  #lampe-embed-root .vgrid3 > :nth-child(3){grid-column:auto;}
+  #lampe-embed-root .vgrid3 .canvas-col{min-width:0;}
+}
 /* iPhone (20/08) : en une colonne, chaque vue prenait un ecran entier et le
    rendu arrivait coupe. La coupe 2D (surface d'edition) garde toute la
    largeur ; la coque 3D et le rendu passent COTE A COTE a mi-largeur, donc
