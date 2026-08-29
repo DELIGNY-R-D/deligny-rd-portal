@@ -1675,3 +1675,8 @@ img.app-banner {
   color: var(--ink);
   font-variant-numeric: tabular-nums;
 }
+
+/* 29/08, second forcage d'empreinte. La clef `?v=b40a1ffd` a ete figee sur le
+   corps precedent par la verification elle-meme, qui interrogeait la vraie URL
+   avant que le contenu soit en ligne. L'etape 5 sonde desormais une clef
+   jetable ; celle-ci restera vierge jusqu'au premier visiteur. */
