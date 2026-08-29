@@ -1695,3 +1695,8 @@ img.app-banner {
 @media (max-width: 860px) {
   .ct-hero { padding: 56px 0 40px; }
 }
+
+/* Sous-titre a l'interieur d'une section (magasin) : plus discret que la tete
+   de section, pour ne pas concurrencer le titre principal. */
+.mag-sous-tete { margin-top: 34px; }
+.mag-sous-tete h2 { font-size: clamp(1.15rem, 2vw, 1.5rem); }
