@@ -386,10 +386,16 @@ main {
   max-width: 960px;
 }
 
+/* 29/08 : la galerie imposait un cadre portrait 3/4 avec `object-fit: cover`,
+   alors que les photos de planches sont en paysage (rapports mesures de 1,25 a
+   1,42). Chaque image etait donc rognee sur les cotes, jusqu'a la moitie de sa
+   largeur pour les plus larges : un yacht de 24 metres photographie en long
+   n'etait jamais visible en entier. On rend a l'image son rapport naturel ;
+   la grille a deja `align-items: start`, les hauteurs peuvent donc differer
+   sans casser l'alignement. */
 .pf-gallery img {
   width: 100%;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
+  height: auto;
   display: block;
   background: var(--soft);
   border: 1px solid var(--line);
