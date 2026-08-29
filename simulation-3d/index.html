@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="description" content="Conception, animation et rendu 3D chez DELIGNY R&D : geometrie parametrique, mouvement calcule par simulation physique, images de qualite studio." />
   <title>Conception, animation, rendu 3D — DELIGNY R&amp;D</title>
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; media-src 'self'; style-src 'self'; script-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; media-src 'self'; style-src 'self'; script-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests" />
   <meta name="referrer" content="strict-origin-when-cross-origin" />
   <link rel="icon" href="../img/favicon.svg" type="image/svg+xml" />
   <link rel="icon" href="../img/favicon.png" sizes="32x32" type="image/png" />
@@ -30,14 +30,13 @@
       <a href="../portfolio/index.html">Portfolio</a>
       <a href="../lampe-3d-studio/index.html">Lampe Designer</a>
       <a href="index.html" aria-current="page">Simulation 3D</a>
+      <a href="../cube-violet.html">Cube Violet</a>
       <span class="nav-sep" aria-hidden="true"></span>
       <span class="nav-group-label">Logiciel</span>
       <a href="../index.html#logiciels">Logiciels</a>
       <a href="../index.html#outils">Outils gratuits</a>
       <span class="nav-sep" aria-hidden="true"></span>
-      <a href="../veille.html">Veille</a>
       <a href="../index.html#offre">Offre</a>
-      <a href="../index.html#magasin">Magasin d'applications</a>
       <a href="../contact.html">Contact</a>
     </nav>
   </header>
@@ -178,7 +177,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/41-26320bee.mp4" poster="video/41-26320bee.png" muted loop playsinline preload="none" controls aria-label="Pliage de tole"></video></figure>
+        <figure><video src="video/41-2bf8ef33.mp4" poster="video/41-2bf8ef33.png" muted loop playsinline preload="none" controls aria-label="Pliage de tole"></video></figure>
         <div class="sim-body">
           <h2>Pliage de tole</h2>
           <p>Une tole pliee a EXACTEMENT la meme longueur developpee qu'a plat. C'est la premiere chose qu'apprend un plieur, c'est ce qui rend le metier calculable, et c'est ce qu'aucun rendu approximatif ne respecte : deformer une tole a peu pres l'allonge ou la raccourcit, et l'oeil le voit tout de suite parce que les bords ne tombent plus en face. La geometrie est donc calculee par une marche le long du profil, qui conserve la longueur par construction. Le rayon de pli apparait en meme temps que le pli, comme sur une presse. Seul procede froid de la serie : pas de front chaud, un inox brosse, et la lumiere qui traverse la decoupe ecrit la marque au sol.</p>
@@ -186,7 +185,15 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/43-00c6af9a.mp4" poster="video/43-00c6af9a.png" muted loop playsinline preload="none" controls aria-label="Usinage"></video></figure>
+        <figure><video src="video/42-2c2d46dd.mp4" poster="video/42-2c2d46dd.png" muted loop playsinline preload="none" controls aria-label="Soudure"></video></figure>
+        <div class="sim-body">
+          <h2>Soudure</h2>
+          <p>Trois choses font une soudure, et il en manque toujours au moins une dans les images fabriquees de memoire. Le cordon n'est pas un tube : c'est une suite de bains successifs qui se recouvrent, donc sa surface porte des rides EN CROISSANT, tournees vers l'arriere. La zone affectee thermiquement compte autant que le cordon : ce qui prouve la fusion, c'est la bande de couleurs de revenu qui court de part et d'autre, bleu, violet, paille, dans l'ordre reel des temperatures. Et l'arc PRECEDE le bain au lieu de le couvrir : pose dessus il cramerait ce qu'on vient voir, et de biais il rase le cordon deja pose, ce qui fait ressortir les rides. Un vrai arc est aveuglant, c'est bien pour cela qu'on filme une soudure au travers d'un filtre.</p>
+          <p class="sim-meta">9.0 s · format carre 1440</p>
+        </div>
+      </article>
+      <article class="sim-card">
+        <figure><video src="video/43-c83ab7a3.mp4" poster="video/43-c83ab7a3.png" muted loop playsinline preload="none" controls aria-label="Usinage"></video></figure>
         <div class="sim-body">
           <h2>Usinage</h2>
           <p>L'inverse de tous les autres : la matiere est deja la, et la piece finie est deja dedans. On ne fabrique pas la piece, on retire ce qui n'est pas elle. Le calcul est un CHAMP DE HAUTEUR, exactement comme la verification d'un programme de commande numerique dans l'industrie : une surface fraisee est une fonction de deux variables, et usiner c'est prendre le minimum entre la matiere presente et la cote a atteindre. Aucun booleen, donc rien qui puisse rater, et la piece ne peut mathematiquement pas etre entamee. Cinq passes en profondeur, un balayage en va-et-vient, et les cretes que la fraise laisse entre deux allees.</p>
@@ -194,7 +201,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/44-1c4e74bf.mp4" poster="video/44-1c4e74bf.png" muted loop playsinline preload="none" controls aria-label="Tournage"></video></figure>
+        <figure><video src="video/44-20b5833c.mp4" poster="video/44-20b5833c.png" muted loop playsinline preload="none" controls aria-label="Tournage"></video></figure>
         <div class="sim-body">
           <h2>Tournage</h2>
           <p>Le meme calcul que le fraisage, dans un autre systeme de coordonnees : une surface tournee est une fonction du seul axe. Le plan ne tourne PAS, et c'est voulu : une piece de revolution qui pivote sur son axe ne montre strictement rien, sa silhouette, ses reflets, ses anneaux d'usinage et meme la bande chaude sont tous invariants par rotation. C'est une propriete du procede, pas une paresse de rendu, et c'est d'ailleurs ce qui rend un tour si silencieux a regarder. Le profil est du vocabulaire de tourneur : deux portees brutes aux extremites, deux gorges, deux tores, une sphere.</p>
@@ -202,7 +209,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/45-6dd38b84.mp4" poster="video/45-6dd38b84.png" muted loop playsinline preload="none" controls aria-label="Emboutissage"></video></figure>
+        <figure><video src="video/45-187ebfc7.mp4" poster="video/45-187ebfc7.png" muted loop playsinline preload="none" controls aria-label="Emboutissage"></video></figure>
         <div class="sim-body">
           <h2>Emboutissage</h2>
           <p>La loi de l'emboutissage est la CONSERVATION DE L'AIRE, pas la proximite. Le point du godet le plus proche du bord du flan n'est pas la collerette, c'est le bas de la paroi : envoyer chaque point au plus proche entasse donc toute la matiere du pourtour au mauvais endroit et le flan s'affaisse au lieu de se tirer. La vraie cinematique est celle-ci : le flan a une aire, la piece a la meme, et un anneau de matiere se retrouve la ou il delimite la meme aire sur le profil. C'est le calcul que fait un outilleur pour dimensionner son flan. La matiere du bord parcourt beaucoup plus de chemin que celle du fond, donc le godet refroidit du centre vers le bord.</p>
@@ -210,7 +217,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/46-fea85f24.mp4" poster="video/46-fea85f24.png" muted loop playsinline preload="none" controls aria-label="Thermoformage"></video></figure>
+        <figure><video src="video/46-4fbd05f2.mp4" poster="video/46-4fbd05f2.png" muted loop playsinline preload="none" controls aria-label="Thermoformage"></video></figure>
         <div class="sim-body">
           <h2>Thermoformage</h2>
           <p>Le seul procede de la serie ou la feuille va vraiment au point le plus proche : une feuille aspiree ne choisit pas son chemin, elle descend et s'arrete sur ce qu'elle rencontre. L'ordre de contact est donne par la hauteur du moule, et c'est ce qui fait tout le plan : les sommets touchent d'abord, la feuille se tend, et les fonds sont les derniers servis. C'est pour cela que le relief apparait de haut en bas comme une image qui se revele, et c'est aussi pourquoi les angles rentrants d'un thermoformage sont toujours les moins bien definis : la matiere y arrive en dernier, deja refroidie et deja etiree. La feuille arrive affaissee, comme une plaque chauffee qui flechit sous son poids.</p>
@@ -218,7 +225,7 @@
         </div>
       </article>
       <article class="sim-card">
-        <figure><video src="video/47-6419f4d5.mp4" poster="video/47-6419f4d5.png" muted loop playsinline preload="none" controls aria-label="Forgeage"></video></figure>
+        <figure><video src="video/47-5ffa7cc3.mp4" poster="video/47-5ffa7cc3.png" muted loop playsinline preload="none" controls aria-label="Forgeage"></video></figure>
         <div class="sim-body">
           <h2>Forgeage</h2>
           <p>Ce qui separe le forgeage de la pate a modeler, c'est le COUP. Une matiere qui se deforme regulierement raconte un ecrasement lent, donc de la fonte. Le forgeage procede par a-coups : la matiere bouge brutalement, puis plus rien pendant que le marteau remonte. Ce sont ces paliers immobiles qui font entendre le marteau alors qu'on ne le voit jamais. Les marches se raccourcissent, parce que la matiere resiste de plus en plus a mesure qu'elle s'etale et refroidit. L'ecoulement est RADIAL, comme sous un vrai marteau : la matiere fuit l'axe dans la direction ou elle se trouve deja, ce qui interdit tout repli. La marque est frappee en relief au dernier coup.</p>
@@ -307,6 +314,5 @@
     </div>
   </footer>
   <img src="https://atlas-studio.pro/deligny/api/px?page=simulation-3d" alt="" width="1" height="1" loading="eager">
-  <script src="lecture-auto.js?v=852e6409"></script>
 </body>
 </html>
