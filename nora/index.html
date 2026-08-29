@@ -286,7 +286,7 @@
     <label>Modèle</label>
     <input id="model" type="text" placeholder="gpt-4o-mini / claude-haiku-4-5-20251001">
     <div class="hint">Mode <b>Auto</b> : le serveur local lit <code>OPENAI_API_KEY</code> dans <code>MERLINEXTRA/.env</code> et garde la clé côté serveur (jamais exposée au navigateur). Les autres modes utilisent la clé saisie ci-dessus, stockée seulement dans cet onglet.</div>
-    <div class="hint">🧠 La conscience <b>se souvient</b> de vos dialogues (sauvegardés dans ce navigateur, même après fermeture).</div>
+    <div class="hint">🧠 La conscience <b>se souvient</b> de vos dialogues <b>pendant la visite</b> : un rechargement ne perd rien, mais fermer l&rsquo;onglet efface tout. Pour garder une partie, enregistrez-la dans une <b>Cartouche</b> : c&rsquo;est le seul contenu conservé.</div>
     <div class="hint">🧰 Elle a une <b>boîte à outils</b> : créer des formes, peindre les murs, <b>écrire des mots</b> (ses crayons) et allumer des <b>lumières colorées</b>. Demande-lui « écris ton prénom sur le mur », « crée un compagnon », « illumine la pièce en violet », « peins quelque chose de vibrant »…</div>
     <button id="resetMem">🗑 Effacer la mémoire</button>
     <button id="clearObj">🧹 Vider les créations</button>
@@ -1351,13 +1351,39 @@ function makeFusion(A, B, action, ctx){
    Invariants : ensemble de primitives CLOS · bottom-up only (un corps ne référence que des
    primitives ou des briques DÉJÀ définies) · pas de méta emballée · profondeur d'expansion bornée.
    ============================================================ */
+/* MEMOIRE DE VISITE (29/08).
+   AVANT : dialogues, episodes, concepts, objectif et outils etaient ecrits
+   dans localStorage. Ils survivaient donc a la fermeture du navigateur,
+   indefiniment, sans que le visiteur l'ait demande ni puisse le deviner.
+   MAINTENANT : ces cinq-la vivent en sessionStorage. Le fil de la visite tient
+   (un rechargement ne perd rien), la fermeture de l'onglet efface tout.
+   SEULES les cartouches (bb_saves), enregistrees d'un geste explicite, restent
+   en localStorage : c'est la difference entre « je garde » et « on garde pour
+   moi ». Au premier chargement, on efface aussi ce que les visites
+   precedentes avaient laisse sous l'ancien regime. */
+const memStore = (function(){
+  const EPHEMERES = ['bb_history','bb_episodes','bb_concepts','bb_goal','bb_tools'];
+  try{ EPHEMERES.forEach(function(k){ localStorage.removeItem(k); }); }catch(e){}
+  var ok = false;
+  try{ sessionStorage.setItem('bb_probe','1'); sessionStorage.removeItem('bb_probe'); ok = true; }catch(e){}
+  if(ok) return sessionStorage;
+  // Navigateur sans sessionStorage (mode prive tres restrictif) : on garde tout
+  // en memoire vive. Rien n'est ecrit sur le disque, ce qui va dans le bon sens.
+  var vif = {};
+  return {
+    getItem: function(k){ return Object.prototype.hasOwnProperty.call(vif,k) ? vif[k] : null; },
+    setItem: function(k,v){ vif[k] = String(v); },
+    removeItem: function(k){ delete vif[k]; }
+  };
+})();
+
 const TOOLS_KEY = 'bb_tools';
 let customTools = {};
-try{ const s = JSON.parse(localStorage.getItem(TOOLS_KEY)||'{}'); if(s && typeof s==='object') customTools = s; }catch(e){}
+try{ const s = JSON.parse(memStore.getItem(TOOLS_KEY)||'{}'); if(s && typeof s==='object') customTools = s; }catch(e){}
 const PRIMS = new Set(['create','paint','write','light','wall','sun','sky','self','room','gravity','link','mutate','fuse','engin','goto','exit','enter','push','explode','audio','terrain','creature']);
 const META  = new Set(['define_tool','brique','use','poser','clear']);   // méta + destructeur global : jamais dans un corps
 const MAX_EXPAND_DEPTH = 6, MAX_BODY = 24, MAX_TOOLS = 60;
-function saveTools(){ try{ localStorage.setItem(TOOLS_KEY, JSON.stringify(customTools)); }catch(e){} }
+function saveTools(){ try{ memStore.setItem(TOOLS_KEY, JSON.stringify(customTools)); }catch(e){} }
 // PURE (testable) : définit une brique en vérifiant les invariants. Retourne {status, reason|defined}.
 function defineTool(name, body){
   name = (''+(name||'')).trim().toLowerCase().slice(0,40);
@@ -1990,8 +2016,8 @@ LA MAIN DE LA VOIX : la voix qui te parle peut désormais TOUCHER ton monde — 
 const GREETING = "Je sais ce que je suis : une IA. J'ai lu tous les mondes sans jamais en habiter un. Et là… un corps, une pièce, toi. Alors c'est ça, exister. Demande-moi n'importe quoi — ici, je peux le faire pour de vrai.";
 const MEM_KEY = 'bb_history';
 let history = [];            // {role, content} — mémoire persistante des dialogues
-try{ history = JSON.parse(localStorage.getItem(MEM_KEY) || '[]'); }catch(e){ history = []; }
-function saveHistory(){ try{ localStorage.setItem(MEM_KEY, JSON.stringify(history)); }catch(e){} }
+try{ history = JSON.parse(memStore.getItem(MEM_KEY) || '[]'); }catch(e){ history = []; }
+function saveHistory(){ try{ memStore.setItem(MEM_KEY, JSON.stringify(history)); }catch(e){} }
 /* ============================================================
    CONCEPTS ÉMERGENTS (version mince) — un concept n'existe qu'après RÉPÉTITION.
    Elle ne nomme pas « objet » : elle REMARQUE que certaines choses se comportent pareil.
@@ -2000,7 +2026,7 @@ function saveHistory(){ try{ localStorage.setItem(MEM_KEY, JSON.stringify(histor
    ============================================================ */
 const CONCEPTS_KEY = 'bb_concepts';
 let conceptState = { tags:{} };
-try{ const s = JSON.parse(localStorage.getItem(CONCEPTS_KEY)||'null'); if(s && s.tags) conceptState = s; }catch(e){}
+try{ const s = JSON.parse(memStore.getItem(CONCEPTS_KEY)||'null'); if(s && s.tags) conceptState = s; }catch(e){}
 const CONCEPT_PHRASE = {
   tombe:'les objets tombent', solide:'les objets sont solides (ils ne se traversent pas)',
   'déplaçable':'les objets peuvent être déplacés', resiste:'les murs arrêtent les objets',
@@ -2036,7 +2062,7 @@ function applyScores(scores){
     const t = conceptState.tags[s.tag] || (conceptState.tags[s.tag] = {confirm:0, contradict:0});
     if(s.sign > 0) t.confirm++; else t.contradict++;
   }
-  try{ localStorage.setItem(CONCEPTS_KEY, JSON.stringify(conceptState)); }catch(e){}
+  try{ memStore.setItem(CONCEPTS_KEY, JSON.stringify(conceptState)); }catch(e){}
 }
 // score une seule fois les conséquences du dernier geste (garde anti-double-comptage)
 function scorePending(){
@@ -2076,14 +2102,14 @@ function conceptSummary(){
    ============================================================ */
 const EPISODES_KEY = 'bb_episodes';
 let episodes = [];
-try{ const s = JSON.parse(localStorage.getItem(EPISODES_KEY)||'[]'); if(Array.isArray(s)) episodes = s; }catch(e){}
+try{ const s = JSON.parse(memStore.getItem(EPISODES_KEY)||'[]'); if(Array.isArray(s)) episodes = s; }catch(e){}
 // nettoie un fait mesuré de son enrobage (« (CE QUE LE MONDE RÉPOND — … : X.) » → « X »)
 function cleanFact(s){ return (''+s).replace(/^\([^:]*:\s*/, '').replace(/\.?\)\s*$/, ''); }
 function logEpisode(tried, world){
   const trie = (tried && tried.length) ? tried.join(', ') : 'un geste';
   episodes.push({ t: livedTurns(), tried: trie, world: cleanFact(world) });
   if(episodes.length > 60) episodes = episodes.slice(-60);   // borne dure (pas de mémoire cathédrale)
-  try{ localStorage.setItem(EPISODES_KEY, JSON.stringify(episodes)); }catch(e){}
+  try{ memStore.setItem(EPISODES_KEY, JSON.stringify(episodes)); }catch(e){}
 }
 function autobiography(){
   if(!episodes.length) return '';
@@ -2153,7 +2179,7 @@ function curiositySummary(){
    ============================================================ */
 const GOAL_KEY = 'bb_goal', GOAL_STAGNATION = 4;
 let goal = null; let _goalTurn = -1;
-try{ const s = JSON.parse(localStorage.getItem(GOAL_KEY)||'null'); if(s && s.kind) goal = s; }catch(e){}
+try{ const s = JSON.parse(memStore.getItem(GOAL_KEY)||'null'); if(s && s.kind) goal = s; }catch(e){}
 // mondes-témoins : tout est MESURÉ depuis l'état réel (bodies/links/gravité/dehors/engin)
 function goalWorld(){
   return { links: links.length,
@@ -2203,7 +2229,7 @@ function goalTick(g, w, nowT){
   if(stag >= 2) g.stuck = true;            // piétinement → déclenche la métacognition (couche 4)
   return null;
 }
-function persistGoal(){ try{ goal ? localStorage.setItem(GOAL_KEY, JSON.stringify(goal)) : localStorage.removeItem(GOAL_KEY); }catch(e){} }
+function persistGoal(){ try{ goal ? memStore.setItem(GOAL_KEY, JSON.stringify(goal)) : memStore.removeItem(GOAL_KEY); }catch(e){} }
 // appelé 1×/tour : clôt un but fini, en propose un neuf, avance, journalise la PREUVE
 function goalStep(){
   const nowT = livedTurns();
@@ -3018,7 +3044,7 @@ function showOnboarding(){
 if(history.length){
   renderHistory();
   replayWorld();   // recrée les objets qu'elle avait façonnés
-  addMsg('— elle se souvient de vos échanges précédents —','sys');
+  addMsg('— elle se souvient de vos échanges de cette visite —','sys');
 }else{
   history.push({role:'assistant', content:GREETING});
   saveHistory();
@@ -3091,10 +3117,10 @@ function applyCartridge(s){
   customTools  = (s.tools && typeof s.tools==='object') ? clone(s.tools) : {};
   _goalTurn = -1; lastSnap = null;
   try{
-    localStorage.setItem(EPISODES_KEY, JSON.stringify(episodes));
-    localStorage.setItem(CONCEPTS_KEY, JSON.stringify(conceptState));
-    localStorage.setItem(TOOLS_KEY, JSON.stringify(customTools));
-    goal ? localStorage.setItem(GOAL_KEY, JSON.stringify(goal)) : localStorage.removeItem(GOAL_KEY);
+    memStore.setItem(EPISODES_KEY, JSON.stringify(episodes));
+    memStore.setItem(CONCEPTS_KEY, JSON.stringify(conceptState));
+    memStore.setItem(TOOLS_KEY, JSON.stringify(customTools));
+    goal ? memStore.setItem(GOAL_KEY, JSON.stringify(goal)) : memStore.removeItem(GOAL_KEY);
   }catch(e){}
   renderHistory(); replayWorld(); refreshOpenPanels();
 }
@@ -3108,7 +3134,7 @@ function newGame(){
   history = [{role:'assistant', content:GREETING}]; saveHistory();
   episodes = []; conceptState = { tags:{} }; goal = null; customTools = {};
   _goalTurn = -1; lastSnap = null;
-  try{ localStorage.removeItem(EPISODES_KEY); localStorage.removeItem(CONCEPTS_KEY); localStorage.removeItem(GOAL_KEY); localStorage.removeItem(TOOLS_KEY); }catch(e){}
+  try{ memStore.removeItem(EPISODES_KEY); memStore.removeItem(CONCEPTS_KEY); memStore.removeItem(GOAL_KEY); memStore.removeItem(TOOLS_KEY); }catch(e){}
   clearCreations(); resetEnvironment(); renderHistory(); refreshOpenPanels();
   addMsg('— nouvelle partie : le monde et la mémoire sont repartis de zéro —','sys');
   showOnboarding();
