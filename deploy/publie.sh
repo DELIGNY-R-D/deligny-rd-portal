@@ -58,7 +58,7 @@ echo "== 4/6  Publication des ASSETS (js, css, images, fontes) =="
 #
 # On lit donc l'arbre de travail, pas l'index, et on n'enumere que ce qui
 # existe reellement.
-EXT='\.(js|css|png|jpg|jpeg|svg|webp|woff2)$'
+EXT='\.(js|css|png|jpg|jpeg|svg|webp|woff2|ico)$'
 SUPPRIMES=$(git ls-files -d | grep -Ei "$EXT" || true)
 if [ -n "$SUPPRIMES" ]; then
   echo "ARRET : suppression d'asset detectee dans ce lot."
