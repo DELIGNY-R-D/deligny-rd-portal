@@ -1680,3 +1680,18 @@ img.app-banner {
    corps precedent par la verification elle-meme, qui interrogeait la vraie URL
    avant que le contenu soit en ligne. L'etape 5 sonde desormais une clef
    jetable ; celle-ci restera vierge jusqu'au premier visiteur. */
+
+/* HERO DE LA PAGE CONTACT (29/08).
+   `.hero` impose `min-height: calc(100vh - 80px)` : c'est voulu sur l'accueil,
+   ou la premiere image doit occuper l'ecran. Sur contact le contenu tient en
+   462 px et la regle en reservait 820 : 358 px de vide sous l'adresse mail,
+   qui repoussaient le composeur hors de l'ecran alors qu'il est la raison
+   d'etre de la page. On rend donc au bloc sa hauteur naturelle. */
+.ct-hero {
+  min-height: 0;
+  padding: 88px 0 56px;
+}
+
+@media (max-width: 860px) {
+  .ct-hero { padding: 56px 0 40px; }
+}
