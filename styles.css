@@ -1797,37 +1797,33 @@ img.app-banner {
 
 @media (min-width: 900px) { .lg-liste { grid-template-columns: repeat(2, 1fr); } }
 
-/* QR VERS L'ACCUEIL (page contact, 29/08) : de quoi montrer le site a quelqu'un
-   rencontre dans la rue. Le code est un SVG : net a l'ecran comme a l'impression,
-   quelle que soit la taille. */
-.ct-qr {
+/* QR DANS LE HERO DE CONTACT (29/08). Sa raison d'etre est de se montrer en une
+   seconde a quelqu'un rencontre dans la rue : il doit donc etre visible SANS
+   defiler. Place sous l'adresse, centre comme le reste du hero. */
+.ct-qr-hero {
+  margin: 6px 0 0;
   display: flex;
+  flex-direction: column;
   align-items: center;
-  gap: 16px;
-  margin-top: 20px;
-  padding-top: 18px;
-  border-top: 1px solid var(--line-2);
+  gap: 8px;
 }
-.ct-qr img {
-  flex: none;
-  width: 132px;
-  height: 132px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+.ct-qr-hero img {
+  display: block;
+  width: 150px;
+  height: 150px;
+  padding: 8px;
   background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
 }
-.ct-qr-titre {
-  margin: 0 0 4px;
-  font-family: var(--font-display);
-  font-size: 1rem;
-  color: var(--ink);
-}
-.ct-qr-texte {
-  margin: 0;
-  font-size: .88rem;
-  line-height: 1.55;
+.ct-qr-hero figcaption {
+  font-size: .85rem;
+  line-height: 1.5;
   color: var(--muted);
 }
+.ct-qr-hero figcaption b { color: var(--ink-dim); }
+
 @media (max-width: 520px) {
-  .ct-qr { flex-direction: column; align-items: flex-start; }
+  .ct-qr-hero img { width: 132px; height: 132px; }
 }
