@@ -1797,33 +1797,35 @@ img.app-banner {
 
 @media (min-width: 900px) { .lg-liste { grid-template-columns: repeat(2, 1fr); } }
 
-/* QR DANS LE HERO DE CONTACT (29/08). Sa raison d'etre est de se montrer en une
-   seconde a quelqu'un rencontre dans la rue : il doit donc etre visible SANS
-   defiler. Place sous l'adresse, centre comme le reste du hero. */
-.ct-qr-hero {
-  margin: 6px 0 0;
+
+/* QR EN PIED DE PAGE (contact, 29/08). Discret : il ne dispute rien au message,
+   mais reste la pour qui veut montrer le site a quelqu'un. Cliquable autant que
+   scannable, parce que la legende dit d'appuyer. */
+.ct-qr-pied {
+  margin: 8px auto 0;
+  padding: 0 20px 4px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
+  gap: 7px;
+  opacity: .78;
+  transition: opacity .2s ease;
 }
-.ct-qr-hero img {
+.ct-qr-pied:hover { opacity: 1; }
+.ct-qr-pied img {
   display: block;
-  width: 150px;
-  height: 150px;
-  padding: 8px;
+  width: 104px;
+  height: 104px;
+  padding: 6px;
   background: #fff;
   border: 1px solid var(--line);
-  border-radius: 14px;
-  box-shadow: var(--shadow);
+  border-radius: 12px;
 }
-.ct-qr-hero figcaption {
-  font-size: .85rem;
+.ct-qr-pied figcaption {
+  font-size: .78rem;
   line-height: 1.5;
   color: var(--muted);
+  text-align: center;
 }
-.ct-qr-hero figcaption b { color: var(--ink-dim); }
-
-@media (max-width: 520px) {
-  .ct-qr-hero img { width: 132px; height: 132px; }
-}
+.ct-qr-pied figcaption b { color: var(--ink-dim); }
+@media (prefers-reduced-motion: reduce) { .ct-qr-pied { transition: none; } }
