@@ -262,8 +262,11 @@ if('serviceWorker' in navigator){
      un sixieme, sans descendre sous ~26 px de cible tactile, et le dock
      remonte puisque le cluster du haut est devenu plus court. */
   @media (max-width: 820px), (max-height: 620px) {
-    html.ui-topo #bar .tool{min-width:37px!important;height:33px!important;font-size:7.5px!important;border-radius:7px!important}
-    html.ui-topo #bar .tool .ic{font-size:11px!important}
+    /* 29/08 : ce bloc telephone gardait ses propres 37x33 et echappait a la
+       reduction de 30 % demandee, qui n'avait donc aucun effet sur mobile.
+       Meme reduction appliquee ici : 26x23. */
+    html.ui-topo #bar .tool{min-width:26px!important;height:23px!important;font-size:5.5px!important;border-radius:5px!important;gap:0!important}
+    html.ui-topo #bar .tool .ic{font-size:8px!important}
     html.ui-topo #bar{gap:3px!important;top:112px!important;bottom:8px!important}
     html.ui-topo #top{gap:4px!important}
     html.ui-topo #top .card{padding:2px 6px!important;font-size:10px!important;min-height:26px!important;border-radius:8px!important;gap:5px}
