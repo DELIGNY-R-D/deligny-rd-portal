@@ -6541,6 +6541,15 @@ window._carHarvestTick=_carHarvestTick;   // test/headless
 //   placeHouse reste partagé (world-gen/villages/IA) et n'est PAS touché : le coût vit ici, sur le placement manuel du joueur uniquement.
 const HOUSE_WOOD=8;
 function buildHousePlayer(x,z){
+  /* VITRINE (29/08). En mode ?ui=topo, un minuteur deverrouille de force TOUS les
+     boutons de la barre toutes les 900 ms (voir l'entete du fichier) : le bouton
+     Maison paraissait donc disponible, alors que la recette carriere le refusait
+     faute de bois. Le visiteur cliquait, rien ne se passait, et rien ne le lui
+     disait — le message d'aide passe mal dans un cadre integre. Dans une vitrine
+     il n'y a pas de progression : la maison se pose librement, comme le relief.
+     On ne touche PAS a careerOn, qui est persiste et vaut pour le vrai jeu. */
+  if(document.documentElement.classList.contains('ui-topo'))
+    return (typeof placeHouse==='function') ? placeHouse(x,z) : false;
   if(typeof careerOn!=='undefined' && careerOn && typeof inventory!=='undefined'){
     if(inventory.bois<HOUSE_WOOD){ if(typeof flashMsg==='function')flashMsg('🪵 Il faut '+HOUSE_WOOD+' bois (tu as '+inventory.bois+') — prends l\'outil 🪓 Récolte'); return false; }
     if(typeof placeHouse==='function' && placeHouse(x,z)){ inventory.bois-=HOUSE_WOOD; if(typeof _invHud==='function')_invHud();
