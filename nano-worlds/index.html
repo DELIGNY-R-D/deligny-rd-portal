@@ -226,7 +226,10 @@ if('serviceWorker' in navigator){
      pixels de hauteur en plus. Ecrit a la verticale et pose A COTE du curseur,
      il ne coute plus que son epaisseur. */
   html.ui-topo .topoVert{right:calc(10px + env(safe-area-inset-right));flex-direction:row;align-items:center;padding:6px 4px;gap:2px}
-  html.ui-topo .topoVert .topoLbl{margin:0;font-size:8px;letter-spacing:.06em;line-height:1;white-space:nowrap;writing-mode:vertical-rl;transform:rotate(180deg)}   /* lecture de bas en haut, comme un axe */
+  html.ui-topo .topoVert .topoLbl{margin:0!important;font-size:8px!important;letter-spacing:.06em;line-height:1;white-space:nowrap;writing-mode:vertical-rl;transform:rotate(180deg)}
+  /* !important : deux regles plus bas (`.topoLbl` en 10 px puis 9 px) le sont
+     aussi et gagnaient sur la taille. Celle-ci est plus specifique ET importante,
+     elle l'emporte donc quel que soit l'ordre. Lecture de bas en haut, comme un axe. */
   /* 29/08 : « Inclinaison » occupait 22vh, soit 186 px sur un iPhone, plus son
      cadre : un tiers de la hauteur utile pour un reglage secondaire. Ramene a
      15vh et aminci, ce qui rejoint d'ailleurs l'intention ecrite plus haut. */
