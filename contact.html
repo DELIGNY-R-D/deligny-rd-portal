@@ -17,7 +17,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/contact.html" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=71727b65" />
+  <link rel="stylesheet" href="styles.css?v=c60687fd" />
 </head>
 <body>
   <header class="topbar">
@@ -64,17 +64,6 @@
           contact@deligny-rd.fr <span class="pill-plus">+</span>
         </a>
       </div>
-
-      <!-- QR vers l'accueil, DANS LE HERO (29/08) : il etait plus bas dans la carte
-           des coordonnees, a 1364 px d'une page de 1780 — il fallait defiler une fois
-           et demie pour le voir. Sa raison d'etre est de se montrer en une seconde a
-           quelqu'un rencontre dans la rue : il doit etre a l'ecran d'entree.
-           Correction d'erreur H : jusqu'a 30 % du code peut etre abime ou masque. -->
-      <figure class="ct-qr-hero">
-        <img src="img/qr-accueil.svg" alt="QR code menant a deligny-rd.fr"
-             width="150" height="150" />
-        <figcaption>Scannez, ou montrez ce code &mdash; il ouvre <b>deligny-rd.fr</b></figcaption>
-      </figure>
     </section>
 
     <section class="section split ct-grille">
@@ -106,6 +95,16 @@
       </div>
     </section>
   </main>
+
+  <!-- QR vers l'accueil, en PIED de page (29/08) : discret, mais la pour qui le
+       cherche. Cliquable autant que scannable, puisque la legende dit d'appuyer. -->
+  <figure class="ct-qr-pied">
+    <a href="index.html" aria-label="Ouvrir l'accueil de DELIGNY R&amp;D">
+      <img src="img/qr-accueil.svg" alt="QR code menant a deligny-rd.fr"
+           width="104" height="104" loading="lazy" />
+    </a>
+    <figcaption>Scannez, appuyez et &ccedil;a ouvre <b>deligny-rd.fr</b></figcaption>
+  </figure>
 
   <footer class="footer">
     <div class="footer-legal">
