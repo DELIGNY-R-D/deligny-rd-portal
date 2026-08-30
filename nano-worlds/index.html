@@ -562,11 +562,20 @@ camera.lookAt(0,0,0);
 const tpsCam = new THREE.PerspectiveCamera(52, aspect, 0.1, 1000);
 const _tpsTarget = new THREE.Vector3();
 let renderCam = camera;   // caméra de rendu active (ortho par défaut, persp en 3e personne)
-// ✨ option Photoréalisme IA — import DYNAMIQUE + catch : ne peut JAMAIS bloquer le jeu.
-import('./realengine/photoreal.js')
+/* ✨ option Photoréalisme IA — import DYNAMIQUE + catch : ne peut JAMAIS bloquer le jeu.
+   29/08 : le dossier realengine/ a ete supprime au passage au monde isometrique
+   (commit 7cc6ebe) mais cet appel est reste. Chaque visiteur declenchait donc un
+   404 et voyait une banniere rouge « Photoreralisme indisponible » qui ne le
+   concernait pas. On ne tente plus le chargement par defaut : il faut le
+   demander avec ?photoreal=1. Le crochet reste en place pour le jour ou le
+   module revient, et l'echec reste annonce a qui l'a demande. */
+(new URLSearchParams(location.search).has('photoreal')
+  ? import('./realengine/photoreal.js')
+  : Promise.reject(new Error('module optionnel non charge (ajouter ?photoreal=1 pour l\'activer)')))
   .then(m => m.initPhotoreal({ THREE, renderer, scene, getCamera: () => renderCam }))
   .catch(err => {
     console.error('[photoreal] désactivé:', err);
+    if(!new URLSearchParams(location.search).has('photoreal')) return;   // pas demande = pas d'alarme
     const d = document.createElement('div');
     d.style.cssText = 'position:fixed;left:8px;bottom:8px;z-index:99999;background:#3a1c1c;color:#f0a0a0;font:11px/1.4 monospace;padding:6px 8px;border-radius:6px;max-width:92vw';
     d.textContent = 'Photoréalisme indisponible : ' + (err && err.message ? err.message : err) + '  ';
