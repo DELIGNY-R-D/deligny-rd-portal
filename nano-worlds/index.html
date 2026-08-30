@@ -9076,7 +9076,21 @@ function onDown(e){ if(mode!=='sculpt')return; pointerNDC(e); const p=hitTerrain
     if(typeof placeSawmill==='function')placeSawmill(p.x,p.z); return; }
   if(tool==='gens'){placePeople(p.x,p.z,6); return;}
   if(tool==='aeroport'){placeAirport(p.x,p.z); return;}
-  if(tool==='maison'){buildHousePlayer(p.x,p.z); return;}   // 🏠 recette carrière (coûte du bois) ; sandbox = libre
+  if(tool==='maison'){   // 🏠 recette carrière (coûte du bois) ; sandbox et vitrine = libre
+    /* 29/08 : placeHouse refuse en silence dans trois cas (eau, voie, espace trop
+       serré). Le joueur cliquait, rien n'apparaissait, et rien ne lui disait
+       pourquoi — d'où « la création de maison ne fonctionne pas ». On nomme la
+       raison. Si l'échec vient de la recette (bois manquant), buildHousePlayer a
+       déjà parlé et aucune des trois conditions n'est vraie : pas de doublon. */
+    if(buildHousePlayer(p.x,p.z)===false && typeof flashMsg==='function'){
+      const _y=gndY(p.x,p.z);
+      const raison = _y<0.4 ? "c'est de l'eau"
+        : (typeof _onTrack==='function' && _onTrack(p.x,p.z,1.2)) ? "il y a une voie ici"
+        : (typeof _freeRadius==='function' && _freeRadius(p.x,p.z)<2.4) ? "c'est trop serré entre les constructions"
+        : null;
+      if(raison) flashMsg('🏠 Pas ici : ' + raison);
+    }
+    return; }
   if(tool==='villa'){placeBldg(p.x,p.z,makeVilla,5); return;}
   if(tool==='cabane'){placeBldg(p.x,p.z,makeCabane,4); return;}
   if(tool==='chateau'){placeBldg(p.x,p.z,makeChateau,7); return;}
