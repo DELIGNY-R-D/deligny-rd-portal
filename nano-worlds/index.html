@@ -221,14 +221,18 @@ if('serviceWorker' in navigator){
   html.ui-topo .topoWrap{position:fixed;z-index:30;display:flex;align-items:center;gap:7px;background:rgba(16,20,27,.78);border:1px solid rgba(255,255,255,.14);border-radius:11px;padding:6px 10px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);color:#eaf0f7}
   html.ui-topo #topoOrbitWrap{left:50%;transform:translateX(-50%);bottom:calc(58px + env(safe-area-inset-bottom))}
   html.ui-topo #topoOrbitWrap input{width:min(38vw,300px);accent-color:#4aa8ff}
-  html.ui-topo .topoVert{right:calc(10px + env(safe-area-inset-right));flex-direction:column;padding:6px 5px;gap:4px}
-  html.ui-topo .topoVert .topoLbl{margin:0;font-size:9px}
+  /* 29/08 : le libelle etait ecrit a l'horizontale AU-DESSUS du curseur, ce qui
+     imposait au bloc la largeur du mot « Inclinaison » et une trentaine de
+     pixels de hauteur en plus. Ecrit a la verticale et pose A COTE du curseur,
+     il ne coute plus que son epaisseur. */
+  html.ui-topo .topoVert{right:calc(10px + env(safe-area-inset-right));flex-direction:row;align-items:center;padding:6px 4px;gap:2px}
+  html.ui-topo .topoVert .topoLbl{margin:0;font-size:8px;letter-spacing:.06em;line-height:1;white-space:nowrap;writing-mode:vertical-rl;transform:rotate(180deg)}   /* lecture de bas en haut, comme un axe */
   /* 29/08 : « Inclinaison » occupait 22vh, soit 186 px sur un iPhone, plus son
      cadre : un tiers de la hauteur utile pour un reglage secondaire. Ramene a
      15vh et aminci, ce qui rejoint d'ailleurs l'intention ecrite plus haut. */
   html.ui-topo .topoVert input{writing-mode:vertical-lr;direction:rtl;-webkit-appearance:slider-vertical;appearance:slider-vertical;width:14px;height:15vh;accent-color:#4aa8ff}
   html.ui-topo #topoTiltWrap{top:calc(14vh + env(safe-area-inset-top))}
-  html.ui-topo #topoZoomWrap{top:calc(14vh + 15vh + 62px + env(safe-area-inset-top))}
+  html.ui-topo #topoZoomWrap{top:calc(14vh + 15vh + 30px + env(safe-area-inset-top))}
   /* UNIFORMISATION (23/08) : memes tailles, memes rayons, meme police, meme accent.
      Boutons : 30 px de haut, 11 px. Outils du dock : 44x40, 8 px. Curseurs : 12 px
      d'epaisseur, horizontaux 60 px (cartes) / 240 px max (Pivoter), verticaux 16vh. */
