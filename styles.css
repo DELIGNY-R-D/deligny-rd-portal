@@ -1802,12 +1802,15 @@ img.app-banner {
    mais reste la pour qui veut montrer le site a quelqu'un. Cliquable autant que
    scannable, parce que la legende dit d'appuyer. */
 .ct-qr-pied {
-  margin: 8px auto 0;
-  padding: 0 20px 4px;
+  /* 29/08 : le bloc etait serre de partout (8 px au-dessus, 7 px entre le code
+     et sa legende, 24 px sous elle). Un element discret n'est pas un element
+     comprime : on lui donne de l'air pour qu'il paraisse pose, pas coince. */
+  margin: 44px auto 0;
+  padding: 0 20px 32px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 14px;
   opacity: .78;
   transition: opacity .2s ease;
 }
