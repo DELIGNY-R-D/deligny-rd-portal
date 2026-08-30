@@ -17,7 +17,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/contact.html" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=91c98aa8" />
+  <link rel="stylesheet" href="styles.css?v=71727b65" />
 </head>
 <body>
   <header class="topbar">
@@ -64,6 +64,17 @@
           contact@deligny-rd.fr <span class="pill-plus">+</span>
         </a>
       </div>
+
+      <!-- QR vers l'accueil, DANS LE HERO (29/08) : il etait plus bas dans la carte
+           des coordonnees, a 1364 px d'une page de 1780 — il fallait defiler une fois
+           et demie pour le voir. Sa raison d'etre est de se montrer en une seconde a
+           quelqu'un rencontre dans la rue : il doit etre a l'ecran d'entree.
+           Correction d'erreur H : jusqu'a 30 % du code peut etre abime ou masque. -->
+      <figure class="ct-qr-hero">
+        <img src="img/qr-accueil.svg" alt="QR code menant a deligny-rd.fr"
+             width="150" height="150" />
+        <figcaption>Scannez, ou montrez ce code &mdash; il ouvre <b>deligny-rd.fr</b></figcaption>
+      </figure>
     </section>
 
     <section class="section split ct-grille">
@@ -92,21 +103,6 @@
         <p class="ct-action">
           <a class="btn btn-small btn-primary" href="mailto:contact@deligny-rd.fr">Envoyer un email</a>
         </p>
-
-        <!-- QR vers l'accueil : sert a montrer le site a quelqu'un rencontre dans
-             la rue, sans dicter une adresse. Correction d'erreur H (30 % du code
-             peut etre abime ou masque et il se lit encore) : un QR montre sur un
-             ecran ou imprime sur une carte prend des reflets et des plis. -->
-        <div class="ct-qr">
-          <img src="img/qr-accueil.svg" alt="QR code menant a deligny-rd.fr"
-               width="132" height="132" loading="lazy" />
-          <div>
-            <p class="ct-qr-titre">Montrez ce code</p>
-            <p class="ct-qr-texte">Il ouvre <b>deligny-rd.fr</b> sur le telephone d'en face,
-            sans rien dicter ni epeler. Il fonctionne aussi imprime, et meme partiellement
-            abime.</p>
-          </div>
-        </div>
       </div>
     </section>
   </main>
