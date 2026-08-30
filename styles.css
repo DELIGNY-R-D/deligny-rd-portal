@@ -1796,3 +1796,38 @@ img.app-banner {
 .lg-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
 
 @media (min-width: 900px) { .lg-liste { grid-template-columns: repeat(2, 1fr); } }
+
+/* QR VERS L'ACCUEIL (page contact, 29/08) : de quoi montrer le site a quelqu'un
+   rencontre dans la rue. Le code est un SVG : net a l'ecran comme a l'impression,
+   quelle que soit la taille. */
+.ct-qr {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line-2);
+}
+.ct-qr img {
+  flex: none;
+  width: 132px;
+  height: 132px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+}
+.ct-qr-titre {
+  margin: 0 0 4px;
+  font-family: var(--font-display);
+  font-size: 1rem;
+  color: var(--ink);
+}
+.ct-qr-texte {
+  margin: 0;
+  font-size: .88rem;
+  line-height: 1.55;
+  color: var(--muted);
+}
+@media (max-width: 520px) {
+  .ct-qr { flex-direction: column; align-items: flex-start; }
+}
