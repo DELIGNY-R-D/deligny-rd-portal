@@ -10061,6 +10061,25 @@ function openNanoMenu(){ let p=document.getElementById('nanoMenu'); if(p){p.remo
       <button id="nmNew" style="${bs};background:#152030;color:#9bcfe0">🆕 Nouveau</button>
       <button id="nmClose" style="${bs};background:#0e151e;color:#4a7090;margin-left:auto">Fermer</button>
     </div>
+    <!-- SOURCES (29/08) : les briques libres sur lesquelles le jeu tourne. Leurs
+         licences demandent l'attribution ; la citer n'est pas une politesse, et
+         cela dit aussi honnetement ce qui est de nous et ce qui ne l'est pas. -->
+    <div style="margin-top:22px;padding-top:14px;border-top:1px solid rgba(60,80,110,.35);font-size:11px;line-height:1.75;color:#6a8aac">
+      <div style="font-weight:700;color:#9ab8d4;margin-bottom:6px">Sources</div>
+      Le monde, le relief, les outils et les vehicules sont ecrits ici, chez DELIGNY R&amp;D.
+      Le rendu et la physique s'appuient sur quatre briques libres&nbsp;:
+      <div style="margin-top:7px">
+        <a href="https://threejs.org/" target="_blank" rel="noopener" style="color:#7fc4ff">three.js</a> r160 &middot; licence MIT &mdash; rendu 3D<br>
+        <a href="https://github.com/pmndrs/cannon-es" target="_blank" rel="noopener" style="color:#7fc4ff">cannon-es</a> &middot; licence MIT &mdash; moteur physique par defaut<br>
+        <a href="https://rapier.rs/" target="_blank" rel="noopener" style="color:#7fc4ff">Rapier</a> &middot; licence Apache&nbsp;2.0 &mdash; moteur physique alternatif (<code style="color:#8aa">?phys=rapier</code>)<br>
+        <a href="https://github.com/guybedford/es-module-shims" target="_blank" rel="noopener" style="color:#7fc4ff">es-module-shims</a> &middot; licence MIT &mdash; chargement des modules
+      </div>
+      <div style="margin-top:8px;color:#4a6878">
+        Les quatre sont servies depuis ce site, jamais depuis un CDN&nbsp;: le jeu tourne sans
+        rien demander a personne. Aucune image, aucun modele et aucun son ne proviennent d'un
+        tiers&nbsp;: tout est genere par le code.
+      </div>
+    </div>
   </div>`;
   document.body.appendChild(p);
   p.querySelectorAll('.nCart').forEach(b=>b.onclick=e=>{ if(e.target.classList.contains('nRename'))return; if(+b.dataset.c!==_activeCart)switchCart(+b.dataset.c); else openNanoMenu(); });
