@@ -67,7 +67,16 @@ if [ -n "$SUPPRIMES" ]; then
   echo "   Publier l'ajout d'abord, supprimer dans un lot ULTERIEUR."
   exit 1
 fi
-ASSETS=$(git ls-files -mo --exclude-standard | grep -Ei "$EXT" || true)
+# 29/08, troisieme defaut de cette etape : `git ls-files -mo` enumere les
+# fichiers MODIFIES et les NON SUIVIS. Un fichier NEUF deja mis en scene
+# (`git add`) n'est ni l'un ni l'autre : il tombait dans un angle mort et
+# n'etait jamais pousse. Constate sur presentation.js, dont le commit
+# « (assets) » ne contenait que styles.css, ce qui a fait attendre l'etape 5
+# jusqu'a l'echec pour un fichier qui n'existait nulle part. On ajoute donc les
+# ajouts et modifications DEJA en scene.
+ASSETS=$( { git ls-files -mo --exclude-standard
+            git diff --cached --name-only --diff-filter=ACMR; } \
+          | sort -u | grep -Ei "$EXT" || true )
 if [ -n "$ASSETS" ]; then
   echo "$ASSETS" | sed "s/^/   + /"
   echo "$ASSETS" | tr '\n' '\0' | xargs -0 git add --
