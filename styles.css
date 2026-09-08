@@ -1832,3 +1832,115 @@ img.app-banner {
 }
 .ct-qr-pied figcaption b { color: var(--ink-dim); }
 @media (prefers-reduced-motion: reduce) { .ct-qr-pied { transition: none; } }
+
+/* ── PRESENTATION ANIMEE DE L'ACCUEIL (29/08) ──────────────────────────────
+   Une sequence de six plans, dessinee par la page. Aucun fichier video : les
+   polices, les couleurs et les chiffres sont ceux du site, donc la sequence
+   reste nette a toute taille et ne peut pas se desynchroniser du contenu.
+   Elle ne demarre qu'a l'entree dans l'ecran (voir presentation.js) et joue
+   UNE fois. Sous prefers-reduced-motion, elle ne bouge pas du tout : le
+   dernier plan est affiche d'emblee. */
+.pres-cadre {
+  margin-top: 24px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--soft);
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+.pres-scene {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  max-height: 460px;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 24px;
+  background:
+    radial-gradient(120% 100% at 50% 0%, rgba(189, 79, 28, .09), transparent 62%),
+    radial-gradient(90% 80% at 80% 100%, rgba(124, 92, 191, .10), transparent 60%),
+    var(--paper);
+}
+/* la couronne, discrete, en filigrane au coin */
+.pres-couronne {
+  position: absolute;
+  top: 16px; left: 18px;
+  width: 26px; height: 26px;
+  background: url("img/logo-mark.png") center/contain no-repeat;
+  opacity: .22;
+}
+.pres-plan {
+  grid-area: 1 / 1;
+  margin: 0;
+  opacity: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+}
+.pres-corps { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+.pres-nombre {
+  font-family: var(--font-display);
+  font-size: clamp(3.4rem, 11vw, 6.4rem);
+  line-height: .95;
+  letter-spacing: -0.04em;
+  color: var(--ink);
+  font-variant-numeric: tabular-nums;
+}
+.pres-titre {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: clamp(1.15rem, 3.2vw, 2rem);
+  line-height: 1.18;
+  letter-spacing: -0.02em;
+  color: var(--ink);
+  text-wrap: balance;
+}
+.pres-marque .pres-titre { font-size: clamp(1.6rem, 5vw, 3.1rem); letter-spacing: -0.03em; }
+.pres-fin .pres-titre { color: var(--purple); }
+.pres-plan figcaption {
+  font-size: clamp(.8rem, 1.6vw, .95rem);
+  line-height: 1.5;
+  color: var(--muted);
+  max-width: 34ch;
+}
+.pres-sous {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+  font-size: .82rem;
+  color: var(--muted);
+}
+
+/* Six plans de 2,5 s : apparition, maintien, disparition. Le dernier reste. */
+@keyframes presPlan {
+  0%    { opacity: 0; transform: translateY(10px); }
+  8%    { opacity: 1; transform: none; }
+  72%   { opacity: 1; transform: none; }
+  84%   { opacity: 0; transform: translateY(-8px); }
+  100%  { opacity: 0; transform: translateY(-8px); }
+}
+@keyframes presDernier {
+  0%    { opacity: 0; transform: translateY(10px); }
+  8%    { opacity: 1; transform: none; }
+  100%  { opacity: 1; transform: none; }
+}
+.pres-scene.joue .pres-plan { animation: presPlan 2.5s cubic-bezier(.4,0,.2,1) both; }
+.pres-scene.joue .pres-plan:nth-child(2) { animation-delay: 0s; }
+.pres-scene.joue .pres-plan:nth-child(3) { animation-delay: 2.5s; }
+.pres-scene.joue .pres-plan:nth-child(4) { animation-delay: 5s; }
+.pres-scene.joue .pres-plan:nth-child(5) { animation-delay: 7.5s; }
+.pres-scene.joue .pres-plan:nth-child(6) { animation-delay: 10s; }
+.pres-scene.joue .pres-plan:nth-child(7) {
+  animation-name: presDernier;   /* le sixieme plan ne s'efface pas */
+  animation-delay: 12.5s;
+}
+
+/* Aucun mouvement demande : on montre directement le dernier plan, qui porte
+   l'adresse. Une presentation qui ne joue pas doit quand meme dire quelque chose. */
+@media (prefers-reduced-motion: reduce) {
+  .pres-scene .pres-plan { animation: none !important; opacity: 0; }
+  .pres-scene .pres-plan:nth-child(7) { opacity: 1; }
+}
