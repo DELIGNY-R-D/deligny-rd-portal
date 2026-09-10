@@ -1943,4 +1943,26 @@ img.app-banner {
 @media (prefers-reduced-motion: reduce) {
   .pres-scene .pres-plan { animation: none !important; opacity: 0; }
   .pres-scene .pres-plan:nth-child(7) { opacity: 1; }
+
+  /* 10/09 : une preference systeme dit « ne m'impose pas de mouvement », pas
+     « refuse-moi celui que je demande ». Un clic sur le bouton pose .force et
+     rend la sequence, meme ici. Sans cela le bouton ne servait a rien et la
+     section paraissait cassee. */
+  .pres-scene.force.joue .pres-plan {
+    animation: presPlan 2.5s cubic-bezier(.4, 0, .2, 1) both !important;
+    opacity: 0;
+  }
+  .pres-scene.force.joue .pres-plan:nth-child(2) { animation-delay: 0s !important; }
+  .pres-scene.force.joue .pres-plan:nth-child(3) { animation-delay: 2.5s !important; }
+  .pres-scene.force.joue .pres-plan:nth-child(4) { animation-delay: 5s !important; }
+  .pres-scene.force.joue .pres-plan:nth-child(5) { animation-delay: 7.5s !important; }
+  .pres-scene.force.joue .pres-plan:nth-child(6) { animation-delay: 10s !important; }
+  .pres-scene.force.joue .pres-plan:nth-child(7) {
+    animation-name: presDernier !important;
+    animation-delay: 12.5s !important;
+  }
 }
+
+/* La note n'apparait que si le systeme reclame le mouvement reduit (voir
+   presentation.js) : elle explique pourquoi rien ne bouge tout seul. */
+#presNote { color: var(--muted); }
