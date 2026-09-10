@@ -21,23 +21,27 @@ cd "$(dirname "$0")/.."
 MSG="${1:?message de commit requis}"
 BASE="https://deligny-rd.fr"
 
-echo "== 1/6  Non-regression du controle lui-meme =="
+echo "== 1/7  Non-regression du controle lui-meme =="
 # Un garde-fou qui s'est mis a taire les fautes est pire que pas de garde-fou :
 # on verifie d'abord qu'il alerte ET qu'il se tait quand il faut.
 python3 deploy/tests/test_verifie_fortress.py >/dev/null || {
   echo "ARRET : le controle ne se comporte plus comme prevu (lancer le test pour voir)."; exit 1; }
 echo "   controle conforme"
 
-echo "== 2/6  Controle de la forteresse statique =="
+echo "== 2/7  Controle de la forteresse statique =="
 python3 deploy/verifie-fortress.py || { echo "ARRET : corriger les points bloquants."; exit 1; }
 
-echo "== 3/6  Empreintes de contenu (cache-bust) et balises =="
+echo "== 3/7  Empreintes de contenu (cache-bust) et balises =="
 python3 deploy/cache-bust.py
 python3 deploy/csp-studio.py      || true
 python3 deploy/csp-nano-worlds.py || true
 python3 deploy/inject-beacon.py   || true
+# Le sitemap est REGENERE ici, jamais ecrit a la main : au 10/09 il declarait
+# 14 adresses pour 81 pages publiques. Voir deploy/genere-sitemap.py pour la
+# regle d'inclusion (canonique, indexable, pas une redirection).
+python3 deploy/genere-sitemap.py
 
-echo "== 4/6  Publication des ASSETS (js, css, images, fontes) =="
+echo "== 4/7  Publication des ASSETS (js, css, images, fontes) =="
 # NE JAMAIS SUPPRIMER UN ANCIEN ASSET VERSIONNE ICI.
 # Un HTML deja servi peut rester des heures dans le cache d'un visiteur ou d'un
 # edge Cloudflare et continuer de reclamer l'ancienne URL (…?v=<ancien hash>).
@@ -97,7 +101,7 @@ else
   echo "   aucun asset modifie"
 fi
 
-echo "== 5/6  Verification que la prod sert bien le CONTENU attendu =="
+echo "== 5/7  Verification que la prod sert bien le CONTENU attendu =="
 # On ne se contente PAS d'un code 200 : le ?v=<empreinte> est une clef de cache,
 # pas un chemin, donc `styles.css?v=neuf` repond 200 meme quand le serveur sert
 # encore l'ancien fichier. Deux publications du 29/08 sont parties comme ca, les
@@ -115,7 +119,7 @@ for i in $(seq 1 12); do
   sleep 15
 done
 
-echo "== 6/6  Publication des PAGES =="
+echo "== 6/7  Publication des PAGES =="
 git add -A
 if ! git diff --cached --quiet; then
   git commit -q -m "$MSG"
@@ -124,4 +128,15 @@ if ! git diff --cached --quiet; then
 else
   echo "   aucune page modifiee"
 fi
+echo "== 7/7  Controle du sitemap en production =="
+# Apres publication seulement : ces adresses sont deja en ligne, les sonder ne
+# peut donc pas empoisonner un cache. Bloquant : un sitemap qui annonce une
+# adresse morte ou non canonique fait perdre confiance dans le fichier entier.
+for i in $(seq 1 8); do
+  if python3 deploy/verifie-sitemap.py; then break; fi
+  [ "$i" = "8" ] && { echo "ARRET : le sitemap publie annonce des adresses qui ne tiennent pas."; exit 1; }
+  echo "   nouvelle tentative ($i/8)"
+  sleep 20
+done
+
 echo "TERMINE."

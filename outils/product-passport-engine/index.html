@@ -221,10 +221,12 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
   </footer>
 </div>
 
-<script type="importmap">{ "imports": {
-  "qrcode": "https://esm.sh/qrcode@1.5.3",
-  "jsqr": "https://esm.sh/jsqr@1.4.0"
-} }</script>
+<!-- 10/09 : ces bibliotheques etaient chargees depuis esm.sh, alors que la
+     CSP de cette page interdit tout script d ailleurs (script-src-elem self)
+     et toute connexion sortante (connect-src none). Le module ne demarrait
+     donc JAMAIS et aucun bouton n avait de gestionnaire : l outil s affichait
+     et ne faisait rien. Elles sont desormais servies depuis ce site. -->
+<script type="importmap">{ "imports": {"qrcode": "./vendor/qrcode.mjs", "jsqr": "./vendor/jsqr.mjs"} }</script>
 <script type="module">
 import QRCode from 'qrcode';
 import jsQR from 'jsqr';
