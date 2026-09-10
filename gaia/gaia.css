@@ -1,0 +1,77 @@
+/* GAIA, globe des signaux du monde.
+   Fond sombre assume : un globe se lit sur du noir, pas sur le papier creme du
+   reste du site. La page vit dans un cadre, sur l'accueil, et en plein ecran. */
+:root{
+  --nuit:#070b12;
+  --nuit-2:#0c121d;
+  --nuit-3:#121a27;
+  --trait:rgba(255,255,255,.09);
+  --trait-2:rgba(255,255,255,.16);
+  --clair:#eef2f8;
+  --clair-2:#9aa6b6;
+  --clair-3:#69748a;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,"Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--nuit);color:var(--clair);font:14px/1.5 var(--font);
+  -webkit-font-smoothing:antialiased;overflow:hidden}
+
+.g-app{display:grid;grid-template-columns:1fr 274px;height:100dvh}
+
+/* ── Scene ───────────────────────────────────────────────────────────── */
+.g-scene{position:relative;min-width:0;overflow:hidden}
+#globe{display:block;width:100%;height:100%;touch-action:none;cursor:grab}
+#globe.tire{cursor:grabbing}
+
+.g-titre{position:absolute;top:14px;left:16px;right:16px;pointer-events:none}
+.g-titre h1{margin:0;font:600 15px/1.2 var(--font);letter-spacing:.14em;text-transform:uppercase}
+.g-titre p{margin:4px 0 0;font:400 11.5px/1.45 var(--mono);color:var(--clair-3);max-width:46ch}
+
+.g-outils{position:absolute;left:16px;bottom:14px;display:flex;gap:6px;flex-wrap:wrap}
+.g-outils button{font:600 11px var(--font);letter-spacing:.06em;padding:7px 11px;border-radius:8px;
+  border:1px solid var(--trait-2);background:rgba(12,18,29,.82);color:var(--clair-2);cursor:pointer;
+  transition:color .15s,border-color .15s}
+.g-outils button:hover{color:var(--clair);border-color:rgba(255,255,255,.34)}
+.g-outils button[aria-pressed="true"]{color:var(--nuit);background:var(--clair);border-color:var(--clair)}
+.g-outils button:focus-visible{outline:2px solid #3987e5;outline-offset:2px}
+
+/* Fiche du point survole ou choisi. Elle se pose sur la scene, jamais au
+   milieu : sur telephone elle mangerait le globe. */
+.g-fiche{position:absolute;right:14px;bottom:14px;max-width:270px;padding:11px 13px;border-radius:11px;
+  border:1px solid var(--trait-2);background:rgba(7,11,18,.92);backdrop-filter:blur(6px)}
+.g-fiche[hidden]{display:none}
+.g-fiche .d{font:600 10px var(--mono);letter-spacing:.12em;text-transform:uppercase}
+.g-fiche .l{margin:3px 0 0;font:600 15px/1.25 var(--font)}
+.g-fiche .v{margin:6px 0 0;font:400 13px/1.4 var(--mono);color:var(--clair)}
+.g-fiche .s{margin:6px 0 0;font:400 10.5px/1.4 var(--mono);color:var(--clair-3);word-break:break-word}
+
+/* ── Panneau ─────────────────────────────────────────────────────────── */
+.g-panneau{background:var(--nuit-2);border-left:1px solid var(--trait);overflow-y:auto;padding:16px 15px 22px}
+.g-panneau h2{margin:0 0 3px;font:600 10.5px var(--mono);letter-spacing:.14em;text-transform:uppercase;color:var(--clair-3)}
+.g-panneau .note{margin:0 0 14px;font:400 11.5px/1.5 var(--font);color:var(--clair-2)}
+.g-panneau .note b{color:var(--clair);font-weight:600}
+
+.g-legende{list-style:none;margin:0 0 18px;padding:0;display:flex;flex-direction:column;gap:1px}
+.g-legende button{width:100%;display:grid;grid-template-columns:10px 1fr auto;align-items:center;gap:9px;
+  padding:6px 7px;border-radius:7px;border:0;background:transparent;color:var(--clair-2);
+  font:500 12.5px var(--font);text-align:left;cursor:pointer;transition:background .12s,color .12s}
+.g-legende button:hover{background:var(--nuit-3);color:var(--clair)}
+.g-legende button[aria-pressed="false"]{opacity:.38}
+.g-legende .pastille{width:10px;height:10px;border-radius:50%}
+.g-legende .n{font:500 11px var(--mono);color:var(--clair-3)}
+.g-legende button:focus-visible{outline:2px solid #3987e5;outline-offset:1px}
+
+.g-bloc{border-top:1px solid var(--trait);padding-top:14px;margin-top:2px}
+.g-bloc p{margin:0 0 9px;font:400 12px/1.55 var(--font);color:var(--clair-2)}
+.g-bloc p:last-child{margin-bottom:0}
+.g-bloc strong{color:var(--clair);font-weight:600}
+.g-bloc .date{font:400 11px var(--mono);color:var(--clair-3)}
+
+@media(max-width:820px){
+  .g-app{grid-template-columns:1fr;grid-template-rows:1fr auto}
+  .g-panneau{border-left:0;border-top:1px solid var(--trait);max-height:42dvh;padding:13px 14px 18px}
+  .g-titre p{display:none}
+  .g-fiche{max-width:none;left:14px;right:14px}
+}
