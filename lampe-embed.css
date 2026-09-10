@@ -145,7 +145,10 @@ body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
    480x440, donc les deux vues n'avaient jamais la meme taille cote a cote.
    Meme rapport desormais. Le max-height tombe : il cassait le rapport sur
    grand ecran, la ou la coque, elle, n'est pas bridee. */
-#lampe-embed-root .rendu-box{position:relative;width:100%;aspect-ratio:480/440;}
+/* 10/09 : cadre CARRE. Le 480/440 restait un paysage discret ; les deux vues
+   sont maintenant des carrés, et le canevas de la coque passe lui aussi en
+   480x480 pour garder exactement la meme boite. */
+#lampe-embed-root .rendu-box{position:relative;width:100%;aspect-ratio:1/1;}
 /* Cartouche d'attente : il occupe la place du rendu tant que Blender n'a pas
  * fini. L'apercu du navigateur ne s'affiche PLUS ici, ni pendant l'attente. */
 #lampe-embed-root #renduAttente{position:absolute;inset:0;display:grid;place-items:center;border-radius:12px;
@@ -155,7 +158,11 @@ body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
 #lampe-embed-root .rendu-box canvas, #lampe-embed-root .rendu-box img{position:absolute;inset:0;width:100%;height:100%;
   /* cover : l'image remplit le cadre et se recadre au centre, sur la lampe,
      au lieu de flotter entre deux bandes grises. */
-  object-fit:cover;object-position:center;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
+  /* `bottom` et non `center` : l image du rendu est en portrait, le recadrage
+     carre retirait donc autant en haut qu en bas et coupait le pied de la
+     lampe. En calant sur le bas, la base reste entiere et c est le ciel de la
+     serre qui part. */
+  object-fit:cover;object-position:center bottom;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
 /* Les deux vues de TRAVAIL côte à côte, le rendu sous elles sur toute la
  * largeur. Trois colonnes de front tiendraient sur le papier, mais la colonne
  * visuelle ne fait que ~730 px : la coupe cotée y devient illisible. Les trois
