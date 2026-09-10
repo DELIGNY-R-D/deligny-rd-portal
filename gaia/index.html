@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8" />
+<!-- Forteresse statique : aucun script inline, aucune ressource tierce. Le
+     globe est dessine en Canvas 2D par gaia.js, et les deux fichiers de
+     donnees sont lus sur la meme origine, d'ou connect-src 'self'. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: https://atlas-studio.pro; style-src 'self'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'self'" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<meta name="description" content="GAIA, le capteur du monde de DELIGNY R&amp;D : un globe manipulable ou chaque point est un signal reellement recolte, seismes, climat, feux, marches, geopolitique." />
+<link rel="canonical" href="https://deligny-rd.fr/gaia/" />
+<link rel="icon" href="../img/couronne.svg?v=c94bc869" type="image/svg+xml" />
+<title>GAIA, le capteur du monde</title>
+<link rel="stylesheet" href="gaia.css?v=62d20c71" />
+</head>
+<body>
+
+<div class="g-app">
+
+  <div class="g-scene">
+    <canvas id="globe"></canvas>
+
+    <div class="g-titre">
+      <h1>GAIA</h1>
+      <p>Glisse pour tourner le globe, molette ou pincement pour zoomer, touche un point pour lire le signal.</p>
+    </div>
+
+    <div class="g-outils">
+      <button type="button" id="btn-tourne" aria-pressed="true">Rotation en cours</button>
+      <button type="button" id="btn-recadre">Recadrer</button>
+    </div>
+
+    <div class="g-fiche" id="fiche" hidden>
+      <div class="d" id="f-domaine"></div>
+      <p class="l" id="f-lieu"></p>
+      <p class="v" id="f-valeur"></p>
+      <p class="s" id="f-source"></p>
+    </div>
+  </div>
+
+  <aside class="g-panneau">
+    <h2>Instantané</h2>
+    <p class="note"><b id="compte">0</b> signaux géolocalisés, prélevés le
+      <b id="preleve">…</b>. Vue figée, pas un flux en direct : la récolte tourne
+      en atelier, cette page en montre une photographie datée.</p>
+
+    <h2>Domaines</h2>
+    <ul class="g-legende" id="legende"></ul>
+
+    <div class="g-bloc">
+      <p><strong>Ce que fait GAIA.</strong> Il interroge en continu des sources
+        publiques ouvertes, les remet dans un format unique, les place sur la
+        carte et cherche ce qui bouge ensemble. Un séisme, une température, un
+        feu de végétation, un indice de marché et une tension diplomatique
+        n'arrivent pas dans le même langage : tout l'ouvrage est là.</p>
+      <p><strong>À quoi ça sert.</strong> À savoir tôt qu'une exposition change.
+        Pas à prédire l'avenir : à relier un événement lointain aux choses
+        auxquelles il touche, et à le dire avant que ce soit dans les
+        journaux.</p>
+      <p><strong>Où c'en est.</strong> La récolte, la carte et les liens entre
+        signaux fonctionnent. Le compte visiteur, les listes de surveillance et
+        les alertes poussées restent à construire. Ce qui est montré ici est ce
+        qui existe, rien de plus.</p>
+      <p class="date">Sources de cet instantané : Open-Meteo, USGS, GDELT,
+        qualité de l'air, BCE, FMI, indices de marché publics. Le carnet de
+        prospection interne, lui, ne sort jamais de l'atelier.</p>
+    </div>
+  </aside>
+
+</div>
+
+<script src="gaia.js?v=e022bf51" defer></script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" loading="eager">
+</body>
+</html>

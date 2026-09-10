@@ -686,6 +686,37 @@
         </div>
       </div>
 
+      <!-- GAIA (10/09) : le globe du poste de pilotage interne interroge
+           127.0.0.1:4567 en direct. Une page publique ne peut pas joindre cette
+           adresse et on ne perce pas de tunnel vers l'atelier pour une vitrine :
+           on publie donc un INSTANTANE date, produit par
+           deploy/instantane-gaia.py, et la page le presente comme tel. Le
+           domaine « opportunites » (prospection nominative, SIREN et adresses)
+           en est retire a la source. -->
+      <div class="tool-widget">
+        <div class="tool-widget-head">
+          <div class="app-title-row">
+            <h3>GAIA</h3>
+            <span class="tag tag-live">Globe manipulable</span>
+          </div>
+          <p>Le capteur du monde de la maison. GAIA interroge en continu des sources publiques
+          ouvertes, séismes, températures, feux de végétation, qualité de l&rsquo;air, marchés,
+          indicateurs économiques et tensions diplomatiques, puis remet tout dans un format unique
+          et le pose sur la carte. Glisse pour tourner le globe, zoome, touche un point : tu lis la
+          mesure, sa valeur, sa source et son heure de relevé. Ce sont de vraies récoltes, figées à
+          la date affichée, car la moisson tourne en atelier et n&rsquo;est pas branchée sur cette
+          page. Ce qui fonctionne aujourd&rsquo;hui : la récolte, la carte et les liens entre
+          signaux. Ce qui reste à construire : le compte visiteur, les listes de surveillance et les
+          alertes poussées.</p>
+        </div>
+        <div class="nano-embed">
+          <iframe src="gaia/index.html" title="GAIA, globe manipulable des signaux du monde recoltes par DELIGNY R&amp;D" loading="lazy" allow="fullscreen"></iframe>
+        </div>
+        <div class="tool-widget-actions">
+          <a class="btn btn-primary" href="gaia/index.html">Ouvrir en plein ecran &rarr;</a>
+        </div>
+      </div>
+
       <div class="app-grid">
       
         <article class="app-card">
@@ -828,11 +859,6 @@
       </div>
 
       <div class="infra-list">
-        <div class="infra-row">
-          <strong>GAIA</strong>
-          <span>Capteur de donnees du monde reel (meteo, marche, veille) qui alimente les autres systemes DELIGNY.</span>
-          <span class="tag tag-lab">Interne</span>
-        </div>
         <div class="infra-row">
           <strong>GENESIS</strong>
           <span>Laboratoire de recherche interne : hypotheses, experimentation, validation.</span>
