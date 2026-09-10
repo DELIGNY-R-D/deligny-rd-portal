@@ -2577,7 +2577,10 @@ const PAD = {l:64, r:16, t:14, b:46};
  * la detection des points et les reglettes en dependent — et on augmente
  * seulement la memoire de rendu, en mettant le contexte a l'echelle. Plafonne
  * a 3x : au-dela on paie de la memoire sans que l'oeil y gagne. */
-const PCL = {w:480, h:440};
+/* 10/09 : 480x480 et non plus 480x440. Le systeme de coordonnees LOGIQUE
+   suit le cadre, qui est desormais carre comme les deux autres ; tout le
+   dessin passe par pcW()/pcH(), rien n'est fige a 440. */
+const PCL = {w:480, h:480};
 function pcW(){ return PCL.w; }
 function pcH(){ return PCL.h; }
 function ajusterDefinitionProfil(){

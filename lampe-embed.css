@@ -167,8 +167,15 @@ body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
  * largeur. Trois colonnes de front tiendraient sur le papier, mais la colonne
  * visuelle ne fait que ~730 px : la coupe cotée y devient illisible. Les trois
  * sont à l'écran en même temps, c'est ce qui compte. */
-#lampe-embed-root .vgrid3{display:grid;grid-template-columns:1fr 1fr;gap:12px;}
-#lampe-embed-root .vgrid3 > :nth-child(3){grid-column:1 / -1;}
+/* 10/09 : LES TROIS VUES A LA MEME TAILLE (demande Baptiste).
+   Le rendu occupait toute la largeur sous les deux autres : il faisait
+   deux fois leur taille. Trois colonnes egales et trois carres, donc trois
+   fenetres identiques. La coupe cotee passe elle aussi en 480x480, sinon
+   « meme taille » n'aurait valu que pour deux des trois.
+   min-width:0 sur les colonnes : le plancher de 240 px faisait deborder la
+   grille des que la colonne visuelle descendait sous ~750 px. */
+#lampe-embed-root .vgrid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;}
+#lampe-embed-root .vgrid3 > .canvas-col{min-width:0;}
 /* 10/09 : les boutons eteinte/allumee etaient DANS la colonne du rendu, ou
    ils s'empilaient sur telephone et allongeaient cette colonne : les deux
    vues ne pouvaient donc pas avoir la meme taille. Ils passent sous les
