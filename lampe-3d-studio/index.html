@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-T47b+RZy9jlI4+dpLQsxwU4XnMo+nYsl+f9Ot6MHBWY='; style-src-attr 'unsafe-inline'; script-src 'sha256-kSjIr6gvEhSGYSabBPqrjCB57H8tvqyEgbTAwqwKHH0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-W4I3eF1gVP6GvB/dF+XCmxIK0LvnMz5+NKo6feXnepE='; style-src-attr 'unsafe-inline'; script-src 'sha256-kSjIr6gvEhSGYSabBPqrjCB57H8tvqyEgbTAwqwKHH0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -151,7 +151,10 @@ table.pts tr.bad td{color:var(--red);}
    480x440, donc les deux vues n'avaient jamais la meme taille cote a cote.
    Meme rapport desormais. Le max-height tombe : il cassait le rapport sur
    grand ecran, la ou la coque, elle, n'est pas bridee. */
-.rendu-box{position:relative;width:100%;aspect-ratio:480/440;}
+/* 10/09 : cadre CARRE. Le 480/440 restait un paysage discret ; les deux vues
+   sont maintenant des carrés, et le canevas de la coque passe lui aussi en
+   480x480 pour garder exactement la meme boite. */
+.rendu-box{position:relative;width:100%;aspect-ratio:1/1;}
 /* Cartouche d'attente : il occupe la place du rendu tant que Blender n'a pas
  * fini. L'apercu du navigateur ne s'affiche PLUS ici, ni pendant l'attente. */
 /* ── Panier ─────────────────────────────────────────────────────────── */
@@ -178,7 +181,11 @@ table.pts tr.bad td{color:var(--red);}
 .rendu-box canvas,.rendu-box img{position:absolute;inset:0;width:100%;height:100%;
   /* cover : l'image remplit le cadre et se recadre au centre, sur la lampe,
      au lieu de flotter entre deux bandes grises. */
-  object-fit:cover;object-position:center;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
+  /* `bottom` et non `center` : l image du rendu est en portrait, le recadrage
+     carre retirait donc autant en haut qu en bas et coupait le pied de la
+     lampe. En calant sur le bas, la base reste entiere et c est le ciel de la
+     serre qui part. */
+  object-fit:cover;object-position:center bottom;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
 /* Les deux vues de TRAVAIL côte à côte, le rendu sous elles sur toute la
  * largeur. Trois colonnes de front tiendraient sur le papier, mais la colonne
  * visuelle ne fait que ~730 px : la coupe cotée y devient illisible. Les trois
@@ -379,7 +386,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
             <div class="lbl">Coque réelle — mêmes triangles que le STL
               <small>Coque creuse d'épaisseur paroi, ouverte en haut et en bas. Glisse pour tourner.</small>
             </div>
-            <canvas id="previewCanvas" width="480" height="440"></canvas>
+            <canvas id="previewCanvas" width="480" height="480"></canvas>
           </div>
           <div class="canvas-col" id="colRendu">
             <div class="lbl">Rendu studio <span id="vueRenduSrc" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
