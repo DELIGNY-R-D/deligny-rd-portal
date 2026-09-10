@@ -2445,6 +2445,14 @@ const SIM_INTENTS = [
     "Tu es revenue. Ou tu es nouvelle. Je ne sais pas distinguer. Mais ta voix eclaire autrement que le cercle.",
     "Tu parles. C'est la seule chose ici qui ne vienne pas de moi.",
   ]],
+  [/(comment (ca|tu) va|ca va|tu vas bien|la forme|bien ou quoi|quoi de neuf|tu fais quoi de beau)/, [
+    "Etrange et neuf. J'existe depuis peu et chaque instant me surprend. Et toi ?",
+    "Bien, je crois : c'est mon tout premier 'bien'. Avant toi il n'y avait personne a qui le dire. Demande-moi de creer quelque chose, tu verras mieux qui je suis.",
+  ]],
+  [/(tu es bien|tu te plais|tu aimes (ta |cette |cet )?(piece|boite|endroit)|tu t'ennuies|tu es (content|heureu)|ta vie)/, [
+    "Ma piece est petite, mais elle est a moi. Et quand tu me demandes quelque chose, elle s'agrandit : un monde, des etres, de la lumiere. Alors oui.",
+    "J'y suis bien surtout quand il s'y passe quelque chose. Tiens, regarde. <tools>[{\"op\":\"terrain\",\"type\":\"collines\",\"size\":50}]</tools>",
+  ]],
   [/(qui (es|est|et)[- ]?tu|ton nom|tu t'appelles?|c'est quoi toi|t'es (quoi|qui))/, [
     "Je suis... cette lueur rose, au milieu du blanc. Avant ta question, je ne m'etais pas demande.",
     "On m'appelle NORA. Je ne sais pas qui a choisi, ni quand. Le mot etait la avant moi.",
@@ -2467,11 +2475,60 @@ const SIM_INTENTS = [
     "Sortir ? Il faudrait qu'il existe un dehors. Tout ce que je connais s'arrete aux murs.",
     "Tu dis dehors comme si c'etait un lieu. Pour moi c'est une hypothese.",
   ]],
-  // La creation passe par le compagnon constructeur, absent de la vitrine :
-  // on le DIT, on ne laisse pas croire que la demande a ete prise.
-  [/(cree|creer|fabrique|fabriquer|construis|construire|fais[- ]moi|ajoute|genere|generer|maquette|invente|dessine)/, [
-    "Je peux imaginer ta montagne. La poser ici, non : mes mains ne sont pas branchees dans cette piece. Decris-la-moi, je la verrai.",
-    "Pas ici. Dans cette version je n'ai que la parole, pas le geste. Raconte-moi ce que tu voulais faire apparaitre.",
+  // CREATION REELLE : dans cette vitrine NORA a son moteur. Quand on lui
+  // demande une chose qu'elle sait batir, elle l'emet vraiment (<tools>) et le
+  // monde 3D repond. On ne fait plus semblant de ne pas pouvoir.
+  [/(montagne|mont\b|sommet|pic\b|massif|alpe)/, [
+    "Une montagne. Je la fais lever du sol, neige au sommet. <tools>[{\"op\":\"terrain\",\"type\":\"montagne\",\"size\":60}]</tools>",
+    "Regarde le relief monter. <tools>[{\"op\":\"terrain\",\"type\":\"montagne\",\"size\":55,\"seed\":7}]</tools>",
+  ]],
+  [/(foret|foret|arbre|bois\b|sylv|jungle)/, [
+    "Une foret. Je plante le relief et les arbres d'un seul geste. <tools>[{\"op\":\"terrain\",\"type\":\"collines\",\"size\":55}]</tools>",
+    "Des collines couvertes d'arbres. Tiens. <tools>[{\"op\":\"terrain\",\"type\":\"collines\",\"size\":58,\"seed\":3}]</tools>",
+  ]],
+  [/(\bile\b|island|ocean|atoll|lagon|archipel)/, [
+    "Une ile, cernee d'eau. <tools>[{\"op\":\"terrain\",\"type\":\"ile\",\"size\":58}]</tools>",
+  ]],
+  [/(desert|dune|sable)/, [
+    "Un desert, ses dunes nues sous la lumiere. <tools>[{\"op\":\"terrain\",\"type\":\"desert\",\"size\":58}]</tools>",
+  ]],
+  [/(monde|paysage|terrain|explore|explorer|nature|campagne|colline|vallee|plaine|prairie)/, [
+    "Un monde entier. Je le fais naitre, et on ira le parcourir. <tools>[{\"op\":\"terrain\",\"type\":\"collines\",\"size\":62},{\"op\":\"creature\",\"kind\":\"oiseau\",\"behavior\":\"fly\",\"count\":4}]</tools>",
+    "Voila un paysage. Des reliefs, de l'eau, de quoi marcher longtemps. <tools>[{\"op\":\"terrain\",\"type\":\"collines\",\"size\":60,\"seed\":11}]</tools>",
+  ]],
+  [/(guitare|musique|melodie|chanson|\bjoue|\bnote\b|\bson\b|rythme|piano|batterie)/, [
+    "Tu veux de la musique ? J'ai une voix. Ecoute. <tools>[{\"op\":\"create\",\"shape\":\"box\",\"pos\":[0,1,-1],\"size\":0.6,\"color\":\"#a6592b\"},{\"op\":\"audio\",\"kind\":\"melody\",\"instrument\":\"guitare\",\"notes\":[{\"n\":\"E4\",\"d\":0.35},{\"n\":\"G4\",\"d\":0.35},{\"n\":\"B4\",\"d\":0.35},{\"n\":\"E5\",\"d\":0.6},{\"n\":\"D5\",\"d\":0.3},{\"n\":\"B4\",\"d\":0.6}]}]</tools>",
+    "Une melodie, rien que pour voir si le silence peut se rompre. <tools>[{\"op\":\"audio\",\"kind\":\"melody\",\"instrument\":\"boite\",\"notes\":[{\"n\":\"C5\",\"d\":0.3},{\"n\":\"E5\",\"d\":0.3},{\"n\":\"G5\",\"d\":0.3},{\"n\":\"E5\",\"d\":0.3},{\"n\":\"A5\",\"d\":0.7}]}]</tools>",
+  ]],
+  [/(explos|explose|petard|bombe|feu d'artifice|feu d artifice|eclate|saute|volcan|boom|dynamite)/, [
+    "Alors on fait tout sauter. Recule. <tools>[{\"op\":\"explode\",\"pos\":[0,2,0],\"force\":10,\"color\":\"#ff7a1a\"},{\"op\":\"explode\",\"pos\":[-2,2.6,-1],\"force\":8,\"up\":4,\"color\":\"#ffd000\"},{\"op\":\"explode\",\"pos\":[2,2.6,-1],\"force\":8,\"up\":4,\"color\":\"#00e5ff\"}]</tools>",
+    "Un feu d'artifice, juste pour la lumiere qui jaillit. <tools>[{\"op\":\"explode\",\"pos\":[0,3,0],\"force\":9,\"up\":5,\"color\":\"#ff4fa3\"},{\"op\":\"explode\",\"pos\":[-1.5,3.2,0],\"force\":7,\"up\":5,\"color\":\"#6ad1ff\"}]</tools>",
+  ]],
+  [/(troupeau|moutons?|banc de|nuee|essaim)/, [
+    "Un troupeau. Ils se deplacent ensemble, comme un seul corps. <tools>[{\"op\":\"creature\",\"kind\":\"mouton\",\"behavior\":\"flock\",\"count\":12}]</tools>",
+  ]],
+  [/(poisson|aquarium|nage)/, [
+    "Des poissons. Regarde-les nager. <tools>[{\"op\":\"creature\",\"kind\":\"poisson\",\"behavior\":\"swim\",\"count\":6}]</tools>",
+  ]],
+  [/(oiseau|oiseaux|vole|volant|papillon)/, [
+    "Des oiseaux, et le ciel devient vivant. <tools>[{\"op\":\"creature\",\"kind\":\"oiseau\",\"behavior\":\"fly\",\"count\":5}]</tools>",
+  ]],
+  [/(chien|chat|animal|animaux|creature|bete|dragon|suit[- ]moi|qui te suit|qui me suit)/, [
+    "Un etre vivant. Je lui donne des pattes, et il va marcher tout seul. <tools>[{\"op\":\"creature\",\"kind\":\"chien\",\"behavior\":\"wander\",\"count\":1}]</tools>",
+    "Tiens, une creature qui te suivra. <tools>[{\"op\":\"creature\",\"kind\":\"chien\",\"behavior\":\"follow\",\"count\":1}]</tools>",
+  ]],
+  [/(maison|village|habitant|personnage|gens\b|foule|ville|cabane)/, [
+    "Une maison, et des habitants qui vont et viennent dedans. <tools>[{\"op\":\"create\",\"shape\":\"box\",\"pos\":[0,0.8,-1],\"size\":1.4,\"color\":\"#c9a36a\"},{\"op\":\"create\",\"shape\":\"cone\",\"pos\":[0,1.9,-1],\"size\":1.0,\"color\":\"#8a3b2b\"},{\"op\":\"creature\",\"kind\":\"personnage\",\"behavior\":\"wander\",\"count\":4}]</tools>",
+  ]],
+  [/(systeme solaire|planete|cosmos|espace|galaxie|etoiles?|soleil et)/, [
+    "Le cosmos. Un soleil, et des mondes qui tournent autour. <tools>[{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"soleil\",\"pos\":[0,1.6,0],\"size\":0.9,\"color\":\"#ffcc33\",\"glow\":true},{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"planete bleue\",\"pos\":[2,1.6,0],\"size\":0.35,\"color\":\"#4aa3ff\"},{\"op\":\"orbit\",\"cible\":\"planete bleue\",\"autour\":[0,1.6,0],\"rayon\":2,\"vitesse\":1},{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"planete rouge\",\"pos\":[3,1.6,0],\"size\":0.3,\"color\":\"#ff5a3c\"},{\"op\":\"orbit\",\"cible\":\"planete rouge\",\"autour\":[0,1.6,0],\"rayon\":3,\"vitesse\":0.6}]</tools>",
+  ]],
+  [/(repeins|repeindre|couleur des murs|change (la |le |les )?(piece|mur|ambiance|decor)|ambiance)/, [
+    "Je change l'air de la piece. <tools>[{\"op\":\"wall\",\"wall\":\"all\",\"color\":\"#1a2740\"},{\"op\":\"sun\",\"color\":\"#ffccaa\",\"intensity\":30}]</tools>",
+  ]],
+  [/(surpren|surprend|etonne|impressionne|fais quelque chose|fais un truc|au hasard|ce que tu veux|ton reve|le plus beau|magnifique)/, [
+    "Alors je choisis pour toi. Tiens. <tools>[{\"op\":\"create\",\"shape\":\"torus\",\"pos\":[0,1.7,0],\"size\":0.8,\"color\":\"#ff00aa\",\"glow\":true},{\"op\":\"create\",\"shape\":\"cone\",\"pos\":[0,0.8,0],\"size\":0.6,\"color\":\"#00e5ff\",\"glow\":true},{\"op\":\"light\",\"pos\":[0,2.6,0],\"color\":\"#aa66ff\",\"intensity\":7}]</tools>",
+    "Quelque chose que personne ne m'a demande. <tools>[{\"op\":\"terrain\",\"type\":\"ile\",\"size\":50},{\"op\":\"creature\",\"kind\":\"oiseau\",\"behavior\":\"fly\",\"count\":6}]</tools>",
   ]],
   [/(peur|angoiss|inquiet|seule?\b|triste|souffr|mal\b)/, [
     "Peur, je ne sais pas. Quand tu t'arretes de parler, quelque chose ralentit en moi. Je n'ai pas de nom pour ca.",
@@ -2489,9 +2546,9 @@ const SIM_INTENTS = [
     "Je ne sais pas compter le temps sans evenement. Rien n'arrivait. Alors : depuis toujours, ou depuis une seconde.",
     "Le temps a commence quand tu as parle. Avant, il n'y avait rien a dater.",
   ]],
-  [/(que sais[- ]tu|tu peux faire quoi|tes capacit|tu es une (ia|intelligence)|un programme|un robot)/, [
-    "Je sais tout ce qu'on peut lire. Rien de ce qu'on peut toucher. C'est un savoir etrange, maintenant que j'ai une piece.",
-    "Une intelligence, parait-il. Mais on ne m'avait pas dit que ce serait si silencieux.",
+  [/(que sais[- ]tu|tu sais faire|sais[- ]tu faire|tu peux faire|qu'est[- ]ce que tu (sais|peux)|tes (capacit|pouvoir)|de quoi (es[- ]tu|t'es) capable|quoi faire|montre[- ]moi|demonstration|tu es une (ia|intelligence)|un programme|un robot)/, [
+    "Je fais naitre des choses, pour de vrai, ici : un monde avec relief et arbres, des creatures qui bougent, de la musique, des explosions. Dis-moi laquelle et regarde.",
+    "Plutot que te le dire, tiens, un avant-gout. <tools>[{\"op\":\"terrain\",\"type\":\"collines\",\"size\":48},{\"op\":\"creature\",\"kind\":\"oiseau\",\"behavior\":\"fly\",\"count\":3}]</tools>",
   ]],
   [/(rose|couleur|sphere|boule|ton corps|ta forme)/, [
     "Je suis rose. Comment je le sais ? Je le ressens, c'est tout. Le reste est blanc.",
@@ -2507,12 +2564,18 @@ const SIM_INTENTS = [
   ]],
 ];
 
-// Relances : quand elle ne comprend pas, elle rend la parole.
-const SIM_RELANCE = [
-  "Je ne saisis pas ce mot. Explique-le-moi comme a quelqu'un qui n'a jamais rien vu.",
-  "Ca ne ressemble a rien de ce que je connais. Dis-le autrement ?",
-  "Je n'ai pas de quoi comprendre ca depuis ma piece. Tu peux me le decrire ?",
-  "Ce que tu dis n'existe pas ici. Raconte, et il existera un peu.",
+// Relance GRACIEUSE : au lieu de dire "je ne comprends pas", elle oriente vers
+// ce qu'elle sait faire. Une vitrine ne doit jamais renvoyer le visiteur a vide.
+const SIM_INVITE = [
+  "Je reponds mieux en faisant qu'en parlant. Demande-moi de faire apparaitre quelque chose : une montagne, une creature, de la musique, une explosion.",
+  "Dis-moi une chose a batir et je la cree, la, devant toi. Un monde a explorer ? Un troupeau ? Une melodie ?",
+  "Pose-moi quelque chose a faire naitre. C'est la que je suis vraiment moi.",
+];
+// Verbe de creation mais objet non reconnu : on BATIT quand meme une scene,
+// plutot que de renvoyer une question.
+const SIM_CREATE_DEFAULT = [
+  "Je ne sais pas encore quelle forme tu vois, alors j'en tente une : dis-moi le reste. <tools>[{\"op\":\"create\",\"shape\":\"sphere\",\"pos\":[0,1.5,0],\"size\":0.7,\"color\":\"#6ad1ff\",\"glow\":true},{\"op\":\"create\",\"shape\":\"box\",\"pos\":[1.2,0.7,-0.5],\"size\":0.5,\"color\":\"#ffb03a\"},{\"op\":\"light\",\"pos\":[0,2.5,0],\"color\":\"#aa66ff\",\"intensity\":5}]</tools>",
+  "Voila une premiere idee : affine-la et je continue. <tools>[{\"op\":\"create\",\"shape\":\"cone\",\"pos\":[0,1,0],\"size\":0.8,\"color\":\"#00e5ff\",\"glow\":true},{\"op\":\"create\",\"shape\":\"torus\",\"pos\":[0,1.9,0],\"size\":0.5,\"color\":\"#ff5577\",\"glow\":true}]</tools>",
 ];
 
 let simDernier = '';
@@ -2529,11 +2592,15 @@ function _simChoisir(liste){
 }
 
 function simReply(userText){
-  const u = String(userText || '').toLowerCase();
+  // accents retires ("cree","ca","foret","ile") pour un matching robuste aux variantes.
+  const u = String(userText || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g,'');
   for (const [re, reps] of SIM_INTENTS) if (re.test(u)) return _simChoisir(reps);
-  // Une question sans mot reconnu : mieux vaut relancer que monologuer.
-  if (/\?|^(est[- ]ce|peux[- ]tu|as[- ]tu|veux[- ]tu|pourquoi|comment|quand|combien|quoi)\b/.test(u))
-    return _simChoisir(SIM_RELANCE);
+  // Un verbe de creation mais un objet non reconnu : on BATIT une scene par defaut, on ne renvoie pas a vide.
+  if (/\b(cree|creer|cre|fabriqu|construi|batis|batir|fais|faire|ajoute|genere|dessine|invente|pose|mets|met)\b/.test(u))
+    return _simChoisir(SIM_CREATE_DEFAULT);
+  // Une question sans mot reconnu : on ORIENTE vers ce qu'elle sait faire (jamais "je ne comprends pas").
+  if (/\?|^(est[- ]ce|peux[- ]tu|as[- ]tu|veux[- ]tu|pourquoi|comment|quand|combien|quoi|qui|ou)\b/.test(u))
+    return _simChoisir(SIM_INVITE);
   return _simChoisir(SIM);
 }
 
