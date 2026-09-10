@@ -167,6 +167,12 @@ body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
    vues ne pouvaient donc pas avoir la meme taille. Ils passent sous les
    deux, sur toute la largeur. */
 #lampe-embed-root .vgrid3 > #litSeg{grid-column:1 / -1;margin-top:12px;}
+/* Les deux vues font la meme hauteur de cellule, mais leurs legendes non
+   (89 px contre 73) : les images se retrouvaient decalees de 42 px. On fait
+   absorber l'ecart par la legende, l'image se cale en bas de sa cellule et
+   les deux s'alignent. */
+#lampe-embed-root .vgrid3 > .canvas-col{display:flex;flex-direction:column;}
+#lampe-embed-root .vgrid3 > .canvas-col > .lbl{flex:1 0 auto;}
 /* 29/08 : voir le commentaire du studio. Entre 701 et 1000 px les trois vues
    s'empilaient ; le plancher est desormais coupe en pleine largeur, coque et
    rendu cote a cote. */
