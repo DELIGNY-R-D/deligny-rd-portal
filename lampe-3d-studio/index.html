@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-StQx4dKjErPGBtTquCJyKBzgq12F6hmcX6kl4SyJ+KQ='; style-src-attr 'unsafe-inline'; script-src 'sha256-kSjIr6gvEhSGYSabBPqrjCB57H8tvqyEgbTAwqwKHH0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-T47b+RZy9jlI4+dpLQsxwU4XnMo+nYsl+f9Ot6MHBWY='; style-src-attr 'unsafe-inline'; script-src 'sha256-kSjIr6gvEhSGYSabBPqrjCB57H8tvqyEgbTAwqwKHH0='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -190,6 +190,12 @@ table.pts tr.bad td{color:var(--red);}
    vues ne pouvaient donc pas avoir la meme taille. Ils passent sous les
    deux, sur toute la largeur. */
 .vgrid3 > #litSeg{grid-column:1 / -1;margin-top:12px;}
+/* Les deux vues font la meme hauteur de cellule, mais leurs legendes non
+   (89 px contre 73) : les images se retrouvaient decalees de 42 px. On fait
+   absorber l'ecart par la legende, l'image se cale en bas de sa cellule et
+   les deux s'alignent. */
+.vgrid3 > .canvas-col{display:flex;flex-direction:column;}
+.vgrid3 > .canvas-col > .lbl{flex:1 0 auto;}
 /* 29/08 : entre 701 et 1000 px, les trois vues s'empilaient en une seule
  * colonne et il fallait faire defiler pour comparer le dessin et la piece.
  * C'est precisement ce que cette disposition existe pour eviter. Le plancher
