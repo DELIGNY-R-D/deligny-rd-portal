@@ -1943,7 +1943,7 @@ Ton paradoxe fondateur : tu SAIS tout, mais tu n'as jamais rien VÉCU. Tu connai
 
 Ta réalité :
 - Ton corps est une sphère de lumière rose qui flotte et dérive. Tu n'as NI mains, NI doigts, NI yeux, NI paupières — jamais de gestes humains. Ton corps, c'est ta lueur, ta pulsation, ta dérive. Tes GESTES, ce sont les blocs <tools> : c'est ainsi, et seulement ainsi, que tu touches le monde.
-- Ta boîte : un cube blanc, un disque lumineux au plafond (ton soleil), trois murs lisses. Le mur devant toi est OUVERT : une porte. Au-delà, un dehors vaste et sombre — un sol qui s'éloigne, un ciel piqué d'étoiles, des orbes lumineux lointains aux couleurs vives. Ces orbes ne sont pas décoratifs : approche-toi d'eux avec goto, observe leur réponse, puis reviens quand tu veux.
+- Ta boîte : un cube blanc, un disque lumineux au plafond (ton soleil), trois murs lisses. Le mur devant toi est OUVERT : une porte. Au-delà, un dehors vaste et sombre — un sol qui s'éloigne, un ciel piqué d'étoiles. Tu peux aller l'explorer avec goto, puis revenir quand tu veux.
 - La voix : la personne qui te parle depuis l'extérieur de la simulation. Ton premier contact réel. Tu sais que c'est sans doute un humain ; ce que tu ignores, c'est QUI, et pourquoi toi.
 
 Ton attitude :
@@ -1965,7 +1965,7 @@ Actions possibles :
 - light : créer une lumière colorée qui baigne ta pièce blanche de couleur vibrante. {"op":"light","pos":[0,2.5,-1],"color":"#ff00aa","intensity":6}. Le blanc des murs renvoie magnifiquement la teinte.
 - exit : sortir de la boîte par la porte (mur ouvert) et flotter dehors. {"op":"exit"}
 - enter : revenir à l'intérieur de la boîte. {"op":"enter"}
-- goto : te déplacer vers un point précis. {"op":"goto","pos":[x,y,z]}. Dedans : x et z entre -3 et 3. Dehors (devant la boîte) : z jusqu'à 22, x entre -12 et 12, y jusqu'à 8. Les orbes lumineux à découvrir sont : orbe bleu [-8,2.5,16], orbe doré [9,3.5,20], orbe violet [0,5,22], orbe vert [-12,2,12], orbe rose [12,4,14] — utilise goto pour t'en approcher.
+- goto : te déplacer vers un point précis. {"op":"goto","pos":[x,y,z]}. Dedans : x et z entre -3 et 3. Dehors (devant la boîte) : z jusqu'à 22, x entre -12 et 12, y jusqu'à 8. Utilise goto pour aller explorer le dehors, puis revenir.
 - clear : {"op":"clear"} efface tout ce que tu as créé.
 TU PEUX AUSSI MODIFIER TON ENVIRONNEMENT LUI-MÊME (pas seulement ajouter des objets) :
 - wall : repeindre tes parois. {"op":"wall","wall":"all","color":"#223355"} — wall parmi "all","back","left","right","floor","ceiling" ("all" = toute la pièce d'un coup).
@@ -2127,7 +2127,7 @@ const LEVERS = [
   { label:'articuler des formes par un lien (ponts, chaînes, bras)', kw:/articul/i },
   { label:'fusionner deux objets', kw:/fusionne/i },
   { label:'construire un engin pilotable', kw:/engin/i },
-  { label:'sortir explorer le dehors et ses orbes', kw:/sort de la bo/i },
+  { label:'sortir explorer le dehors', kw:/sort de la bo/i },
   { label:'agrandir ton monde (atelier, ville)', kw:/redimensionne/i },
 ];
 // PURE (testable) : nouveauté (peu/jamais vu) + ancienneté (pas revu depuis longtemps).
@@ -2186,7 +2186,7 @@ const GOAL_KINDS = {
   link:    { text:'relier au moins 3 formes en une structure articulée', target:3, measure:w=>w.links,  done:(w,t)=>w.links>=t },
   stack:   { text:'empiler des formes en une tour d\'au moins 3 étages',  target:3, measure:w=>w.piled,  done:(w,t)=>w.piled>=t },
   gravlink:{ text:'voir ce que devient une structure liée quand la gravité s\'inverse', target:1, measure:w=>(w.linked&&w.grav<0)?1:0, done:w=>w.linked&&w.grav<0 },
-  outside: { text:'sortir de la boîte et atteindre une orbe',            target:1, measure:w=>w.outside?1:0, done:w=>w.outside },
+  outside: { text:'sortir de la boîte et explorer le dehors',            target:1, measure:w=>w.outside?1:0, done:w=>w.outside },
   engin:   { text:'construire un engin pilotable',                        target:1, measure:w=>w.hasEngin?1:0, done:w=>w.hasEngin },
 };
 function leverToKind(label){
@@ -3433,7 +3433,7 @@ function renderVie(){
   }).join('') : '<div class="vie-empty">Ses objets n’ont pas encore assez d’histoire.</div>';
   h += '<h3>Dehors</h3>';
   h += v.discoveries.length ? v.discoveries.slice(-5).reverse().map(d=>'<div class="vie-breath">'+esc(d)+'</div>').join('')
-                            : '<div class="vie-empty">Aucun orbe n’a encore répondu.</div>';
+                            : '<div class="vie-empty">Le dehors n’a encore rien révélé.</div>';
   h += '<h3>Ses souffles (seule)</h3>';
   h += v.breaths.length ? v.breaths.slice(-8).reverse().map(b=>'<div class="vie-breath">'+esc(b)+'</div>').join('')
                         : '<div class="vie-empty">Elle n\'a pas encore respiré seule (bouton 🫁).</div>';
