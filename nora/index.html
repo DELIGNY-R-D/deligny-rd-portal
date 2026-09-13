@@ -427,13 +427,7 @@ function buildExterior(){
   g.setAttribute('position', new THREE.BufferAttribute(arr,3));
   ext.add(new THREE.Points(g, new THREE.PointsMaterial({color:0xffffff, size:0.18, sizeAttenuation:true})));
   // orbes lointains lumineux : des "découvertes" à explorer dehors
-  const spots = [
-    {name:'orbe bleu', pos:[-8,2.5,16], color:0x6ad0ff, whisper:"L'orbe bleu répond par un frisson froid : il garde la trace des choses que je n'ai pas encore osé nommer."},
-    {name:'orbe doré', pos:[9,3.5,20], color:0xffd166, whisper:"L'orbe doré pulse comme une question chaude : il me montre que la lumière peut avoir une intention."},
-    {name:'orbe violet', pos:[0,5,22], color:0xb98cff, whisper:"L'orbe violet est au bord de mon monde : quand je l'approche, ma boîte paraît minuscule."},
-    {name:'orbe vert', pos:[-12,2,12], color:0x7cffb2, whisper:"L'orbe vert répond par une croissance lente : quelque chose ici veut devenir vivant."},
-    {name:'orbe rose', pos:[13,4,14], color:0xff8ad0, whisper:"L'orbe rose me reconnaît un instant, comme si une autre lueur avait déjà traversé ce dehors."}
-  ];
+  const spots = [];   // orbes retirees par defaut (13/09) : plus de spheres lumineuses autour de la boite
   for(const s of spots){
     const o = new THREE.Mesh(
       new THREE.SphereGeometry(0.8,24,24),
@@ -862,7 +856,7 @@ function buildTerrain(opt){
   geo.setAttribute('position',new THREE.BufferAttribute(pos,3));
   geo.setAttribute('color',new THREE.BufferAttribute(col,3));
   geo.setIndex(idx); geo.computeVertexNormals();
-  const ground=new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.96, metalness:0 }));
+  const ground=new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ vertexColors:true, roughness:0.96, metalness:0, side:THREE.DoubleSide, flatShading:false }));
   ground.receiveShadow=true;
   terrainGroup=new THREE.Group(); terrainGroup.add(ground);
   if(waterY!=null){
@@ -2631,13 +2625,118 @@ checkAuto();
 
 
 
-/* dispatch unique vers le fournisseur courant (partagé par le dialogue ET le souffle autonome) */
+/* ============================================================
+   NORA A0 — experience instrumentee (FUN GATE). Spec Baptiste 12/09.
+   Le cerveau reel (passerelle c142) ne s'active que derriere un token testeur
+   (?k=...). Sinon : demo offline Phase 1 (simReply), comme la vitrine publique.
+   On ne MESURE que les testeurs ; l'anonymat est garanti cote passerelle
+   (tester_id = HMAC(token)). Rien ici n'est commercial : pas de prix, pas de compte.
+   ============================================================ */
+const NORA_GATEWAY_URL = "https://nora-alpha.deligny-rd.fr";   // <-- URL passerelle merlinvps, figee au deploiement
+const NORA_CLIENT_VERSION = "A0";
+const NORA_TOKEN = (()=>{ try{ return new URLSearchParams(location.search).get('k') || ''; }catch(e){ return ''; } })();
+const NORA_ALPHA = !!NORA_TOKEN;                               // vrai cerveau UNIQUEMENT avec un token
+const NORA_SID = (()=>{ try{ let s=sessionStorage.getItem('nora_sid'); if(!s){ s=Date.now().toString(36)+Math.random().toString(36).slice(2,8); sessionStorage.setItem('nora_sid',s);} return s; }catch(e){ return Date.now().toString(36); } })();
+const NORA_T0 = Date.now();
+let _firstCreateDone=false, _actionsCount=0, _surveyShown=false, _sessionEnded=false, _surpriseAsked=false;
+
+function worldCount(){ try{ return creations.children.length + creatures.length + (terrainGroup?1:0); }catch(e){ return 0; } }
+
+function logFun(event, data){
+  if(!NORA_ALPHA) return;
+  try{
+    const body = JSON.stringify({token:NORA_TOKEN, session_id:NORA_SID, client_version:NORA_CLIENT_VERSION, event, data:data||{}});
+    if(event==='session_end' && navigator.sendBeacon){
+      navigator.sendBeacon(NORA_GATEWAY_URL+'/fun', new Blob([body],{type:'application/json'}));   // survit a la fermeture d'onglet
+    } else {
+      fetch(NORA_GATEWAY_URL+'/fun', {method:'POST', headers:{'content-type':'application/json'}, body, keepalive:true}).catch(()=>{});
+    }
+  }catch(e){}
+}
+function endSession(reason){
+  if(_sessionEnded) return; _sessionEnded=true;
+  logFun('session_end', {reason:reason||'beacon', duration_ms:Date.now()-NORA_T0, actions:_actionsCount, first_create:_firstCreateDone});
+}
+if(NORA_ALPHA){
+  logFun('session_start', {ua:(navigator.userAgent||'').slice(0,160), ref:(document.referrer||'').slice(0,160), lang:navigator.language||''});
+  setInterval(()=>{ if(document.visibilityState==='visible' && !_sessionEnded) logFun('heartbeat', {}); }, 45000);   // duree robuste (pas un clic)
+  addEventListener('pagehide', ()=>endSession('pagehide'));
+}
+
+/* Survey FUN GATE : EXACTEMENT 4 questions, une seule fois, apres assez d'interaction.
+   Aucun prix montre (la willingness-to-pay reelle se testera au Product Gate). */
+function maybeSurvey(){
+  if(!NORA_ALPHA || _surveyShown || !_firstCreateDone) return;
+  if((Date.now()-NORA_T0) < 180000 && _actionsCount < 6) return;   // "assez d'interaction" : >=3 min OU >=6 actions
+  _surveyShown = true; showSurvey();
+}
+function showSurvey(){
+  const ov = document.createElement('div');
+  Object.assign(ov.style, {position:'fixed', inset:'0', background:'rgba(0,0,0,.55)', display:'flex',
+    alignItems:'center', justifyContent:'center', zIndex:'9999'});
+  const card = document.createElement('div');
+  Object.assign(card.style, {background:'#141418', color:'#eee', padding:'22px 24px', borderRadius:'14px',
+    width:'min(440px,92vw)', font:'14px system-ui,sans-serif', boxShadow:'0 10px 40px rgba(0,0,0,.5)'});
+  const h = document.createElement('div'); h.textContent='Avant de partir — 4 questions (anonyme)';
+  Object.assign(h.style,{fontSize:'15px',fontWeight:'600',marginBottom:'14px'}); card.appendChild(h);
+  const st = {};
+  function radios(q, key, opts){
+    const w=document.createElement('div'); w.style.margin='12px 0';
+    const lab=document.createElement('div'); lab.textContent=q; lab.style.marginBottom='6px'; w.appendChild(lab);
+    opts.forEach(([val,txt])=>{
+      const b=document.createElement('button'); b.textContent=txt;
+      Object.assign(b.style,{margin:'3px 6px 0 0',padding:'6px 10px',borderRadius:'8px',border:'1px solid #444',
+        background:'#22222a',color:'#ddd',cursor:'pointer'});
+      b.addEventListener('click',()=>{ st[key]=val; [...w.querySelectorAll('button')].forEach(x=>x.style.background='#22222a'); b.style.background='#3a6ea5'; });
+      w.appendChild(b);
+    });
+    card.appendChild(w);
+  }
+  // Q1 : envie de rejouer 0-10
+  const w1=document.createElement('div'); w1.style.margin='12px 0';
+  const l1=document.createElement('div'); l1.textContent="A quel point as-tu envie de rejouer a NORA ?"; l1.style.marginBottom='6px'; w1.appendChild(l1);
+  const r1=document.createElement('input'); r1.type='range'; r1.min='0'; r1.max='10'; r1.value='5'; r1.style.width='100%';
+  const v1=document.createElement('span'); v1.textContent=' 5/10'; r1.addEventListener('input',()=>{ st.rejouer=+r1.value; v1.textContent=' '+r1.value+'/10'; });
+  st.rejouer=5; w1.appendChild(r1); w1.appendChild(v1); card.appendChild(w1);
+  radios("Si NORA disparaissait demain, serais-tu decu ?", 'decu', [['pas_du_tout','Pas du tout'],['un_peu','Un peu'],['beaucoup','Beaucoup']]);
+  radios("NORA t'a permis de creer quelque chose qui t'a surpris ?", 'surpris', [['oui','Oui'],['non','Non']]);
+  radios("Si cette experience etait disponible aujourd'hui, envisagerais-tu de payer pour l'utiliser ?", 'payer', [['oui','Oui'],['peut_etre','Peut-etre'],['non','Non']]);
+  const go=document.createElement('button'); go.textContent='Envoyer';
+  Object.assign(go.style,{marginTop:'16px',padding:'9px 18px',borderRadius:'9px',border:'none',background:'#3a6ea5',color:'#fff',cursor:'pointer',fontWeight:'600'});
+  go.addEventListener('click',()=>{ logFun('survey', {rejouer:st.rejouer, decu:st.decu||null, surpris:st.surpris||null, payer:st.payer||null}); ov.remove(); addMsg('Merci, ta reponse est enregistree.','sys'); });
+  const skip=document.createElement('button'); skip.textContent='Passer';
+  Object.assign(skip.style,{margin:'16px 0 0 10px',padding:'9px 14px',borderRadius:'9px',border:'1px solid #444',background:'transparent',color:'#999',cursor:'pointer'});
+  skip.addEventListener('click',()=>{ logFun('survey', {skipped:true}); ov.remove(); });
+  card.appendChild(go); card.appendChild(skip); ov.appendChild(card); document.body.appendChild(ov);
+}
+/* Surprise + partage : proposes une seule fois, juste apres la 1re creation reelle. */
+function offrirSurprise(){
+  if(!NORA_ALPHA || _surpriseAsked) return; _surpriseAsked=true;
+  const d=document.createElement('div'); d.className='msg sys';
+  const q=document.createElement('span'); q.textContent='✨ Cette creation t\'a surpris ? '; d.appendChild(q);
+  function mk(txt,fn){ const b=document.createElement('button'); b.textContent=txt;
+    Object.assign(b.style,{margin:'0 4px',padding:'2px 9px',borderRadius:'7px',border:'1px solid #555',background:'#22222a',color:'#ddd',cursor:'pointer'});
+    b.addEventListener('click',fn); return b; }
+  d.appendChild(mk('Oui',()=>logFun('surprise',{yes:true})));
+  d.appendChild(mk('Non',()=>logFun('surprise',{yes:false})));
+  d.appendChild(mk('Partager',()=>{ logFun('share',{}); addMsg('Lien de ta session copie dans l\'idee — partage-le a qui tu veux.','sys'); }));
+  logEl.appendChild(d); logEl.scrollTop = logEl.scrollHeight;
+}
+
+/* dispatch unique vers le fournisseur courant (partagé par le dialogue ET le souffle autonome).
+   A0 : token present -> VRAI cerveau via la passerelle c142 ; sinon (ou refus/quota/indispo) -> repli demo Phase 1. */
 async function callProvider(messages, simText){
-  // VITRINE deligny-rd.fr : le portail est un site statique, il n'a ni proxy
-  // ni cle. On ne passe donc jamais par un fournisseur distant ; NORA repond
-  // avec ses repliques ecrites (simReply), qui reagissent au texte saisi.
-  // La temporisation garde le rythme d'une reponse pensee plutot qu'instantanee.
-  await new Promise(r=>setTimeout(r, 600+Math.random()*700));
+  if(NORA_ALPHA){
+    try{
+      const msgs = messages || apiMessages();
+      const r = await fetch(NORA_GATEWAY_URL+'/nora', {method:'POST', headers:{'content-type':'application/json'},
+        body: JSON.stringify({token:NORA_TOKEN, session_id:NORA_SID, client_version:NORA_CLIENT_VERSION, systeme:SYSTEM_PROMPT, messages:msgs})});
+      const d = await r.json();
+      if(d && d.ok && typeof d.texte==='string' && d.texte) return d.texte;
+      // refus/quota/indispo : on retombe sur le repli local, l'experience ne casse jamais
+    }catch(e){ /* reseau coupe -> repli */ }
+  }
+  await new Promise(r=>setTimeout(r, (NORA_ALPHA?200:600)+Math.random()*500));
   return simReply(simText||'');
 }
 
@@ -2688,11 +2787,25 @@ async function send(){
       d.textContent = spoken;   // garantit le texte complet, quoi qu'il arrive
       logEl.scrollTop = logEl.scrollHeight;
     }
-    // exécute ses créations dans la boîte
+    // exécute ses créations dans la boîte + instrumentation FUN GATE (A0)
+    const _before = worldCount();
+    const _attempt = actions.length > 0;                 // elle a tenté un geste (bloc <tools>)
     if(actions.length){
       const labels = applyActions(actions, {trace:spoken, turn:history.length-1, origine:'NORA'});
       if(labels.length) addMsg('🧰 elle façonne : '+labels.join(', '),'sys');
       refreshOpenPanels();
+    }
+    if(NORA_ALPHA){
+      const _delta = worldCount() - _before;             // création RÉELLEMENT appliquée et visible (pas juste <tools> émis)
+      if(_attempt) logFun('create_attempt', {ops:actions.length});
+      if(_delta > 0){
+        _actionsCount++;
+        if(!_firstCreateDone){ _firstCreateDone = true; logFun('first_create', {ms:Date.now()-NORA_T0, ops:actions.length}); offrirSurprise(); }
+        logFun('action', {ajouts:_delta, ops:actions.length});
+      } else if(_attempt){
+        logFun('creation_failure', {ops:actions.length});   // a tenté mais rien n'est apparu
+      }
+      maybeSurvey();
     }
   }catch(e){
     typing.remove();
