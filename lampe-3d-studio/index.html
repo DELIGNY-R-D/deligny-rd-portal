@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-PZ/JdLc75oJ1xTkeRCvbnRGUnejD64ZWo+IQwA+G09g='; style-src-attr 'unsafe-inline'; script-src 'sha256-lP7fCpBPD80kaoL9UriZQMRqg/6EyrViAZ5OeqPvSnk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-PZ/JdLc75oJ1xTkeRCvbnRGUnejD64ZWo+IQwA+G09g='; style-src-attr 'unsafe-inline'; script-src 'sha256-kMa6k+lU+27O6hnhZiOKgjNHwadstGmu2j+oJI9F1fw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -7380,7 +7380,7 @@ function syncEtatUI(){
  * ⚠️ PAIEMENT EN MOCK. Le parcours est COMPLET — depot, creation du paiement,
  * confirmation, etat PAYEE — mais aucun argent ne circule. C'est voulu : on
  * eprouve la chaine entiere avant d'y mettre un centime. Le passage au reel
- * demande la cle Payplug, que Baptiste pose cote serveur.
+ * demande la cle Mollie, lue par la projection de secrets du HUB.
  *
  * ⚠️ LE PRIX ENVOYE D'ICI N'EST PAS UNE AUTORITE. Le serveur l'enregistre
  * comme « annonce », c'est-a-dire ce que le client dit avoir vu. Il ne peut
@@ -7452,7 +7452,9 @@ async function validerCommande(){
         `<div id="cmdPiece" style="font:12.5px var(--font);color:var(--dim2);margin-top:6px"></div>` +
         `<div class="row-btn" style="margin-top:10px">` +
         `<button class="btn pri" id="cmdPayer">Payer</button>` +
-        `<span style="font:12px var(--font);color:var(--amber)">paiement de démonstration, aucun débit</span></div>`;
+        (j.paiement_fournisseur === 'mollie'
+          ? `<span style="font:12px var(--font);color:var(--dim2)">paiement sécurisé par Mollie</span></div>`
+          : `<span style="font:12px var(--font);color:var(--amber)">paiement de démonstration, aucun débit</span></div>`);
       const b = $('cmdPayer'); if(b) b.onclick = payerCommande;
       joindrePieces();          // en tache de fond : le paiement n'attend pas le fichier
     }
@@ -7617,13 +7619,22 @@ async function payerCommande(){
       body: JSON.stringify({ retour: location.href.split('?')[0] }),
     });
     const j = await r.json();
+    /* VENTE FERMEE (SALE_READY faux) : ce n'est pas une panne. La commande est
+     * enregistree, aucun paiement n'est cree : on le dit tel quel, sans le
+     * rouge d'un echec et sans rien du detail des gates. */
+    if(j.error === 'vente_fermee'){
+      suite.innerHTML +=
+        `<div style="margin-top:10px;font:12.5px var(--font);color:var(--amber)">${j.msg}</div>`;
+      const bp = $('cmdPayer'); if(bp) bp.disabled = true;
+      return;
+    }
     if(!j.ok) throw new Error(j.msg || j.error || 'refus');
     CMD.paiement = j.paiement;
-    /* PAYPLUG : la banque a une page a elle, on y va. La confirmation ne
+    /* MOLLIE : la banque a une page a elle, on y va. La confirmation ne
      * reviendra JAMAIS par ce navigateur : c'est la notification serveur,
-     * re-verifiee aupres de Payplug, qui marquera la commande payee. Le
+     * re-verifiee aupres de Mollie, qui marquera la commande payee. Le
      * client, lui, recevra l'email avec la facture. */
-    if(j.paiement.fournisseur === 'payplug'){
+    if(j.paiement.fournisseur === 'mollie'){
       if(!j.paiement.url) throw new Error('page de paiement absente');
       suite.innerHTML +=
         `<div style="margin-top:10px;font:12.5px var(--font);color:var(--dim2)">` +
@@ -7632,7 +7643,7 @@ async function payerCommande(){
       return;
     }
     /* En mock, la banque est absente : c'est ce bouton qui joue son role.
-     * Avec Payplug il disparait — seule la notification, RE-INTERROGEE
+     * Avec Mollie il disparait : seule la notification, RE-INTERROGEE
      * aupres du fournisseur, peut confirmer un paiement. Le serveur refuse
      * deja cette route des qu'un vrai fournisseur est configure. */
     suite.innerHTML +=
