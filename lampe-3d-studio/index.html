@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-tV9sr2miYEU/uzp6eh7tumIg/zTJ9tnme91vP24WInM='; style-src-attr 'unsafe-inline'; script-src 'sha256-xSrd80ksKaouqgD8fJpgY8+AU6cuRdhDXuOPJEjNhSA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-tV9sr2miYEU/uzp6eh7tumIg/zTJ9tnme91vP24WInM='; style-src-attr 'unsafe-inline'; script-src 'sha256-vlb2KvebL2NyRVuyIZ4dWxH5cefySDT+dwwwPOxJZto='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -2228,8 +2228,11 @@ const GENERATEURS_MOTIF = {
       // reliefs = maxima imprimables mesures sur une paroi de 1,8 mm (borne de pente)
       'Fin':       { tailleMm: 14, densite: 85, fusion: 0,  reliefMm: 1.2, degrade: 0,   ouverture: 0 },
       'Organique': { tailleMm: 26, densite: 45, fusion: 55, reliefMm: 2.7, degrade: 45,  ouverture: 0 },
-      'Fusion':    { tailleMm: 32, densite: 95, fusion: 95, reliefMm: 3.7, degrade: 0,   ouverture: 0 },
-      'XXL':       { tailleMm: 56, densite: 70, fusion: 20, reliefMm: 4.4, degrade: -30, ouverture: 0 },
+      /* Fusion et XXL recales le 14/09/2026 par recherche mesuree (relief = maximum
+       * imprimable, score = pente moyenne du relief) : Fusion 0,090 -> 0,133 et
+       * 0,53 -> 1,02 mm de variation ; XXL 0,154 -> 0,185 et 1,04 -> 1,64 mm. */
+      'Fusion':    { tailleMm: 40, densite: 45, fusion: 100, reliefMm: 5.4, degrade: 0,  ouverture: 0 },
+      'XXL':       { tailleMm: 60, densite: 35, fusion: 10, reliefMm: 5.6, degrade: 0,   ouverture: 0 },
     },
     /* Grandeurs qui ne dependent QUE des parametres : elles servent aux bornes et
      * a la resolution du maillage sans tirer une seule graine. */
