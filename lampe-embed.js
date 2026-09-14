@@ -4592,7 +4592,7 @@ async function rendreBlender(live, sigAttendue){
       ? await rendreParFile(corps, entetes, info)
       : await (await fetch(MOTEUR.base+'/api/blender',
           {method:'POST', headers:entetes, body:corps})).json();
-    if(!j.ok){ info.innerHTML = `<div class="line bad">${j.note||'échec du rendu'}</div>`; }
+    if(!j.ok){ info.innerHTML = `<div class="line bad">${j.note||'échec du rendu'}</div>`; if(enLive) renduEchoue(j.note||'échec du rendu'); }
     else{
       BL_LIVE.derniereMs = j.ms;
       /* ⚠️ LA PHOTO DOIT ALLER DANS L'EMPLACEMENT VISIBLE (14/08).
@@ -4638,7 +4638,7 @@ async function rendreBlender(live, sigAttendue){
       }
     }
   }catch(e){
-    info.innerHTML = `<div class="line bad">Moteur local injoignable (${e.name}). Il tourne bien sur le port 4555 ?</div>`;
+    info.innerHTML = `<div class="line bad">Moteur local injoignable (${e.name}). Il tourne bien sur le port 4555 ?</div>`; if(enLive) renduEchoue('moteur injoignable');
   }
   if(!enLive) bouton.disabled = false;
 }
@@ -4696,7 +4696,9 @@ async function lancerLive(){
   BL_LIVE.busy = true;
   // estimation = durée RÉELLE de la dernière image (7 s au premier lancement)
   compteARebours('rendu', BL_LIVE.derniereMs || 7000);
-  try{ await rendreBlender(true, sig); BL_LIVE.signature = sig; }
+  /* ⚠️ Un echec ne memorise PAS la signature : sinon la tentative suivante
+   * conclut « rien n'a bouge » et reaffiche l'ancienne image comme a jour. */
+  try{ BL_LIVE.echec = false; await rendreBlender(true, sig); if(!BL_LIVE.echec) BL_LIVE.signature = sig; }
   finally{
     BL_LIVE.busy = false;
     if(BL_LIVE.pending){ BL_LIVE.pending = false; lancerLive(); }
@@ -6260,7 +6262,13 @@ let studioTimer = null;
 function studioSoon(delai){
   clearTimeout(studioTimer);
   studioTimer = setTimeout(()=>{
-    const blenderDispo = (AI.ok === true) && BL_LIVE.on;
+    /* ⚠️ MEME CONDITION QUE planifierLive (14/09). On ne comptait ici que le
+     * moteur LOCAL (AI.ok). Sur le site public le rendu part par le moteur
+     * DISTANT (MOTEUR.distant) : on tombait donc dans la branche apercu, qui
+     * laisse l'ANCIENNE image Blender affichee sous l'etiquette « geometrie
+     * reelle » pendant tout le calcul. Une autre lampe presentee comme la
+     * sienne. Invisible en local, ou AI.ok vaut vrai. */
+    const blenderDispo = ((AI.ok === true) || MOTEUR.distant) && BL_LIVE.on;
     const img = $('blLiveImg');
     const dejaRendu = !!(img && img.getAttribute('src'));
     /* ⚠️ On NE REMPLACE PLUS l'image Blender par l'aperçu du navigateur à
@@ -6314,6 +6322,19 @@ function compteARebours(phase, ms){
   };
   peindre();
   if(!RENDU_TIC) RENDU_TIC = setInterval(peindre, 100);
+}
+/* Echec du rendu live (14/09). Rien n'arretait le decompte : il continuait
+ * de monter a vide, cache par l'ancienne image restee affichee. On ARRETE, on
+ * ne montre aucune image perimee, et on le dit. La modification suivante
+ * relance un essai, puisque la signature n'a pas ete memorisee. */
+function renduEchoue(note){
+  BL_LIVE.echec = true;
+  arreterRebours();
+  const att = $('renduAttente'), img = $('blLiveImg'), t = $('vueRenduSrc'), n = $('vueRenduNote');
+  if(img) img.style.display = 'none';
+  if(att){ att.hidden = false; att.textContent = 'Rendu indisponible pour le moment'; }
+  if(t) t.innerHTML = '<span style="color:var(--amber)">· rendu en échec</span>';
+  if(n) n.textContent = 'Le moteur n\u2019a pas pu rendre cette forme (' + note + '). Nouvel essai à la prochaine modification.';
 }
 function arreterRebours(){
   if(RENDU_TIC){ clearInterval(RENDU_TIC); RENDU_TIC = null; }
