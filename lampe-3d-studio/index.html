@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-PZ/JdLc75oJ1xTkeRCvbnRGUnejD64ZWo+IQwA+G09g='; style-src-attr 'unsafe-inline'; script-src 'sha256-kMa6k+lU+27O6hnhZiOKgjNHwadstGmu2j+oJI9F1fw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-tV9sr2miYEU/uzp6eh7tumIg/zTJ9tnme91vP24WInM='; style-src-attr 'unsafe-inline'; script-src 'sha256-kMa6k+lU+27O6hnhZiOKgjNHwadstGmu2j+oJI9F1fw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -70,6 +70,16 @@ h1 .g{color:var(--blue);}
 .seg button{flex:1;min-width:110px;font:600 13px var(--font);padding:10px 12px;border-radius:10px;border:1px solid var(--sep);background:transparent;color:var(--dim);cursor:pointer;transition:border-color .15s,background .15s,color .15s;}
 .seg button.on{background:var(--blue);color:var(--card);border-color:var(--blue);}
 .seg button:hover:not(.on){border-color:rgba(var(--ink-rgb),.24);color:var(--txt);}
+/* Outils du profil 2D (14/09/2026). `.seg button` a flex:1 (base nulle) et le
+   script force min-width:0 : le flex-wrap ne passait donc jamais a la ligne et
+   les quatre boutons s'ecrasaient sur une seule rangee, libelles tronques et
+   superposes : 39 px sur iPhone, 49 px sur ordinateur (la coupe n'y occupe
+   qu'une colonne de 219 px sur trois). Grille 2 x 2 a toutes les largeurs,
+   retour a la ligne aux espaces, cible tactile de 44 px ; l'info passe sur sa
+   propre ligne et disparait quand elle est vide. */
+#outilsProfil button{flex:1 1 calc(50% - 4px);min-width:0 !important;min-height:44px;padding:8px 10px;white-space:normal;line-height:1.25;text-align:center;}
+#outilsProfilInfo{flex:1 0 100%;min-width:0 !important;margin-left:0 !important;}
+#outilsProfilInfo:empty{display:none;}
 
 .hint{margin-top:10px;font-size:12.5px;color:var(--dim2);line-height:1.6;}
 .hint b{color:var(--dim);}
