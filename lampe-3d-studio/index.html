@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-tV9sr2miYEU/uzp6eh7tumIg/zTJ9tnme91vP24WInM='; style-src-attr 'unsafe-inline'; script-src 'sha256-kMa6k+lU+27O6hnhZiOKgjNHwadstGmu2j+oJI9F1fw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-tV9sr2miYEU/uzp6eh7tumIg/zTJ9tnme91vP24WInM='; style-src-attr 'unsafe-inline'; script-src 'sha256-xSrd80ksKaouqgD8fJpgY8+AU6cuRdhDXuOPJEjNhSA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1855,7 +1855,7 @@ function bodySurface(i){
 function bodySurfaceForEdit(){
   if(state.linkBodies) return state.surface;
   const b = state.bodies[state.body];
-  if(!b.surface) b.surface = {...state.surface};
+  if(!b.surface) b.surface = {...state.surface, motif: state.surface.motif ? {...state.surface.motif} : null};
   return b.surface;
 }
 /* Couleur : même logique. Chaque corps étant imprimé séparément, une lampe
@@ -2146,11 +2146,297 @@ const RELIEF_STEP = {
 // Bornes du champ de martelage, à recalibrer si les constantes du hachage
 // changent (banc : scratchpad, 1er et 98e centile sur 100 000 échantillons).
 const MART_P1 = 0.436, MART_ETENDUE = 1.406;
-const hasRelief    = s => !!(s.stries || s.organique || s.martele || (s.champ && s.champ.length));
+/* ── FAMILLES D'ASPECT PARAMETRIQUES (14/09/2026) ─────────────────────────
+ * Un GENERATEUR decrit un motif par un champ normalise s(theta, h) dans [0, 1],
+ * pose sur la PEAU REELLE du corps : les distances sont mesurees en mm le long
+ * de la meridienne et du tour, donc une bulle garde sa taille sur un col etroit
+ * comme sur un ventre large. Le moteur commun en tire deux effets, identiques
+ * pour toute famille :
+ *   · un RELIEF : deplacement radial reliefMm·s, ajoute au champ de sculpture
+ *     et ecrete par les MEMES bornes (CHAMP.ampMaxMm, CHAMP.sommeMaxMm) ;
+ *   · une OUVERTURE : la ou le motif depasse un seuil, la paroi est percee par le
+ *     chemin deja prouve de l'ajourage (champ signe, bord referme, bandes pleines).
+ * Bubble est le premier generateur. Ecailles, Pebble, Dunes, Topographie ou
+ * Rosace n'auront qu'a fournir reglages, presets, analyse, preparer et champ.
+ *
+ * BORNES D'IMPRESSION, calculees et non declarees :
+ *   · le relief deplace les deux faces de la meme valeur radiale : chaque face
+ *     reste une fonction r(theta, h), aucune auto-intersection n'est possible ;
+ *   · mais l'epaisseur mesuree PERPENDICULAIREMENT a la paroi vaut
+ *     paroi·cos(pente) : la pente du relief est plafonnee pour ne jamais passer
+ *     sous tMinMm (2 perimetres, buse 0,4) ni depasser penteMaxDeg de surplomb ;
+ *   · un relief creuse ne descend jamais sous le rayon interieur ;
+ *   · les nervures laissees par l'ouverture restent >= nervureMinMm.
+ * ──────────────────────────────────────────────────────────────────────── */
+const MOTIF_BORNES = { tMinMm: 0.8, penteMaxDeg: 50, margePente: 0.9, fonduMinMm: 8, fonduMaxMm: 40,
+                       nervureMinMm: 2.0, graineMax: 99999, seedsMax: 9000, rayonRefMm: 80 };
+const motifClamp = (v, lo, hi, def) => { const x = +v; return Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : def; };
+const motifLisse01 = x => x <= 0 ? 0 : (x >= 1 ? 1 : x*x*(3 - 2*x));
+function motifInterp(xs, ys, x){
+  const n = xs.length;
+  if(n === 1 || x <= xs[0]) return ys[0];
+  if(x >= xs[n-1]) return ys[n-1];
+  let lo = 0, hi = n-1;
+  while(hi - lo > 1){ const m = (lo + hi) >> 1; if(xs[m] <= x) lo = m; else hi = m; }
+  const dx = xs[hi] - xs[lo];
+  return ys[lo] + (dx > 1e-9 ? (x - xs[lo])/dx : 0)*(ys[hi] - ys[lo]);
+}
+// max lisse polynomial : k = 0 donne le max franc (aretes de mousse)
+function motifSmax(a, b, k){
+  if(k <= 0) return a > b ? a : b;
+  const e = Math.max(k - Math.abs(a - b), 0)/k;
+  return (a > b ? a : b) + e*e*k*0.25;
+}
+/* Geometrie d'un corps vue par un generateur : abscisse curviligne s le long de
+ * la meridienne et rayon r(s). Arrondie au demi-millimetre : pendant un geste, la
+ * meme forme a 0,2 mm pres garde les memes graines au lieu de tout redistribuer. */
+function motifGeo(profile, wallMm){
+  const P = (profile || []).filter(p => Number.isFinite(+p.h) && Number.isFinite(+p.r))
+    .map(p => ({ h: Math.round(p.h*2)/2, r: Math.max(0.5, Math.round(p.r*2)/2) }));
+  if(P.length < 2) return null;
+  const hs = [], rs = [], ss = [];
+  let s = 0;
+  for(let i = 0; i < P.length; i++){
+    if(i > 0) s += Math.hypot(P[i].h - P[i-1].h, P[i].r - P[i-1].r);
+    hs.push(P[i].h); rs.push(P[i].r); ss.push(s);
+  }
+  return { hs, rs, ss, S: Math.max(1e-6, s), rMin: Math.min(...rs), rMax: Math.max(...rs),
+           wall: motifClamp(wallMm, 0.4, 10, 1.8) };
+}
+
+const GENERATEURS_MOTIF = {
+  bubble: {
+    label: 'Bubble · cellules fusionnées',
+    court: 'bubble',
+    desc: "Des bulles réparties sur toute la peau, qui se touchent et fusionnent comme une mousse. En saillie ou creusées, et ouvertes progressivement jusqu'à la perforation. Même graine, même lampe.",
+    reglages: [
+      { cle: 'tailleMm',  label: 'Taille des bulles', min: 12,   max: 60,  pas: 1,
+        fmt: v => `Ø ${v.toFixed(0)} mm` },
+      { cle: 'densite',   label: 'Densité', min: 0, max: 100, pas: 1,
+        fmt: v => `${v.toFixed(0)} % · ` + (v < 34 ? 'espacées' : v < 67 ? 'serrées' : 'tassées') },
+      { cle: 'fusion',    label: 'Fusion', min: 0, max: 100, pas: 1,
+        fmt: v => `${v.toFixed(0)} % · ` + (v < 25 ? 'arêtes de mousse' : v < 70 ? 'cellules soudées' : 'pâte fusionnée') },
+      { cle: 'reliefMm',  label: 'Relief', min: -8, max: 12, pas: 0.1,
+        fmt: v => v === 0 ? 'aucun' : (v > 0 ? `+${v.toFixed(1)} mm · bulles en saillie` : `${v.toFixed(1)} mm · alvéoles creusées`) },
+      { cle: 'degrade',   label: 'Dégradé vertical', min: -100, max: 100, pas: 1,
+        fmt: v => v === 0 ? 'uniforme' : (v > 0 ? `${v.toFixed(0)} % · plus grosses en bas` : `${(-v).toFixed(0)} % · plus grosses en haut`) },
+      { cle: 'ouverture', label: 'Ouverture lumineuse', min: 0, max: 100, pas: 1,
+        fmt: v => v === 0 ? 'relief plein' : `${v.toFixed(0)} % · vers la perforation` },
+    ],
+    defauts: { tailleMm: 26, densite: 70, fusion: 40, reliefMm: 2.5, degrade: 0, ouverture: 0, graine: 1 },
+    presets: {
+      // reliefs = maxima imprimables mesures sur une paroi de 1,8 mm (borne de pente)
+      'Fin':       { tailleMm: 14, densite: 85, fusion: 0,  reliefMm: 1.2, degrade: 0,   ouverture: 0 },
+      'Organique': { tailleMm: 26, densite: 45, fusion: 55, reliefMm: 2.7, degrade: 45,  ouverture: 0 },
+      'Fusion':    { tailleMm: 32, densite: 95, fusion: 95, reliefMm: 3.7, degrade: 0,   ouverture: 0 },
+      'XXL':       { tailleMm: 56, densite: 70, fusion: 20, reliefMm: 4.4, degrade: -30, ouverture: 0 },
+    },
+    /* Grandeurs qui ne dependent QUE des parametres : elles servent aux bornes et
+     * a la resolution du maillage sans tirer une seule graine. */
+    analyse(p){
+      const R0 = p.tailleMm/2, g = p.degrade/100;
+      const mMax = Math.pow(2, 0.7*Math.abs(g));
+      const rMin = R0/mMax*0.8, rMax = R0*mMax*1.2;
+      // distance mini entre centres / rayon moyen : 1,6 espacees, 0,8 tassees. Toujours
+      // < 2 : deux bulles voisines se recouvrent, jamais de petits ronds isoles.
+      const espacement = 1.6 - 0.8*(p.densite/100);
+      const k = 0.15 + 1.35*(p.fusion/100);
+      const norme = 1 + 0.25*k;
+      /* CONTRASTE. Des bulles serrees se recouvrent : le creux entre deux voisines
+       * reste haut (1 - (espacement/2)² au milieu), et le champ brut ne redescend
+       * presque jamais a 0. Mesure le 14/09/2026 : 0,22 mm de variation reelle pour
+       * 1,6 mm de relief demande, des presets indiscernables a l'ecran. On repart
+       * donc du niveau des creux. Les cellules deviennent plus pentues, et la borne
+       * de pente, qui lit gradMax, rabaisse d'elle-meme le relief imprimable. */
+      const creux = 0.85*Math.max(0, 1 - (espacement/2)*(espacement/2));
+      const contraste = Math.max(0.2, norme - creux);
+      // ouverture : rayon du trou = R·sqrt(1 - seuil) ; nervure >= nervureMinMm entre voisines
+      const x = Math.max(0, espacement/2 - MOTIF_BORNES.nervureMinMm/(2*rMin));
+      return { R0, g, rMin, rMax, espacement, k, norme, creux, contraste,
+               gradMax: 2/(rMin*contraste), seuilMin: 1 - x*x, echelleMm: R0*0.5 };
+    },
+    /* Tirage de Poisson (lancer de flechettes) sur la peau : graines tirees
+     * proportionnellement a l'AIRE, refusees si une voisine est plus proche que la
+     * distance d'exclusion. Index par rangees (s) et cases angulaires dont la
+     * largeur est calculee au rayon le plus faible de la bande : une voisine a
+     * distance d n'est jamais a plus de ceil(d/C) cases. */
+    preparer(p, geo, A){
+      const TWO = 2*Math.PI;
+      const rOfS = s => motifInterp(geo.ss, geo.rs, s);
+      const mult = s => Math.pow(2, 0.7*A.g*(1 - 2*s/geo.S));      // g > 0 : plus grosses en bas
+      const C = A.espacement*A.rMax;
+      const rowsQ = Math.max(1, Math.ceil(A.rMax/C));
+      const nRows = Math.max(1, Math.ceil(geo.S/C));
+      const pasT = Math.max(0.5, C/4);
+      const rows = new Array(nRows);
+      for(let k = 0; k < nRows; k++){
+        const sA = Math.max(0, (k - rowsQ)*C), sB = Math.min(geo.S, (k + 1 + rowsQ)*C);
+        let rLow = rOfS(sB);
+        for(let s = sA; s < sB; s += pasT) rLow = Math.min(rLow, rOfS(s));
+        const nb = Math.max(1, Math.floor(TWO*Math.max(0.5, rLow)/C));
+        rows[k] = { nb, b: Array.from({length: nb}, () => []) };
+      }
+      const rowOf = s => Math.min(nRows - 1, Math.max(0, Math.floor(s/C)));
+      const near = (th, s, win, fn) => {
+        const k0 = rowOf(s);
+        for(let dk = -win; dk <= win; dk++){
+          const row = rows[k0 + dk]; if(!row) continue;
+          const nb = row.nb;
+          if(2*win + 1 >= nb){
+            for(let j = 0; j < nb; j++){ const a = row.b[j]; for(let i = 0; i < a.length; i++) fn(a[i]); }
+            continue;
+          }
+          const j0 = Math.floor(th/TWO*nb);
+          for(let dj = -win; dj <= win; dj++){
+            const a = row.b[((j0 + dj) % nb + nb) % nb];
+            for(let i = 0; i < a.length; i++) fn(a[i]);
+          }
+        }
+      };
+      const nT = Math.max(2, Math.ceil(geo.S/0.5));
+      const sT = new Float64Array(nT + 1), aT = new Float64Array(nT + 1);
+      for(let i = 1; i <= nT; i++){
+        const s0 = (i - 1)*geo.S/nT, s1 = i*geo.S/nT, m = mult((s0 + s1)/2);
+        sT[i] = s1; aT[i] = aT[i-1] + TWO*rOfS((s0 + s1)/2)*(s1 - s0)/(m*m);
+      }
+      const aTot = aT[nT];
+      const rng = mulberry32(hashSeed('bubble|' + p.graine));
+      const estim = aTot/(0.866*Math.pow(A.espacement*A.R0, 2));
+      const essais = Math.min(MOTIF_BORNES.seedsMax*30, Math.max(4000, Math.ceil(estim*30)));
+      const seeds = [];
+      for(let e = 0; e < essais && seeds.length < MOTIF_BORNES.seedsMax; e++){
+        // TOUJOURS trois tirages par essai : la suite reste identique pour une graine
+        const ua = rng()*aTot, th = rng()*TWO, jit = rng();
+        let lo = 0, hi = nT;
+        while(hi - lo > 1){ const m = (lo + hi) >> 1; if(aT[m] <= ua) lo = m; else hi = m; }
+        const da = aT[hi] - aT[lo];
+        const s = sT[lo] + (da > 0 ? (ua - aT[lo])/da : 0)*(sT[hi] - sT[lo]);
+        const r = rOfS(s);
+        const R = A.R0*mult(s)*(0.8 + 0.4*jit);
+        let libre = true;
+        near(th, s, 1, q => {
+          if(!libre) return;
+          const D = A.espacement*(R + q.R)/2;
+          let dt = Math.abs(th - q.th); if(dt > Math.PI) dt = TWO - dt;
+          const du = dt*(r + q.r)/2, dv = s - q.s;
+          if(du*du + dv*dv < D*D) libre = false;
+        });
+        if(!libre) continue;
+        const q = { th, s, r, R, R2: R*R };
+        seeds.push(q);
+        const row = rows[rowOf(s)];
+        row.b[Math.floor(th/TWO*row.nb) % row.nb].push(q);
+      }
+      return { near, rowsQ, rOfS, TWO, graines: seeds.length };
+    },
+    /* s : calottes paraboliques (1 - t²) reunies par un max LISSE, recentre sur le
+     * niveau des creux ;
+     * dur : le max FRANC, qui decoupe les trous (le lissage souderait les trous
+     * voisins par-dessus les nervures). */
+    champ(ctx, theta, h){
+      const TWO = ctx.TWO, A = ctx.A;
+      const th = ((theta % TWO) + TWO) % TWO;
+      const s = motifInterp(ctx.geo.hs, ctx.geo.ss, h);
+      const r = ctx.rOfS(s);
+      let F = -1, M = -1;
+      ctx.near(th, s, ctx.rowsQ, q => {
+        let dt = Math.abs(th - q.th); if(dt > Math.PI) dt = TWO - dt;
+        const du = dt*(r + q.r)/2, dv = s - q.s;
+        const d2 = du*du + dv*dv;
+        if(d2 >= 4*q.R2) return;
+        const v = 1 - d2/q.R2;
+        if(v > M) M = v;
+        F = motifSmax(F, v, A.k);
+      });
+      return { s: Math.max(0, Math.min(1, (F - A.creux)/A.contraste)), dur: M };
+    },
+  },
+};
+
+// Parametres d'un motif ramenes dans les plages de l'interface : une config venue
+// d'une URL, d'un panier ou d'une IA ne peut pas sortir des bornes.
+function motifParams(p){
+  const G = p && GENERATEURS_MOTIF[p.type];
+  if(!G) return null;
+  const q = { type: p.type, graine: Math.round(motifClamp(p.graine, 1, MOTIF_BORNES.graineMax, 1)) };
+  for(const r of G.reglages) q[r.cle] = motifClamp(p[r.cle], r.min, r.max, G.defauts[r.cle]);
+  return q;
+}
+function motifBornes(p, geo, A, fonduPiedMm){
+  const B = MOTIF_BORNES, avert = [];
+  const ratio = geo.wall/B.tMinMm;
+  const penteParoi = ratio > 1 ? Math.sqrt(ratio*ratio - 1) : 0;
+  const sMax = B.margePente*Math.min(Math.tan(B.penteMaxDeg*Math.PI/180), penteParoi);
+  const fonduMm = Math.max(B.fonduMinMm, Math.min(B.fonduMaxMm, 0.12*geo.S));
+  // pente totale par mm de relief : le motif, le fondu aux extremites, le fondu du pied
+  const grad = A.gradMax + 1.5/fonduMm + (fonduPiedMm > 0 ? 1.5/fonduPiedMm : 0);
+  let aMax = Math.min(CHAMP.ampMaxMm, grad > 0 ? sMax/grad : 0);
+  if(p.reliefMm < 0) aMax = Math.min(aMax, Math.max(0, geo.rMin - geo.wall - 2));
+  let relief = p.reliefMm;
+  if(Math.abs(relief) > aMax + 1e-9){
+    relief = Math.sign(relief)*aMax;
+    avert.push(penteParoi === 0
+      ? `Paroi de ${geo.wall} mm : aucun relief possible sans passer sous ${B.tMinMm} mm perpendiculairement à la paroi.`
+      : `Relief ramené à ${relief.toFixed(1)} mm : au-delà, la paroi passerait sous ${B.tMinMm} mm ou le surplomb dépasserait ${B.penteMaxDeg}°.`);
+  }
+  let seuil = 1, ouvert = false;
+  if(p.ouverture > 0){
+    const demande = 1 - 0.9*(p.ouverture/100);
+    seuil = Math.min(1, Math.max(demande, A.seuilMin));
+    ouvert = seuil < 0.999;
+    if(!ouvert) avert.push(`Bulles trop serrées pour être percées : les nervures resteraient sous ${B.nervureMinMm} mm. Baisse la densité ou grossis les bulles.`);
+    else if(demande < A.seuilMin) avert.push(`Ouverture plafonnée : plus grande, les nervures entre bulles passeraient sous ${B.nervureMinMm} mm.`);
+  }
+  return { reliefMm: relief, reliefMaxMm: aMax, seuil, ouvert, fonduMm, avert };
+}
+const MOTIF_CACHE = new Map();
+function motifContexte(pBrut, profile, wallMm, fonduPiedMm){
+  const p = motifParams(pBrut); if(!p) return null;
+  const geo = motifGeo(profile, wallMm); if(!geo) return null;
+  const fp = +fonduPiedMm || 0;
+  const cle = JSON.stringify([p, geo.hs, geo.rs, geo.wall, fp]);
+  const deja = MOTIF_CACHE.get(cle);
+  if(deja) return deja;
+  const G = GENERATEURS_MOTIF[p.type];
+  const A = G.analyse(p);
+  const ctx = G.preparer(p, geo, A);
+  Object.assign(ctx, { p, geo, A, G, bornes: motifBornes(p, geo, A, fp) });
+  if(MOTIF_CACHE.size >= 12) MOTIF_CACHE.delete(MOTIF_CACHE.keys().next().value);
+  MOTIF_CACHE.set(cle, ctx);
+  return ctx;
+}
+const motifActif = s => { const p = s && motifParams(s.motif); return !!(p && (p.reliefMm || p.ouverture)); };
+const motifOuvert = s => { const p = s && motifParams(s.motif); return !!(p && p.ouverture > 0); };
+// Resolution exigee par le plus petit trait du motif, sans geometrie (rayon de reference).
+function motifPasMm(surf){
+  if(!motifActif(surf)) return 0;
+  const p = motifParams(surf.motif);
+  return Math.max(0.6, GENERATEURS_MOTIF[p.type].analyse(p).rMin/2.5);
+}
+function motifSegments(surf, q){
+  const pas = motifPasMm(surf);
+  return pas ? Math.round(2*Math.PI*MOTIF_BORNES.rayonRefMm/pas*(q || 1)) : 0;
+}
+function motifDeplacement(surf, theta, h){
+  const ctx = surf.motifCtx;
+  if(!ctx || !ctx.bornes.reliefMm) return 0;
+  const s = motifInterp(ctx.geo.hs, ctx.geo.ss, h);
+  const L = ctx.bornes.fonduMm;
+  const f = motifLisse01(s/L)*motifLisse01((ctx.geo.S - s)/L);
+  if(f <= 0) return 0;
+  return ctx.bornes.reliefMm*ctx.G.champ(ctx, theta, h).s*f;
+}
+// Champ de trou signe (> 0 matiere), refermé en approchant des bandes pleines.
+function motifChampTrou(ctx, theta, h, tBande){
+  if(!ctx || !ctx.bornes.ouvert) return 1e6;
+  const tau = ctx.bornes.seuil + (1 - ctx.bornes.seuil)*Math.pow(1 - tBande, 2);
+  return (tau - ctx.G.champ(ctx, theta, h).dur)*ctx.A.echelleMm;
+}
+const hasRelief    = s => !!(s.stries || s.organique || s.martele || (s.champ && s.champ.length) || motifActif(s));
 /* Un ajourage Voronoï et un passage de câble sont le MÊME problème : percer une
  * coque en la gardant étanche. On passe donc par le même chemin — découpe du
  * contour sur un champ signé — au lieu d'inventer une seconde mécanique. */
-const isPerforated = s => !!s.ajour || !!(s.trous && s.trous.length);
+const isPerforated = s => !!s.ajour || !!(s.trous && s.trous.length) || motifOuvert(s);
 const isSmoothMesh = s => (s.base==='lisse') || hasRelief(s) || isPerforated(s);
 
 function styleLabel(s){
@@ -2159,6 +2445,7 @@ function styleLabel(s){
   if(s.organique) parts.push('organique');
   if(s.martele)   parts.push('martelé');
   if(s.ajour)     parts.push('ajouré Voronoï');
+  if(motifActif(s)) parts.push(GENERATEURS_MOTIF[s.motif.type].court + (motifOuvert(s) ? ' ajouré' : ''));
   return parts.join(' + ');
 }
 
@@ -2174,6 +2461,8 @@ function styleStepMm(surf){
   // un champ de sculpture module le rayon en (θ,h) : il lui faut des anneaux
   // serrés, sinon la forme sort en escalier
   if(surf.champ && surf.champ.length) besoins.push(CHAMP.pasMm);
+  // un motif parametrique exige des anneaux a l'echelle de son plus petit trait
+  if(motifPasMm(surf)) besoins.push(motifPasMm(surf));
   // Une image demande des anneaux SERRES : a 4 mm de pas, un visage devient
   // une suite de bandes horizontales. 0,9 mm est le pas ou l'oeil cesse de
   // voir les marches sur une piece de 250 mm.
@@ -2208,7 +2497,8 @@ function angularSegments(surf, chosen){
     // On ne le relève que si une strie ne serait pas résolue.
     return Math.max(3, Math.max(chosen|0,
       surf.stries  ? Math.round(surf.strieCount*6*q) : 0,
-      surf.martele ? Math.round(surf.martCount*5*q)  : 0));
+      surf.martele ? Math.round(surf.martCount*5*q)  : 0,
+      motifSegments(surf, q)));
   }
   let seg = Math.round((L.segMin + (L.segMax - L.segMin)*t) * q);
   if(surf.stries)  seg = Math.max(seg, Math.round(surf.strieCount*12*q));
@@ -2216,6 +2506,7 @@ function angularSegments(surf, chosen){
   // et assez de segments pour résoudre le terme le plus lobé du champ
   if(surf.champ) for(const t of surf.champ)
     seg = Math.max(seg, Math.round(Math.max(6, (t.n||0)) * 9 * q));
+  seg = Math.max(seg, motifSegments(surf, q));
   // et beaucoup de segments : l'image fait le tour, donc sa largeur utile EST
   // le nombre de segments. En dessous de 360 on perd les details du visage.
   if(EMBOSS.on && EMBOSS.data) seg = Math.max(seg, Math.round(420 * q));
@@ -2353,9 +2644,10 @@ function perfField(th, h, ctx){
   const dBand = Math.min(h - ctx.bandBottom, ctx.bandTop - h);
   const t = Math.min(1, dBand/ctx.transition);
   const strutLocal = ctx.strut * (1 + 2.2*(1-t)*(1-t));       // fondu dans la bande
-  if(!ctx.ix.K) return Math.min(1e6, tr);                     // pas d'ajourage : seuls les trous percent
+  const mo = ctx.motif ? motifChampTrou(ctx.motif, th, h, t) : 1e6;   // ouverture d'une famille d'aspect
+  if(!ctx.ix.K) return Math.min(1e6, tr, mo);                     // pas d'ajourage : seuls les trous percent
   const {d1,d2} = voroD1D2(ctx.ix, (th/(2*Math.PI))*ctx.ix.W, h - ctx.h0);
-  return Math.min(strutLocal - (d2 - d1), tr);                // nervure ET trous
+  return Math.min(strutLocal - (d2 - d1), tr, mo);                // nervure ET trous
 }
 function perfKeep(th, h, ctx){ return perfField(th, h, ctx) > 0; }
 
@@ -2687,7 +2979,7 @@ function buildPerforatedShell(profile, wallMm, segments, surf, sculpt, hRef){
   const outerP = densifierAutourDesTrous(profile, surf.trous).map(p=>({h:p.h, r:p.r}));
   const { inner } = offsetMeridianInward(outerP, wallMm);
   const N = Math.max(12, segments|0), M = outerP.length;
-  if(M < 3) return buildShellMesh(profile, wallMm, segments, {...surf, ajour:false}, sculpt, hRef);
+  if(M < 3) return buildShellMesh(profile, wallMm, segments, {...surf, ajour:false, motif:null, motifCtx:null}, sculpt, hRef);
   const H = outerP[M-1].h - outerP[0].h;
   const band = Math.max(2, Math.min(H/2 - 2, surf.voroBandMm||12));
   const rMean = outerP.reduce((s,p)=>s+p.r,0)/M;
@@ -2701,6 +2993,7 @@ function buildPerforatedShell(profile, wallMm, segments, surf, sculpt, hRef){
                rLoc: Math.max(1, g.r), pente: g.pente };
     }),
     strut: Math.max(0.6, surf.voroStrutMm||2.4),
+    motif: (surf.motifCtx && surf.motifCtx.bornes.ouvert) ? surf.motifCtx : null,
     bandBottom: outerP[0].h + band, bandTop: outerP[M-1].h - band,
     transition: Math.max(4, band*1.6),
   };
@@ -3163,7 +3456,10 @@ function surfaceDisplacement(surf, theta, h){
           break; }
       }
     }
-    d += Math.max(-CHAMP.sommeMaxMm, Math.min(CHAMP.sommeMaxMm, c));
+    d += Math.max(-CHAMP.sommeMaxMm, Math.min(CHAMP.sommeMaxMm, c + motifDeplacement(surf, theta, h)));
+  } else if(surf.motifCtx){
+    // famille d'aspect seule : memes bornes que le champ de sculpture
+    d += Math.max(-CHAMP.sommeMaxMm, Math.min(CHAMP.sommeMaxMm, motifDeplacement(surf, theta, h)));
   }
   return d * fondu;
 }
@@ -4433,7 +4729,7 @@ function segFor(bi, mode){
       const chosenT = parseInt(($('stlSegments')||{}).value||'14',10);
       const segT = angularSegments(surf, chosenT);
       if(mode==='draft')   return Math.min(segT, 44);
-      return (mode==='preview') ? Math.min(segT, 76) : segT;
+      return (mode==='preview') ? Math.min(segT, motifOuvert(surf) ? 140 : 76) : segT;
     }
     const seg = voroResolution(surf, rMean, H).segments;
     // Depuis que le contour est découpé sur l'iso-ligne du champ, baisser la
@@ -4522,7 +4818,7 @@ function effectiveStepMm(bi, surf, mode){
    * la reprendre telle quelle à l'écran faisait passer la passe de qualité de
    * 0,26 s à 1,4 s — pour des anneaux déjà sous le pixel. L'aperçu garde donc
    * son propre pas ; l'écart avec l'export est écrit sous l'image. */
-  if(mode==='preview' && step>0) step = Math.max(step, perf ? 2.4 : 1.7);
+  if(mode==='preview' && step>0) step = Math.max(step, (perf && !motifOuvert(surf)) ? 2.4 : 1.7);
   /* L'ébauche n'existe QUE pendant le geste : 5 mm d'anneau et 36 segments
    * suffisent à juger la silhouette, et le budget passe sous ~6 000 triangles
    * — mesuré : 105 ms → ~35 ms par image. La passe de qualité repasse 170 ms
@@ -4600,9 +4896,14 @@ function buildParts(segList, mode){
     if(state.type === 'poser' && bi === socketEndBodyIdx()){
       profJ = appliquerPied(profJ);
     }
-    const surfPied = (state.type === 'poser' && bi === socketEndBodyIdx())
+    let surfPied = (state.type === 'poser' && bi === socketEndBodyIdx())
       ? { ...surf, fondu: { h0: profJ[0].h, hMm: PIED.transitionMm } }
       : surf;
+    /* FAMILLES D'ASPECT : contexte du motif (graines, bornes) calcule UNE fois sur
+     * le profil COMPLET du corps, jupe et pied compris, et non tranche par tranche :
+     * sinon les bulles ne se raccorderaient pas d'un module a l'autre. */
+    if(surf.motif) surfPied = { ...surfPied, motifCtx: motifContexte(surf.motif, profJ, wall,
+                                 surfPied.fondu ? surfPied.fondu.hMm : 0) };
     const hRef = profileTopH(profJ);
     const base = resampleMeridian(profJ, surfPied, effectiveStepMm(bi, surf, mode));
     const cuts = cutPlanesFor(profJ);   // la jupe fait partie de la pièce à découper
@@ -5681,6 +5982,7 @@ function aiPrompt(){
   if(surf.stries)    tex.push(surf.cross?'crossed diamond fluting in relief':'vertical fluting');
   if(surf.organique) tex.push('organic rippled surface');
   if(surf.ajour)     tex.push('voronoi perforated lattice shell');
+  if(motifActif(surf)) tex.push(motifOuvert(surf) ? 'fused bubble cells, partly perforated' : 'fused bubble cells in relief');
   const texture=tex.join(', ');
   const kind={suspension:'pendant lamp',poser:'table lamp',applique:'wall sconce'}[state.type];
   // Kontext est un moteur d'ÉDITION : on lui donne un ordre, pas une description.
@@ -6797,6 +7099,66 @@ function renderSurface(){
       addSlider('Hauteur des facettes','martHMm',6,30,1,v=>v.toFixed(0)+' mm');
       addSlider('Profondeur des coups','martDepthMm',0.3,3,0.1,v=>v.toFixed(1)+' mm');
     });
+
+  /* FAMILLES D'ASPECT PARAMETRIQUES : une couche par generateur (Bubble en tete).
+   * Au plus six curseurs, des presets, une graine ; les bornes affichees sont
+   * celles que le maillage applique vraiment. */
+  Object.entries(GENERATEURS_MOTIF).forEach(([type, G])=>{
+    const actif = !!(s.motif && s.motif.type === type);
+    const l=document.createElement('label'); l.className='socket-opt'+(actif?' on':'');
+    l.style.marginTop='10px';
+    l.innerHTML = `<input type="checkbox" ${actif?'checked':''}>
+      <div><div class="t">${G.label}</div><div class="d">${G.desc}</div></div>`;
+    l.querySelector('input').onchange = e=>{
+      bodySurfaceForEdit().motif = e.target.checked ? { type, ...G.defauts } : null;
+      renderAll();
+    };
+    box.appendChild(l);
+    if(!actif) return;
+    const m = s.motif;
+    const pr=document.createElement('div'); pr.className='seg'; pr.style.margin='8px 0';
+    Object.entries(G.presets).forEach(([nom, v])=>{
+      const b=document.createElement('button'); b.type='button'; b.textContent=nom;
+      if(G.reglages.every(r=> +m[r.cle] === +v[r.cle])) b.className='on';
+      b.onclick=()=>{ Object.assign(bodySurfaceForEdit().motif, v); renderAll(); };
+      pr.appendChild(b);
+    });
+    box.appendChild(pr);
+    const corps = state.bodies[state.body] || state.bodies[0];
+    const pm = motifParams(m), geo = motifGeo(corps && corps.profile, parseFloat(state.wall));
+    const B = (pm && geo) ? motifBornes(pm, geo, G.analyse(pm), 0) : null;
+    G.reglages.forEach(r=>{
+      const f=document.createElement('div'); f.className='field';
+      const lib = v => r.fmt(v) + ((r.cle==='reliefMm' && B && Math.abs(B.reliefMm - v) > 1e-6)
+        ? ` · limité à ${B.reliefMm > 0 ? '+' : ''}${B.reliefMm.toFixed(1)} mm` : '');
+      f.innerHTML = `<label>${r.label} : <b></b></label>
+        <input type="range" min="${r.min}" max="${r.max}" step="${r.pas}" value="${+m[r.cle]}" style="width:100%;accent-color:var(--blue)">`;
+      f.querySelector('b').textContent = lib(+m[r.cle]);
+      f.querySelector('input').oninput = e=>{
+        m[r.cle] = parseFloat(e.target.value);
+        f.querySelector('b').textContent = r.fmt(m[r.cle]);
+        renderSoon();
+      };
+      box.appendChild(f);
+    });
+    const row=document.createElement('div'); row.className='row-btn';
+    const b=document.createElement('button'); b.className='btn pri'; b.textContent='🎲 Autre tirage';
+    b.onclick=()=>{ const mm=bodySurfaceForEdit().motif; mm.graine=((+mm.graine||1) % MOTIF_BORNES.graineMax)+1; renderAll(); };
+    const tag=document.createElement('span'); tag.className='seed'; tag.style.width='auto';
+    tag.textContent='graine n°'+(pm ? pm.graine : 1);
+    row.appendChild(b); row.appendChild(tag);
+    box.appendChild(row);
+    if(B){
+      const info=document.createElement('div'); info.className='warnbox';
+      const add=(cl,t)=>{ const w=document.createElement('div'); w.className='line '+cl; w.textContent=t; info.appendChild(w); };
+      add('ok', `Relief imprimable ici : jusqu'à ±${B.reliefMaxMm.toFixed(1)} mm (surplomb ≤ ${MOTIF_BORNES.penteMaxDeg}°, paroi jamais sous ${MOTIF_BORNES.tMinMm} mm).`);
+      B.avert.forEach(t=>add('warn', t));
+      // 120k est deja le poids d'une coque lisse ordinaire : n'avertir qu'au-dela de ce que Bubble ajoute
+      if(MESH.stats && MESH.stats.tris > 250000)
+        add('warn', `${(MESH.stats.tris/1000).toFixed(0)}k triangles : fichier lourd et aperçu ralenti. C'est le prix de bulles fines.`);
+      box.appendChild(info);
+    }
+  });
 
   addCouche('ajour', 'Ajourage Voronoï — vrais trous traversants',
     "La paroi ne garde que les nervures du diagramme de Voronoï. Bandes pleines imposées en haut (culot) et en bas (appui), avec un fondu progressif. C'est ce qui économise le plus de matière.",
