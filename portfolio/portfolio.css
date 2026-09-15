@@ -562,5 +562,17 @@ main {
 .pf-card[href="Rotary-brush.html"] img { object-position: 50% 25%; }
 .pf-card[href="Transparent-Watch.html"] img { object-position: 50% 56%; }
 .pf-card[href="Stepdrive-230.html"] img { object-position: 50% 39%; }
-.pf-card[href="Strate.html"] img { object-position: 53% 50%; }
-.pf-card[href="Lock-center-caps.html"] img { object-position: 44% 50%; }
+
+/* 15/09, suite : les couvertures EN LARGEUR ne sont plus rognees. Le carre en
+   `cover` coupait leurs deux cotes (Strate perdait ses pieds et son etagere).
+   Elles s'ajustent desormais aux bords gauche et droit (`contain`), et le vide
+   au-dessus et au-dessous prend la couleur mesuree sur leur propre bord haut et
+   bas : la photo se prolonge au lieu de flotter dans une bande. Les couvertures
+   en hauteur gardent le recadrage, qui les ajuste deja aux bords. */
+.pf-card[href="La-Factory.html"] img { object-fit: contain; background: linear-gradient(#ffffff, #ffffff 50%, #ffffff 50%, #ffffff); }
+.pf-card[href="Le-Papillon.html"] img { object-fit: contain; background: linear-gradient(#e4e5e0, #e4e5e0 50%, #e4e5e0 50%, #e4e5e0); }
+.pf-card[href="Bellows.html"] img { object-fit: contain; background: linear-gradient(#f5f5f5, #f5f5f5 50%, #fcfcfc 50%, #fcfcfc); }
+.pf-card[href="Lock-center-caps.html"] img { object-fit: contain; background: linear-gradient(#939393, #939393 50%, #999999 50%, #999999); }
+.pf-card[href="Strate.html"] img { object-fit: contain; background: linear-gradient(#f8f8f8, #f8f8f8 50%, #f8f8f8 50%, #f8f8f8); }
+.pf-card[href="Toge.html"] img { object-fit: contain; background: linear-gradient(#ffffff, #ffffff 50%, #fefeff 50%, #fefeff); }
+.pf-card[href="Fanzine.html"] img { object-fit: contain; background: linear-gradient(#eff0f2, #eff0f2 50%, #fafafc 50%, #fafafc); }
