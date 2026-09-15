@@ -19,6 +19,7 @@ Les pages sous art/ sont ignorées : elles embarquent déjà leur propre mesure
 Usage : python3 deploy/inject-beacon.py [--check]
   --check : ne modifie rien, sort en code 1 si une page manque la balise.
 """
+import re
 import os
 import subprocess
 import sys
@@ -38,7 +39,12 @@ def pages() -> list:
 
 
 def corrige(contenu: str, nom_page: str) -> str:
-    if "Content-Security-Policy" in contenu and "img-src" in contenu and API_HOST not in contenu:
+    # On regarde la directive img-src ELLE-MEME : tester la presence de l'hote
+    # n'importe ou dans la page ratait toute page qui cite atlas-studio.pro dans
+    # son texte (reponses/atlas.html, 15/09/2026) : sa CSP n'etait jamais
+    # corrigee et la balise y restait bloquee.
+    directive = re.search(r"img-src([^;\"]*)", contenu)
+    if "Content-Security-Policy" in contenu and directive and API_HOST not in directive.group(1):
         contenu = contenu.replace("img-src 'self' data:;",
                                   f"img-src 'self' data: {API_HOST};")
     if "deligny/api/px" not in contenu and "</body>" in contenu:
