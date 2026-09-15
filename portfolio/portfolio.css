@@ -214,6 +214,10 @@ main {
 .pf-card img {
   display: block;
   width: 100%;
+  /* `height: auto` OBLIGATOIRE : les vignettes portent width/height="800"
+     (pour reserver la place au chargement). Sans lui, l'attribut height
+     l'emporte sur aspect-ratio et chaque cadre s'etire a 800 px de haut. */
+  height: auto;
   aspect-ratio: 1 / 1;
   object-fit: cover;
   object-position: 50% 50%;
