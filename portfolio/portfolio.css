@@ -59,7 +59,7 @@
 }
 
 .pf-titre .pf-chapo {
-  max-width: 46ch;
+  max-width: 60ch;
   margin: clamp(20px, 3vw, 30px) 0 0;
   font-size: clamp(16px, 1.6vw, 18.5px);
   line-height: 1.62;
@@ -207,12 +207,20 @@ main {
   margin: 0;
 }
 
+/* 15/09 : cadre CARRE et image ENTIERE. Le cadre portrait 3/4 en `cover`
+   coupait tout objet en longueur (Strate, Toge, Rotary brush). `contain` montre
+   la piece complete ; la marge interieure l'eloigne du filet, et `multiply`
+   fond le blanc des photos detourees dans le papier de la page, sans bandes
+   visibles autour des images qui ne remplissent pas le carre. */
 .pf-card img {
   display: block;
   width: 100%;
-  aspect-ratio: 3 / 4;
-  object-fit: cover;
-  background: var(--soft);
+  aspect-ratio: 1 / 1;
+  object-fit: contain;
+  padding: 5%;
+  box-sizing: border-box;
+  mix-blend-mode: multiply;
+  background: transparent;
   border: 1px solid var(--line);
   transition: filter 0.35s ease, border-color 0.35s ease;
 }
@@ -446,4 +454,97 @@ main {
   .pf-card img {
     transition: none;
   }
+}
+
+/* ── Expertise (15/09) ──────────────────────────────────────────────── */
+/* Vingt-cinq competences en vrac ne se lisent pas. Regroupees en quatre
+   metiers, elles disent l'ordre reel d'un developpement. */
+.pf-expertise {
+  max-width: 1180px;
+  margin: clamp(40px, 6vw, 72px) auto 0;
+  padding: 0 22px;
+}
+
+.pf-expertise-titre {
+  margin: 0;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--ink);
+  font-family: var(--font-display);
+  font-size: clamp(22px, 3.2vw, 34px);
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+  color: var(--ink);
+}
+
+.pf-metiers {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 0 clamp(18px, 3vw, 36px);
+}
+
+.pf-metier {
+  padding-top: 20px;
+}
+
+.pf-metier h3 {
+  margin: 0 0 12px;
+  font-family: var(--font-mono);
+  font-size: var(--pf-cote);
+  font-weight: 500;
+  letter-spacing: var(--pf-suite);
+  text-transform: uppercase;
+  color: var(--purple);
+}
+
+.pf-metier ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pf-metier li {
+  padding: 8px 0;
+  border-top: 1px solid var(--line);
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--ink-dim);
+}
+
+.pf-appel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px 32px;
+  margin-top: clamp(28px, 4vw, 44px);
+  padding: clamp(20px, 3vw, 28px) 0 0;
+  border-top: 1px solid var(--ink);
+}
+
+.pf-appel p {
+  flex: 1 1 420px;
+  max-width: 64ch;
+  margin: 0;
+  font-size: clamp(15.5px, 1.5vw, 17px);
+  line-height: 1.6;
+  color: var(--ink);
+}
+
+@media (max-width: 900px) {
+  .pf-metiers {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 560px) {
+  .pf-metiers {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* deux paragraphes de chapo : le second suit le premier sans le grand saut
+   prevu pour le titre */
+.pf-titre .pf-chapo + .pf-chapo {
+  margin-top: 14px;
 }
