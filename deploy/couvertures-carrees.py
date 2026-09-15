@@ -48,7 +48,8 @@ BOITES = {
     'L3':                ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'L4C':               ('cover.jpg', lambda W, H: portrait(W, H, 75)),
     'Le-dirigeable':     ('cover.jpg', lambda W, H: portrait(W, H, 10)),
-    'Moaroom-Paris':     ('cover.jpg', lambda W, H: portrait(W, H, 40)),
+    # Mobilier Paris : image de presentation fournie par Baptiste le 15/09,
+    # deja carree (presentation-carre.jpg), hors de ce script.
     'Palette-a-encres':  ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'Rotary-brush':      ('cover.jpg', lambda W, H: portrait(W, H, 25)),
     'Transparent-Watch': ('cover.jpg', lambda W, H: portrait(W, H, 56)),
