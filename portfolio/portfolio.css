@@ -207,20 +207,18 @@ main {
   margin: 0;
 }
 
-/* 15/09 : cadre CARRE et image ENTIERE. Le cadre portrait 3/4 en `cover`
-   coupait tout objet en longueur (Strate, Toge, Rotary brush). `contain` montre
-   la piece complete ; la marge interieure l'eloigne du filet, et `multiply`
-   fond le blanc des photos detourees dans le papier de la page, sans bandes
-   visibles autour des images qui ne remplissent pas le carre. */
+/* 15/09 : cadre CARRE, image qui le REMPLIT. Un premier essai en `contain`
+   laissait chaque photo flotter dans une marge vide ; demande : recadrer.
+   Le carre coupe beaucoup moins que l'ancien portrait 3/4, et chaque
+   couverture recoit plus bas un point de cadrage choisi sur l'objet lui-meme,
+   pas au centre de la photo. */
 .pf-card img {
   display: block;
   width: 100%;
   aspect-ratio: 1 / 1;
-  object-fit: contain;
-  padding: 5%;
-  box-sizing: border-box;
-  mix-blend-mode: multiply;
-  background: transparent;
+  object-fit: cover;
+  object-position: 50% 50%;
+  background: var(--soft);
   border: 1px solid var(--line);
   transition: filter 0.35s ease, border-color 0.35s ease;
 }
@@ -548,3 +546,21 @@ main {
 .pf-titre .pf-chapo + .pf-chapo {
   margin-top: 14px;
 }
+
+/* Points de cadrage par couverture (15/09). Mesures sur chaque image : la
+   boite englobante de l'objet quand le fond est uni, a l'oeil quand la photo
+   est pleine ou porte la signature en coin, qui faussait la mesure. Selecteur
+   par lien plutot qu'attribut style : la CSP interdit les styles en ligne. */
+.pf-card[href="Pattern-watch.html"] img { object-position: 50% 55%; }
+.pf-card[href="Granular.html"] img { object-position: 50% 65%; }
+.pf-card[href="K1-Kinetic.html"] img { object-position: 50% 85%; }
+.pf-card[href="K2.html"] img { object-position: 50% 80%; }
+.pf-card[href="L1-Marble.html"] img { object-position: 50% 45%; }
+.pf-card[href="L4C.html"] img { object-position: 50% 75%; }
+.pf-card[href="Le-dirigeable.html"] img { object-position: 50% 10%; }
+.pf-card[href="Moaroom-Paris.html"] img { object-position: 50% 40%; }
+.pf-card[href="Rotary-brush.html"] img { object-position: 50% 25%; }
+.pf-card[href="Transparent-Watch.html"] img { object-position: 50% 56%; }
+.pf-card[href="Stepdrive-230.html"] img { object-position: 50% 39%; }
+.pf-card[href="Strate.html"] img { object-position: 53% 50%; }
+.pf-card[href="Lock-center-caps.html"] img { object-position: 44% 50%; }
