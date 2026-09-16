@@ -7,9 +7,9 @@
 :root{
   --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
   --txt:#f5f5f7; --dim:#a1a1a6; --dim2:#86868b; --sep:rgba(255,255,255,.10);
-  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#ff9f0a; --red:#ff453a; --cyan:#64d2ff;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
-  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --blue:#2997ff; --blue-cta:#0071e3; --green:#30d158; --amber:#8b6ad6; --red:#ff453a; --cyan:#64d2ff;
+  --font:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
+  --mono:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
 body{background:var(--bg);color:var(--txt);font:15px/1.5 var(--font);-webkit-font-smoothing:antialiased;letter-spacing:-.01em;}
@@ -496,7 +496,7 @@ function drawWaveform(canvas, buffer, markerFrac, fadeFrac){
       wctx.fillStyle='rgba(255,159,10,.22)';
       wctx.fillRect(x0,0,Math.max(0,Math.min(fw,w-x0)),h);
     }
-    wctx.strokeStyle='#ff9f0a'; wctx.lineWidth=2;
+    wctx.strokeStyle='#8b6ad6'; wctx.lineWidth=2;
     wctx.beginPath(); wctx.moveTo(x0,0); wctx.lineTo(x0,h); wctx.stroke();
   }
 }

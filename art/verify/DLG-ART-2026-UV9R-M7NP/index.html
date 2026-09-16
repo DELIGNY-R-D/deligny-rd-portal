@@ -162,7 +162,7 @@ la moindre démarche à faire.</div>
        canonique divergerait de celle qui a été signée. */
     var t = await (await fetch("manifest.json", { cache: "no-store" })).text();
     var v = await verifierManifeste(t, "DELIGNY-RD");
-    var couleur = v.authentique ? "#1d5c33" : (v.signature_ok ? "#8a6408" : "#7e1e14");
+    var couleur = v.authentique ? "#1d5c33" : (v.signature_ok ? "#3a6ea5" : "#7e1e14");
     var titre = v.authentique ? "Certificat authentique"
               : v.indetermine ? "Indéterminé sur ce navigateur"
               : v.signature_ok ? "Manifeste intact, émetteur non confirmé"

@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-tV9sr2miYEU/uzp6eh7tumIg/zTJ9tnme91vP24WInM='; style-src-attr 'unsafe-inline'; script-src 'sha256-vlb2KvebL2NyRVuyIZ4dWxH5cefySDT+dwwwPOxJZto='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-elrrtWQ/UzGDtJTV30CN5ItB6Z9cEpXPwJ/ISflIYa4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -18,13 +18,13 @@
   --ok-rgb:47,107,69; --warn-rgb:138,90,18; --bad-rgb:163,50,40;
   --bg:#e3e0d6; --bg1:#f6f4ed; --card:#efede6; --card2:#e7e4da;
   --txt:#161616; --dim:#494943; --dim2:#6b6b63; --sep:rgba(var(--ink-rgb),.17);
-  --blue:#2c4a38; --blue-cta:#2c4a38; --green:#2f6b45; --amber:#8a5a12; --red:#a33228; --cyan:#3d6249;
+  --blue:#2c4a38; --blue-cta:#2c4a38; --green:#2f6b45; --amber:#5b3fa0; --red:#a33228; --cyan:#3d6249;
   --glow:rgba(var(--acc-rgb),.16);
   /* couleurs de dessin des canvas, lues par le JS via PAL */
   --canvas-fond:#e9e6dd; --canvas-grille:rgba(22,22,22,.085);
   --canvas-grille-maj:rgba(22,22,22,.22); --canvas-texte:#6b6b63;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
-  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --font:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
+  --mono:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
 body{background:radial-gradient(1100px 520px at 50% -8%,rgba(var(--acc-rgb),.075),transparent 60%) var(--bg);
@@ -318,7 +318,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
 /* Ce qui a ete applique, et ce qui a ete refuse : jamais l'un sans l'autre. */
 .cv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
 .cv-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(var(--ok-rgb),.14);color:#30d158;border:.5px solid rgba(var(--ok-rgb),.3);}
-.cv-tag.no{background:rgba(var(--warn-rgb),.14);color:#ff9f0a;border-color:rgba(var(--warn-rgb),.3);}
+.cv-tag.no{background:rgba(var(--warn-rgb),.14);color:#8b6ad6;border-color:rgba(var(--warn-rgb),.3);}
 .cv-saisie{display:flex;gap:8px;align-items:center;}
 .cv-saisie input{flex:1;background:#141416;color:var(--txt);border:.5px solid var(--sep);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;}
 .cv-saisie input:focus{outline:none;border-color:var(--blue);}
@@ -3935,7 +3935,7 @@ const PAL = (()=>{ const s = getComputedStyle(document.documentElement);
            texte:     v('--canvas-texte', '#6b6b63'),
            acc:       v('--blue', '#2c4a38'),
            trait:     v('--txt', '#161616'),
-           alerte:    v('--amber', '#8a5a12'),
+           alerte:    v('--amber', '#5b3fa0'),
            mauvais:   v('--red', '#a33228'),
            encreRgb:  {r:22,g:22,b:22} }; })();
 // teinte l'accent sans dupliquer sa valeur : #rrggbb -> rgba(r,g,b,a)
@@ -3951,7 +3951,7 @@ function drawProfile(){
   pctx.clearRect(0,0,w,h);
   pctx.fillStyle=PAL.fond; pctx.fillRect(0,0,w,h);
   const bH = bounds().maxH, axisX = pAxisX();
-  const MONO = '10px "SF Mono",ui-monospace,Menlo,monospace';
+  const MONO = '10px "Avenir Next", Avenir, Arial, Helvetica, sans-serif';
 
   // Règle graduée : filets horizontaux discrets tous les 20 mm, graduations
   // sur une réglette à gauche (mineure 10 mm, majeure 20 mm, cote tous les 40).
