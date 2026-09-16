@@ -10583,9 +10583,9 @@ function setPiloted(a,kind){ if(pilotMarker){scene.remove(pilotMarker);pilotMark
   const btnBladeStop=mkTap('■',()=>bladeSet(0),'rgba(235,180,55,.38)','Lame : position neutre');
   const btnBladeDown=mkTap('↧',()=>bladeSet(0.72),'rgba(235,180,55,.52)','Lame : creuser');
   function syncBlade(){ const pc=typeof pilotedCar!=='undefined'?pilotedCar:null,v=pc?(pc.dozForce||0):0;
-    btnBladeUp.style.boxShadow=v<-.05?'0 0 0 3px #ffd45a inset':'none';
-    btnBladeStop.style.boxShadow=Math.abs(v)<=.05?'0 0 0 3px #ffd45a inset':'none';
-    btnBladeDown.style.boxShadow=v>.05?'0 0 0 3px #ffd45a inset':'none'; }
+    btnBladeUp.style.boxShadow=v<-.05?'0 0 0 3px #a58bff inset':'none';
+    btnBladeStop.style.boxShadow=Math.abs(v)<=.05?'0 0 0 3px #a58bff inset':'none';
+    btnBladeDown.style.boxShadow=v>.05?'0 0 0 3px #a58bff inset':'none'; }
 
   rArea.appendChild(btnAUp);
   rArea.appendChild(btnFire);
@@ -13107,11 +13107,11 @@ function setCareer(on){ careerOn=on; try{localStorage.setItem('mm_career',on?'on
   document.body.appendChild(box);
   const mk=(id,txt,title,col,bord)=>{ const b=document.createElement('button'); b.id=id; b.textContent=txt; if(title)b.title=title;
     b.style.cssText='background:rgba(20,28,40,.92);color:'+(col||'#cfe')+';border:1px solid '+(bord||'#2a3a4f')+';border-radius:10px;padding:6px 10px;font:12px system-ui;cursor:pointer;text-align:left;white-space:nowrap;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)'; box.appendChild(b); return b; };
-  mk('progBtn','🎖 Progression','Arbre de déblocages : ce qui est ouvert et ce qu\'il reste à débloquer en crédits','#ffd9a0','#4a3f24').onclick=()=>{ if(typeof PROG!=='undefined')PROG.openProgress(); };
+  mk('progBtn','🎖 Progression','Arbre de déblocages : ce qui est ouvert et ce qu\'il reste à débloquer en crédits','#e7dcff','#3b2f66').onclick=()=>{ if(typeof PROG!=='undefined')PROG.openProgress(); };
   mk('careerBtn','🎯 Carrière').onclick=()=>setCareer(!careerOn);
   mk('toonBtn','✏️ Toon','Mode Anime/Toon : contours encrés (rendu dessin animé)').onclick=()=>setToon(!FX.toon);
   mk('rainbowBtn','🌈 Eau','Eau arc-en-ciel iridescente').onclick=()=>setRainbowWater(waterUniforms.uRainbow.value<0.5);
-  mk('profilBtn','👤 Profil','Compte joueur · sauvegardes · collection · marché','#ffd9a0','#4a3f24').onclick=()=>{ if(typeof openProfilePanel==='function')openProfilePanel(); }; })();
+  mk('profilBtn','👤 Profil','Compte joueur · sauvegardes · collection · marché','#e7dcff','#3b2f66').onclick=()=>{ if(typeof openProfilePanel==='function')openProfilePanel(); }; })();
 // LAYOUT ROBUSTE : la barre du haut se replie sur plusieurs lignes (hauteur variable) -> on place le dock, la colonne d\'outils, le chip crédits et le bouton ▸ SOUS sa hauteur réelle (recalcul au resize) -> plus de chevauchement
 function _positionLeftUI(){ const top=document.getElementById('top'); if(!top)return; const hb=Math.ceil(top.getBoundingClientRect().bottom)+6;
   const bar=document.getElementById('bar'); if(bar)bar.style.top=hb+'px';
