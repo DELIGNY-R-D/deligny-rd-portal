@@ -556,12 +556,16 @@ h3 {
   text-align: center;
 }
 
+/* 16/09 : le cadre perd un cinquieme de sa hauteur (420 -> 336). La couronne
+   est dessinee a taille fixe, centree sur la hauteur du cadre : reduire le
+   cadre retire donc du VIDE au-dessus et au-dessous, sans rapetisser le
+   dessin. La marge haute suit la meme reduction. */
 .logo3d-frame {
   position: relative;
   background: var(--paper);
   overflow: hidden;
-  height: 420px;
-  margin: 28px 0 0;
+  height: 336px;
+  margin: 22px 0 0;
 }
 
 .logo3d-frame #crown-canvas {

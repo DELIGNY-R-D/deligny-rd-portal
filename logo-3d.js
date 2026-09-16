@@ -25,11 +25,12 @@
   }
   window.addEventListener('resize', resize);
 
-  // Vitesse -> couleur : au repos, vert. Plus le balayage est rapide, plus
-  // la teinte glisse vers le bleu, le violet, le rouge, l'orange puis le
-  // jaune au maximum.
+  // Vitesse -> couleur : au repos, vert. Plus le balayage est rapide, plus la
+  // teinte glisse vers le cyan, le bleu, puis le violet. 16/09 : la suite
+  // montait jusqu'au rouge, a l'orange et au jaune ; l'orange est proscrit de
+  // l'identite, la course s'arrete donc au violet.
   var BASE_HUE = 142;
-  var HUE_STOPS = [142, 210, 270, 360, 390, 415];
+  var HUE_STOPS = [142, 172, 196, 224, 258, 284];
   function hueForSpeed(t){
     t = Math.max(0, Math.min(1, t));
     var seg = t * (HUE_STOPS.length - 1);
