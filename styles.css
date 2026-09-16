@@ -1966,3 +1966,15 @@ img.app-banner {
 /* La note n'apparait que si le systeme reclame le mouvement reduit (voir
    presentation.js) : elle explique pourquoi rien ne bouge tout seul. */
 #presNote { color: var(--muted); }
+
+/* 16/09 : un titre de page DOIT etre un h1, y compris quand il vit dans un
+   `.section-head` (mentions legales n'en avait aucun, releve par un audit).
+   Le niveau change, la taille non : un h1 pleine echelle ecraserait une page
+   qui n'est qu'un pave d'informations legales. */
+.section-head h1 {
+  max-width: none;
+  margin-bottom: 12px;
+  font-size: clamp(26px, 3vw, 38px);
+  line-height: 1.1;
+  letter-spacing: -0.01em;
+}
