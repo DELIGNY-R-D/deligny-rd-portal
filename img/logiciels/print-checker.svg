@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="print-checker">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#2f8391"/><stop offset="100%" stop-color="#2e7d46"/>
+  </linearGradient></defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <path d="M240 130 L400 130 L400 264 L240 264 Z"/>
+    <path d="M240 130 L320 86 L480 86 L400 130"/><path d="M400 264 L480 220 L480 86"/>
+    <path d="M268 200 L306 238 L378 162"/>
+  </g>
+  <text x="34" y="360" fill="#ffffff" opacity=".85" font-family="Avenir Next, Avenir, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="3">PC</text>
+</svg>

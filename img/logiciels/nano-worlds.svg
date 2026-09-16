@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="nano-worlds">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#2e7d46"/><stop offset="100%" stop-color="#2f8391"/>
+  </linearGradient></defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <path d="M80 250 L170 170 L250 226 L330 140 L420 214 L500 168 L570 220"/>
+    <path d="M80 296 L170 216 L250 272 L330 186 L420 260 L500 214 L570 266" opacity=".5"/>
+    <circle cx="330" cy="140" r="9" fill="#fff" stroke="none"/>
+  </g>
+  <text x="34" y="360" fill="#ffffff" opacity=".85" font-family="Avenir Next, Avenir, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="3">NW</text>
+</svg>

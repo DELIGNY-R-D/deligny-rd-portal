@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="intension">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#6d4bc0"/><stop offset="100%" stop-color="#4a3a95"/>
+  </linearGradient></defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <path d="M160 280 C220 150 330 120 430 150"/>
+    <path d="M430 150 L470 138 L462 180 Z" fill="#fff" stroke="none" opacity=".9"/>
+    <path d="M160 310 L470 310" opacity=".5"/>
+  </g>
+  <text x="34" y="360" fill="#ffffff" opacity=".85" font-family="Avenir Next, Avenir, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="3">INT</text>
+</svg>

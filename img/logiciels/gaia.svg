@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="gaia">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#3a6ea5"/><stop offset="100%" stop-color="#2e7d46"/>
+  </linearGradient></defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <circle cx="320" cy="196" r="96"/>
+    <ellipse cx="320" cy="196" rx="96" ry="38"/><path d="M320 100 L320 292"/>
+    <circle cx="268" cy="160" r="7" fill="#fff" stroke="none"/><circle cx="372" cy="222" r="7" fill="#fff" stroke="none"/>
+  </g>
+  <text x="34" y="360" fill="#ffffff" opacity=".85" font-family="Avenir Next, Avenir, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="3">GAIA</text>
+</svg>

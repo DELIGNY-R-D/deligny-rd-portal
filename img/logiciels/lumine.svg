@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="lumine">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#2e7d46"/><stop offset="100%" stop-color="#6d4bc0"/>
+  </linearGradient></defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <path d="M170 280 L230 200 L290 246 L350 150 L420 206 L480 130"/>
+    <circle cx="480" cy="130" r="10" fill="#fff" stroke="none"/>
+    <path d="M170 300 L480 300" opacity=".55"/>
+  </g>
+  <text x="34" y="360" fill="#ffffff" opacity=".85" font-family="Avenir Next, Avenir, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="3">LUM</text>
+</svg>

@@ -1990,3 +1990,78 @@ img.app-banner {
   line-height: 1.1;
   letter-spacing: -0.01em;
 }
+
+/* ── Logiciels : grille d'apercus (16/09) ──────────────────────────────
+   La page listait neuf pavés de texte. Elle montre desormais une vignette par
+   logiciel, et le detail vit sur sa propre page : demo, fonctionnalites, etat
+   et prix. Les deux logiciels qui ont une vraie capture la portent ; les
+   autres ont une vignette dessinee, jamais une fausse capture d'ecran. */
+.lg-grille {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
+  gap: clamp(16px, 2.2vw, 26px);
+  margin-top: clamp(24px, 3.5vw, 38px);
+}
+
+.lg-carte {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: var(--panel);
+  text-decoration: none;
+  color: inherit;
+  box-shadow: var(--shadow);
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.lg-carte:hover,
+.lg-carte:focus-visible {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-lift);
+  border-color: var(--accent);
+}
+
+.lg-couv {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 8 / 5;
+  object-fit: cover;
+  background: var(--soft);
+  border-bottom: 1px solid var(--line-2);
+}
+
+.lg-carte-texte { padding: 16px 18px 18px; }
+
+.lg-carte-tete {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.lg-carte-tete h3 { margin: 0; font-size: 17px; }
+.lg-carte-texte p { margin: 0; font-size: 14px; line-height: 1.55; color: var(--ink-dim); }
+
+/* ── Logiciels : page de detail ───────────────────────────────────────── */
+.lgd-tete { padding-bottom: 0; }
+.lgd-tete .eyebrow a { color: inherit; text-decoration: none; }
+.lgd-etat { margin: 10px 0 0; }
+.lgd-chapo { max-width: 62ch; margin: 14px 0 0; font-size: clamp(16px, 1.6vw, 18px); line-height: 1.6; color: var(--ink-dim); }
+.lgd-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 22px; }
+
+.lgd-corps {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: clamp(18px, 3vw, 44px);
+  align-items: start;
+}
+
+.lgd-bloc h2 { font-size: clamp(19px, 2vw, 24px); margin-bottom: 10px; }
+.lgd-bloc h2 + p { margin-bottom: 22px; color: var(--ink-dim); line-height: 1.6; }
+.lgd-points { margin: 0; padding: 0; list-style: none; }
+.lgd-points li { padding: 10px 0; border-top: 1px solid var(--line-2); color: var(--ink-dim); line-height: 1.5; }
+.lgd-retour { padding-top: 0; }
