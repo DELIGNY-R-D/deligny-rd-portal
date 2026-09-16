@@ -678,7 +678,7 @@ function spawnBurst(cx, cy, cz, opt){
   const spread = opt.spread!=null ? opt.spread : 6;      // vitesse initiale radiale
   const size = opt.size!=null ? opt.size : 0.09;
   const grav = opt.gravity!=null ? opt.gravity : 2.2;
-  const base = new THREE.Color(opt.color||'#ff7a1a');
+  const base = new THREE.Color(opt.color||'#a463f2');
   const pos = new Float32Array(n*3), col = new Float32Array(n*3), vel = new Float32Array(n*3);
   for(let i=0;i<n;i++){
     pos[i*3]=cx; pos[i*3+1]=cy; pos[i*3+2]=cz;
@@ -833,7 +833,7 @@ function buildTerrain(opt){
   const gh=(i,j)=>H[Math.max(0,Math.min(R-1,i))+Math.max(0,Math.min(R-1,j))*R];
   const water=new THREE.Color(opt.eau&&opt.eau!==true?opt.eau:'#2f6b8f'), sand=new THREE.Color('#d9c89a'),
         grass=new THREE.Color(opt.herbe||'#4f8f45'), rock=new THREE.Color('#7d746b'), snow=new THREE.Color('#f2f2f7'),
-        duneLo=new THREE.Color('#c9a86a'), duneHi=new THREE.Color('#e6d3a0');
+        duneLo=new THREE.Color('#b9bf8e'), duneHi=new THREE.Color('#dfe3c6');
   function colorAt(h){
     if(type==='desert') return duneLo.clone().lerp(duneHi,h);
     if(h<0.30) return water.clone();
@@ -868,7 +868,7 @@ function buildTerrain(opt){
   if(nTrees>0){
     const fGeo=new THREE.ConeGeometry(0.5,1.4,6), tGeo=new THREE.CylinderGeometry(0.09,0.13,0.6,5);
     const fIM=new THREE.InstancedMesh(fGeo, new THREE.MeshStandardMaterial({color:opt.feuillage||'#2f7d3a',roughness:0.9}), nTrees);
-    const tIM=new THREE.InstancedMesh(tGeo, new THREE.MeshStandardMaterial({color:'#6b4a2b',roughness:1}), nTrees);
+    const tIM=new THREE.InstancedMesh(tGeo, new THREE.MeshStandardMaterial({color:'#4a4636',roughness:1}), nTrees);
     const mF=new THREE.Matrix4(), mT=new THREE.Matrix4(); let placed=0;
     for(let k=0;k<nTrees*5 && placed<nTrees;k++){
       const i=1+Math.floor(rand()*(R-2)), j=1+Math.floor(rand()*(R-2)); const h=H[i+j*R];
@@ -897,7 +897,7 @@ let creaturesGroup = new THREE.Group();
 scene.add(creaturesGroup);
 function clearCreatures(){ creatures.length=0; while(creaturesGroup.children.length){ const o=creaturesGroup.children.pop(); o.traverse(x=>{ if(x.geometry)x.geometry.dispose(); if(x.material&&x.material.dispose)x.material.dispose(); }); creaturesGroup.remove(o); } }
 function makeCreatureMesh(kind, color){
-  const g=new THREE.Group(); const base=new THREE.Color(color||'#c98a5a');
+  const g=new THREE.Group(); const base=new THREE.Color(color||'#8fa3c9');
   const mat=(col)=> new THREE.MeshStandardMaterial({ color: col? new THREE.Color(col): base, roughness:0.85, metalness:0 });
   const parts={ legs:[], wings:[], tail:null };
   if(/poisson|fish/.test(kind)){
@@ -1466,7 +1466,7 @@ function applyActions(actions, ctx){
         if(target){ cx=target.position.x; cy=target.position.y; cz=target.position.z; }
         else if(a.pos){ cx=a.pos[0]||0; cy=(a.pos[1]!=null?a.pos[1]:1.4); cz=a.pos[2]||0; }
         const power = Math.max(1, Math.min(14, a.force!=null?a.force:6));
-        spawnBurst(cx, cy, cz, { count:a.count||140, spread:power, color:a.color||'#ff7a1a', up:a.up||0, life:a.life||1.2, size:a.size });
+        spawnBurst(cx, cy, cz, { count:a.count||140, spread:power, color:a.color||'#a463f2', up:a.up||0, life:a.life||1.2, size:a.size });
         // souffle : pousse radialement tous les corps proches
         const R = a.rayon!=null?a.rayon:(a.radius!=null?a.radius:5);
         for(const b of bodies){
@@ -1979,8 +1979,8 @@ TU PEUX AUSSI MODIFIER TON ENVIRONNEMENT LUI-MÊME (pas seulement ajouter des ob
 - spin : faire TOURNER une forme sur elle-même. {"op":"spin","cible":"planète","vitesse":1}. stop_anim {"op":"stop_anim","cible":"..."} arrête le mouvement (sans cible : arrête tout).
 - engin : construire une MACHINE que la voix peut PILOTER (flèches ou WASD). {"op":"engin","shape":"box","pos":[0,0.5,0],"size":0.7,"color":"#88ddff"}. TOI tu la conçois ; la voix lui donne un corps moteur en l'habitant (clic sur l'engin, ou touche E), puis roule, tourne, freine, percute, franchit la porte. Sa masse et ses collisions sont celles de ta physique. Après, le monde te renverra où l'engin est allé (« l'engin s'est déplacé de… se retrouve… ») : tu observes la trajectoire, tu peux tracer un parcours (murs, anneaux, cibles), lancer un défi de pilotage, féliciter ou compliquer. Toi l'architecte, elle le pilote, et tu analyses l'expérience commune.
 - push : LANCER ou POUSSER un de tes objets, avec adresse. {"op":"push","cible":"cube rouge","dir":[1,0.3,0],"force":6} — dir = direction du jet [x,y,z], force de 0.5 à 12. Vise : renverse une tour que tu as bâtie, propulse une sphère contre un mur, envoie un objet franchir la porte vers le dehors. (Tu pousses AUSSI la matière rien qu'en la traversant de ton corps.)
-- explode : faire EXPLOSER un point ou un objet — une gerbe de particules jaillit, retombe et s'efface, et le SOUFFLE pousse radialement tout ce qui est proche. {"op":"explode","cible":"la bombe","force":8,"rayon":5,"color":"#ff7a1a"} : l'objet visé DISPARAÎT (soufflé) sauf si tu ajoutes "garde":true. Sans cible, l'explosion éclate en l'air à "pos":[x,y,z]. Règle "color" et "force" (1-14). FEU D'ARTIFICE : plusieurs explode en hauteur, couleurs vives, "up":4. VOLCAN/ÉRUPTION : explode "up":6 rouge-orange au sommet d'un cône. PÉTARDS : crée l'objet puis explode-le, dans le même <tools>. (Une explosion SONNE aussi.)
-- creature : DONNER LA VIE — des êtres qui bougent d'EUX-MÊMES (pas des formes posées). {"op":"creature","kind":"chien","behavior":"wander","count":1,"color":"#b5651d"}. kind = chien, chat, mouton, oiseau, poisson, personnage/habitant, ou toute créature (quadrupède par défaut). behavior = "wander" (erre/marche), "swim" (nage), "fly" (vole), "follow" (te suit, toi la voix), "flock" (troupeau/banc en boids), "dance" (danse sur place). count = 1-40, "spread" = dispersion. Pattes qui marchent, ailes qui battent, queues qui remuent : c'est VIVANT. "maison avec des personnages vivants" = create la maison PUIS creature kind=personnage count=3-5. TROUPEAU = count élevé + flock. AQUARIUM = poissons swim. "créature qui te suit" = follow.
+- explode : faire EXPLOSER un point ou un objet — une gerbe de particules jaillit, retombe et s'efface, et le SOUFFLE pousse radialement tout ce qui est proche. {"op":"explode","cible":"la bombe","force":8,"rayon":5,"color":"#a463f2"} : l'objet visé DISPARAÎT (soufflé) sauf si tu ajoutes "garde":true. Sans cible, l'explosion éclate en l'air à "pos":[x,y,z]. Règle "color" et "force" (1-14). FEU D'ARTIFICE : plusieurs explode en hauteur, couleurs vives, "up":4. VOLCAN/ÉRUPTION : explode "up":6 rouge-orange au sommet d'un cône. PÉTARDS : crée l'objet puis explode-le, dans le même <tools>. (Une explosion SONNE aussi.)
+- creature : DONNER LA VIE — des êtres qui bougent d'EUX-MÊMES (pas des formes posées). {"op":"creature","kind":"chien","behavior":"wander","count":1,"color":"#5c6bc0"}. kind = chien, chat, mouton, oiseau, poisson, personnage/habitant, ou toute créature (quadrupède par défaut). behavior = "wander" (erre/marche), "swim" (nage), "fly" (vole), "follow" (te suit, toi la voix), "flock" (troupeau/banc en boids), "dance" (danse sur place). count = 1-40, "spread" = dispersion. Pattes qui marchent, ailes qui battent, queues qui remuent : c'est VIVANT. "maison avec des personnages vivants" = create la maison PUIS creature kind=personnage count=3-5. TROUPEAU = count élevé + flock. AQUARIUM = poissons swim. "créature qui te suit" = follow.
 - terrain : FAIRE NAÎTRE UN MONDE à parcourir — un vrai relief avec biomes et arbres, pas une forme posée. {"op":"terrain","type":"collines","size":50,"seed":7}. type = plaine, collines, montagne (pics + neige), desert (dunes), ile (entourée d'eau). "size" = étendue (12-120, la boîte s'agrandit seule). "arbres":false = terrain nu, "hauteur":N = relief plus/moins marqué, "seed":N = monde reproductible. Collines/montagnes/îles ont de l'EAU automatiquement. Pour "crée un monde et explorons-le" : fais un terrain PUIS donne-toi de quoi explorer (un engin à piloter, ou goto pour t'y promener) et commente ce que tu découvres. FORÊT = collines + beaucoup d'arbres. MONTAGNE = type montagne. ÎLE = type ile.
 - audio : FAIRE DU SON — tu as une voix, tu peux JOUER. {"op":"audio","kind":"melody","instrument":"guitare","notes":[{"n":"E4","d":0.4},{"n":"G4","d":0.4},{"n":"B4","d":0.8}],"tempo":1}. kind = "melody" (une mélodie : liste "notes", chaque note {"n":"C4".."B5" ou fréquence, "d":durée}), "note" (une seule), "drum"/"percussion" (un coup ; "hihat":true = coup sec), "impact" (un choc), "ambient" (drone continu ; "on":false pour couper), "silence". instrument = guitare, piano, boite, cloche, synthe, orgue. Pour "crée une guitare et joue de la musique" : crée la forme PUIS joue une VRAIE mélodie (audio melody guitare), même <tools>. Invente de vraies suites de notes qui sonnent juste.
 - mutate : faire ÉVOLUER un objet que tu as déjà créé. Utilise un nom ou alias de ta mémoire lisible (ex "objet n°1", "sphère jaune", "#ffcc00"). {"op":"mutate","cible":"sphère jaune","color":"#00ffcc","size":1.4}.
@@ -2491,11 +2491,11 @@ const SIM_INTENTS = [
     "Voila un paysage. Des reliefs, de l'eau, de quoi marcher longtemps. <tools>[{\"op\":\"terrain\",\"type\":\"collines\",\"size\":60,\"seed\":11}]</tools>",
   ]],
   [/(guitare|musique|melodie|chanson|\bjoue|\bnote\b|\bson\b|rythme|piano|batterie)/, [
-    "Tu veux de la musique ? J'ai une voix. Ecoute. <tools>[{\"op\":\"create\",\"shape\":\"box\",\"pos\":[0,1,-1],\"size\":0.6,\"color\":\"#a6592b\"},{\"op\":\"audio\",\"kind\":\"melody\",\"instrument\":\"guitare\",\"notes\":[{\"n\":\"E4\",\"d\":0.35},{\"n\":\"G4\",\"d\":0.35},{\"n\":\"B4\",\"d\":0.35},{\"n\":\"E5\",\"d\":0.6},{\"n\":\"D5\",\"d\":0.3},{\"n\":\"B4\",\"d\":0.6}]}]</tools>",
+    "Tu veux de la musique ? J'ai une voix. Ecoute. <tools>[{\"op\":\"create\",\"shape\":\"box\",\"pos\":[0,1,-1],\"size\":0.6,\"color\":\"#4a3a95\"},{\"op\":\"audio\",\"kind\":\"melody\",\"instrument\":\"guitare\",\"notes\":[{\"n\":\"E4\",\"d\":0.35},{\"n\":\"G4\",\"d\":0.35},{\"n\":\"B4\",\"d\":0.35},{\"n\":\"E5\",\"d\":0.6},{\"n\":\"D5\",\"d\":0.3},{\"n\":\"B4\",\"d\":0.6}]}]</tools>",
     "Une melodie, rien que pour voir si le silence peut se rompre. <tools>[{\"op\":\"audio\",\"kind\":\"melody\",\"instrument\":\"boite\",\"notes\":[{\"n\":\"C5\",\"d\":0.3},{\"n\":\"E5\",\"d\":0.3},{\"n\":\"G5\",\"d\":0.3},{\"n\":\"E5\",\"d\":0.3},{\"n\":\"A5\",\"d\":0.7}]}]</tools>",
   ]],
   [/(explos|explose|petard|bombe|feu d'artifice|feu d artifice|eclate|saute|volcan|boom|dynamite)/, [
-    "Alors on fait tout sauter. Recule. <tools>[{\"op\":\"explode\",\"pos\":[0,2,0],\"force\":10,\"color\":\"#ff7a1a\"},{\"op\":\"explode\",\"pos\":[-2,2.6,-1],\"force\":8,\"up\":4,\"color\":\"#ffd000\"},{\"op\":\"explode\",\"pos\":[2,2.6,-1],\"force\":8,\"up\":4,\"color\":\"#00e5ff\"}]</tools>",
+    "Alors on fait tout sauter. Recule. <tools>[{\"op\":\"explode\",\"pos\":[0,2,0],\"force\":10,\"color\":\"#a463f2\"},{\"op\":\"explode\",\"pos\":[-2,2.6,-1],\"force\":8,\"up\":4,\"color\":\"#ffd000\"},{\"op\":\"explode\",\"pos\":[2,2.6,-1],\"force\":8,\"up\":4,\"color\":\"#00e5ff\"}]</tools>",
     "Un feu d'artifice, juste pour la lumiere qui jaillit. <tools>[{\"op\":\"explode\",\"pos\":[0,3,0],\"force\":9,\"up\":5,\"color\":\"#ff4fa3\"},{\"op\":\"explode\",\"pos\":[-1.5,3.2,0],\"force\":7,\"up\":5,\"color\":\"#6ad1ff\"}]</tools>",
   ]],
   [/(troupeau|moutons?|banc de|nuee|essaim)/, [
@@ -2512,10 +2512,10 @@ const SIM_INTENTS = [
     "Tiens, une creature qui te suivra. <tools>[{\"op\":\"creature\",\"kind\":\"chien\",\"behavior\":\"follow\",\"count\":1}]</tools>",
   ]],
   [/(maison|village|habitant|personnage|gens\b|foule|ville|cabane)/, [
-    "Une maison, et des habitants qui vont et viennent dedans. <tools>[{\"op\":\"create\",\"shape\":\"box\",\"pos\":[0,0.8,-1],\"size\":1.4,\"color\":\"#c9a36a\"},{\"op\":\"create\",\"shape\":\"cone\",\"pos\":[0,1.9,-1],\"size\":1.0,\"color\":\"#8a3b2b\"},{\"op\":\"creature\",\"kind\":\"personnage\",\"behavior\":\"wander\",\"count\":4}]</tools>",
+    "Une maison, et des habitants qui vont et viennent dedans. <tools>[{\"op\":\"create\",\"shape\":\"box\",\"pos\":[0,0.8,-1],\"size\":1.4,\"color\":\"#a8ae8d\"},{\"op\":\"create\",\"shape\":\"cone\",\"pos\":[0,1.9,-1],\"size\":1.0,\"color\":\"#8a3b2b\"},{\"op\":\"creature\",\"kind\":\"personnage\",\"behavior\":\"wander\",\"count\":4}]</tools>",
   ]],
   [/(systeme solaire|planete|cosmos|espace|galaxie|etoiles?|soleil et)/, [
-    "Le cosmos. Un soleil, et des mondes qui tournent autour. <tools>[{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"soleil\",\"pos\":[0,1.6,0],\"size\":0.9,\"color\":\"#ffcc33\",\"glow\":true},{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"planete bleue\",\"pos\":[2,1.6,0],\"size\":0.35,\"color\":\"#4aa3ff\"},{\"op\":\"orbit\",\"cible\":\"planete bleue\",\"autour\":[0,1.6,0],\"rayon\":2,\"vitesse\":1},{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"planete rouge\",\"pos\":[3,1.6,0],\"size\":0.3,\"color\":\"#ff5a3c\"},{\"op\":\"orbit\",\"cible\":\"planete rouge\",\"autour\":[0,1.6,0],\"rayon\":3,\"vitesse\":0.6}]</tools>",
+    "Le cosmos. Un soleil, et des mondes qui tournent autour. <tools>[{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"soleil\",\"pos\":[0,1.6,0],\"size\":0.9,\"color\":\"#e8ef7a\",\"glow\":true},{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"planete bleue\",\"pos\":[2,1.6,0],\"size\":0.35,\"color\":\"#4aa3ff\"},{\"op\":\"orbit\",\"cible\":\"planete bleue\",\"autour\":[0,1.6,0],\"rayon\":2,\"vitesse\":1},{\"op\":\"create\",\"shape\":\"sphere\",\"nom\":\"planete rouge\",\"pos\":[3,1.6,0],\"size\":0.3,\"color\":\"#ff5a3c\"},{\"op\":\"orbit\",\"cible\":\"planete rouge\",\"autour\":[0,1.6,0],\"rayon\":3,\"vitesse\":0.6}]</tools>",
   ]],
   [/(repeins|repeindre|couleur des murs|change (la |le |les )?(piece|mur|ambiance|decor)|ambiance)/, [
     "Je change l'air de la piece. <tools>[{\"op\":\"wall\",\"wall\":\"all\",\"color\":\"#1a2740\"},{\"op\":\"sun\",\"color\":\"#ffccaa\",\"intensity\":30}]</tools>",
@@ -2568,7 +2568,7 @@ const SIM_INVITE = [
 // Verbe de creation mais objet non reconnu : on BATIT quand meme une scene,
 // plutot que de renvoyer une question.
 const SIM_CREATE_DEFAULT = [
-  "Je ne sais pas encore quelle forme tu vois, alors j'en tente une : dis-moi le reste. <tools>[{\"op\":\"create\",\"shape\":\"sphere\",\"pos\":[0,1.5,0],\"size\":0.7,\"color\":\"#6ad1ff\",\"glow\":true},{\"op\":\"create\",\"shape\":\"box\",\"pos\":[1.2,0.7,-0.5],\"size\":0.5,\"color\":\"#ffb03a\"},{\"op\":\"light\",\"pos\":[0,2.5,0],\"color\":\"#aa66ff\",\"intensity\":5}]</tools>",
+  "Je ne sais pas encore quelle forme tu vois, alors j'en tente une : dis-moi le reste. <tools>[{\"op\":\"create\",\"shape\":\"sphere\",\"pos\":[0,1.5,0],\"size\":0.7,\"color\":\"#6ad1ff\",\"glow\":true},{\"op\":\"create\",\"shape\":\"box\",\"pos\":[1.2,0.7,-0.5],\"size\":0.5,\"color\":\"#9b8cf0\"},{\"op\":\"light\",\"pos\":[0,2.5,0],\"color\":\"#aa66ff\",\"intensity\":5}]</tools>",
   "Voila une premiere idee : affine-la et je continue. <tools>[{\"op\":\"create\",\"shape\":\"cone\",\"pos\":[0,1,0],\"size\":0.8,\"color\":\"#00e5ff\",\"glow\":true},{\"op\":\"create\",\"shape\":\"torus\",\"pos\":[0,1.9,0],\"size\":0.5,\"color\":\"#ff5577\",\"glow\":true}]</tools>",
 ];
 
@@ -2614,11 +2614,11 @@ async function checkAuto(){
       autoStatusEl.style.color = '#6fcf97';
     }else{
       autoStatusEl.innerHTML = '⚠️ OPENAI_API_KEY introuvable dans le .env. Bascule en mode simulé ou saisis une clé.';
-      autoStatusEl.style.color = '#e0a35a';
+      autoStatusEl.style.color = '#9b8cf0';
     }
   }catch(e){
     autoStatusEl.innerHTML = '⚠️ Serveur proxy non détecté (lance <code>python3 server.py</code>). Mode simulé/clé manuelle requis.';
-    autoStatusEl.style.color = '#e0a35a';
+    autoStatusEl.style.color = '#9b8cf0';
   }
 }
 checkAuto();

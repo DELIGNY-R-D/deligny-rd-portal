@@ -354,7 +354,7 @@ if('serviceWorker' in navigator){
 <button id="techToggle" title="Masquer les outils" aria-label="Masquer les outils">×</button>
 <div id="bar"></div>
 <div id="hint">1 doigt = agir · 2 doigts = pivoter/zoomer</div>
-<div id="cmds"><b style="color:#fff">Commandes</b><br><span style="color:#5ad1ff">👆 1 doigt : pivoter / agir</span><br><span style="color:#5ce6a1">✌️ 2 doigts : déplacer · pinch : zoom</span><br><span style="color:#c98aff">⌨️ ZQSD / flèches : déplacer</span><br><span style="color:#f2c14a">🖱 Clic droit : pivoter · molette : zoom</span></div>
+<div id="cmds"><b style="color:#fff">Commandes</b><br><span style="color:#5ad1ff">👆 1 doigt : pivoter / agir</span><br><span style="color:#5ce6a1">✌️ 2 doigts : déplacer · pinch : zoom</span><br><span style="color:#c98aff">⌨️ ZQSD / flèches : déplacer</span><br><span style="color:#a58bff">🖱 Clic droit : pivoter · molette : zoom</span></div>
 <div id="chronicleBar"></div>
 
 <script async src="./vendor/es-module-shims.js?v=cccb3be3"></script>
@@ -502,7 +502,7 @@ function updateOffroadHUD(){ let h=document.getElementById('offHud'); const a=(t
   if(!a||a._boat){ if(h)h.style.display='none'; return; }
   if(!h){ h=document.createElement('div'); h.id='offHud'; h.style.cssText='position:fixed;left:14px;top:118px;background:rgba(12,16,22,.9);color:#dfe;padding:8px 12px;border-radius:10px;font:12px system-ui;z-index:61;pointer-events:none;line-height:1.55;box-shadow:0 4px 16px rgba(0,0,0,.4)'; document.body.appendChild(h); }
   const grip=Math.round((a._offGrip!=null?a._offGrip:1)*100), slip=Math.round((a._offSlip||0)*100), stuck=Math.round(Math.min(1,(a._stuck||0))*100);
-  const st=a._stuckState||'normal', col=st==='stuck'?'#ff5a4a':st==='struggling'?'#ffb24a':'#36e0a0';
+  const st=a._stuckState||'normal', col=st==='stuck'?'#ff5a4a':st==='struggling'?'#8b6ad6':'#36e0a0';
   h.innerHTML='🛻 Sol : <b>'+(a._offMat||'—')+'</b> · Pneu '+(a._tireName||'—')+(a._awd?' · AWD':'')+(a._diff?' · Diff':'')+'<br>Grip '+grip+'% · Slip '+slip+'%'+(a._bodyContact?' · <span style="color:#b06fff">caisse ✦</span>':'')+'<br>Enlisé <span style="color:'+col+'">'+stuck+'% '+(st==='stuck'?'⚠ ENLISÉ':st==='struggling'?'· patine':'· OK')+'</span>';
   h.style.display='block'; }
 const wbuf   = new Float32Array(N*N);
@@ -5410,7 +5410,7 @@ function openModPanel(t){ if(!t)return; const type=t.type, obj=t.obj;
     (r.kind==='color'?'<input id="mod'+i+'" type="color" value="'+r.val+'" style="width:46px;height:26px;border:0;background:none;cursor:pointer">'
      :r.kind==='cycle'?'<button id="mod'+i+'" style="background:#26303f;color:#cfe;border:0;border-radius:7px;padding:4px 11px;cursor:pointer;min-width:104px">'+r.cur()+'</button>'
      :r.kind==='toggle'?'<button id="mod'+i+'" style="background:'+(r.active()?'#2a6a4a':'#26303f')+';color:#cfe;border:0;border-radius:7px;padding:4px 11px;cursor:pointer;min-width:74px">'+(r.active()?'✓ activé':'activer')+'</button>'
-     :r.kind==='action'?'<button id="mod'+i+'" style="background:#7a5a1a;color:#ffe7b0;border:0;border-radius:7px;padding:5px 12px;cursor:pointer;font-weight:700;min-width:104px">'+r.btn()+'</button>'
+     :r.kind==='action'?'<button id="mod'+i+'" style="background:#3b2f66;color:#e7dcff;border:0;border-radius:7px;padding:5px 12px;cursor:pointer;font-weight:700;min-width:104px">'+r.btn()+'</button>'
                      :'<input id="mod'+i+'" type="range" min="'+r.min+'" max="'+r.max+'" value="'+r.val+'" style="width:140px;accent-color:#36e0a0">')+'</div>'; });
   p.innerHTML=html;
   rows.forEach((r,i)=>{ const el=p.querySelector('#mod'+i);
@@ -5430,7 +5430,7 @@ function openAtelier(){ let pn=document.getElementById('atelierPanel');
       '<div style="margin-bottom:6px;clear:both">Module <select id="atMo" style="float:right">'+mo.map(c=>'<option>'+c+'</option>').join('')+'</select></div>'+
       '<div style="clear:both;text-align:right;margin-bottom:8px"><button id="atAdd">➕ Rajouter module</button></div>'+
       '<div id="atList" style="clear:both;margin-bottom:10px;font-size:12px;line-height:1.9"></div>'+
-      '<div style="margin-bottom:6px;clear:both">Couleur <input type="color" id="atCol" value="#e1a200" style="float:right"><button id="atColSave" title="Sauvegarder cette couleur dans la palette" style="float:right;margin-right:6px">🎨+</button></div>'+
+      '<div style="margin-bottom:6px;clear:both">Couleur <input type="color" id="atCol" value="#6d4bc0" style="float:right"><button id="atColSave" title="Sauvegarder cette couleur dans la palette" style="float:right;margin-right:6px">🎨+</button></div>'+
       '<div id="atPal" style="clear:both;display:flex;flex-wrap:wrap;gap:4px;margin-bottom:12px"></div>'+
       '<div style="clear:both;border-top:1px solid #2a3340;margin:4px 0 8px;padding-top:8px;font-size:11px;color:#7fb0d0">💾 MES CRÉATIONS</div>'+
       '<div style="margin-bottom:6px;display:flex;gap:5px"><input id="atName" placeholder="nom de la création" style="flex:1;min-width:0;background:#1a2230;color:#cfe;border:1px solid #2a3a4f;border-radius:6px;padding:4px"><button id="atSave" title="Enregistrer la config actuelle">💾</button></div>'+
@@ -5457,7 +5457,7 @@ function openAtelier(){ let pn=document.getElementById('atelierPanel');
     const setCols=(a)=>{ try{localStorage.setItem(CCKEY,JSON.stringify(a));}catch(e){} };
     const refreshPal=()=>{ const el=pn.querySelector('#atPal'); const cols=getCols();
       el.innerHTML=cols.length?cols.map((c,i)=>'<span data-c="'+i+'" title="'+c+' — clic = appliquer · clic droit = retirer" style="width:18px;height:18px;border-radius:4px;cursor:pointer;border:1px solid #3a4658;display:inline-block;background:'+c+'"></span>').join(''):'<i style="color:#7a8aa0;font-size:11px">palette vide — 🎨+ pour sauver une couleur</i>';
-      el.querySelectorAll('span[data-c]').forEach(s=>{ s.onclick=()=>{ pn.querySelector('#atCol').value=getCols()[+s.getAttribute('data-c')]||'#e1a200'; };
+      el.querySelectorAll('span[data-c]').forEach(s=>{ s.onclick=()=>{ pn.querySelector('#atCol').value=getCols()[+s.getAttribute('data-c')]||'#6d4bc0'; };
         s.oncontextmenu=ev=>{ ev.preventDefault(); const l=getCols(); l.splice(+s.getAttribute('data-c'),1); setCols(l); refreshPal(); }; }); };
     refreshPal();
     pn.querySelector('#atColSave').onclick=()=>{ const c=pn.querySelector('#atCol').value; const l=getCols(); if(!l.includes(c)){ l.push(c); setCols(l); refreshPal(); if(typeof flashMsg==='function')flashMsg('🎨 Couleur '+c+' ajoutée à la palette'); } };
@@ -5467,7 +5467,7 @@ function openAtelier(){ let pn=document.getElementById('atelierPanel');
       const list=getSaved(), ix=list.findIndex(s=>s.name===name); if(ix>=0)list[ix]=cfg; else list.push(cfg); setSaved(list); refreshSaved();
       if(typeof flashMsg==='function')flashMsg('💾 « '+name+' » enregistré'); };
     pn.querySelector('#atLoadBtn').onclick=()=>{ const list=getSaved(), i=+pn.querySelector('#atLoad').value; if(i<0||!list[i])return; const s=list[i];
-      pn.querySelector('#atCh').value=s.chassis; pn.querySelector('#atCol').value=s.color||'#e1a200';
+      pn.querySelector('#atCh').value=s.chassis; pn.querySelector('#atCol').value=s.color||'#6d4bc0';
       atModules.length=0; (s.modules||[]).forEach(m=>atModules.push(m)); renderList(); pn.querySelector('#atName').value=s.name;
       if(typeof flashMsg==='function')flashMsg('📂 « '+s.name+' » chargé'); };
     pn.querySelector('#atDel').onclick=()=>{ const list=getSaved(), i=+pn.querySelector('#atLoad').value; if(i<0||!list[i])return; const nm=list[i].name;
@@ -10071,7 +10071,7 @@ function openNanoMenu(){ let p=document.getElementById('nanoMenu'); if(p){p.remo
   const statsHtml=ast.hasSave?`
     <div style="font-size:10px;color:#4a6878;margin-bottom:10px">🌐 Seed #${ast.seed} · ${SEASONS[(ast.season||1)-1]||''} · ${ast.worlds.length} monde${ast.worlds.length!==1?'s':''} sauvegardé${ast.worlds.length!==1?'s':''}</div>
     <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(74px,1fr));gap:6px;margin-bottom:14px">${INFRA.map(([em,lb,v])=>`<div style="background:rgba(10,16,28,.9);border-radius:9px;padding:7px 4px;text-align:center;border:1px solid rgba(40,60,90,.4)"><div style="font-size:17px">${em}</div><div style="font-size:15px;font-weight:700;color:#bcd6f0;margin:1px 0">${v}</div><div style="font-size:9px;color:#3a5870">${lb}</div></div>`).join('')}</div>
-    ${dnaAvg?`<div style="margin-bottom:12px"><div style="font-size:10px;color:#4a7090;text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🧬 ADN des mondes (moy. ${ast.dnas.length})</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 18px">${[['🌿 Biodiversité',dnaAvg.bi,'#4ade80'],['🏙 Urbanisme',dnaAvg.pu,'#60a5fa'],['💧 Hydrologie',dnaAvg.hy,'#38bdf8'],['🌋 Volcanisme',dnaAvg.vo,'#f97316'],['⛈ Agressivité',dnaAvg.cl,'#a78bfa']].map(([lb,v,c])=>`<div><div style="font-size:10px;color:#6a8aac;margin-bottom:2px">${lb}</div>${dbar(v,c)}</div>`).join('')}</div></div>`:''}
+    ${dnaAvg?`<div style="margin-bottom:12px"><div style="font-size:10px;color:#4a7090;text-transform:uppercase;letter-spacing:.7px;margin-bottom:7px">🧬 ADN des mondes (moy. ${ast.dnas.length})</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:5px 18px">${[['🌿 Biodiversité',dnaAvg.bi,'#4ade80'],['🏙 Urbanisme',dnaAvg.pu,'#60a5fa'],['💧 Hydrologie',dnaAvg.hy,'#38bdf8'],['🌋 Volcanisme',dnaAvg.vo,'#7e57c2'],['⛈ Agressivité',dnaAvg.cl,'#a78bfa']].map(([lb,v,c])=>`<div><div style="font-size:10px;color:#6a8aac;margin-bottom:2px">${lb}</div>${dbar(v,c)}</div>`).join('')}</div></div>`:''}
     ${realmE.length?`<div style="margin-bottom:10px"><div style="font-size:10px;color:#4a7090;text-transform:uppercase;letter-spacing:.7px;margin-bottom:5px">🌍 Empires & Réalités</div><div style="font-size:11px;color:#8aabcc;line-height:1.8">${realmStr}</div></div>`:''}
     ${ast.biomes.length?`<div style="font-size:10px;color:#3a5870;margin-bottom:6px">🗺 Biomes explorés : ${ast.biomes.join(' · ')}</div>`:''}
     ${ast.robi?`<div style="font-size:10px;color:#3a6a5a">🤖 Robi — 💰 ${ast.robi.money||0} cr</div>`:''}
@@ -10189,7 +10189,7 @@ function openBookOfWorlds(){
   const saves=listWorlds();
   const _dnaBar=(v,col)=>`<div style="width:${Math.round((v||0)*100)}%;height:6px;background:${col};border-radius:3px;min-width:2px"></div>`;
   const _dnaRow=(lbl,v,col)=>`<div style="display:flex;align-items:center;gap:6px;margin:3px 0"><span style="width:24px;font-size:11px;opacity:.7">${lbl}</span><div style="flex:1;background:#1a2030;border-radius:3px;overflow:hidden">${_dnaBar(v,col)}</div><span style="width:28px;text-align:right;font-size:10px;opacity:.6">${Math.round((v||0)*100)}%</span></div>`;
-  const _typeColor={era:'#36e0a0',catastrophe:'#e04040',renaissance:'#a060ff',milestone:'#e0b040',event:'#6090d0'};
+  const _typeColor={era:'#36e0a0',catastrophe:'#e04040',renaissance:'#a060ff',milestone:'#5c6bc0',event:'#6090d0'};
   const _chrBadge=e=>`<span style="display:inline-block;background:rgba(${_typeColor[e.t]||'#6090d0'},0.18);border:1px solid ${_typeColor[e.t]||'#6090d0'};border-radius:8px;padding:1px 7px;font-size:10px;color:${_typeColor[e.t]||'#cde'};margin:2px 1px;white-space:nowrap">${e.n}</span>`;
 
   const cards=saves.map(nm=>{
@@ -10247,7 +10247,7 @@ function openProfilePanel(){ let p=document.getElementById('profilPanel');
   if(tab==='compte'){ h+='<div style="line-height:2">Pseudo <input id="pPseudo" value="'+esc(a.pseudo||'')+'" placeholder="ton pseudo" style="float:right;background:#0e1218;border:1px solid #2a3340;border-radius:7px;color:#dfe;padding:4px 8px;width:150px"></div><div style="line-height:2">🪙 Crédits <b style="float:right;color:#ffd24a">'+credits+'</b></div><div style="line-height:2">🎖 Collection <b style="float:right">'+a.collection.length+' objet(s)</b></div><div style="font-size:11px;color:#9ab;margin-top:8px">Prototype LOCAL (cet appareil). Le jeu en ligne avec les autres joueurs nécessitera un serveur — à brancher ensuite.</div>'; }
   else if(tab==='parties'){ const _pfx=_cartPfx()+'world_'; const keys=Object.keys(localStorage).filter(k=>k.startsWith(_pfx)).map(k=>k.slice(_pfx.length));
     h+='<div style="display:flex;gap:6px;margin-bottom:8px"><input id="pSaveName" placeholder="nom de la partie" style="flex:1;padding:7px;border-radius:8px;border:1px solid #345;background:#1a1f27;color:#dfe"><button id="pSave" style="background:#2a6a4a;color:#dfe;border:0;border-radius:8px;padding:8px 12px;cursor:pointer;font-weight:600">💾 Sauver</button></div>'+(keys.length?'':'<div style="color:#9ab">Aucune partie sauvée.</div>')+keys.map(k=>'<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="flex:1">🗺 '+esc(k)+'</span><button class="pLoad" data-k="'+esc(k)+'" style="background:#26303f;color:#cfe;border:0;border-radius:6px;padding:4px 10px;cursor:pointer">Charger</button><button class="pDel" data-k="'+esc(k)+'" style="background:#5a2a2a;color:#fcc;border:0;border-radius:6px;padding:4px 8px;cursor:pointer">🗑</button></div>').join(''); }
-  else if(tab==='collec'){ h+=(a.collection.length?'':'<div style="color:#9ab">Collection vide. Achète au Marché, ou trouve des bâtiments rares/légendaires (gemme sur le toit).</div>')+a.collection.map((it,i)=>'<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="flex:1">'+(it.emoji||'🎖')+' '+esc(it.name)+(it.tier===2?' ⭐':it.tier===1?' 💜':'')+'</span><button class="pSell" data-i="'+i+'" style="background:#7a5a1a;color:#ffe7b0;border:0;border-radius:6px;padding:4px 10px;cursor:pointer">Vendre +'+Math.round((it.base||100)*0.7)+'</button></div>').join(''); }
+  else if(tab==='collec'){ h+=(a.collection.length?'':'<div style="color:#9ab">Collection vide. Achète au Marché, ou trouve des bâtiments rares/légendaires (gemme sur le toit).</div>')+a.collection.map((it,i)=>'<div style="display:flex;gap:6px;align-items:center;margin:4px 0"><span style="flex:1">'+(it.emoji||'🎖')+' '+esc(it.name)+(it.tier===2?' ⭐':it.tier===1?' 💜':'')+'</span><button class="pSell" data-i="'+i+'" style="background:#3b2f66;color:#e7dcff;border:0;border-radius:6px;padding:4px 10px;cursor:pointer">Vendre +'+Math.round((it.base||100)*0.7)+'</button></div>').join(''); }
   else { if(!p._offers)p._offers=_MARKET_ITEMS.map(it=>({id:it.id,emoji:it.emoji,name:it.name,tier:it.tier,base:it.base,seller:_MARKET_SELLERS[(Math.random()*_MARKET_SELLERS.length)|0],price:Math.round(it.base*(0.85+Math.random()*0.5))})).sort(()=>Math.random()-0.5).slice(0,5);
     h+='<div style="font-size:11px;color:#9ab;margin-bottom:6px">Offres des autres joueurs (simulé en local) :</div>'+p._offers.map((o,i)=>'<div style="display:flex;gap:6px;align-items:center;margin:5px 0"><span style="flex:1">'+o.emoji+' '+esc(o.name)+(o.tier===2?' ⭐':' 💜')+'<br><span style="font-size:11px;color:#9ab">par '+esc(o.seller)+'</span></span><button class="pBuy" data-i="'+i+'" style="background:'+(credits>=o.price?'#2a6a4a':'#3a2a2a')+';color:#cfe;border:0;border-radius:6px;padding:5px 11px;cursor:pointer">🪙 '+o.price+'</button></div>').join('')+'<button id="pRefresh" style="width:100%;background:#26303f;color:#cfe;border:0;border-radius:7px;padding:6px;cursor:pointer;margin-top:6px">↻ Nouvelles offres</button>'; }
   p.innerHTML=h; p._tab=tab; p.style.display='block';
@@ -10430,19 +10430,19 @@ function updateCmds(){ const box=document.getElementById('cmds'); if(!box)return
   const nav='<b style="color:#ffffff">Commandes</b><br><span style="line-height:1.6">'
     +'<span style="color:#5ad1ff">👆 1 doigt : '+one+'</span><br>'
     +'<span style="color:#5ce6a1">✌️ 2 doigts : déplacer · pinch/molette : zoom</span><br>'
-    +'<span style="color:#f2c14a">🖱 Clic droit : '+rc+'</span></span>';
+    +'<span style="color:#a58bff">🖱 Clic droit : '+rc+'</span></span>';
   const pc=pilotCtrlText();
   if(pc){ const bd=(pilotedCar&&pilotedCar._bulldozer)?pilotedCar:null, dr=(pilotedCar&&pilotedCar._drift)?pilotedCar:null;
     let dozUI='', driftUI='';
     if(dr){ driftUI='<div style="display:flex;align-items:center;gap:6px;margin:5px 0 2px"><span title="force du drift">🌀</span><input id="driftAmt" type="range" min="20" max="120" value="'+Math.round((dr._driftAmt||0.62)*100)+'" style="flex:1;accent-color:#c98aff"></div>'; }
-    if(bd){ dozUI='<div style="height:1px;background:#2a3340;margin:6px 0"></div><b style="color:#e7b24a">🚜 Lame</b>'
-      +'<div style="display:flex;align-items:center;gap:6px;margin:4px 0"><span title="force — gauche monte, centre neutre, droite creuse">💪</span><input id="dozForce" type="range" min="-100" max="100" value="'+Math.round((bd.dozForce||0)*100)+'" style="flex:1;accent-color:#e7b24a"></div>'
+    if(bd){ dozUI='<div style="height:1px;background:#2a3340;margin:6px 0"></div><b style="color:#9b8cf0">🚜 Lame</b>'
+      +'<div style="display:flex;align-items:center;gap:6px;margin:4px 0"><span title="force — gauche monte, centre neutre, droite creuse">💪</span><input id="dozForce" type="range" min="-100" max="100" value="'+Math.round((bd.dozForce||0)*100)+'" style="flex:1;accent-color:#9b8cf0"></div>'
       +'<div style="font-size:10px;color:#9ab;margin:-2px 0 3px;display:flex;justify-content:space-between"><span>⬅️ monte</span><span>centre = neutre</span><span>creuse ➡️</span></div>'
-      +'<div style="display:flex;align-items:center;gap:6px;margin:4px 0"><span title="largeur">↔️</span><input id="dozWidth" type="range" min="10" max="55" value="'+Math.round((bd.dozWidth||2.6)*10)+'" style="flex:1;accent-color:#e7b24a"></div>'
-      +'<button id="dozTilt" title="quand le curseur MONTE la terre : rampe en pente OU monticule" style="width:100%;margin-top:2px;cursor:pointer;border-radius:6px;border:0;padding:5px;background:'+(bd.dozTilt?'#7a5a1a':'#2a3340')+';color:#dfe">'+(bd.dozTilt?'⛰️ Montée: RAMPE (pentes)':'▭ Montée: MONTICULE')+'</button>'; }
+      +'<div style="display:flex;align-items:center;gap:6px;margin:4px 0"><span title="largeur">↔️</span><input id="dozWidth" type="range" min="10" max="55" value="'+Math.round((bd.dozWidth||2.6)*10)+'" style="flex:1;accent-color:#9b8cf0"></div>'
+      +'<button id="dozTilt" title="quand le curseur MONTE la terre : rampe en pente OU monticule" style="width:100%;margin-top:2px;cursor:pointer;border-radius:6px;border:0;padding:5px;background:'+(bd.dozTilt?'#3b2f66':'#2a3340')+';color:#dfe">'+(bd.dozTilt?'⛰️ Montée: RAMPE (pentes)':'▭ Montée: MONTICULE')+'</button>'; }
     box.innerHTML='<b style="color:#7fd0a0">🎮 Véhicule</b><br><span style="line-height:1.7">'+pc+' · <b>E</b> sortir · <b>V</b> vue · <b>Échap</b></span>'
       +'<div style="display:flex;align-items:center;gap:6px;margin:7px 0 4px"><span title="vitesse — défaut au centre">🏎</span><input id="pilotSpd" type="range" min="40" max="300" value="'+Math.round((pilotSpd||1.7)*100)+'" style="flex:1;accent-color:#36e0a0"></div>'
-      +'<div style="display:flex;align-items:center;gap:6px;margin:4px 0"><span title="hauteur de saut — défaut au centre — Espace pour sauter">🦘</span><input id="jumpMul" type="range" min="40" max="240" value="'+Math.round((jumpMul||1.4)*100)+'" style="flex:1;accent-color:#f2c14a"></div>'
+      +'<div style="display:flex;align-items:center;gap:6px;margin:4px 0"><span title="hauteur de saut — défaut au centre — Espace pour sauter">🦘</span><input id="jumpMul" type="range" min="40" max="240" value="'+Math.round((jumpMul||1.4)*100)+'" style="flex:1;accent-color:#a58bff"></div>'
       +'<div style="font-size:11px;color:#9ab;margin:-1px 0 3px">⎵ Espace = saut · en l\'air : ↑↓ salto · ←→ tonneau</div>'
       +driftUI+'<button id="physReset" title="Remet vitesse, saut, gravité, suspension et drift sur le réglage Trophy Truck par défaut" style="width:100%;margin:5px 0 2px;cursor:pointer;border-radius:7px;border:0;padding:6px;background:#2a3340;color:#cfe;font-weight:600">↺ Réinitialiser physique véhicule</button>'
       +dozUI+'<div style="height:1px;background:#2a3340;margin:5px 0"></div>'+nav;
@@ -15910,7 +15910,7 @@ window.SCARCITY =SCARCITY;
 // ── FIN CORE EMERGENCE PATCH v1.0 ─────────────────────────────
 </script>
 <!-- ═══ P1 — CHRONICLE ENGINE (Time Travel · Bible v1.1) ═══ -->
-<script src="_chronicle_module.js?v=4f22a19c"></script>
+<script src="_chronicle_module.js?v=91a53429"></script>
 <!-- P0.6 — WORLDSTATE AGGREGATOR (simulation physique des systèmes naturels) -->
 <script src="_worldstate_module.js?v=f9f5b00d"></script>
 <!-- P2 — BIOMES DYNAMIQUES (réaction visuelle aux changements WSAgg.climate) -->

@@ -40,7 +40,7 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
     const cv = document.createElement('canvas'); cv.width = 256; cv.height = 128;
     const c = cv.getContext('2d'); c.clearRect(0, 0, 256, 128);
     if (kind === 'flames') {
-      const grad = c.createLinearGradient(0, 0, 256, 0); grad.addColorStop(0, '#ffd21a'); grad.addColorStop(0.5, '#ff8a00'); grad.addColorStop(1, '#ff2a00');
+      const grad = c.createLinearGradient(0, 0, 256, 0); grad.addColorStop(0, '#9b8cf0'); grad.addColorStop(0.5, '#5c6bc0'); grad.addColorStop(1, '#ff2a00');
       c.fillStyle = grad; c.beginPath(); c.moveTo(256, 128); c.lineTo(0, 128); c.lineTo(0, 70);
       const tips = [[40, 30], [70, 62], [110, 18], [150, 55], [190, 22], [230, 60], [256, 40]];
       for (const [x, y] of tips) { c.lineTo(x - 14, y + 34); c.lineTo(x, y); }
@@ -50,7 +50,7 @@ export function makeVehicleFactory({ THREE, RoundedBoxGeometry }) {
       const s = 21, y0 = 42;
       for (let i = 0; i < 13; i++) for (let j = 0; j < 2; j++) { c.fillStyle = ((i + j) % 2) ? '#0e0e0e' : '#f4f4f4'; c.fillRect(i * s, y0 + j * s, s, s); }
     } else if (kind === 'bolt') {
-      c.fillStyle = '#ffd83a'; c.strokeStyle = '#c25a00'; c.lineWidth = 5;
+      c.fillStyle = '#a58bff'; c.strokeStyle = '#4a3a95'; c.lineWidth = 5;
       c.beginPath(); c.moveTo(150, 8); c.lineTo(96, 68); c.lineTo(132, 68); c.lineTo(104, 120); c.lineTo(176, 52); c.lineTo(138, 52); c.lineTo(172, 8); c.closePath();
       c.fill(); c.stroke();
     } else if (kind === 'number') {
