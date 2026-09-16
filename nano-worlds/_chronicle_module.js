@@ -145,7 +145,7 @@ const Chronicle = (function () {
       signature: '💀',
       startYear: 2300,
       endYear: 2350,
-      color: '#8b2500',      // rouge sombre
+      color: '#8b1a3a',      // rouge sombre
       colorHex: 0x8b2500,
       climate: { temp: 22, rainfall: 0.2 },
       worldType: 'effondrement',
@@ -189,7 +189,7 @@ const Chronicle = (function () {
       signature: '🌱',
       startYear: 2350,
       endYear: null,         // infini
-      color: '#c47800',      // or chaud
+      color: '#3a6ea5',      // or chaud
       colorHex: 0xc47800,
       climate: { temp: 13, rainfall: 0.65 },
       worldType: 'renaissance',
@@ -640,7 +640,7 @@ const Chronicle = (function () {
     <div style="display:flex;align-items:center;gap:12px">
       <div style="
         font-size:42px;font-weight:900;
-        color:${heritage.score > 0.6 ? '#36e0a0' : heritage.score > 0.3 ? '#f0c040' : '#e05050'};
+        color:${heritage.score > 0.6 ? '#36e0a0' : heritage.score > 0.3 ? '#5c6bc0' : '#e05050'};
         line-height:1
       ">${Math.round(heritage.score * 100)}</div>
       <div style="flex:1">
@@ -648,7 +648,7 @@ const Chronicle = (function () {
           <div style="
             height:100%;width:${Math.round(heritage.score * 100)}%;
             background:linear-gradient(90deg,
-              ${heritage.score > 0.6 ? '#36e0a0' : heritage.score > 0.3 ? '#f0c040' : '#e05050'},
+              ${heritage.score > 0.6 ? '#36e0a0' : heritage.score > 0.3 ? '#5c6bc0' : '#e05050'},
               ${era.color});
             transition:width 0.8s ease
           "></div>
