@@ -327,12 +327,20 @@ h3 {
 /* Emphase degradee sur mot-cle, esprit Apple ("confidentialite.") / Atlas
    ("La votre.") — degrade maison rust -> violet plutot que l'arc-en-ciel
    generique Apple, pour garder une identite propre. */
+/* 16/09 : le degrade des mots mis en avant. Il finissait dans l'orange brique
+   (--purple etait un orange). Il court desormais du violet au vert en passant
+   par le bleu, et trois variantes permettent de ne pas repeter exactement la
+   meme coulee d'une page a l'autre. */
 .grad-text {
-  background: linear-gradient(100deg, var(--accent) 0%, var(--accent-2) 40%, var(--purple) 75%, var(--purple-2) 100%);
+  background-image: linear-gradient(100deg, #7c5cbf 0%, #5b3fa0 30%, #3a6ea5 68%, #2e7d46 100%);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
 }
+
+.grad-text--bleu   { background-image: linear-gradient(100deg, #3a6ea5 0%, #2f8391 50%, #2e7d46 100%); }
+.grad-text--vert   { background-image: linear-gradient(100deg, #2e7d46 0%, #2f8391 45%, #5b3fa0 100%); }
+.grad-text--violet { background-image: linear-gradient(100deg, #6d4bc0 0%, #4a3a95 55%, #3a6ea5 100%); }
 
 .hero-actions,
 .app-actions {
