@@ -12,13 +12,13 @@
   --ok-rgb:47,107,69; --warn-rgb:138,90,18; --bad-rgb:163,50,40;
   --bg:#e3e0d6; --bg1:#f6f4ed; --card:#efede6; --card2:#e7e4da;
   --txt:#161616; --dim:#494943; --dim2:#6b6b63; --sep:rgba(var(--ink-rgb),.17);
-  --blue:#2c4a38; --blue-cta:#2c4a38; --green:#2f6b45; --amber:#8a5a12; --red:#a33228; --cyan:#3d6249;
+  --blue:#2c4a38; --blue-cta:#2c4a38; --green:#2f6b45; --amber:#5b3fa0; --red:#a33228; --cyan:#3d6249;
   --glow:rgba(var(--acc-rgb),.16);
   /* couleurs de dessin des canvas, lues par le JS via PAL */
   --canvas-fond:#e9e6dd; --canvas-grille:rgba(22,22,22,.085);
   --canvas-grille-maj:rgba(22,22,22,.22); --canvas-texte:#6b6b63;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
-  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --font:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
+  --mono:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
 }
 #lampe-embed-root *, #lampe-embed-root *::before, #lampe-embed-root *::after{box-sizing:border-box;} 
 #lampe-embed-root{background:radial-gradient(1100px 520px at 50% -8%,rgba(var(--acc-rgb),.075),transparent 60%) var(--bg);
@@ -282,7 +282,7 @@ body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
 /* Ce qui a ete applique, et ce qui a ete refuse : jamais l'un sans l'autre. */
 #lampe-embed-root .cv-tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:7px;}
 #lampe-embed-root .cv-tag{font-size:11px;padding:2px 8px;border-radius:20px;background:rgba(var(--ok-rgb),.14);color:#30d158;border:.5px solid rgba(var(--ok-rgb),.3);}
-#lampe-embed-root .cv-tag.no{background:rgba(var(--warn-rgb),.14);color:#ff9f0a;border-color:rgba(var(--warn-rgb),.3);}
+#lampe-embed-root .cv-tag.no{background:rgba(var(--warn-rgb),.14);color:#8b6ad6;border-color:rgba(var(--warn-rgb),.3);}
 #lampe-embed-root .cv-saisie{display:flex;gap:8px;align-items:center;}
 #lampe-embed-root .cv-saisie input{flex:1;background:#141416;color:var(--txt);border:.5px solid var(--sep);border-radius:10px;padding:10px 12px;font-size:13px;font-family:inherit;}
 #lampe-embed-root .cv-saisie input:focus{outline:none;border-color:var(--blue);}

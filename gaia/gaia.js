@@ -24,17 +24,17 @@ const RAD = Math.PI / 180;
  * capture de l'un se lise avec la legende de l'autre. */
 const DOMAINES = {
   seismic:      { nom: 'Séismes',            c: '#e66767' },
-  climate:      { nom: 'Climat',            c: '#c98500' },
+  climate:      { nom: 'Climat',            c: '#5c6bc0' },
   markets:      { nom: 'Marchés',            c: '#3987e5' },
   economy:      { nom: 'Économie',           c: '#31a05a' },
   health:       { nom: 'Santé',              c: '#6fd08c' },
   geopolitics:  { nom: 'Géopolitique',       c: '#d55181' },
-  wildfires:    { nom: 'Feux de végétation', c: '#b3672c' },
+  wildfires:    { nom: 'Feux de végétation', c: '#c64fb0' },
   air_quality:  { nom: "Qualité de l'air",   c: '#1f9e9e' },
   transport:    { nom: 'Transport',         c: '#b0b34a' },
   terrain:      { nom: 'Terrain',           c: '#8c93a4' },
   attention:    { nom: 'Attention',         c: '#9085e9' },
-  energy:       { nom: 'Énergie',            c: '#d95926' },
+  energy:       { nom: 'Énergie',            c: '#7e57c2' },
   cybersecurity:{ nom: 'Cybersécurité',      c: '#b0479e' },
 };
 const domaine = (id) => DOMAINES[id] || { nom: id, c: '#8c93a4' };

@@ -10,8 +10,8 @@
   --clair:#eef2f8;
   --clair-2:#9aa6b6;
   --clair-3:#69748a;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",system-ui,"Helvetica Neue",Arial,sans-serif;
-  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+  --font:Arial, Helvetica, "Avenir Next", Avenir, sans-serif;
+  --mono:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
 }
 *{box-sizing:border-box}
 html,body{height:100%}

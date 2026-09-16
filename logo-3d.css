@@ -1,6 +1,6 @@
 :root{
   --bg:#ffffff; --ink:#15131a; --dim:#6b6b76;
-  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --font:"Avenir Next", Avenir, Arial, Helvetica, sans-serif;
 }
 *,*::before,*::after{box-sizing:border-box;}
 html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);font:15px/1.5 var(--font);overscroll-behavior:none;}

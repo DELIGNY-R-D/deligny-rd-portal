@@ -2644,7 +2644,7 @@ const PAL = (()=>{ const s = getComputedStyle(document.documentElement);
            texte:     v('--canvas-texte', '#6b6b63'),
            acc:       v('--blue', '#2c4a38'),
            trait:     v('--txt', '#161616'),
-           alerte:    v('--amber', '#8a5a12'),
+           alerte:    v('--amber', '#5b3fa0'),
            mauvais:   v('--red', '#a33228'),
            encreRgb:  {r:22,g:22,b:22} }; })();
 // teinte l'accent sans dupliquer sa valeur : #rrggbb -> rgba(r,g,b,a)

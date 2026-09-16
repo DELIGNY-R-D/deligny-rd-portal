@@ -382,6 +382,6 @@
    la valeur etait posee en attribut style=, bloque par la CSP, et le diagramme
    s'affichait sans ses couleurs. */
 .lb-couche--1 { --couche: #a58ce0; }
-.lb-couche--2 { --couche: #e0834f; }
+.lb-couche--2 { --couche: #6f8fc9; }
 .lb-couche--3 { --couche: #7fb894; }
 .lb-couche--4 { --couche: #8aa4cc; }

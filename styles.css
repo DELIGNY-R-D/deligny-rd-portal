@@ -9,17 +9,17 @@
   --soft: #efeae0;
   --accent: #7c5cbf;
   --accent-2: #5b3fa0;
-  --purple: #bd4f1c;
-  --purple-2: #a43d2b;
-  --gold: #b58422;
+  --purple: #6d4bc0;
+  --purple-2: #4a3a95;
+  --gold: #3a6ea5;
   --green: #2e7d46;
   --blue: #4a5d7e;
   --shadow: 0 1px 2px rgba(21, 19, 26, 0.05);
   --shadow-lift: 0 24px 60px rgba(21, 19, 26, 0.10);
   /* Souverainete : polices systeme uniquement, aucun CDN (CSP style-src 'self'). */
-  --font-display: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", system-ui, "Helvetica Neue", Arial, sans-serif;
-  --font-mono: "SF Mono", ui-monospace, Menlo, Consolas, monospace;
+  --font-display: "Avenir Next", Avenir, Arial, Helvetica, sans-serif;
+  --font-body: Arial, Helvetica, "Avenir Next", Avenir, sans-serif;
+  --font-mono: "Avenir Next", Avenir, Arial, Helvetica, sans-serif;
 }
 
 * {
