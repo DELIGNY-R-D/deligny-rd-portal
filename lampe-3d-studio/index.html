@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-Mu7Q9hBh4OnkDEsP8Ddgz0Yg1lk38xbQh5yD3qqN2tA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-JGiNT+/mBtBEr7q8MyPLQgfITRPnT7qieQg4uUwCSrw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -8070,6 +8070,13 @@ async function confirmerCommande(){
       `à l'email de confirmation. Le panier est conservé tant que tu ne le vides pas.</div>` +
       `<div class="row-btn" style="margin-top:8px">` +
       `<button class="btn" id="cmdFacture">Télécharger la facture</button></div>`;
+    /* ⚠️ UN ENVOI RATE SE DIT. Le serveur rend le resultat de l'email ; l'ignorer
+     * laissait croire qu'une confirmation etait partie alors que non (constate
+     * le 17/09/2026). La commande reste payee, c'est l'email qui manque. */
+    if(j.courriel && j.courriel.ok === false)
+      suite.innerHTML += `<div style="margin-top:8px;font:12.5px var(--font);color:var(--amber)">` +
+        `email de confirmation non parti (${j.courriel.note || 'cause inconnue'}) — ` +
+        `la commande ${CMD.ref} est bien enregistrée et payée.</div>`;
     const bf = $('cmdFacture');
     if(bf) bf.onclick = () => telechargerFacture(
       CMD.ref, ($('cmdEmail') || {}).value ? $('cmdEmail').value.trim() : '', bf);
