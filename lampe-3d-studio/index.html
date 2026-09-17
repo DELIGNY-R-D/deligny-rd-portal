@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-JGiNT+/mBtBEr7q8MyPLQgfITRPnT7qieQg4uUwCSrw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-jScSjPxbF11Cx9S+p8AWS38GgJvooWIzoLoN+njbZIo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -8177,7 +8177,11 @@ function ajouterAuPanier(){
   const c = cotesCourantes();
   PANIER.lignes.push({
     id: 'L' + (Date.now() % 1e9).toString(36),
-    nom: (TYPES[state.type] ? TYPES[state.type].label : 'Lampe') + ' — ' + (state.material || ''),
+    /* ⚠️ PAS LE CODE INTERNE DE MATIERE (17/09/2026). Le nom portait
+     * « — PLA_T », que la facture repetait ensuite en clair : le client lisait
+     * un code d'atelier, et la designation, trop longue, se faisait tronquer.
+     * La matiere voyage a part (`matiere`), en libelle lisible. */
+    nom: (TYPES[state.type] ? TYPES[state.type].label : 'Lampe'),
     prix: Math.round(s.price),
     hautMm: c.hautMm, diaMm: c.diaMm,
     matiere: MATERIALS[state.material] || state.material,
