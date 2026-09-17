@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-elrrtWQ/UzGDtJTV30CN5ItB6Z9cEpXPwJ/ISflIYa4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-Mu7Q9hBh4OnkDEsP8Ddgz0Yg1lk38xbQh5yD3qqN2tA='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -7937,44 +7937,66 @@ async function telechargerFacture(ref, email, bouton){
  * deja, la piece se rattache ensuite.
  */
 async function joindrePieces(){
-  const suite = $('cmdSuite');
   if(!CMD.ref || !MESH.parts || !MESH.parts.length) return;
   const dire = t => { const e = $('cmdPiece'); if(e) e.textContent = t; };
-  const n = MESH.parts.length;
-  let envoyees = 0, octets = 0;
-  for(let i = 0; i < n; i++){
-    const p = MESH.parts[i];
-    dire(`préparation de la pièce ${i+1} sur ${n}…`);
-    let b64;
-    try{
-      /* meme chemin que le bouton d'export : la piece jointe et le fichier
-       * telecharge sont le MEME objet, on ne fabrique pas deux verites */
-      const avecBase = BASE_KIT.etat === 'ok' && baseKitUtile()
-                    && p.body === socketEndBodyIdx() && p.index === 0;
-      const buf = trianglesToSTLBinaryAvecBase(p.tris, `${state.type}-${p.label}`, avecBase);
-      const oct = new Uint8Array(buf);
-      let bin = '';
-      for(let k = 0; k < oct.length; k += 8192)
-        bin += String.fromCharCode.apply(null, oct.subarray(k, k + 8192));
-      b64 = btoa(bin);
-    }catch(e){ dire('pièce non préparée : ' + e.message); return; }
 
-    /* La passerelle refuse au-dela de 48 Mo. On le DIT avant d'essayer :
-     * un 413 muet laisserait croire que la piece est partie. */
-    if(b64.length > 44 * 1024 * 1024){
-      dire(`pièce ${i+1} trop lourde (${(b64.length/1048576).toFixed(0)} Mo) : ` +
-           `baisse la finesse d'export, ou envoie-la à part.`);
-      return;
+  /* FINESSE MAXIMALE POUR L'ATELIER (17/09/2026, demande Baptiste : « finesse
+   * maximale, haute definition »). Le selecteur d'export sert au CLIENT pour
+   * son telechargement ; la piece qui part en fabrication est reconstruite au
+   * plus fin que le moteur sache produire. La passerelle refuse au-dela de
+   * 48 Mo : on essaie donc ×2, puis ×1,5, puis standard, et on DIT laquelle est
+   * partie plutot que de laisser croire au plus fin. Le reglage du client est
+   * remis ensuite, quoi qu'il arrive. */
+  const selQ = $('stlQualite');
+  const qAvant = selQ ? selQ.value : null;
+  const nom = q => q === '1' ? 'standard' : '×' + q.replace('.', ',');
+  let lot = null, finesse = null;
+  try{
+    for(const q of ['2', '1.5', '1']){
+      if(selQ && selQ.value !== q){ selQ.value = q; renderAll(); }
+      if(!MESH.parts || !MESH.parts.length) continue;
+      dire(`préparation du maillage haute définition (${nom(q)})…`);
+      const essai = [];
+      let total = 0, trop = false;
+      for(const p of MESH.parts){
+        /* meme chemin que le bouton d'export : la piece jointe et le fichier
+         * telecharge sont le MEME objet, on ne fabrique pas deux verites */
+        const avecBase = BASE_KIT.etat === 'ok' && baseKitUtile()
+                      && p.body === socketEndBodyIdx() && p.index === 0;
+        const buf = trianglesToSTLBinaryAvecBase(p.tris, `${state.type}-${p.label}`, avecBase);
+        const oct = new Uint8Array(buf);
+        let bin = '';
+        for(let k = 0; k < oct.length; k += 8192)
+          bin += String.fromCharCode.apply(null, oct.subarray(k, k + 8192));
+        const b64 = btoa(bin);
+        total += b64.length;
+        if(total > 44 * 1024 * 1024){ trop = true; break; }
+        essai.push({ b64, tris: p.tris.length });
+      }
+      if(!trop && essai.length){ lot = essai; finesse = q; break; }
     }
-    dire(`envoi de la pièce ${i+1} sur ${n} (${(b64.length*0.75/1048576).toFixed(1)} Mo)…`);
+  }catch(e){ dire('pièce non préparée : ' + e.message); }
+  finally{
+    if(selQ && qAvant !== null && selQ.value !== qAvant){ selQ.value = qAvant; renderAll(); }
+  }
+  if(!lot || !lot.length){
+    dire(`pièce non préparée : maillage trop lourd pour être transmis. ` +
+         `La commande ${CMD.ref} existe, la pièce peut être renvoyée.`);
+    return;
+  }
+
+  const n = lot.length;
+  let envoyees = 0, octets = 0, tris = 0;
+  for(let i = 0; i < n; i++){
+    dire(`envoi de la pièce ${i+1} sur ${n} (${(lot[i].b64.length*0.75/1048576).toFixed(1)} Mo)…`);
     try{
       const r = await fetch(baseCommande() + '/api/commande/' + CMD.ref + '/piece', {
         method: 'POST', headers: {'Content-Type': 'application/json'},
-        body: JSON.stringify({ nom: `${state.type}-${i+1}sur${n}`, stl_b64: b64 }),
+        body: JSON.stringify({ nom: `${state.type}-${i+1}sur${n}`, stl_b64: lot[i].b64 }),
       });
       const j = await r.json();
       if(!j.ok) throw new Error(j.msg || j.error || 'refus');
-      envoyees++; octets += j.octets;
+      envoyees++; octets += j.octets; tris += lot[i].tris;
     }catch(e){
       dire(`pièce ${i+1} non transmise : ${e.message}. La commande ${CMD.ref} existe, ` +
            `la pièce peut être renvoyée.`);
@@ -7982,7 +8004,8 @@ async function joindrePieces(){
     }
   }
   dire(`${envoyees} pièce${envoyees>1?'s':''} à imprimer jointe${envoyees>1?'s':''} ` +
-       `(${(octets/1048576).toFixed(1)} Mo) — abat-jour et bague fusionnés.`);
+       `(${(octets/1048576).toFixed(1)} Mo, ${tris.toLocaleString('fr-FR')} triangles, ` +
+       `finesse ${nom(finesse)}) — abat-jour et bague fusionnés.`);
 }
 
 async function payerCommande(){
@@ -8084,8 +8107,18 @@ function enregistrerPanier(){
  * saturait le stockage vers quinze lampes. 240 px de large en JPEG suffisent
  * pour se relire, et pesent une quinzaine de kilo-octets. */
 function vignetteCourante(){
-  const src = document.getElementById('blLiveImg');
-  const cv  = document.getElementById('previewCanvas');
+  const cv = document.getElementById('previewCanvas');
+  /* ⚠️ L'image Blender n'est retenue QUE si elle correspond a l'etat courant :
+   * sa signature est memorisee au lancement du rendu. Sans ce controle, la
+   * vignette du panier et du recapitulatif montrait un rendu PERIME, donc une
+   * autre lampe que celle configuree (constate par Baptiste le 16/09/2026).
+   * A defaut on prend l'apercu 3D, qui est toujours a jour. */
+  let src = null;
+  try{
+    const im = document.getElementById('blLiveImg');
+    if(im && im.naturalWidth && !BL_LIVE.echec && BL_LIVE.signature
+       && BL_LIVE.signature === signatureRendu()) src = im;
+  }catch(e){ src = null; }
   try{
     const L = 240;
     const c = document.createElement('canvas');
@@ -9015,6 +9048,57 @@ const ETAPES = [
 ];
 let etapeActive = 0;
 
+/* ── CARTES D'ATELIER MASQUEES (17/09/2026, demande Baptiste) ─────────────
+ * « Matiere & paroi », « Dossier de fabrication » (export STL) et « Commande »
+ * (envoi par email) ne concernent pas le client : la matiere et la paroi
+ * restent celles de l'atelier, et le STL part AVEC la commande vers l'atelier
+ * — ce n'est pas au client de nous l'envoyer. Les cartes restent dans le DOM :
+ * le code lit toujours #material, #wall et #stlQualite. Masquer une carte ne
+ * change donc AUCUN reglage de fabrication. */
+const CARTES_ATELIER = ['#material', '#exportStl', '#prepEmail'];
+function masquerCartesAtelier(){
+  CARTES_ATELIER.forEach(sel=>{
+    const el = document.querySelector(sel), c = el && el.closest('.card');
+    if(c) c.hidden = true;
+  });
+}
+
+/* Une etape dont toutes les cartes sont masquees n'est plus une etape : son
+ * bouton disparait, la numerotation se recalcule, et les pieds de page
+ * renvoient vers l'etape VISIBLE suivante. Recalcule a chaque rendu, parce
+ * qu'une carte peut reapparaitre (plusieurs corps, decoupe en modules). */
+function majEtapesVisibles(){
+  const sections = window.__etapes || [];
+  if(!sections.length) return;
+  const pleines = sections.map(s => [...s.querySelectorAll('.card')]
+    .some(c => !c.hidden && getComputedStyle(c).display !== 'none'));
+  sections.forEach((s,i)=>{ s.dataset.vide = pleines[i] ? '' : '1'; });
+  const rangs = [];
+  pleines.forEach((p,i)=>{ if(p) rangs.push(i); });
+  [...document.querySelectorAll('.stepper button')].forEach((b,i)=>{
+    b.hidden = !pleines[i];
+    const n = b.querySelector('.n');
+    if(n && pleines[i]) n.textContent = (rangs.indexOf(i)+1) + ' / ' + rangs.length;
+  });
+  sections.forEach((s,i)=>{
+    const pied = s.querySelector('.etape-pied'); if(!pied) return;
+    const bts = pied.querySelectorAll('button'), prec = bts[0], suiv = bts[1];
+    const avant = rangs.filter(k => k < i).pop();
+    const apres = rangs.find(k => k > i);
+    if(prec){
+      prec.style.visibility = (avant === undefined) ? 'hidden' : 'visible';
+      prec.textContent = '← ' + (avant === undefined ? '' : ETAPES[avant].titre);
+      prec.onclick = ()=> allerEtape(avant === undefined ? 0 : avant, -1);
+    }
+    if(suiv){
+      suiv.textContent = (apres === undefined) ? '✓ Terminé' : ETAPES[apres].titre + ' →';
+      suiv.onclick = ()=> (apres === undefined)
+        ? window.scrollTo({top:0, behavior:'smooth'}) : allerEtape(apres, 1);
+    }
+  });
+  if(sections[etapeActive] && sections[etapeActive].dataset.vide === '1') allerEtape(etapeActive, 1);
+}
+
 function organiserEnEtapes(){
   const col = document.querySelector('.controls');
   if(!col || col.dataset.organise) return;
@@ -9047,22 +9131,32 @@ function organiserEnEtapes(){
     const prec = document.createElement('button');
     prec.className = 'btn'; prec.textContent = '← ' + (ETAPES[i-1] ? ETAPES[i-1].titre : '');
     prec.style.visibility = i ? 'visible' : 'hidden';
-    prec.onclick = ()=> allerEtape(i-1);
+    prec.onclick = ()=> allerEtape(i-1, -1);
     const suiv = document.createElement('button');
     suiv.className = 'btn pri';
     suiv.textContent = (ETAPES[i+1] ? ETAPES[i+1].titre + ' →' : '✓ Terminé');
-    suiv.onclick = ()=> ETAPES[i+1] ? allerEtape(i+1) : window.scrollTo({top:0, behavior:'smooth'});
+    suiv.onclick = ()=> ETAPES[i+1] ? allerEtape(i+1, 1) : window.scrollTo({top:0, behavior:'smooth'});
     pied.appendChild(prec); pied.appendChild(suiv);
     s.appendChild(pied);
   });
 
   col.dataset.organise = '1';
   window.__etapes = sections;
+  masquerCartesAtelier();
+  majEtapesVisibles();
   allerEtape(0);
 }
-function allerEtape(i){
-  etapeActive = Math.max(0, Math.min(ETAPES.length-1, i));
-  (window.__etapes||[]).forEach((s,k)=>{ s.hidden = (k !== etapeActive); });
+function allerEtape(i, pas){
+  /* `pas` = sens de deplacement : une etape vide est traversee dans CE sens,
+   * sinon un clic sur « suivant » renverrait en arriere. */
+  const sections = window.__etapes || [];
+  const vide = k => sections[k] && sections[k].dataset.vide === '1';
+  let j = Math.max(0, Math.min(ETAPES.length-1, i));
+  const d = pas || 1;
+  while(vide(j) && j + d >= 0 && j + d <= ETAPES.length-1) j += d;
+  if(vide(j)) for(let k = 0; k < ETAPES.length; k++) if(!vide(k)){ j = k; break; }
+  etapeActive = j;
+  sections.forEach((s,k)=>{ s.hidden = (k !== etapeActive); });
   document.querySelectorAll('.stepper button').forEach((b,k)=>b.classList.toggle('on', k===etapeActive));
   // l'aperçu reste en place : on ne remonte que la colonne des réglages
   const col=document.querySelector('.controls');
@@ -9072,6 +9166,11 @@ function allerEtape(i){
 /* ── Init ─────────────────────────────────────────────────────────────── */
 chargerPanier();
 organiserEnEtapes();
+/* Toute reconstruction peut faire apparaitre ou disparaitre une carte : la
+ * barre d'etapes se recalcule donc apres CHAQUE rendu, pas une seule fois. */
+{ const _renderAll = renderAll;
+  renderAll = function(){ const r = _renderAll.apply(this, arguments);
+    try{ majEtapesVisibles(); }catch(e){} return r; }; }
 { const b=$('ajoutPanier'); if(b) b.onclick = ajouterAuPanier;
   const o=$('panierAutre'); if(o) o.onclick = ()=> allerEtape(0);
   const sc=$('suiviChercher'); if(sc) sc.onclick = chercherCommande;
