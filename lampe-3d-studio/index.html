@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-jScSjPxbF11Cx9S+p8AWS38GgJvooWIzoLoN+njbZIo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-YiOx0nPZM4ry0nfcq6byr2Yqew3hT0uFO3NuWsYZGZ4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -7950,7 +7950,7 @@ async function joindrePieces(){
   const selQ = $('stlQualite');
   const qAvant = selQ ? selQ.value : null;
   const nom = q => q === '1' ? 'standard' : '×' + q.replace('.', ',');
-  let lot = null, finesse = null;
+  let lot = null, finesse = null, dz = 0;
   try{
     for(const q of ['2', '1.5', '1']){
       if(selQ && selQ.value !== q){ selQ.value = q; renderAll(); }
@@ -7958,12 +7958,15 @@ async function joindrePieces(){
       dire(`préparation du maillage haute définition (${nom(q)})…`);
       const essai = [];
       let total = 0, trop = false;
+      dz = 0;
       for(const p of MESH.parts){
         /* meme chemin que le bouton d'export : la piece jointe et le fichier
          * telecharge sont le MEME objet, on ne fabrique pas deux verites */
         const avecBase = BASE_KIT.etat === 'ok' && baseKitUtile()
                       && p.body === socketEndBodyIdx() && p.index === 0;
-        const buf = trianglesToSTLBinaryAvecBase(p.tris, `${state.type}-${p.label}`, avecBase);
+        const prod = stlProduction(p.tris, `${state.type}-${p.label}`, avecBase);
+        const buf = prod.buf;
+        dz = prod.dz;
         const oct = new Uint8Array(buf);
         let bin = '';
         for(let k = 0; k < oct.length; k += 8192)
@@ -8005,7 +8008,8 @@ async function joindrePieces(){
   }
   dire(`${envoyees} pièce${envoyees>1?'s':''} à imprimer jointe${envoyees>1?'s':''} ` +
        `(${(octets/1048576).toFixed(1)} Mo, ${tris.toLocaleString('fr-FR')} triangles, ` +
-       `finesse ${nom(finesse)}) — abat-jour et bague fusionnés.`);
+       `finesse ${nom(finesse)}) — abat-jour et bague fusionnés, ` +
+       `posés sur le plateau (Z 0, translation ${dz.toFixed(2)} mm).`);
 }
 
 async function payerCommande(){
@@ -8867,7 +8871,8 @@ function trianglesToSTLBinary(tris, label){
 /* STL binaire = coque + éventuellement la VRAIE base, écrite directement
  * depuis son maillage indexé. On ne la déplie jamais en tableau de triangles :
  * 356 632 triangles feraient plus d'un million d'objets JS pour rien. */
-function trianglesToSTLBinaryAvecBase(tris, label, avecBase){
+function trianglesToSTLBinaryAvecBase(tris, label, avecBase, dz){
+  const z0 = +dz || 0;          // translation appliquee au FICHIER, pas au modele
   const nBase = avecBase ? BASE_KIT.nTri : 0;
   const n = tris.length + nBase;
   const buf = new ArrayBuffer(84 + n*50);
@@ -8881,7 +8886,8 @@ function trianglesToSTLBinaryAvecBase(tris, label, avecBase){
     const [nx,ny,nz] = triangleNormal(v1,v2,v3);
     dv.setFloat32(o,nx,true); dv.setFloat32(o+4,ny,true); dv.setFloat32(o+8,nz,true); o+=12;
     for(const v of [v1,v2,v3]){
-      dv.setFloat32(o,v[0],true); dv.setFloat32(o+4,v[1],true); dv.setFloat32(o+8,v[2],true); o+=12;
+      // une translation ne change ni les normales, ni les distances, ni le volume
+      dv.setFloat32(o,v[0],true); dv.setFloat32(o+4,v[1],true); dv.setFloat32(o+8,v[2]-z0,true); o+=12;
     }
     dv.setUint16(o,0,true); o+=2;
   };
@@ -8896,6 +8902,47 @@ function trianglesToSTLBinaryAvecBase(tris, label, avecBase){
   return buf;
 }
 
+/* ── FICHIER DE PRODUCTION : POSÉ À Z = 0 (18/09/2026, demande Baptiste) ───
+ * La géométrie de CONCEPTION ne bouge pas : les coordonnées de la bague viennent
+ * de l'assemblage d'atelier (table à 0, bague à 5) et l'abat-jour se pose sur son
+ * assise. Le FICHIER, lui, doit reposer sur le plateau. On mesure donc minZ sur
+ * le maillage FUSIONNÉ (coque + vraie bague), on translate de −minZ, puis on
+ * RELIT les octets écrits pour vérifier. Dimensions, volumes, intersections et
+ * coordonnées relatives restent identiques : une translation ne déforme rien.
+ * INVARIANT BLOQUANT : |minZ| <= 0,01 mm après translation. Sinon aucun fichier
+ * n'est rendu, donc aucun envoi atelier — plus de dépendance au trancheur. */
+const Z0_TOLERANCE_MM = 0.01;
+function minZProduction(tris, avecBase){
+  let m = Infinity;
+  for(const t of tris) for(const v of t) if(v[2] < m) m = v[2];
+  if(avecBase && BASE_KIT.verts){
+    const V = BASE_KIT.verts;
+    for(let i = 2; i < V.length; i += 3) if(V[i] < m) m = V[i];
+  }
+  return m;
+}
+function stlProduction(tris, label, avecBase){
+  const minAvant = minZProduction(tris, avecBase);
+  if(!isFinite(minAvant)) throw new Error('maillage vide : rien à produire');
+  const buf = trianglesToSTLBinaryAvecBase(tris, label, avecBase, minAvant);
+  /* Relecture INDEPENDANTE : on ne croit pas la variable qui a servi à écrire,
+   * on relit ce qui est dans le fichier. C'est la seule manière de garantir que
+   * ce qui partira à l'atelier est bien posé. */
+  const dv = new DataView(buf), n = dv.getUint32(80, true);
+  let minApres = Infinity;
+  for(let i = 0; i < n; i++){
+    const o = 84 + i * 50;
+    for(let k = 0; k < 3; k++){
+      const z = dv.getFloat32(o + 12 + k * 12 + 8, true);
+      if(z < minApres) minApres = z;
+    }
+  }
+  if(!(Math.abs(minApres) <= Z0_TOLERANCE_MM))
+    throw new Error('pièce non posée sur le plateau : Z min ' + minApres.toFixed(3)
+                    + ' mm après translation de ' + (-minAvant).toFixed(2) + ' mm');
+  return { buf, dz: -minAvant, minApres };
+}
+
 /* ⚠️ Ces deux sélecteurs n'avaient AUCUN écouteur (07/08) : on changeait le
  * réglage, rien ne se reconstruisait — ni l'aperçu, ni le maillage exporté,
  * puisque l'export livre MESH.parts tel quel. « La qualité ne change pas »,
@@ -8906,6 +8953,11 @@ $('stlQualite').onchange  = ()=>renderAll();
 
 $('exportStl').onclick=()=>{
   if(!MESH.parts.length){ alert('Profil insuffisant pour générer un maillage (minimum 2 points).'); return; }
+  /* L'invariant Z = 0 vaut aussi pour le téléchargement : un fichier qui flotte
+   * ne se distingue pas d'un fichier correct, et c'est le téléchargement qui
+   * ferait foi chez l'imprimeur. On refuse plutôt que de livrer un doute. */
+  try{ stlProduction(MESH.parts[0].tris, 'controle', false); }
+  catch(e){ $('stlInfo').textContent = 'Export refusé : ' + e.message; return; }
   const stamp = Date.now();
   const n = MESH.parts.length;
   let totalTris=0, totalKo=0;
@@ -8914,7 +8966,7 @@ $('exportStl').onclick=()=>{
     // la vraie base part avec la pièce du BAS du corps qui la porte
     const avecBase = BASE_KIT.etat==='ok' && baseKitUtile()
                   && p.body===socketEndBodyIdx() && p.index===0;
-    const buf = trianglesToSTLBinaryAvecBase(p.tris, `${state.type}-${p.label}`, avecBase);
+    const buf = stlProduction(p.tris, `${state.type}-${p.label}`, avecBase).buf;
     const name = n===1
       ? `lampe-${state.type}-${stamp}.stl`
       : `lampe-${state.type}-${String(i+1).padStart(2,'0')}sur${n}-${slug(p.label)}-${stamp}.stl`;
