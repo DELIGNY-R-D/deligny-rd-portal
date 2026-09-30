@@ -12,10 +12,18 @@
  * objet clair et une demande structuree. Le visiteur n'affronte jamais la page
  * blanche, et la demande arrive exploitable.
  *
- * AUCUN ENVOI D'ICI. Le site est statique et le restera : on prepare un
- * mailto, c'est le client mail du visiteur qui envoie. Rien n'est transmis a
- * un serveur, rien n'est stocke, et cela vaut mieux qu'un formulaire qui
- * promettrait un envoi sans pouvoir le tenir.
+ * ENVOI REEL DEPUIS LA PAGE (30/09/2026). Le mailto seul ne suffisait pas :
+ * un visiteur sans logiciel de courriel configure (webmail, poste
+ * d'entreprise, telephone d'emprunt) cliquait dans le vide, et son message
+ * n'existait nulle part. Le bouton envoie donc au serveur
+ * atlas-studio.pro/deligny/api/message, qui range le message dans la file
+ * relue par l'atelier et previent par courriel. Le mailto RESTE, en second :
+ * qui prefere son propre logiciel garde ce chemin, et si l'envoi echoue le
+ * lien deja redige est la pour que rien ne soit perdu.
+ *
+ * Le site reste statique : c'est un appel a une API, pas un back-end de page.
+ * La CSP de contact.html s'ouvre donc d'un cran, et d'un seul :
+ * `connect-src https://atlas-studio.pro`. Jamais 'unsafe-inline'.
  *
  * Fichier servi, jamais inline : la CSP du site est `script-src 'self'` et un
  * inline y serait bloque SANS BRUIT (incident du 25/08).
@@ -84,21 +92,65 @@
   champ.setAttribute('aria-label', 'Votre demande, en deux phrases');
   hote.appendChild(champ);
 
-  var envoyer = document.createElement('a');
+  // Sans adresse, le serveur ne peut pas repondre : c'est le seul champ ajoute.
+  var courriel = document.createElement('input');
+  courriel.type = 'email';
+  courriel.className = 'cp-courriel';
+  courriel.autocomplete = 'email';
+  courriel.placeholder = 'Votre adresse, pour la reponse';
+  courriel.setAttribute('aria-label', 'Votre adresse de courriel');
+  hote.appendChild(courriel);
+
+  /* LEURRE ANTI-ROBOT. Un champ hors de l'ecran, hors tabulation, sans nom
+   * qu'un gestionnaire de mots de passe voudrait remplir : un humain ne le
+   * voit pas, un robot qui remplit tout se denonce. Le masquage passe par une
+   * classe de styles.css, pas par un style inline, que la CSP bloquerait. */
+  var leurre = document.createElement('div');
+  leurre.className = 'cp-leurre';
+  leurre.setAttribute('aria-hidden', 'true');
+  var leurreChamp = document.createElement('input');
+  leurreChamp.type = 'text';
+  leurreChamp.name = 'laisser_vide';
+  leurreChamp.tabIndex = -1;
+  leurreChamp.autocomplete = 'off';
+  leurre.appendChild(leurreChamp);
+  hote.appendChild(leurre);
+
+  var actions = document.createElement('div');
+  actions.className = 'cp-actions';
+  var envoyer = document.createElement('button');
+  envoyer.type = 'button';
   envoyer.className = 'btn btn-small btn-primary cp-envoyer';
-  envoyer.textContent = 'Preparer le message';
+  envoyer.textContent = 'Envoyer le message';
   envoyer.setAttribute('aria-disabled', 'true');
-  hote.appendChild(envoyer);
+  actions.appendChild(envoyer);
+  var lienMail = document.createElement('a');
+  lienMail.className = 'cp-lien-mail';
+  lienMail.textContent = 'ou l’ouvrir dans mon logiciel de courriel';
+  actions.appendChild(lienMail);
+  hote.appendChild(actions);
+
+  // Region d'etat annoncee aux lecteurs d'ecran : un envoi qui ne dit rien
+  // equivaut a un envoi rate.
+  var etat = document.createElement('p');
+  etat.className = 'cp-etat';
+  etat.setAttribute('role', 'status');
+  etat.hidden = true;
+  hote.appendChild(etat);
 
   var note = document.createElement('p');
   note.className = 'cp-note';
-  note.textContent = 'Le message s’ouvre dans votre logiciel de courrier, deja redige. Rien n’est envoye depuis ce site.';
+  note.textContent = 'Le message part vers l’atelier et vous recevez la reponse a l’adresse donnee. Aucun compte, aucun mouchard : la mesure d’audience est decrite dans les mentions legales.';
   hote.appendChild(note);
+
+  // Un robot remplit un formulaire en moins d'une seconde : on retient l'heure
+  // d'arrivee pour que le serveur puisse ecarter ce qui est trop rapide.
+  var arrivee = Date.now();
 
   function majEtat() {
     var pret = !!choix.sujet;
     envoyer.setAttribute('aria-disabled', pret ? 'false' : 'true');
-    if (!pret) { envoyer.removeAttribute('href'); return; }
+    if (!pret) { lienMail.removeAttribute('href'); return; }
 
     var objet = 'DELIGNY R&D — ' + choix.sujet.objet;
     var corps = [
@@ -117,7 +169,7 @@
       'Envoye depuis deligny-rd.fr/contact.html',
     ].join('\n');
 
-    envoyer.href = 'mailto:contact@deligny-rd.fr'
+    lienMail.href = 'mailto:contact@deligny-rd.fr'
       + '?subject=' + encodeURIComponent(objet)
       + '&body=' + encodeURIComponent(corps);
   }
@@ -148,16 +200,77 @@
   choix.mode = mode;
 
   champ.addEventListener('input', majEtat);
-  envoyer.addEventListener('click', function (e) {
-    // Sans sujet choisi, le lien n'a pas d'adresse : on explique au lieu de
-    // laisser un clic sans effet.
+  courriel.addEventListener('input', function () { montre('', ''); });
+
+  function montre(texte, genre) {
+    etat.textContent = texte;
+    etat.className = 'cp-etat' + (genre ? ' cp-' + genre : '');
+    etat.hidden = !texte;
+  }
+
+  function signaleManque(indice) {
+    var l = hote.querySelectorAll('.cp-ligne')[indice];
+    if (!l) return;
+    l.classList.add('cp-manque');
+    setTimeout(function () { l.classList.remove('cp-manque'); }, 1200);
+  }
+
+  envoyer.addEventListener('click', function () {
     if (envoyer.getAttribute('aria-disabled') === 'true') {
-      e.preventDefault();
-      hote.querySelector('.cp-ligne').classList.add('cp-manque');
-      setTimeout(function () {
-        hote.querySelector('.cp-ligne').classList.remove('cp-manque');
-      }, 1200);
+      // Sans sujet choisi il n'y a rien a envoyer : on montre ou ca manque au
+      // lieu de laisser un clic sans effet.
+      montre('Choisissez d’abord ce qui vous amene.', 'ko');
+      signaleManque(0);
+      return;
     }
+    var adresse = courriel.value.trim();
+    if (adresse.indexOf('@') < 1 || adresse.indexOf('.', adresse.indexOf('@')) < 0) {
+      montre('Il manque votre adresse de courriel, sans quoi la reponse ne peut pas vous arriver.', 'ko');
+      courriel.focus();
+      return;
+    }
+    if (champ.value.trim().length < 20) {
+      montre('Deux phrases suffisent, mais il en faut deux : dites ce que vous cherchez.', 'ko');
+      champ.focus();
+      return;
+    }
+    envoyer.disabled = true;
+    montre('Envoi…', '');
+    var charge = {
+      sujet: choix.sujet.id,
+      delai: choix.delai || '',
+      mode: choix.mode || '',
+      nom: '',
+      courriel: adresse,
+      message: champ.value.trim(),
+      page: 'contact',
+      ms: Date.now() - arrivee,
+      laisser_vide: leurreChamp.value
+    };
+    fetch('https://atlas-studio.pro/deligny/api/message', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(charge)
+    }).then(function (r) {
+      return r.json().then(function (j) { return { code: r.status, corps: j }; });
+    }).then(function (rep) {
+      if (rep.code === 200 && rep.corps && rep.corps.ok) {
+        montre(rep.corps.message || 'Message recu.', rep.corps.notifie === false ? 'ko' : 'ok');
+        if (rep.corps.notifie !== false) {
+          champ.value = '';
+          majEtat();
+        }
+        return;
+      }
+      // Un refus explique se dit tel quel : le visiteur peut corriger.
+      montre((rep.corps && rep.corps.error) || 'Envoi refuse.', 'ko');
+      envoyer.disabled = false;
+    }).catch(function () {
+      // Reseau coupe, API arretee : plutot que de perdre le message, on renvoie
+      // le visiteur vers le mailto deja redige, qui ne depend de personne.
+      montre('L’envoi n’a pas abouti. Le lien « ou l’ouvrir dans mon logiciel de courriel » contient deja votre message.', 'ko');
+      envoyer.disabled = false;
+    });
   });
 
   majEtat();
