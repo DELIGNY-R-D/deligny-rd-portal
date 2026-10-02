@@ -84,7 +84,7 @@ async function charger() {
       <div class="card">
         <div class="titre" style="font-size:19px">${esc(o.titre)}</div>
         <div class="mono">${esc(o.id)}</div>
-        <p class="note">${esc(o.artiste)} · ${esc(o.date_creation)}<br>
+        <p class="note">${esc(o.artiste)} · ${esc(String(o.date_creation || "").replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, "$3/$2/$1"))}<br>
         Propriétaire : ${esc(o.proprietaire_pseudo || "-")} (${esc(o.proprietaire_pays || "-")})<br>
         <span class="pill">${esc(o.prix || "prix sur demande")}</span>
         <span class="pill">${o.scans_uniques} vérif.</span></p>

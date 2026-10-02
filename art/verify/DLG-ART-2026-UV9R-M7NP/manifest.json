@@ -5,7 +5,7 @@
     "titre": "Rébellion en Technicolor",
     "artiste": "Baptiste Placier",
     "collection": "Pop art",
-    "dimensions": "50 x 70cm",
+    "dimensions": "50 × 65 cm",
     "support": "200g",
     "edition": "Pièce unique (1/1)",
     "orientation": "Paysage — signature en bas à droite",
@@ -224,12 +224,12 @@
   },
   "statut": "publié",
   "verification_url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP",
-  "version": 3,
-  "manifeste_precedent_sha256": "f8fe8e284c9692bfff4ccfe935c73169543e83c121f6ecf366fb26b149f19524",
+  "version": 4,
+  "manifeste_precedent_sha256": "ceb1649a8c69af7271ef44138ea4c4243f6651fb6e136d6fcdc56f6000c46852",
   "signature": {
     "algo": "Ed25519 (RFC 8032)",
     "cle_publique": "74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f",
-    "valeur_hex": "ed8ccfadf44daab123cede3e092c706eb640effc123d4f870ecda2a9f016a73485afe23e070a505e652f2a9b1efb69091d200ddcdc050055e297ae59e5c80e0b",
-    "manifeste_sha256": "ceb1649a8c69af7271ef44138ea4c4243f6651fb6e136d6fcdc56f6000c46852"
+    "valeur_hex": "adcc30904033ea7e6a5cf04859544d0108cffba0e8095c3aee129b7456870fed9af74e07cdf4b0c6d8a0dd32bf7e6f36b18cc78e6344a299258d56c575b5680e",
+    "manifeste_sha256": "585ae35f410a413aca123c33499d5cdb9e2d95b9cd4231058d0d61f4acb3c95a"
   }
 }
