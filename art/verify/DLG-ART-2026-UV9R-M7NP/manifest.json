@@ -51,7 +51,7 @@
     ],
     "encadrement": {
       "mode": "reel",
-      "cadre": "photo:double-filet:or",
+      "cadre": "preset:baguette",
       "passe_partout_mm": 0,
       "etiquette": "blanche"
     }
@@ -224,12 +224,12 @@
   },
   "statut": "publié",
   "verification_url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP",
-  "version": 2,
-  "manifeste_precedent_sha256": "34a24dff2de42ab56e29096da29358f18d2ca8a2d9351355a844396a672862ad",
+  "version": 3,
+  "manifeste_precedent_sha256": "f8fe8e284c9692bfff4ccfe935c73169543e83c121f6ecf366fb26b149f19524",
   "signature": {
     "algo": "Ed25519 (RFC 8032)",
     "cle_publique": "74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f",
-    "valeur_hex": "2bd56756af101870f9d5ade13a9b28bf8b4dcb98e0cc63c2a71739593bcee635e9b599c7b6b92e6125315c18419696728292dfa93c0fb16a2462473626ca560d",
-    "manifeste_sha256": "f8fe8e284c9692bfff4ccfe935c73169543e83c121f6ecf366fb26b149f19524"
+    "valeur_hex": "ed8ccfadf44daab123cede3e092c706eb640effc123d4f870ecda2a9f016a73485afe23e070a505e652f2a9b1efb69091d200ddcdc050055e297ae59e5c80e0b",
+    "manifeste_sha256": "ceb1649a8c69af7271ef44138ea4c4243f6651fb6e136d6fcdc56f6000c46852"
   }
 }
