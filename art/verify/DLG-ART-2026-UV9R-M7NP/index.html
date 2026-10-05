@@ -106,14 +106,11 @@ L&#x27;œuvre ne dicte rien, elle présente. Au spectateur de naviguer dans ce d
 
 
 
-<h2>Références &amp; crédits</h2><table><tr><th>élément</th><th>référence</th><th>artiste / origine</th><th>confiance</th></tr><tr><td>motif LV</td><td>motif Monogramme Louis Vuitton</td><td>Louis Vuitton</td><td>100%</td></tr><tr><td>slogan Think Different</td><td>Think different, Apple 1997</td><td>—</td><td>100%</td></tr><tr><td>Felix le chat avec un télescope</td><td>Felix the Cat</td><td>Otto Messmer &amp; Pat Sullivan</td><td>100%</td></tr><tr><td>billet avec Benjamin Franklin et cornes</td><td>billet 100 USD</td><td>—</td><td>100%</td></tr><tr><td>chat endormi</td><td>—</td><td>—</td><td>90%</td></tr><tr><td>homme en jaune avec des lunettes et arme</td><td>—</td><td>—</td><td>90%</td></tr><tr><td>motif monogramme avec symboles et couleurs variées</td><td>motif monogramme Louis Vuitton</td><td>Louis Vuitton</td><td>90%</td></tr><tr><td>texte Out Of Control</td><td>—</td><td>—</td><td>80%</td></tr><tr><td>caméra de surveillance</td><td>—</td><td>—</td><td>80%</td></tr><tr><td>couronne noire et blanche sur globe terrestre</td><td>—</td><td>—</td><td>80%</td></tr><tr><td>cheval ailé stylisé</td><td>Pégase</td><td>—</td><td>70%</td></tr><tr><td>planète avec couronne</td><td>—</td><td>—</td><td>70%</td></tr><tr><td>surfeur sur planche rose</td><td>—</td><td>—</td><td>60%</td></tr><tr><td>homme en silhouette avec sac à dos</td><td>—</td><td>—</td><td>60%</td></tr><tr><td>œil stylisé et formes géométriques noires</td><td>—</td><td>—</td><td>60%</td></tr><tr><td>triangle rose avec texture</td><td>—</td><td>—</td><td>50%</td></tr></table><p style="font-size:11px;color:#5b4632">Emprunts documentés et validés par l'artiste (identification assistée par IA) — démarche de transparence, un crédit ne vaut pas autorisation.</p>
+<h2>Références &amp; crédits</h2><table><tr><th>élément</th><th>référence</th><th>artiste / origine</th><th>confiance</th></tr><tr><td>motif LV</td><td>motif Monogramme Louis Vuitton</td><td>Louis Vuitton</td><td>100%</td></tr><tr><td>slogan Think Different</td><td>Think different, Apple 1997</td><td>—</td><td>100%</td></tr><tr><td>Felix le chat avec un télescope</td><td>Felix the Cat</td><td>Otto Messmer &amp; Pat Sullivan</td><td>100%</td></tr><tr><td>billet avec Benjamin Franklin et cornes</td><td>billet 100 USD</td><td>—</td><td>100%</td></tr><tr><td>motif monogramme avec symboles et couleurs variées</td><td>motif monogramme Louis Vuitton</td><td>Louis Vuitton</td><td>90%</td></tr><tr><td>cheval ailé stylisé</td><td>Pégase</td><td>—</td><td>70%</td></tr></table><p style="font-size:11px;color:#5b4632">Emprunts documentés et validés par l'artiste (identification assistée par IA) — démarche de transparence, un crédit ne vaut pas autorisation.</p>
 
 
 
 
-
-<h2>Popularité</h2>
-<div id="pop"><p style="font-size:11.5px;color:#5b4632">…</p></div>
 
 <h2>Avis</h2>
 <div id="avis"><p style="font-size:11.5px;color:#5b4632">…</p></div>
@@ -203,19 +200,10 @@ la moindre démarche à faire.</div>
       post("/track", { type: "duree", oeuvre: OID, sec: Math.round((Date.now() - t0) / 1000), tz: tz });
   });
 
-  /* Popularité, avis et statut de cession : lus en direct */
+  /* Avis et statut de cession : lus en direct (la popularité est réservée au propriétaire) */
   function esc(s) { return String(s == null ? "" : s).replace(/[<>&"]/g, function (c) {
     return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]; }); }
   fetch(API + "/public/oeuvre/" + OID).then(function (r) { return r.json(); }).then(function (d) {
-    var a = d.attention || {};
-    document.getElementById("pop").innerHTML =
-      '<table><tr><th>vues de cette fiche</th><td>' + (a.vues || 0) + '</td></tr>' +
-      '<tr><th>vérifications du certificat</th><td>' + (a.scans_certificat || 0) + '</td></tr>' +
-      '<tr><th>attention moyenne</th><td>' + (a.attention_moyenne_s || 0) + ' s (max ' + (a.attention_max_s || 0) + ' s)</td></tr>' +
-      '<tr><th>clics sur le prix</th><td>' + (a.clics_prix || 0) + '</td></tr>' +
-      '<tr><th>offres reçues</th><td>' + (a.offres || 0) + '</td></tr>' +
-      ((d.fuseaux || []).length ? '<tr><th>fuseaux des visiteurs</th><td>' + d.fuseaux.map(esc).join(", ") + '</td></tr>' : "") +
-      '</table><p style="font-size:11px;color:#5b4632">Mesure anonyme : aucune adresse IP ni cookie.</p>';
     var av = d.avis || [];
     document.getElementById("avis").innerHTML = av.length ? av.map(function (x) {
       return '<p style="border-bottom:1px solid #c9bb9c;padding-bottom:8px"><b>' + esc(x.pseudo) + '</b>' +

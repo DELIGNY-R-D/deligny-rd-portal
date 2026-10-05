@@ -90,6 +90,7 @@ async function charger() {
         <p class="liens"><a href="../galerie-3d/#${esc(o.id)}">Voir en 3D →</a>
           <a href="../verify/${esc(o.id)}/">Certificat public →</a></p>
       </div>
+      ${popHtml(d.popularite)}
       ${coulissesHtml(d.coulisses)}
 
       <h2>Confirmer que tu détiens toujours l'œuvre</h2>
@@ -134,6 +135,19 @@ async function charger() {
     brancher(o);
     chargerPhotos(d.coulisses);
   } catch (e) { $("corps").innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
+}
+// Popularité : réservée au propriétaire (retirée de la fiche publique le 05/10/2026).
+function popHtml(a) {
+  if (!a) return "";
+  return `<h2>Popularité</h2>
+    <div class="card"><table>
+      <tr><th>vues de la fiche</th><td>${a.vues || 0}</td></tr>
+      <tr><th>vérifications du certificat</th><td>${a.scans_certificat || 0}</td></tr>
+      <tr><th>attention moyenne</th><td>${a.attention_moyenne_s || 0} s (max ${a.attention_max_s || 0} s)</td></tr>
+      <tr><th>clics sur le prix</th><td>${a.clics_prix || 0}</td></tr>
+      <tr><th>offres reçues</th><td>${a.offres || 0}</td></tr>
+      ${(a.fuseaux || []).length ? `<tr><th>fuseaux des visiteurs</th><td>${a.fuseaux.map(esc).join(", ")}</td></tr>` : ""}
+    </table><p class="note">Mesure anonyme : aucune adresse IP ni cookie.</p></div>`;
 }
 // Coulisses : réservées au propriétaire. Les photos se lisent avec le jeton,
 // via fetch (pas d'URL d'image publique), puis s'affichent en blob local.
