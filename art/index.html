@@ -26,6 +26,9 @@
            color:inherit; text-decoration:none; transition:transform .15s ease, box-shadow .15s ease; }
   .carte:hover, .carte:focus-visible { transform:translateY(-3px); box-shadow:0 10px 24px rgba(25,23,19,.18); }
   .visuel.v3d { background:#14120e; }
+  .visuel iframe { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:transparent; }
+  .texte { color:inherit; text-decoration:none; }
+  .texte:hover h2 { color:var(--rouge); }
   .visuel { position:relative; display:block; aspect-ratio:4/3; background:#e9e0c9; overflow:hidden; border-bottom:1px solid var(--encre); }
   .visuel img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease; }
   .carte:hover .visuel img { transform:scale(1.03); }
@@ -69,21 +72,21 @@
 <section class="intro">
   <h1>Chaque œuvre, en volume et avec sa preuve.</h1>
   <div>
-    <p>Toucher une œuvre ouvre son dossier : le tableau encadré en 3D, recto et dos, et sa fiche.</p>
+    <p>Faire glisser une œuvre pour tourner le tableau encadré ; la toucher ouvre son dossier : 3D, recto et dos, et sa fiche.</p>
     <p>Chaque pièce quitte l'atelier avec son cartouche : un manifeste signé <b>Ed25519</b> à chaîne de versions,
     l'empreinte SHA-256 de sa photographie originale et une page de vérification publique.
     Clé publique : <a href="verify/cle-publique.txt">cle-publique.txt</a>.</p>
   </div>
 </section>
 <div class="grille">
-  <a class="carte" href="galerie-3d/#DLG-ART-2026-UV9R-M7NP">
-    <div class="visuel v3d"><img src="galerie-3d/oeuvres/DLG-ART-2026-UV9R-M7NP/vue3d.jpg" alt="Rébellion en Technicolor, vue en 3D" loading="lazy"></div>
-    <div class="texte">
+  <article class="carte">
+    <div class="visuel v3d"><img src="galerie-3d/oeuvres/DLG-ART-2026-UV9R-M7NP/vue3d.jpg" alt="Rébellion en Technicolor, vue en 3D" loading="lazy"><iframe src="galerie-3d/?carte=1#DLG-ART-2026-UV9R-M7NP" loading="lazy" title="« Rébellion en Technicolor » en 3D : glisser pour tourner, toucher pour ouvrir le dossier"></iframe></div>
+    <a class="texte" href="galerie-3d/#DLG-ART-2026-UV9R-M7NP">
       <h2>Rébellion en Technicolor</h2>
       <p class="qui">Baptiste Placier · 26/06/2025</p><p class="det">Pop art · 50 × 65 cm</p><p class="det">collage, pochoir, encre</p><p class="det">Pièce unique (1/1)</p>
       <p class="ref">DLG-ART-2026-UV9R-M7NP</p>
-    </div>
-  </a></div>
+    </a>
+  </article></div>
 <aside class="proprio"><b>Propriétaire d'une œuvre ?</b> Le QR de l'étiquette ouvre l'espace propriétaire :
 voir les coulisses de l'œuvre (photos de sa fabrication), la suivre et la céder.</aside>
 <footer><span>1 œuvre(s) au répertoire</span><span>deligny-rd.fr</span></footer>

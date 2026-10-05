@@ -72,11 +72,13 @@
   }
   /* Mode capture (?capture=1) : la scène seule sur fond transparent, pour la
      vignette 3D du répertoire (galerie_publique.capturer). */
-  html.capture, html.capture body { background:transparent !important; height:100% !important; }
-  html.capture body { display:block !important; }
-  .capture header, .capture .liste, .capture .photo, .capture .cartel { display:none !important; }
-  .capture main, .capture .scene-zone { display:block !important; height:100% !important; }
-  .capture #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; }
+  html.capture, html.capture body, html.carte, html.carte body { height:100% !important; overflow:hidden; }
+  html.capture body, html.carte body { display:block !important; }
+  .capture header, .capture .liste, .capture .photo, .capture .cartel,
+  .carte header, .carte .liste, .carte .photo, .carte .cartel, .carte #zoomC { display:none !important; }
+  .capture main, .capture .scene-zone, .carte main, .carte .scene-zone { display:block !important; height:100% !important; }
+  .capture #scene, .carte #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; min-height:0 !important; }
+  .carte #scene { cursor:grab; }
   /* Espace propriétaire dans la fiche (?t=<jeton>) */
   .cartel { max-height:calc(100% - 32px); overflow:auto; }
   .proprio { border-top:1px solid var(--line); padding-top:10px; display:grid; gap:8px; }
@@ -128,6 +130,6 @@
 <div id="zoomC"><img id="zoomCImg" alt=""></div>
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
-<script src="galerie.js?v=fa2829a7"></script>
+<script src="galerie.js?v=a31890f2"></script>
 
 </body></html>
