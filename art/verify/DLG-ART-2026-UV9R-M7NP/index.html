@@ -121,6 +121,10 @@ L&#x27;œuvre ne dicte rien, elle présente. Au spectateur de naviguer dans ce d
 <h2>Vérification</h2>
 <div id="nodus-verdict" class="note">Vérification en cours dans ton navigateur…</div>
 
+<!-- Détail cryptographique : réservé au propriétaire (05/10/2026). Ouvert par
+     ?t=<jeton propriétaire>, contrôlé auprès de la plateforme. Le manifeste
+     signé reste publié (manifest.json) : c'est un choix d'affichage. -->
+<div id="detail-proprio" hidden>
 <h2>Signature du manifeste</h2>
 <table>
 <tr><th>Algorithme</th><td>Ed25519 (RFC 8032)</td></tr>
@@ -140,6 +144,7 @@ de l'œuvre et gravée dans ses QR codes. DELIGNY R&amp;D s'engage à la mainten
 <b>vingt ans</b> à compter de la date de génération du certificat. Elle ne sera ni déplacée
 ni redirigée : un cartouche imprimé aujourd'hui reste vérifiable sans que son porteur ait
 la moindre démarche à faire.</div>
+</div>
 <script>window.NODUS_ANNUAIRE = "/nodus/";</script>
 <script src="/nodus/nodus-verificateur.js?v=1c394e8f47"></script>
 <script>
@@ -167,6 +172,21 @@ la moindre démarche à faire.</div>
                                : "Certificat NON valide";
     boite.style.borderTop = "2px solid " + couleur;
     boite.style.paddingTop = "12px";
+    var resume = '<div style="font:600 16px/1.3 Georgia,serif;color:' + couleur + '">'
+      + (v.authentique ? "✓ " : "") + titre + "</div>";
+    /* Public : le verdict seul. Propriétaire (jeton valide) : tout le détail. */
+    var jeton = new URLSearchParams(location.search).get("t") || "";
+    var proprio = false;
+    if (jeton) {
+      try {
+        var r = await fetch("https://atlas-studio.pro/deligny/api/owner/" + encodeURIComponent(jeton));
+        var d = r.ok ? await r.json() : null;
+        proprio = !!(d && d.oeuvre && d.oeuvre.id === "DLG-ART-2026-UV9R-M7NP");
+      } catch (e) {}
+      history.replaceState(null, "", location.pathname);   /* le jeton ne reste pas dans la barre */
+    }
+    if (!proprio) { boite.innerHTML = resume; return; }
+    document.getElementById("detail-proprio").hidden = false;
     boite.innerHTML =
       '<div style="font:600 16px/1.3 Georgia,serif;color:' + couleur + '">' + titre + "</div>"
       + '<div style="margin:6px 0 8px">' + v.motif + "</div>"

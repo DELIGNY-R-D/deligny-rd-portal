@@ -88,7 +88,8 @@ async function charger() {
           Vérifications du certificat : <b>${o.scans_uniques}</b>
         </p>
         <p class="liens"><a href="../galerie-3d/#${esc(o.id)}">Voir en 3D →</a>
-          <a href="../verify/${esc(o.id)}/">Certificat public →</a></p>
+          <a href="../verify/${esc(o.id)}/">Certificat public →</a>
+          <a href="../verify/${esc(o.id)}/?t=${encodeURIComponent(t)}">Vérification complète (signature) →</a></p>
       </div>
       ${popHtml(d.popularite)}
       ${coulissesHtml(d.coulisses)}
