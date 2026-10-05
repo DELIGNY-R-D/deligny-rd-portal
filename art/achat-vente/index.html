@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Achat / Vente — Deligny R&amp;D</title>
+<meta name="description" content="Acquérir une œuvre Deligny R&amp;D : à l'atelier ou entre collectionneurs, avec certificat signé.">
+<style>
+  :root { --papier:#f5efdf; --carte:#fffdf6; --encre:#191713; --brun:#5b4632; --rouge:#7e1e14; --filet:#d8ccb0;
+           --titre:"Didot","Bodoni 72",Georgia,serif; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Helvetica Neue",Arial,sans-serif; background:var(--papier); color:var(--encre); }
+  a { color:var(--rouge); }
+  .page { max-width:1120px; margin:0 auto; padding:34px 22px 40px; }
+  header { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px 28px;
+            border-bottom:1px solid var(--encre); padding-bottom:16px; }
+  .marque { font-size:24px; font-weight:800; letter-spacing:.24em; margin:0; }
+  .marque small { display:block; font-size:10.5px; font-weight:400; letter-spacing:.32em; color:var(--brun); margin-top:6px; }
+  nav { display:flex; flex-wrap:wrap; gap:6px; }
+  nav a { font-size:11px; letter-spacing:.14em; text-transform:uppercase; text-decoration:none; color:var(--encre);
+           border:1px solid var(--encre); padding:7px 11px; }
+  nav a.actif { background:var(--encre); color:var(--papier); }
+  h1 { font:italic 400 34px/1.1 var(--titre); margin:26px 0 10px; }
+  h2 { font-size:12px; letter-spacing:.22em; text-transform:uppercase; color:var(--brun); margin:34px 0 6px; }
+  .note { font-size:13px; line-height:1.6; color:var(--brun); max-width:720px; margin:0 0 16px; }
+  .grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(280px, 1fr)); gap:24px; }
+  .carte { background:var(--carte); border:1px solid var(--encre); display:flex; flex-direction:column; }
+  .visuel { position:relative; display:block; aspect-ratio:4/3; background:#e9e0c9; overflow:hidden; border-bottom:1px solid var(--encre); }
+  .visuel img { width:100%; height:100%; object-fit:cover; display:block; }
+  .sans { display:flex; height:100%; align-items:center; justify-content:center; color:var(--filet); font-size:40px; }
+  .badge { position:absolute; right:10px; bottom:10px; background:rgba(25,23,19,.86); color:var(--papier);
+            font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; padding:6px 9px; }
+  .texte { padding:14px 16px 16px; display:flex; flex-direction:column; gap:3px; flex:1; }
+  .texte h3 { font:italic 400 21px/1.15 var(--titre); margin:0 0 4px; }
+  .det { font-size:12px; color:var(--brun); margin:0; }
+  .prix { font:400 22px/1.2 var(--titre); margin:10px 0 0; }
+  .actions { display:flex; gap:8px; margin-top:auto; padding-top:12px; }
+  .b { flex:1; text-align:center; font:inherit; font-size:11px; letter-spacing:.12em; text-transform:uppercase; text-decoration:none;
+        border:1px solid var(--encre); color:var(--encre); background:none; padding:10px 8px; cursor:pointer; }
+  .b.plein { background:var(--encre); color:var(--papier); }
+  .b:hover { background:var(--rouge); border-color:var(--rouge); color:#fff; }
+  #demande { border:1px solid var(--encre); background:var(--carte); padding:16px 18px; margin-top:22px; max-width:640px; }
+  #demande label { display:block; font-size:11px; letter-spacing:.12em; text-transform:uppercase; color:var(--brun); margin:12px 0 4px; }
+  #demande input, #demande textarea { width:100%; padding:9px 10px; border:1px solid #b4a583; background:#fffdf6;
+        font:inherit; font-size:14px; color:var(--encre); }
+  #demande textarea { min-height:96px; resize:vertical; }
+  .piege { position:absolute; left:-9999px; width:1px; height:1px; overflow:hidden; }
+  .msg { margin-top:12px; font-size:13px; }
+  .msg.ok { color:#2d5c2f; } .msg.ko { color:var(--rouge); }
+  footer { margin-top:34px; border-top:1px solid var(--filet); padding-top:12px; font-size:11px; color:var(--brun); }
+  @media (max-width:720px) {
+    .page { padding:22px 16px 30px; }
+    .marque { font-size:19px; }
+    h1 { font-size:27px; }
+    .grille { grid-template-columns:minmax(0,1fr); gap:20px; }
+    .b { padding:12px 8px; }
+  }
+</style></head><body><div class="page">
+<header>
+  <p class="marque">DELIGNY R&amp;D<small>ACHAT / VENTE</small></p>
+  <nav aria-label="Sections">
+    <a href="../">Répertoire</a>
+    <a href="../galerie-3d/">Galerie 3D</a>
+    <a class="actif" href="./" aria-current="page">Achat / Vente</a>
+    <a href="../avis/">Avis</a>
+  </nav>
+</header>
+<h1>Acquérir une œuvre.</h1>
+<p class="note">Chaque pièce est livrée avec son cartouche d'authenticité signé et son jeton de propriété.
+<b>Aucun paiement ne transite par ce site</b> : la vente se conclut directement, puis la propriété est inscrite au registre.</p>
+
+<h2>À l'atelier</h2>
+<p class="note">Œuvres disponibles directement auprès du studio, au prix public. La demande part à l'atelier, qui répond par courriel.</p>
+<div class="grille">
+  <article class="carte">
+    <a class="visuel" href="../galerie-3d/#DLG-ART-2026-UV9R-M7NP" aria-label="Voir en 3D"><img src="../verify/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg" alt="Rébellion en Technicolor" loading="lazy"><span class="badge">Voir en 3D ↻</span></a>
+    <div class="texte"><h3>Rébellion en Technicolor</h3>
+      <p class="det">Baptiste Placier</p><p class="det">Pop art · 50 × 65 cm · Pièce unique (1/1)</p>
+      <p class="prix">590 €</p>
+      <div class="actions"><button type="button" class="b plein" data-oid="DLG-ART-2026-UV9R-M7NP" data-titre="Rébellion en Technicolor" data-prix="590 €">Demander à acquérir</button><a class="b" href="../verify/DLG-ART-2026-UV9R-M7NP/">Certificat ✓</a></div></div>
+  </article></div>
+
+<form id="demande" hidden onsubmit="return false">
+  <b id="dTitre"></b>
+  <label for="dNom">Nom ou pseudonyme</label><input id="dNom" maxlength="80" autocomplete="name">
+  <label for="dCourriel">Courriel</label><input id="dCourriel" type="email" maxlength="254" autocomplete="email" required>
+  <label for="dMessage">Message</label><textarea id="dMessage" maxlength="4000"></textarea>
+  <div class="piege" aria-hidden="true"><input id="dVide" tabindex="-1" autocomplete="off"></div>
+  <div class="actions"><button type="button" class="b plein" id="dEnvoyer">Envoyer la demande</button>
+    <button type="button" class="b" id="dAnnuler">Annuler</button></div>
+  <div class="msg" id="dMsg"></div>
+</form>
+
+<h2>Entre collectionneurs</h2>
+<p class="note">Œuvres remises en vente par leurs propriétaires. L'offre est transmise au propriétaire ; la cession est
+ensuite déclarée et contresignée, la provenance reste continue.</p>
+<div class="grille" id="revente"><p class="note">Chargement…</p></div>
+
+<footer>Deligny R&amp;D · 231 rue Saint-Honoré, 75001 Paris · contact@deligny-rd.fr</footer>
+</div>
+<script>
+const API = "https://atlas-studio.pro/deligny/api";
+const $ = i => document.getElementById(i);
+const esc = s => String(s == null ? "" : s).replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+let ouvert = 0, choix = null;
+document.querySelectorAll("button[data-oid]").forEach(b => b.onclick = () => {
+  choix = b.dataset; ouvert = Date.now();
+  $("dTitre").textContent = "Demande d'acquisition : « " + choix.titre + " » (" + choix.oid + "), " + choix.prix;
+  $("dMessage").value = "Bonjour, je souhaite acquérir « " + choix.titre + " » (" + choix.oid + ") au prix de " + choix.prix + ". ";
+  $("dMsg").textContent = ""; $("demande").hidden = false;
+  $("demande").scrollIntoView({ behavior: "smooth", block: "center" });
+});
+$("dAnnuler").onclick = () => { $("demande").hidden = true; };
+$("dEnvoyer").onclick = async () => {
+  $("dEnvoyer").disabled = true; $("dMsg").className = "msg"; $("dMsg").textContent = "Envoi…";
+  try {
+    const r = await fetch(API + "/message", { method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ sujet: "oeuvre", mode: "", page: "achat-vente " + choix.oid,
+        nom: $("dNom").value, courriel: $("dCourriel").value, message: $("dMessage").value,
+        laisser_vide: $("dVide").value, ms: Date.now() - ouvert }) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok) throw new Error(d.error || ("erreur " + r.status));
+    $("dMsg").className = "msg ok"; $("dMsg").textContent = d.message || "Demande envoyée.";
+  } catch (e) { $("dMsg").className = "msg ko"; $("dMsg").textContent = e.message; }
+  $("dEnvoyer").disabled = false;
+};
+fetch(API + "/public/oeuvres").then(r => r.json()).then(d => {
+  const l = (d.oeuvres || []).filter(o => o.a_ceder);
+  $("revente").innerHTML = l.length ? l.map(o => `<article class="carte">
+      <a class="visuel" href="../galerie-3d/#${esc(o.id)}"><img src="../verify/${esc(o.id)}/oeuvre.jpg" alt="" loading="lazy"><span class="badge">Voir en 3D ↻</span></a>
+      <div class="texte"><h3>${esc(o.titre)}</h3>
+        <p class="det">${esc(o.artiste || "")}</p>
+        <p class="det">Proposée par ${esc(o.proprietaire_pseudo || "son propriétaire")}${o.proprietaire_pays ? " (" + esc(o.proprietaire_pays) + ")" : ""}</p>
+        ${o.prix ? `<p class="prix">${esc(o.prix)}</p>` : ""}
+        <div class="actions"><a class="b plein" href="../echange/?o=${encodeURIComponent(o.id)}">Faire une offre</a>
+          <a class="b" href="../verify/${esc(o.id)}/">Certificat ✓</a></div></div></article>`).join("")
+    : '<p class="note">Aucune œuvre remise en vente par un collectionneur pour le moment.</p>';
+}).catch(() => { $("revente").innerHTML = '<p class="note">Liste momentanément indisponible.</p>'; });
+</script>
+</body></html>

@@ -92,6 +92,7 @@ async function charger() {
       </div>`).join("") + "</div>"
       : '<p class="note">Aucune œuvre proposée à la cession pour l\'instant.</p>';
     $("oeuvre").innerHTML = dispo.map(o => `<option value="${esc(o.id)}">${esc(o.id)} - ${esc(o.titre)}</option>`).join("");
+    if (param("o") && dispo.some(o => o.id === param("o"))) $("oeuvre").value = param("o");   /* lien depuis Achat / Vente */
   } catch (e) { $("liste").innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
 }
 $("go").onclick = async () => {
