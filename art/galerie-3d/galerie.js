@@ -50,8 +50,6 @@
     // Pas de zoom ni de déplacement (la molette et le pincement font défiler la
     // page) ; sur téléphone, le glissé vertical reste le défilement de la page.
     controls.enableZoom = false; controls.enablePan = false; canvas.style.touchAction = "pan-y";
-    controls.addEventListener("start", () => { pivot.libre = false; });
-    controls.addEventListener("end", () => { pivot.reprise = performance.now() + 2500; pivot.libre = true; });
     let dep = null;
     canvas.addEventListener("pointerdown", e => { dep = [e.clientX, e.clientY]; });
     canvas.addEventListener("pointerup", e => {
@@ -413,13 +411,17 @@
   const CAPTURE = new URLSearchParams(location.search).has("capture");
   let texturesPretes = false, imagesApres = 0;
   THREE.DefaultLoadingManager.onLoad = () => { texturesPretes = true; };
-  // Pivot doux de la carte : un lent va-et-vient de ±22° autour de la vue de
-  // trois quarts, suspendu pendant que l'on manipule, repris 2,5 s après.
+  // Pivot automatique (carte du répertoire ET dossier) : un lent va-et-vient de
+  // ±22° autour de la vue courante, suspendu pendant que l'on manipule, repris
+  // 2,5 s après. Volontairement indépendant du réglage « réduire les
+  // animations » : demande explicite de l'artiste (05/10/2026), mouvement lent.
   const pivot = { libre: true, reprise: 0, angle: 0, t: 0, dernier: 0 };
+  controls.addEventListener("start", () => { pivot.libre = false; });
+  controls.addEventListener("end", () => { pivot.reprise = performance.now() + 2500; pivot.libre = true; });
   const _axeY = new THREE.Vector3(0, 1, 0), _off = new THREE.Vector3();
   function pivoter(now) {
     const dt = Math.min(.05, (now - (pivot.dernier || now)) / 1000); pivot.dernier = now;
-    if (!CARTE || !pivot.libre || now < pivot.reprise || matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    if (CAPTURE || !pivot.libre || now < pivot.reprise) return;
     pivot.t += dt;
     const cible = 0.38 * Math.sin(pivot.t * 2 * Math.PI / 14);          // un aller-retour en 14 s
     _off.copy(camera.position).sub(controls.target).applyAxisAngle(_axeY, cible - pivot.angle);
