@@ -318,6 +318,7 @@
     }
     $("bCache").hidden = !o.cartouche;
     const D = Math.max(lw, lh);
+    DIM = { w: lw + 3.2, h: lh + 3.2, D };
     VUES = { face: { p: [0, 0, D * 2.05], t: [0, 0, 0] }, biais: { p: [D * 1.05, D * .2, D * 1.6], t: [0, 0, 0] },
              detail: { p: [lw * .2, lh * .15, D * .65], t: [lw * .16, lh * .12, 0] },
              dos: { p: [-D * .45, D * .1, -D * 1.9], t: [0, 0, 0] },
@@ -328,9 +329,18 @@
 
   // ---------- vues et animation ----------
   let anim = null;
+  // Recul automatique : en portrait (téléphone), le cadre entier doit tenir en LARGEUR.
+  // Les vues sont écrites pour un écran large ; on les éloigne d'autant qu'il faut.
+  let DIM = { w: 1, h: 1, D: 1 };
+  function recul() {
+    const v = THREE.MathUtils.degToRad(camera.fov) / 2, h = Math.atan(Math.tan(v) * camera.aspect);
+    const besoin = Math.max((DIM.h / 2) / Math.tan(v), (DIM.w / 2) / Math.tan(h)) * 1.12;
+    return Math.max(1, besoin / (DIM.D * 2.05));
+  }
   function aller(nom, direct) {
     const v = VUES[nom]; if (!v) return;
     const p0 = camera.position.clone(), t0 = controls.target.clone(), p1 = new THREE.Vector3(...v.p), t1 = new THREE.Vector3(...v.t);
+    if (nom === "face" || nom === "biais" || nom === "dos") p1.sub(t1).multiplyScalar(recul()).add(t1);
     if (direct) { camera.position.copy(p1); controls.target.copy(t1); return; }
     const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches, duree = reduit ? 1 : 900, debut = performance.now();
     anim = now => { const k = Math.min(1, (now - debut) / duree), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
