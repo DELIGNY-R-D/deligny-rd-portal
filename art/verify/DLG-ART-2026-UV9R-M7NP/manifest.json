@@ -57,7 +57,7 @@
     }
   },
   "significations": {
-    "intention_artiste": "Je crée un univers où l'absurde flirte avec la révolte, où l’argent, les icônes pop et les symboles de surveillance cohabitent. Un chat rêveur et un billet détourné se mêlent aux éclats colorés, formant une tension entre contrôle et liberté. Chaque élément visuel interpelle le statu quo dans un kaléidoscope chaotique et dynamique.\n\nMon geste artistique s'appuie sur la profusion et la juxtaposition. Les collages multicolores et les pochoirs précis soulignent la complexité du discours visuel. C’est une accumulation sans ordre apparent qui reflète le tumulte urbain tout en le bousculant.\n\nJe ne dicte rien, je présente. Je laisse au spectateur le soin de naviguer dans ce dédale saturé d'images et de décider comment réagir face à notre monde surchargé. C’est un espace d'interprétation libre et critique où chacun peut trouver sa vérité.",
+    "intention_artiste": "Un univers où l'absurde flirte avec la révolte : l'argent, les icônes pop et les symboles de surveillance y cohabitent. Un chat rêveur et un billet détourné se mêlent aux éclats colorés, dans une tension entre contrôle et liberté. Chaque élément interpelle le statu quo, comme dans un kaléidoscope chaotique et dynamique.\n\nLe geste repose sur la profusion et la juxtaposition. Collages multicolores et pochoirs précis rendent la complexité du discours visuel : une accumulation sans ordre apparent, qui reflète le tumulte urbain tout en le bousculant.\n\nL'œuvre ne dicte rien, elle présente. Au spectateur de naviguer dans ce dédale saturé d'images et de décider comment réagir face à un monde surchargé : un espace d'interprétation libre et critique, où chacun peut trouver sa vérité.",
     "interpretation_ia": "L'œuvre s'articule autour de tensions modernes avec un collage dense et disparate, évoquant la saturation médiatique et culturelle. Les lignes sinueuses et motifs répétitifs créent une composition chaotique mais rythmée. La palette vive de néons et de pastels contraste avec le noir et blanc des pochoirs. Réminiscences de l'art urbain, cet assemblage de symboles culturels, pop et subversifs comme la surveillance ou la révolte, insuffle un message provocateur. L'utilisation d'éléments iconiques détourne notre perception, conjuguant autodérision et critique sociale.",
     "analyse_esthetique": "Un collage riche composé de fragments colorés et de motifs variés. Les éléments sont juxtaposés sans lien évident, mais forment un ensemble dynamique. Les pochoirs apportent des détails précis, tandis que les impressions ajoutent de la texture et de la densité visuelle."
   },
@@ -224,12 +224,12 @@
   },
   "statut": "publié",
   "verification_url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP",
-  "version": 5,
-  "manifeste_precedent_sha256": "585ae35f410a413aca123c33499d5cdb9e2d95b9cd4231058d0d61f4acb3c95a",
+  "version": 6,
+  "manifeste_precedent_sha256": "131a509c4121fe748b32cb179404f88b7145c90a7e5d1e5f0ff414b08073963f",
   "signature": {
     "algo": "Ed25519 (RFC 8032)",
     "cle_publique": "74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f",
-    "valeur_hex": "905c45d36cd08ece937a65cbb10e4f767cc9dc162b420f029ba4bdae6e60dedefd9b27b2a31628e1c5f77b04e9c240e76e978e4b824622b7bdbafd785b587002",
-    "manifeste_sha256": "131a509c4121fe748b32cb179404f88b7145c90a7e5d1e5f0ff414b08073963f"
+    "valeur_hex": "abc1a593c04597827cd1f818a70bbefc9bffc4e9acc4a1863009779aac47968a1e9c672ae2ba47f4bad79a6ef1e3440c259e2c8cd2431d0311897ae599c84d0e",
+    "manifeste_sha256": "0be669fc9f165425dbcb3a23876c2e6b4637a5a040942ebddb86390fda325036"
   }
 }

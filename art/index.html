@@ -1,48 +1,88 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Répertoire des œuvres — Deligny R&D</title>
+<title>Répertoire des œuvres — Deligny R&amp;D</title>
+<meta name="description" content="Œuvres certifiées du studio Deligny R&amp;D, à voir en 3D, chacune avec son certificat signé.">
 <style>
-  body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
-         max-width: 980px; margin: 0 auto; padding: 30px 20px; }
-  h1 { font-size: 22px; letter-spacing: .2em; }
-  h1 small { display: block; font-size: 11px; letter-spacing: .32em; color: #5b4632; margin-top: 4px; }
-  .note { font-size: 12.5px; color: #5b4632; line-height: 1.55; margin: 14px 0 26px; max-width: 640px; }
-  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 18px; }
-  .card { border: 1px solid #191713; background: #fffdf6; text-decoration: none; color: inherit;
-          display: flex; flex-direction: column; transition: transform .1s; }
-  .card:hover { transform: translateY(-2px); }
-  .card img { width: 100%; aspect-ratio: 4/3; object-fit: cover; border-bottom: 1px solid #191713; }
-  .noimg { aspect-ratio: 4/3; display: flex; align-items: center; justify-content: center;
-           color: #b4a583; border-bottom: 1px solid #191713; }
-  .meta { padding: 10px 12px; }
-  .titre { font-family: Georgia, serif; font-style: italic; font-size: 16px; margin-bottom: 4px; }
-  .line { font-size: 11.5px; margin-top: 2px; }
-  .mono { font-family: Menlo, monospace; font-size: 10px; }
-  .dim { color: #5b4632; }
-  footer { margin-top: 30px; border-top: 1px solid #c9bb9c; padding-top: 12px; font-size: 11px; color: #5b4632; }
-  a { color: #7e1e14; }
-</style></head><body>
-<h1>DELIGNY R&amp;D<small>RÉPERTOIRE DES ŒUVRES · CARTOUCHES D'AUTHENTICITÉ</small></h1>
-<div class="note">Chaque œuvre du studio quitte l'atelier avec son cartouche : un manifeste signé
-<b>Ed25519</b> à chaîne de versions immuable, une empreinte SHA-256 de sa photographie originale et une
-page de vérification publique. Cliquer une œuvre pour vérifier son certificat.
-Clé publique du studio : <a href="verify/cle-publique.txt">cle-publique.txt</a>.</div>
-<nav style="margin:-14px 0 26px;font-size:12px;letter-spacing:.06em">
-  <a href="echange/">◆ Œuvres à céder</a> &nbsp;·&nbsp;
-  <a href="galerie-3d/">◆ Galerie 3D</a> &nbsp;·&nbsp;
-  <a href="avis/">◆ Avis &amp; boîte à idées</a> &nbsp;·&nbsp;
-  <span style="color:#5b4632">propriétaire d'une œuvre ? le lien figure sur ton étiquette</span>
-</nav>
-<div class="grid">
-  <a class="card" href="verify/DLG-ART-2026-UV9R-M7NP/">
-    <img src="verify/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg" alt="Rébellion en Technicolor" loading="lazy">
-    <div class="meta">
-      <div class="titre">Rébellion en Technicolor</div>
-      <div class="line">Baptiste Placier · 26/06/2025</div>
-      <div class="line mono">DLG-ART-2026-UV9R-M7NP · PUBLIÉ</div>
-      <div class="line mono dim">EMPREINTE 131A 509C 4121</div>
+  :root { --papier:#f5efdf; --carte:#fffdf6; --encre:#191713; --brun:#5b4632; --rouge:#7e1e14; --filet:#d8ccb0;
+           --titre:"Didot","Bodoni 72",Georgia,serif; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Helvetica Neue",Arial,sans-serif; background:var(--papier); color:var(--encre); }
+  a { color:var(--rouge); }
+  .page { max-width:1120px; margin:0 auto; padding:34px 22px 40px; }
+  header { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px 28px;
+            border-bottom:1px solid var(--encre); padding-bottom:16px; }
+  .marque { font-size:24px; font-weight:800; letter-spacing:.24em; margin:0; }
+  .marque small { display:block; font-size:10.5px; font-weight:400; letter-spacing:.32em; color:var(--brun); margin-top:6px; }
+  nav { display:flex; flex-wrap:wrap; gap:6px; }
+  nav a { font-size:11px; letter-spacing:.14em; text-transform:uppercase; text-decoration:none; color:var(--encre);
+           border:1px solid var(--encre); padding:7px 11px; }
+  nav a.actif { background:var(--encre); color:var(--papier); }
+  .intro { display:grid; grid-template-columns:minmax(0,1.3fr) minmax(0,1fr); gap:28px; margin:26px 0 30px; align-items:start; }
+  .intro h1 { font:italic 400 34px/1.1 var(--titre); margin:0; }
+  .intro p { font-size:13px; line-height:1.6; color:var(--brun); margin:0 0 8px; }
+  .grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:26px; }
+  .carte { background:var(--carte); border:1px solid var(--encre); display:flex; flex-direction:column; }
+  .visuel { position:relative; display:block; aspect-ratio:4/3; background:#e9e0c9; overflow:hidden; border-bottom:1px solid var(--encre); }
+  .visuel img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease; }
+  .visuel:hover img, .visuel:focus-visible img { transform:scale(1.04); }
+  .sans { display:flex; height:100%; align-items:center; justify-content:center; color:var(--filet); font-size:40px; }
+  .badge { position:absolute; right:10px; bottom:10px; background:rgba(25,23,19,.86); color:var(--papier);
+            font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; padding:6px 9px; }
+  .texte { padding:14px 16px 16px; display:flex; flex-direction:column; gap:3px; flex:1; }
+  .texte h2 { font:italic 400 21px/1.15 var(--titre); margin:0 0 4px; }
+  .texte h2 a { color:inherit; text-decoration:none; }
+  .qui { font-size:12.5px; margin:0; }
+  .det { font-size:12px; color:var(--brun); margin:0; }
+  .ref { font-family:Menlo,monospace; font-size:10px; letter-spacing:.06em; color:var(--brun); margin:8px 0 0; line-height:1.6; }
+  .actions { display:flex; gap:8px; margin-top:auto; padding-top:12px; }
+  .b { flex:1; text-align:center; font-size:11px; letter-spacing:.12em; text-transform:uppercase; text-decoration:none;
+        border:1px solid var(--encre); color:var(--encre); padding:10px 8px; }
+  .b.plein { background:var(--encre); color:var(--papier); }
+  .b:hover { background:var(--rouge); border-color:var(--rouge); color:#fff; }
+  .proprio { margin-top:34px; border:1px dashed var(--brun); padding:16px 18px; font-size:12.5px; line-height:1.6; color:var(--brun); }
+  .proprio b { color:var(--encre); }
+  footer { margin-top:28px; border-top:1px solid var(--filet); padding-top:12px; font-size:11px; color:var(--brun);
+            display:flex; flex-wrap:wrap; gap:6px 18px; justify-content:space-between; }
+  @media (max-width:720px) {
+    .page { padding:22px 16px 30px; }
+    .marque { font-size:19px; }
+    .intro { grid-template-columns:minmax(0,1fr); gap:12px; margin:20px 0 22px; }
+    .intro h1 { font-size:27px; }
+    .grille { grid-template-columns:minmax(0,1fr); gap:20px; }
+    nav a { padding:8px 10px; }
+    .b { padding:12px 8px; }
+  }
+</style></head><body><div class="page">
+<header>
+  <p class="marque">DELIGNY R&amp;D<small>RÉPERTOIRE DES ŒUVRES</small></p>
+  <nav aria-label="Sections">
+    <a class="actif" href="./" aria-current="page">Répertoire</a>
+    <a href="galerie-3d/">Galerie 3D</a>
+    <a href="echange/">Œuvres à céder</a>
+    <a href="avis/">Avis</a>
+  </nav>
+</header>
+<section class="intro">
+  <h1>Chaque œuvre, en volume et avec sa preuve.</h1>
+  <div>
+    <p>Toucher une image fait tourner le tableau encadré en 3D, recto et dos.</p>
+    <p>Chaque pièce quitte l'atelier avec son cartouche : un manifeste signé <b>Ed25519</b> à chaîne de versions,
+    l'empreinte SHA-256 de sa photographie originale et une page de vérification publique.
+    Clé publique : <a href="verify/cle-publique.txt">cle-publique.txt</a>.</p>
+  </div>
+</section>
+<div class="grille">
+  <article class="carte">
+    <a class="visuel" href="galerie-3d/#DLG-ART-2026-UV9R-M7NP" aria-label="Voir « Rébellion en Technicolor » en 3D"><img src="verify/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg" alt="Rébellion en Technicolor" loading="lazy"><span class="badge">Voir en 3D ↻</span></a>
+    <div class="texte">
+      <h2><a href="galerie-3d/#DLG-ART-2026-UV9R-M7NP">Rébellion en Technicolor</a></h2>
+      <p class="qui">Baptiste Placier · 26/06/2025</p><p class="det">Pop art · 50 × 65 cm</p><p class="det">collage, pochoir, encre</p><p class="det">Pièce unique (1/1)</p>
+      <p class="ref">DLG-ART-2026-UV9R-M7NP<br>EMPREINTE 0BE6 69FC 9F16</p>
+      <div class="actions"><a class="b plein" href="galerie-3d/#DLG-ART-2026-UV9R-M7NP">Voir en 3D</a><a class="b" href="verify/DLG-ART-2026-UV9R-M7NP/">Certificat ✓</a></div>
     </div>
-  </a></div>
-<footer>1 œuvre(s) au répertoire · deligny-rd.fr</footer>
-</body></html>
+  </article></div>
+<aside class="proprio"><b>Propriétaire d'une œuvre ?</b> Le QR de l'étiquette ouvre l'espace propriétaire :
+vérifier, suivre et céder la pièce.</aside>
+<footer><span>1 œuvre(s) au répertoire</span><span>deligny-rd.fr</span></footer>
+</div></body></html>
