@@ -1,6 +1,7 @@
 (function () {
   if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");
   if (new URLSearchParams(location.search).has("capture")) document.documentElement.classList.add("capture");
+  if (new URLSearchParams(location.search).get("fond") === "transparent") document.documentElement.classList.add("transparent");
   // Mode carte (?carte=1) : la 3D vivante dans une carte du répertoire. On glisse
   // pour tourner ; un simple toucher ouvre le dossier complet de l'œuvre.
   const CARTE = new URLSearchParams(location.search).has("carte");
@@ -369,9 +370,13 @@
     VUES = { face: { p: [0, 0, D * 2.05], t: [0, 0, 0] }, biais: { p: [D * 1.05, D * .2, D * 1.6], t: [0, 0, 0] },
              detail: { p: [lw * .2, lh * .15, D * .65], t: [lw * .16, lh * .12, 0] },
              dos: { p: [-D * .45, D * .1, -D * 1.9], t: [0, 0, 0] },
+             // dos vu bien en face, comme une photo : verso de la page de vérification
+             dosface: { p: [0, 0, -D * 2.05], t: [0, 0, 0] },
              // de dos, reculé et visé sous le cartouche pour qu'il remonte au-dessus du cartel
              cartouche: { p: [cx + 4, cy - 4, -62], t: [cx + 4, cy - 9, -2] } };
-    aller("biais", true);
+    // capture : la vue demandée (?vue=dosface…), sinon trois quarts
+    const vueInit = new URLSearchParams(location.search).has("capture") && new URLSearchParams(location.search).get("vue");
+    aller(vueInit && VUES[vueInit] ? vueInit : "biais", true);
   }
 
   // ---------- vues et animation ----------
@@ -387,7 +392,7 @@
   function aller(nom, direct) {
     const v = VUES[nom]; if (!v) return;
     const p0 = camera.position.clone(), t0 = controls.target.clone(), p1 = new THREE.Vector3(...v.p), t1 = new THREE.Vector3(...v.t);
-    if (nom === "face" || nom === "biais" || nom === "dos") p1.sub(t1).multiplyScalar(recul()).add(t1);
+    if (nom === "face" || nom === "biais" || nom === "dos" || nom === "dosface") p1.sub(t1).multiplyScalar(recul()).add(t1);
     if (direct) { camera.position.copy(p1); controls.target.copy(t1); return; }
     const reduit = matchMedia("(prefers-reduced-motion: reduce)").matches, duree = reduit ? 1 : 900, debut = performance.now();
     anim = now => { const k = Math.min(1, (now - debut) / duree), e = k < .5 ? 4 * k * k * k : 1 - Math.pow(-2 * k + 2, 3) / 2;
