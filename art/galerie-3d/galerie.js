@@ -1,6 +1,10 @@
 (function () {
   if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");
   if (new URLSearchParams(location.search).has("capture")) document.documentElement.classList.add("capture");
+  // Mode carte (?carte=1) : la 3D vivante dans une carte du répertoire. On glisse
+  // pour tourner ; un simple toucher ouvre le dossier complet de l'œuvre.
+  const CARTE = new URLSearchParams(location.search).has("carte");
+  if (CARTE) document.documentElement.classList.add("carte");
   // Propriétaire : le jeton (lien de son espace) ouvre, dans la fiche, les photos
   // du processus et le certificat complet. Lu une fois puis retiré de l'adresse.
   const API_PLATEFORME = "https://atlas-studio.pro/deligny/api";
@@ -42,6 +46,18 @@
   const camera = new THREE.PerspectiveCamera(35, 1, 1, 2000);
   const controls = new THREE.OrbitControls(camera, canvas);
   controls.enableDamping = true; controls.dampingFactor = 0.08; controls.minDistance = 22; controls.maxDistance = 360;
+  if (CARTE) {
+    // Pas de zoom ni de déplacement (la molette et le pincement font défiler la
+    // page) ; sur téléphone, le glissé vertical reste le défilement de la page.
+    controls.enableZoom = false; controls.enablePan = false; canvas.style.touchAction = "pan-y";
+    let dep = null;
+    canvas.addEventListener("pointerdown", e => { dep = [e.clientX, e.clientY]; });
+    canvas.addEventListener("pointerup", e => {
+      if (dep && Math.hypot(e.clientX - dep[0], e.clientY - dep[1]) < 6)
+        window.top.location.href = location.pathname + location.hash;
+      dep = null;
+    });
+  }
 
   // Une pièce claire avec deux fenêtres : de quoi faire briller l'or et le verre.
   const pmrem = new THREE.PMREMGenerator(renderer);
