@@ -27,8 +27,12 @@
   .carte:hover, .carte:focus-visible { transform:translateY(-3px); box-shadow:0 10px 24px rgba(25,23,19,.18); }
   .visuel.v3d { background:#14120e; }
   .visuel iframe { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:transparent;
-                    opacity:0; transition:opacity .45s ease; }
+                    opacity:0; transition:opacity 2.2s ease-in-out; }
   .visuel iframe.pret { opacity:1; }
+  /* Ouverture au noir : 3 s de noir, puis le cadre 3D apparaît progressivement.
+     La vignette fixe ne sert plus que de secours si la 3D ne vient pas. */
+  .visuel.v3d img { opacity:0; transition:opacity 2.2s ease-in-out; }
+  .visuel.v3d img.secours { opacity:1; }
   .texte { color:inherit; text-decoration:none; }
   .texte:hover h2 { color:var(--rouge); }
   .visuel { position:relative; display:block; aspect-ratio:4/3; background:#e9e0c9; overflow:hidden; border-bottom:1px solid var(--encre); }
@@ -96,10 +100,19 @@ voir les coulisses de l'œuvre (photos de sa fabrication), la suivre et la céde
 <script>
 /* La 3D de chaque carte reste invisible (la vignette fixe dessous) jusqu'à ce
    qu'elle annonce être dessinée : pas de flash de l'en-tête ni de scène vide. */
+var t0 = performance.now(), NOIR = 3000;
 addEventListener("message", function (e) {
   if (!e.data || e.data.type !== "deligny-3d-pret") return;
   document.querySelectorAll(".visuel iframe").forEach(function (f) {
-    if (f.contentWindow === e.source) f.classList.add("pret"); });
+    if (f.contentWindow !== e.source) return;
+    setTimeout(function () { f.classList.add("pret"); }, Math.max(0, NOIR - (performance.now() - t0)));
+  });
 });
+/* Secours : si une 3D n'est pas prête au bout de 10 s, sa vignette fixe apparaît. */
+setTimeout(function () {
+  document.querySelectorAll(".visuel").forEach(function (v) {
+    var f = v.querySelector("iframe"), i = v.querySelector("img");
+    if (i && (!f || !f.classList.contains("pret"))) i.classList.add("secours"); });
+}, 10000);
 </script>
 </body></html>
