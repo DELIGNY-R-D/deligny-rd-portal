@@ -271,6 +271,24 @@
   // ---------- montage d'un tableau ----------
   let tableau = null, pivotCache = null, cacheMesh = null, cacheOuvert = false, cacheAngle = 0, VUES = {};
 
+  // --- ouverture au noir ---
+  const T0 = performance.now(), NOIR_INITIAL = 3000;
+  let attenteOeuvre = false;
+  function voiler() {
+    if (CAPTURE_MODE) return;
+    canvas.style.transition = "none"; canvas.classList.add("voile"); void canvas.offsetWidth; canvas.style.transition = "";
+  }
+  function reveler() {
+    setTimeout(() => {
+      canvas.classList.remove("voile");
+      // carte du répertoire : la page peut montrer le cadre (le fondu se fait ici)
+      if (CARTE_MODE) { try { window.parent.postMessage({ type: "deligny-3d-pret" }, "*"); } catch (e) {} }
+    }, Math.max(0, NOIR_INITIAL - (performance.now() - T0)));
+  }
+  const CAPTURE_MODE = new URLSearchParams(location.search).has("capture");
+  const CARTE_MODE = new URLSearchParams(location.search).has("carte");
+  voiler();
+
   function monter(o, dimsImage) {
     if (tableau) { scene.remove(tableau); tableau.traverse(m => { if (m.geometry) m.geometry.dispose(); }); }
     tableau = new THREE.Group(); scene.add(tableau);
@@ -377,6 +395,8 @@
     // capture : la vue demandée (?vue=dosface…), sinon trois quarts
     const vueInit = new URLSearchParams(location.search).has("capture") && new URLSearchParams(location.search).get("vue");
     aller(vueInit && VUES[vueInit] ? vueInit : "biais", true);
+    attenteOeuvre = true;          // les textures de cette œuvre viennent d'être demandées
+    setTimeout(() => { if (attenteOeuvre) { attenteOeuvre = false; reveler(); } }, 8000);   // secours
   }
 
   // ---------- vues et animation ----------
@@ -415,7 +435,7 @@
   // la boucle, pour que Chrome sans écran puisse prendre sa photo et terminer.
   const CAPTURE = new URLSearchParams(location.search).has("capture");
   let texturesPretes = false, imagesApres = 0;
-  THREE.DefaultLoadingManager.onLoad = () => { texturesPretes = true; };
+  THREE.DefaultLoadingManager.onLoad = () => { texturesPretes = true; if (attenteOeuvre) { attenteOeuvre = false; reveler(); } };
   // Pivot automatique (carte du répertoire ET dossier) : un lent va-et-vient de
   // ±14° autour de la vue courante, suspendu pendant que l'on manipule, repris
   // 2,5 s après. Volontairement indépendant du réglage « réduire les
@@ -436,11 +456,6 @@
   (function boucle(now) {
     if (CAPTURE && texturesPretes && ++imagesApres > 30) { document.title = "capture-prete"; return; }
     requestAnimationFrame(boucle); if (anim) anim(now); else pivoter(now);
-    // Carte : prévenir la page du répertoire quand la 3D est vraiment dessinée,
-    // pour qu'elle la révèle à ce moment-là (jamais l'en-tête ni une scène vide).
-    if (CARTE && texturesPretes && !pivot.annonce && ++imagesApres > 3) {
-      pivot.annonce = true; try { window.parent.postMessage({ type: "deligny-3d-pret" }, "*"); } catch (e) {}
-    }
     if (pivotCache) { cacheAngle += ((cacheOuvert ? 2.4 : 0) - cacheAngle) * .12; pivotCache.rotation.x = cacheAngle; }
     controls.update(); renderer.render(scene, camera);
   })(performance.now());
@@ -449,6 +464,7 @@
   let ITEMS = [];
   function choisir(i) {
     const o = ITEMS[i];
+    voiler();
     document.querySelectorAll(".oeuvre").forEach((b, k) => b.setAttribute("aria-pressed", k === i));
     $("photoImg").src = o.photo;
     $("cRef").textContent = o.id;

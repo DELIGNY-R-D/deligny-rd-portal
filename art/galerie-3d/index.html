@@ -79,6 +79,12 @@
   .capture main, .capture .scene-zone, .carte main, .carte .scene-zone { display:block !important; height:100% !important; }
   .capture #scene, .carte #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; min-height:0 !important; }
   .carte #scene { cursor:grab; }
+  /* Ouverture au noir (partout où est la 3D) : la scène reste voilée au moins
+     3 s au premier chargement, et jusqu'à ce que les textures de l'œuvre soient
+     là ; puis elle apparaît en fondu de 1,5 s. Idem à chaque changement d'œuvre. */
+  #scene { transition:opacity 1.5s ease-in-out; }
+  #scene.voile { opacity:0; }
+  html.capture #scene { transition:none; }
   /* capture sur fond transparent (verso de la page de vérification) */
   html.transparent, html.transparent body, html.transparent #scene { background:transparent !important; }
   /* Espace propriétaire dans la fiche (?t=<jeton>) */
@@ -132,6 +138,6 @@
 <div id="zoomC"><img id="zoomCImg" alt=""></div>
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
-<script src="galerie.js?v=eb95dbc3"></script>
+<script src="galerie.js?v=95e0344a"></script>
 
 </body></html>
