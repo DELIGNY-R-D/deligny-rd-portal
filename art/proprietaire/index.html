@@ -87,7 +87,7 @@ async function charger() {
           Possession confirmée le : ${esc(o.possession_confirmee_le || "jamais")}<br>
           Vérifications du certificat : <b>${o.scans_uniques}</b>
         </p>
-        <p class="liens"><a href="../galerie-3d/#${esc(o.id)}">Voir en 3D →</a>
+        <p class="liens"><a href="../galerie-3d/?t=${encodeURIComponent(t)}#${esc(o.id)}">Voir le dossier en 3D →</a>
           <a href="../verify/${esc(o.id)}/">Certificat public →</a>
           <a href="../verify/${esc(o.id)}/?t=${encodeURIComponent(t)}">Vérification complète (signature) →</a></p>
       </div>

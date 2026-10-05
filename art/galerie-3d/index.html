@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self'; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self' https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Galerie 3D — Deligny R&amp;D</title>
 <style>
@@ -70,6 +70,23 @@
     .cartel h2 { font-size:20px; }
     button.b { padding:9px 11px; font-size:12px; }
   }
+  /* Mode capture (?capture=1) : la scène seule sur fond transparent, pour la
+     vignette 3D du répertoire (galerie_publique.capturer). */
+  html.capture, html.capture body { background:transparent !important; height:100% !important; }
+  html.capture body { display:block !important; }
+  .capture header, .capture .liste, .capture .photo, .capture .cartel { display:none !important; }
+  .capture main, .capture .scene-zone { display:block !important; height:100% !important; }
+  .capture #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; }
+  /* Espace propriétaire dans la fiche (?t=<jeton>) */
+  .cartel { max-height:calc(100% - 32px); overflow:auto; }
+  .proprio { border-top:1px solid var(--line); padding-top:10px; display:grid; gap:8px; }
+  .proprio h3 { font-size:10px; letter-spacing:.16em; text-transform:uppercase; color:var(--accent); }
+  .proprio .photos { display:grid; grid-template-columns:repeat(3, 1fr); gap:6px; }
+  .proprio .photos img { width:100%; aspect-ratio:1; object-fit:cover; display:block; border:1px solid var(--line); cursor:zoom-in; }
+  .proprio .note-c { font:italic 13px/1.45 var(--titre); white-space:pre-line; }
+  .proprio a { font-size:11.5px; color:var(--accent); }
+  #zoomC { position:fixed; inset:0; background:rgba(10,9,7,.94); display:none; align-items:center; justify-content:center; z-index:20; padding:16px; cursor:zoom-out; }
+  #zoomC img { max-width:100%; max-height:100%; }
   /* Mode intégré (?embed=1) : la scène seule, pour l'aperçu 3D de l'atelier. */
   html.embed, html.embed body { height:100% !important; }
   html.embed body { display:flex !important; }
@@ -103,12 +120,14 @@
       </div>
       <p class="intention" id="cIntention" hidden></p>
       <a class="lienverif" id="cVerif" href="#" hidden>Voir le certificat d'authenticité →</a>
+      <section class="proprio" id="cProprio" hidden aria-label="Espace propriétaire"></section>
       <p class="note" id="cNote"></p>
     </section>
   </div>
 </main>
+<div id="zoomC"><img id="zoomCImg" alt=""></div>
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
-<script src="galerie.js?v=213fc0e7"></script>
+<script src="galerie.js?v=fa2829a7"></script>
 
 </body></html>

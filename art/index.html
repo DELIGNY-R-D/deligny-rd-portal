@@ -22,10 +22,13 @@
   .intro h1 { font:italic 400 34px/1.1 var(--titre); margin:0; }
   .intro p { font-size:13px; line-height:1.6; color:var(--brun); margin:0 0 8px; }
   .grille { display:grid; grid-template-columns:repeat(auto-fill, minmax(300px, 1fr)); gap:26px; }
-  .carte { background:var(--carte); border:1px solid var(--encre); display:flex; flex-direction:column; }
+  .carte { background:var(--carte); border:1px solid var(--encre); display:flex; flex-direction:column;
+           color:inherit; text-decoration:none; transition:transform .15s ease, box-shadow .15s ease; }
+  .carte:hover, .carte:focus-visible { transform:translateY(-3px); box-shadow:0 10px 24px rgba(25,23,19,.18); }
+  .visuel.v3d { background:#14120e; }
   .visuel { position:relative; display:block; aspect-ratio:4/3; background:#e9e0c9; overflow:hidden; border-bottom:1px solid var(--encre); }
   .visuel img { width:100%; height:100%; object-fit:cover; display:block; transition:transform .5s ease; }
-  .visuel:hover img, .visuel:focus-visible img { transform:scale(1.04); }
+  .carte:hover .visuel img { transform:scale(1.03); }
   .sans { display:flex; height:100%; align-items:center; justify-content:center; color:var(--filet); font-size:40px; }
   .badge { position:absolute; right:10px; bottom:10px; background:rgba(25,23,19,.86); color:var(--papier);
             font-size:10.5px; letter-spacing:.14em; text-transform:uppercase; padding:6px 9px; }
@@ -66,22 +69,21 @@
 <section class="intro">
   <h1>Chaque œuvre, en volume et avec sa preuve.</h1>
   <div>
-    <p>Toucher une image fait tourner le tableau encadré en 3D, recto et dos.</p>
+    <p>Toucher une œuvre ouvre son dossier : le tableau encadré en 3D, recto et dos, et sa fiche.</p>
     <p>Chaque pièce quitte l'atelier avec son cartouche : un manifeste signé <b>Ed25519</b> à chaîne de versions,
     l'empreinte SHA-256 de sa photographie originale et une page de vérification publique.
     Clé publique : <a href="verify/cle-publique.txt">cle-publique.txt</a>.</p>
   </div>
 </section>
 <div class="grille">
-  <article class="carte">
-    <a class="visuel" href="galerie-3d/#DLG-ART-2026-UV9R-M7NP" aria-label="Voir « Rébellion en Technicolor » en 3D"><img src="verify/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg" alt="Rébellion en Technicolor" loading="lazy"><span class="badge">Voir en 3D ↻</span></a>
+  <a class="carte" href="galerie-3d/#DLG-ART-2026-UV9R-M7NP">
+    <div class="visuel v3d"><img src="galerie-3d/oeuvres/DLG-ART-2026-UV9R-M7NP/vue3d.jpg" alt="Rébellion en Technicolor, vue en 3D" loading="lazy"></div>
     <div class="texte">
-      <h2><a href="galerie-3d/#DLG-ART-2026-UV9R-M7NP">Rébellion en Technicolor</a></h2>
+      <h2>Rébellion en Technicolor</h2>
       <p class="qui">Baptiste Placier · 26/06/2025</p><p class="det">Pop art · 50 × 65 cm</p><p class="det">collage, pochoir, encre</p><p class="det">Pièce unique (1/1)</p>
-      <p class="ref">DLG-ART-2026-UV9R-M7NP<br>EMPREINTE 0BE6 69FC 9F16</p>
-      <div class="actions"><a class="b plein" href="galerie-3d/#DLG-ART-2026-UV9R-M7NP">Voir en 3D</a><a class="b" href="verify/DLG-ART-2026-UV9R-M7NP/">Certificat ✓</a></div>
+      <p class="ref">DLG-ART-2026-UV9R-M7NP</p>
     </div>
-  </article></div>
+  </a></div>
 <aside class="proprio"><b>Propriétaire d'une œuvre ?</b> Le QR de l'étiquette ouvre l'espace propriétaire :
 voir les coulisses de l'œuvre (photos de sa fabrication), la suivre et la céder.</aside>
 <footer><span>1 œuvre(s) au répertoire</span><span>deligny-rd.fr</span></footer>
