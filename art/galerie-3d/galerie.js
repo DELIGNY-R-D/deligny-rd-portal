@@ -431,6 +431,11 @@
   (function boucle(now) {
     if (CAPTURE && texturesPretes && ++imagesApres > 30) { document.title = "capture-prete"; return; }
     requestAnimationFrame(boucle); if (anim) anim(now); else pivoter(now);
+    // Carte : prévenir la page du répertoire quand la 3D est vraiment dessinée,
+    // pour qu'elle la révèle à ce moment-là (jamais l'en-tête ni une scène vide).
+    if (CARTE && texturesPretes && !pivot.annonce && ++imagesApres > 3) {
+      pivot.annonce = true; try { window.parent.postMessage({ type: "deligny-3d-pret" }, "*"); } catch (e) {}
+    }
     if (pivotCache) { cacheAngle += ((cacheOuvert ? 2.4 : 0) - cacheAngle) * .12; pivotCache.rotation.x = cacheAngle; }
     controls.update(); renderer.render(scene, camera);
   })(performance.now());

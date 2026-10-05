@@ -26,7 +26,9 @@
            color:inherit; text-decoration:none; transition:transform .15s ease, box-shadow .15s ease; }
   .carte:hover, .carte:focus-visible { transform:translateY(-3px); box-shadow:0 10px 24px rgba(25,23,19,.18); }
   .visuel.v3d { background:#14120e; }
-  .visuel iframe { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:transparent; }
+  .visuel iframe { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:transparent;
+                    opacity:0; transition:opacity .45s ease; }
+  .visuel iframe.pret { opacity:1; }
   .texte { color:inherit; text-decoration:none; }
   .texte:hover h2 { color:var(--rouge); }
   .visuel { position:relative; display:block; aspect-ratio:4/3; background:#e9e0c9; overflow:hidden; border-bottom:1px solid var(--encre); }
@@ -90,4 +92,14 @@
 <aside class="proprio"><b>Propriétaire d'une œuvre ?</b> Le QR de l'étiquette ouvre l'espace propriétaire :
 voir les coulisses de l'œuvre (photos de sa fabrication), la suivre et la céder.</aside>
 <footer><span>1 œuvre(s) au répertoire</span><span>deligny-rd.fr</span></footer>
-</div></body></html>
+</div>
+<script>
+/* La 3D de chaque carte reste invisible (la vignette fixe dessous) jusqu'à ce
+   qu'elle annonce être dessinée : pas de flash de l'en-tête ni de scène vide. */
+addEventListener("message", function (e) {
+  if (!e.data || e.data.type !== "deligny-3d-pret") return;
+  document.querySelectorAll(".visuel iframe").forEach(function (f) {
+    if (f.contentWindow === e.source) f.classList.add("pret"); });
+});
+</script>
+</body></html>
