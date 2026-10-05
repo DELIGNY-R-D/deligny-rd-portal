@@ -222,99 +222,11 @@
   const loader = new THREE.TextureLoader();
 
   // ---------- montage d'un tableau ----------
-  // ---------- lens flare : reflet intense du « soleil » dans la vitre ----------
-  // Le soleil est une source lointaine en haut à droite. Son image miroir dans le
-  // verre se calcule exactement (symétrie par rapport au plan de la vitre) ; quand
-  // elle tombe SUR la vitre, on dessine par-dessus la scène une étoile, un halo,
-  // des fantômes irisés le long de l'axe soleil → centre et un arc arc-en-ciel,
-  // comme une optique d'appareil photo. Rien n'est dessiné hors de la vitre.
-  const SOLEIL = new THREE.Vector3(40, 60, 70).normalize();
-  const sceneFlare = new THREE.Scene();
-  const camFlare = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 10);
-  function texFlare(dessin, n = 256) {
-    const c = document.createElement("canvas"); c.width = c.height = n;
-    dessin(c.getContext("2d"), n); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; return t;
-  }
-  const arcEnCiel = (g, n, r0, r1, a) => {
-    const d = g.createRadialGradient(n / 2, n / 2, r0, n / 2, n / 2, r1);
-    [["#ff2a2a", 0], ["#ffb02a", .2], ["#f8ff3a", .35], ["#3aff6a", .5], ["#2ab8ff", .68], ["#8a3aff", .85]].forEach(([c, s]) => d.addColorStop(s, c));
-    d.addColorStop(1, "rgba(0,0,0,0)"); g.globalAlpha = a; g.fillStyle = d; g.fillRect(0, 0, n, n); g.globalAlpha = 1;
-    // anneau seulement : on creuse l'intérieur
-    g.globalCompositeOperation = "destination-out";
-    const m = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, r0); m.addColorStop(0, "#000"); m.addColorStop(.92, "#000"); m.addColorStop(1, "rgba(0,0,0,0)");
-    g.fillStyle = m; g.fillRect(0, 0, n, n); g.globalCompositeOperation = "source-over";
-  };
-  const T = {
-    coeur: texFlare((g, n) => { const d = g.createRadialGradient(n / 2, n / 2, 0, n / 2, n / 2, n / 2);
-      d.addColorStop(0, "rgba(255,255,255,1)"); d.addColorStop(.22, "rgba(255,248,230,.95)"); d.addColorStop(.5, "rgba(255,205,130,.4)"); d.addColorStop(1, "rgba(0,0,0,0)");
-      g.fillStyle = d; g.fillRect(0, 0, n, n); }),
-    etoile: texFlare((g, n) => { g.translate(n / 2, n / 2); g.globalCompositeOperation = "lighter";
-      for (let i = 0; i < 16; i++) { const long = i % 2 ? .28 : .5, a = i / 16 * Math.PI * 2 + .2;
-        g.save(); g.rotate(a); const d = g.createLinearGradient(0, 0, n * long, 0);
-        d.addColorStop(0, "rgba(255,255,255,.95)"); d.addColorStop(.35, "rgba(255,230,190,.5)");
-        d.addColorStop(.7, `hsla(${(i * 47) % 360},100%,65%,.35)`); d.addColorStop(1, "rgba(0,0,0,0)");
-        g.fillStyle = d; g.beginPath(); g.moveTo(0, -n * .01); g.lineTo(n * long, 0); g.lineTo(0, n * .01); g.fill(); g.restore(); } }, 512),
-    anneau: texFlare((g, n) => arcEnCiel(g, n, n * .36, n * .5, .55), 512),
-    fantome: texFlare((g, n) => { const d = g.createRadialGradient(n / 2, n / 2, n * .3, n / 2, n / 2, n / 2);
-      d.addColorStop(0, "rgba(255,255,255,.10)"); d.addColorStop(.6, "rgba(120,200,255,.22)"); d.addColorStop(.85, "rgba(255,120,200,.3)"); d.addColorStop(1, "rgba(0,0,0,0)");
-      g.fillStyle = d; g.beginPath(); for (let i = 0; i < 6; i++) { const a = i / 6 * Math.PI * 2; g.lineTo(n / 2 + Math.cos(a) * n / 2, n / 2 + Math.sin(a) * n / 2); } g.fill(); }),
-    trainee: texFlare((g, n) => { const d = g.createLinearGradient(0, 0, n, 0);
-      d.addColorStop(0, "rgba(0,0,0,0)"); d.addColorStop(.3, "rgba(255,60,60,.35)"); d.addColorStop(.45, "rgba(255,230,60,.5)");
-      d.addColorStop(.55, "rgba(60,255,140,.45)"); d.addColorStop(.7, "rgba(60,140,255,.35)"); d.addColorStop(1, "rgba(0,0,0,0)");
-      g.fillStyle = d; g.fillRect(0, n * .488, n, n * .024); }),
-  };
-  const piece = (tex, taille, rot = 0) => { const m = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), new THREE.MeshBasicMaterial({
-      map: tex, transparent: true, blending: THREE.AdditiveBlending, depthTest: false, depthWrite: false, opacity: 0 }));
-    m.userData = { taille, rot }; sceneFlare.add(m); return m; };
-  const FL = { coeur: piece(T.coeur, .34), coeur2: piece(T.coeur, .12), etoile: piece(T.etoile, .95), etoile2: piece(T.etoile, .6), anneau: piece(T.anneau, 1.05),
-    trainee: piece(T.trainee, 1.5),
-    fantomes: [[.3, .09], [.55, .06], [1.25, .14], [1.5, .08], [1.85, .2]].map(([t, s]) => Object.assign(piece(T.fantome, s), { t })) };
-  const _n = new THREE.Vector3(), _q = new THREE.Vector3(), _p = new THREE.Vector3(), _loc = new THREE.Vector3(), _m = new THREE.Vector3();
-  let vitreFlare = null, demiVitre = [1, 1], flareForce = 0;
-  function majFlare() {
-    let cible = 0, sx = 0, sy = 0;
-    if (vitreFlare) {
-      vitreFlare.updateMatrixWorld();
-      _n.set(0, 0, 1).transformDirection(vitreFlare.matrixWorld);
-      vitreFlare.getWorldPosition(_p);
-      if (_m.copy(camera.position).sub(_p).dot(_n) > 0 && SOLEIL.dot(_n) > 0) {
-        // direction de l'image miroir du soleil, puis point de la vitre qu'elle traverse
-        _q.copy(SOLEIL).addScaledVector(_n, -2 * SOLEIL.dot(_n));
-        const den = _q.dot(_n);
-        if (den < 0) {
-          const k = _m.copy(_p).sub(camera.position).dot(_n) / den;
-          _loc.copy(camera.position).addScaledVector(_q, k);
-          vitreFlare.worldToLocal(_loc);
-          const ex = Math.max(0, Math.abs(_loc.x) - demiVitre[0]), ey = Math.max(0, Math.abs(_loc.y) - demiVitre[1]);
-          cible = Math.max(0, 1 - Math.hypot(ex, ey) / 1.5);             // s'éteint juste au-delà du bord
-          _m.copy(camera.position).addScaledVector(_q, 1000).project(camera);
-          sx = _m.x; sy = _m.y;
-        }
-      }
-    }
-    flareForce += (cible - flareForce) * .25;
-    const a = camera.aspect, f = flareForce;
-    const pose = (m, x, y, op, echelle = 1, rot = 0) => { m.position.set(x * a, y, 0); m.scale.setScalar(m.userData.taille * echelle);
-      m.rotation.z = rot; m.material.opacity = op; };
-    // axe soleil → centre de l'image : les fantômes s'y alignent, de l'autre côté
-    const ang = Math.atan2(sy, sx);
-    pose(FL.coeur, sx, sy, f * .9, .9 + .2 * f);
-    pose(FL.coeur2, sx, sy, f);                                  // point blanc saturé au centre
-    pose(FL.etoile, sx, sy, f, .85 + .3 * f, ang * .5);
-    pose(FL.etoile2, sx, sy, f * .8, 1, ang * .5 + .19);
-    // l'arc irisé déborde au-delà du soleil, vers l'extérieur de l'image
-    pose(FL.anneau, sx * 1.18, sy * 1.18, f * .42, 1);
-    pose(FL.trainee, sx, sy, f * .35, 1, ang + .5);
-    FL.fantomes.forEach((g, i) => pose(g, sx * (1 - g.t), sy * (1 - g.t), f * (.7 - i * .08)));
-    camFlare.left = -a; camFlare.right = a; camFlare.updateProjectionMatrix();
-    return f > .01;
-  }
-
   let tableau = null, pivotCache = null, cacheMesh = null, cacheOuvert = false, cacheAngle = 0, VUES = {};
 
   function monter(o, dimsImage) {
     if (tableau) { scene.remove(tableau); tableau.traverse(m => { if (m.geometry) m.geometry.dispose(); }); }
-    tableau = new THREE.Group(); scene.add(tableau); vitreFlare = null;
+    tableau = new THREE.Group(); scene.add(tableau);
     pivotCache = cacheMesh = null; cacheOuvert = false; cacheAngle = 0; majCache();
     // Dimensions : les deux nombres de la fiche, l'orientation suit l'image.
     const n = (String(o.dimensions).match(/[\d.,]+/g) || ["50", "65"]).map(v => parseFloat(v.replace(",", ".")));
@@ -372,7 +284,6 @@
       const vitre = new THREE.Mesh(new THREE.PlaneGeometry(lw, lh), new THREE.MeshPhysicalMaterial({ color: 0x000000, metalness: 0, roughness: 0, reflectivity: 0.5,   /* verre : ~4 % de face, Fresnel de biais */
       envMapIntensity: 0.42, transparent: true, blending: THREE.AdditiveBlending, depthWrite: false }));
       holo(vitre.material); vitre.position.z = .3; tableau.add(vitre);
-      vitreFlare = vitre; demiVitre = [lw / 2, lh / 2];
     }
     // ---------- dos ----------
     const ZD = -FOND + .85;
@@ -412,10 +323,6 @@
     VUES = { face: { p: [0, 0, D * 2.05], t: [0, 0, 0] }, biais: { p: [D * 1.05, D * .2, D * 1.6], t: [0, 0, 0] },
              detail: { p: [lw * .2, lh * .15, D * .65], t: [lw * .16, lh * .12, 0] },
              dos: { p: [-D * .45, D * .1, -D * 1.9], t: [0, 0, 0] },
-             // dans l'axe du reflet du soleil : la caméra regarde l'image miroir du
-             // soleil passer par un point du quart haut droit de la vitre (lens flare)
-             reflet: (() => { const q = [SOLEIL.x, SOLEIL.y, -SOLEIL.z], h = [lw * .26, lh * .24, .3], d = D * 2.1;
-               return { p: h.map((v, i) => v - q[i] * d), t: [0, 0, 0] }; })(),
              // de dos, reculé et visé sous le cartouche pour qu'il remonte au-dessus du cartel
              cartouche: { p: [cx + 4, cy - 4, -62], t: [cx + 4, cy - 9, -2] } };
     aller("biais", true);
@@ -456,8 +363,7 @@
   (function boucle(now) {
     requestAnimationFrame(boucle); if (anim) anim(now);
     if (pivotCache) { cacheAngle += ((cacheOuvert ? 2.4 : 0) - cacheAngle) * .12; pivotCache.rotation.x = cacheAngle; }
-    controls.update(); renderer.autoClear = false; renderer.clear(); renderer.render(scene, camera);
-    if (majFlare()) { renderer.clearDepth(); renderer.render(sceneFlare, camFlare); }
+    controls.update(); renderer.render(scene, camera);
   })(performance.now());
 
   // ---------- liste des œuvres ----------
