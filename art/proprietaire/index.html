@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Espace propriétaire - Deligny R&amp;D</title>
 <style>
@@ -35,11 +35,22 @@
   .stat { font-family: Georgia, serif; font-size: 26px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .back { font-size: 11px; letter-spacing: .1em; }
+  .coul { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 10px; }
+  .coul figure { margin: 0; }
+  .coul img { width: 100%; display: block; border: 1px solid #191713; background: #e9e0c9; cursor: zoom-in; }
+  .coul figcaption { font-size: 12px; color: #5b4632; margin-top: 5px; }
+  .notecoul { font-family: Georgia, serif; font-style: italic; font-size: 15px; white-space: pre-line; margin: 0; }
+  .liens a { margin-right: 14px; }
+  #zoom { position: fixed; inset: 0; background: rgba(25,23,19,.92); display: none; align-items: center;
+          justify-content: center; padding: 16px; z-index: 9; cursor: zoom-out; }
+  #zoom img { max-width: 100%; max-height: 100%; }
+  @media (max-width: 560px) { .coul { grid-template-columns: minmax(0,1fr); } }
 </style></head><body>
 <div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
 
 <h1>DELIGNY R&amp;D<small>ESPACE PROPRIÉTAIRE</small></h1>
 <div id="corps"><p class="note">Chargement…</p></div>
+<div id="zoom"><img id="zoomImg" alt=""></div>
 
 <script>
 const API = "https://atlas-studio.pro/deligny/api";
@@ -76,8 +87,10 @@ async function charger() {
           Possession confirmée le : ${esc(o.possession_confirmee_le || "jamais")}<br>
           Vérifications du certificat : <b>${o.scans_uniques}</b>
         </p>
-        <p><a href="../verify/${esc(o.id)}/">Voir le certificat public →</a></p>
+        <p class="liens"><a href="../galerie-3d/#${esc(o.id)}">Voir en 3D →</a>
+          <a href="../verify/${esc(o.id)}/">Certificat public →</a></p>
       </div>
+      ${coulissesHtml(d.coulisses)}
 
       <h2>Confirmer que tu détiens toujours l'œuvre</h2>
       <div class="card">
@@ -119,7 +132,31 @@ async function charger() {
         <div class="msg" id="mced"></div>
       </div>`;
     brancher(o);
+    chargerPhotos(d.coulisses);
   } catch (e) { $("corps").innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
+}
+// Coulisses : réservées au propriétaire. Les photos se lisent avec le jeton,
+// via fetch (pas d'URL d'image publique), puis s'affichent en blob local.
+function coulissesHtml(c) {
+  if (!c || (!c.note && !(c.photos || []).length)) return "";
+  return `<h2>Coulisses de l'œuvre</h2>
+    <div class="card">
+      <p class="note">Réservé au propriétaire : la fabrication de la pièce, vue de l'atelier.</p>
+      ${c.note ? `<p class="notecoul">${esc(c.note)}</p>` : ""}
+      <div class="coul">${(c.photos || []).map((p, i) => `<figure>
+        <img id="coul${i}" alt="${esc(p.legende || "photo de l'atelier")}">
+        ${p.legende ? `<figcaption>${esc(p.legende)}</figcaption>` : ""}</figure>`).join("")}</div>
+    </div>`;
+}
+async function chargerPhotos(c) {
+  for (const [i, p] of ((c && c.photos) || []).entries()) {
+    try {
+      const r = await fetch(API + "/owner/" + encodeURIComponent(t) + "/photo/" + encodeURIComponent(p.nom));
+      if (!r.ok) continue;
+      const img = $("coul" + i); img.src = URL.createObjectURL(await r.blob());
+      img.onclick = () => { $("zoomImg").src = img.src; $("zoom").style.display = "flex"; };
+    } catch (e) {}
+  }
 }
 function lire(f) { return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); }); }
 function brancher(o) {
@@ -153,6 +190,7 @@ function brancher(o) {
     } catch (e) { say($("mced"), esc(e.message), false); }
   };
 }
+$("zoom").onclick = () => { $("zoom").style.display = "none"; };
 charger();
 </script>
 </body></html>
