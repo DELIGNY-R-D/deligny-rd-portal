@@ -412,7 +412,7 @@
   let texturesPretes = false, imagesApres = 0;
   THREE.DefaultLoadingManager.onLoad = () => { texturesPretes = true; };
   // Pivot automatique (carte du répertoire ET dossier) : un lent va-et-vient de
-  // ±22° autour de la vue courante, suspendu pendant que l'on manipule, repris
+  // ±14° autour de la vue courante, suspendu pendant que l'on manipule, repris
   // 2,5 s après. Volontairement indépendant du réglage « réduire les
   // animations » : demande explicite de l'artiste (05/10/2026), mouvement lent.
   // (révision 2 : nouvelle empreinte du script après un échec de construction GitHub)
@@ -424,7 +424,7 @@
     const dt = Math.min(.05, (now - (pivot.dernier || now)) / 1000); pivot.dernier = now;
     if (CAPTURE || !pivot.libre || now < pivot.reprise) return;
     pivot.t += dt;
-    const cible = 0.38 * Math.sin(pivot.t * 2 * Math.PI / 14);          // un aller-retour en 14 s
+    const cible = 0.24 * Math.sin(pivot.t * 2 * Math.PI / 24);          // ±14°, un aller-retour en 24 s
     _off.copy(camera.position).sub(controls.target).applyAxisAngle(_axeY, cible - pivot.angle);
     camera.position.copy(controls.target).add(_off); pivot.angle = cible;
   }
