@@ -2129,9 +2129,13 @@ img.app-banner {
 .lgd-points li { padding: 10px 0; border-top: 1px solid var(--line-2); color: var(--ink-dim); line-height: 1.5; }
 .lgd-retour { padding-top: 0; }
 
-/* DEMONSTRATION JOUABLE (05/10/2026). Le jeu ne se charge qu'au clic : une
-   image, un bouton, puis le cadre prend la place des deux. Rien en style
-   inline, `style-src 'self'` le bloquerait sans bruit. */
+/* RC WORLD sur la page (05/10/2026). Premiere version : le jeu se chargeait
+   dans un cadre, au clic. MESURE : le cadre reste blanc et Chrome affiche sa
+   vignette d'echec, aussi bien sur l'accueil que sur la fiche, en local comme
+   en ligne, alors que le meme lecteur ouvert seul fonctionne. Plutot qu'un
+   rectangle mort sur la page la plus vue du site, le bloc est devenu une image
+   cliquable qui ouvre le jeu. Rien en style inline, `style-src 'self'` le
+   bloquerait sans bruit. */
 .demo-rc {
   margin-top: 26px;
   padding: 18px;
@@ -2156,22 +2160,10 @@ img.app-banner {
   color: var(--muted);
 }
 
-/* Une fois lance, le cadre occupe le bloc : plus de marge interieure qui
-   ferait flotter le jeu dans un cadre dans un cadre. */
-.demo-rc-lance { padding: 0; overflow: hidden; }
+.demo-rc { display: block; text-decoration: none; color: inherit; }
 
-.demo-rc-cadre {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  min-height: 380px;
-  border: 0;
-}
+.demo-rc:hover { border-color: rgba(124, 92, 191, 0.4); }
 
-.demo-rc-repli {
-  margin: 0;
-  padding: 14px;
-  font-size: 13.5px;
-  color: var(--ink);
-  background: var(--soft);
-}
+.demo-rc-bouton { display: inline-block; }
+
+.demo-rc-note { display: block; }
