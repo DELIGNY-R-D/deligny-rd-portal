@@ -2128,3 +2128,50 @@ img.app-banner {
 .lgd-points { margin: 0; padding: 0; list-style: none; }
 .lgd-points li { padding: 10px 0; border-top: 1px solid var(--line-2); color: var(--ink-dim); line-height: 1.5; }
 .lgd-retour { padding-top: 0; }
+
+/* DEMONSTRATION JOUABLE (05/10/2026). Le jeu ne se charge qu'au clic : une
+   image, un bouton, puis le cadre prend la place des deux. Rien en style
+   inline, `style-src 'self'` le bloquerait sans bruit. */
+.demo-rc {
+  margin-top: 26px;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: var(--panel);
+  text-align: center;
+}
+
+.demo-rc-image {
+  display: block;
+  width: 100%;
+  max-width: 630px;
+  height: auto;
+  margin: 0 auto 16px;
+  border-radius: 12px;
+}
+
+.demo-rc-note {
+  margin: 12px 0 0;
+  font-size: 12.5px;
+  color: var(--muted);
+}
+
+/* Une fois lance, le cadre occupe le bloc : plus de marge interieure qui
+   ferait flotter le jeu dans un cadre dans un cadre. */
+.demo-rc-lance { padding: 0; overflow: hidden; }
+
+.demo-rc-cadre {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  min-height: 380px;
+  border: 0;
+}
+
+.demo-rc-repli {
+  margin: 0;
+  padding: 14px;
+  font-size: 13.5px;
+  color: var(--ink);
+  background: var(--soft);
+}
