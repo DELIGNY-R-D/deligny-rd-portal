@@ -415,6 +415,7 @@
   // ±22° autour de la vue courante, suspendu pendant que l'on manipule, repris
   // 2,5 s après. Volontairement indépendant du réglage « réduire les
   // animations » : demande explicite de l'artiste (05/10/2026), mouvement lent.
+  // (révision 2 : nouvelle empreinte du script après un échec de construction GitHub)
   const pivot = { libre: true, reprise: 0, angle: 0, t: 0, dernier: 0 };
   controls.addEventListener("start", () => { pivot.libre = false; });
   controls.addEventListener("end", () => { pivot.reprise = performance.now() + 2500; pivot.libre = true; });
