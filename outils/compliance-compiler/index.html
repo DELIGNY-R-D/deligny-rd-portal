@@ -1,8 +1,8 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Compliance Compiler — texte réglementaire vers contrôles exécutables</title>
+<title>Transformer un texte réglementaire en contrôles vérifiables | Compliance Compiler</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
-<meta name="description" content="Transforme un texte réglementaire ou contractuel en registre de conformité : exigences atomiques, responsables, preuves, échéances. Détection assistée, validée phrase par phrase. Sans compte, sans IA cachée, rien n'est envoyé.">
+<meta name="description" content="Transformer un texte réglementaire en contrôles vérifiables. Colle un texte réglementaire ou contractuel : l'outil détecte des candidats d'obligation par mots-clés, tu valides phrase par phrase, puis tu remplis responsable / preuve / échéance / statut — et tu exportes le registre de conformité.">
 <style>
 :root{
   --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
@@ -89,12 +89,22 @@ td.col-req textarea:hover, td.col-src textarea:hover{border-color:var(--sep);}
 
 footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
 footer .disc{max-width:680px;margin:0 auto 10px;}
-</style></head>
+
+    /* Pont commercial et outils voisins (05/10/2026). Une porte d'entree qui ne
+       mene nulle part ne sert a rien. */
+    .pont{margin:26px auto 0;max-width:760px;padding:16px 18px;border:1px solid rgba(0,0,0,.12);border-radius:14px;text-align:left}
+    .pont h2{margin:0 0 6px;font-size:15px}
+    .pont p{margin:0 0 12px;font-size:13.5px;line-height:1.55;opacity:.85}
+    .pont a.cta{display:inline-block;padding:9px 16px;border-radius:999px;background:#7c5cbf;color:#fff;text-decoration:none;font-size:13.5px}
+    .voisins{margin:16px auto 0;max-width:760px;font-size:13px;text-align:left;opacity:.85}
+    .voisins a{color:inherit}
+  </style>  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Compliance Compiler", "description": "Transformer un texte réglementaire en contrôles vérifiables. Colle un texte réglementaire ou contractuel : l'outil détecte des candidats d'obligation par mots-clés, tu valides phrase par phrase, puis tu remplis responsable / preuve / échéance / statut — et tu exportes le registre de conformité.", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Tout navigateur web", "url": "https://deligny-rd.fr/outils/compliance-compiler/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "publisher": {"@type": "Organization", "name": "DELIGNY R&D", "url": "https://deligny-rd.fr/"}}</script>
+</head>
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="g">Compliance Compiler</span></h1>
-    <div class="sub">Colle un texte réglementaire ou contractuel : l'outil détecte des candidats d'obligation par mots-clés, tu valides phrase par phrase, puis tu remplis responsable / preuve / échéance / statut — et tu exportes le registre de conformité.</div>
+    <h1><span class="g">Transformer un texte réglementaire en contrôles vérifiables</span></h1>
+    <div class="sub"><b>Compliance Compiler</b> — Colle un texte réglementaire ou contractuel : l'outil détecte des candidats d'obligation par mots-clés, tu valides phrase par phrase, puis tu remplis responsable / preuve / échéance / statut — et tu exportes le registre de conformité.</div>
     <span class="free">100 % gratuit · aucun compte · aucun appel réseau ni IA cachée — tout se passe dans ton navigateur</span>
   </header>
 
@@ -157,6 +167,13 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       <button class="btn export" id="export-json" disabled>⬇ Exporter JSON</button>
     </div>
   </div>
+    <section class="pont">
+      <h2>Vous traitez régulièrement ce type de fichiers&nbsp;?</h2>
+      <p>DELIGNY R&amp;D conçoit, automatise et adapte ce genre d'outil à une activité réelle. Cet outil est un extrait de ce que nous faisons sur mesure.</p>
+      <a class="cta" href="../../contact.html?sujet=logiciel&amp;mode=devis">Parler de votre besoin</a>
+    </section>
+    <div class="voisins">Autres outils gratuits : <a href="../product-passport-engine/index.html">Créer un passeport produit avec QR code</a> · <a href="../maintenance-report/index.html">Créer un rapport d'intervention en PDF</a> · <a href="../../index.html#outils">les 14 outils</a></div>
+
 
   <footer>
     <div class="disc">Outil d'aide à la structuration, pas un avis juridique et pas une extraction IA fiable à 100 %. La détection est heuristique (regex sur des tournures françaises courantes : « doit », « est tenu de », « il est interdit de », « au plus tard », « dans un délai de… », marqueurs d'article). Toute exigence doit être validée par un humain avant usage. Aucune donnée ne quitte ton navigateur.</div>

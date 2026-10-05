@@ -1,8 +1,8 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Product Passport Engine — passeport produit gratuit</title>
+<title>Créer un passeport produit avec QR code | Product Passport Engine</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
-<meta name="description" content="Crée gratuitement un passeport produit (matière, fabrication, réparation, fin de vie) avec QR code auto-porté, pour objets imprimés en 3D et autres produits. Sans compte, sans backend, tout reste dans ton navigateur.">
+<meta name="description" content="Créer un passeport produit avec QR code. Crée le passeport d'un produit — matière, fabrication, réparation, fin de vie — avec sa page imprimable et son QR code. Pensé d'abord pour les objets imprimés en 3D (lampes, pièces de rechange…).">
 <style>
 :root{
   --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
@@ -100,12 +100,22 @@ table.list .actions{white-space:nowrap;text-align:right;}
 
 footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
 footer .disc{max-width:680px;margin:0 auto 10px;}
-</style></head>
+
+    /* Pont commercial et outils voisins (05/10/2026). Une porte d'entree qui ne
+       mene nulle part ne sert a rien. */
+    .pont{margin:26px auto 0;max-width:760px;padding:16px 18px;border:1px solid rgba(0,0,0,.12);border-radius:14px;text-align:left}
+    .pont h2{margin:0 0 6px;font-size:15px}
+    .pont p{margin:0 0 12px;font-size:13.5px;line-height:1.55;opacity:.85}
+    .pont a.cta{display:inline-block;padding:9px 16px;border-radius:999px;background:#7c5cbf;color:#fff;text-decoration:none;font-size:13.5px}
+    .voisins{margin:16px auto 0;max-width:760px;font-size:13px;text-align:left;opacity:.85}
+    .voisins a{color:inherit}
+  </style>  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Product Passport Engine", "description": "Créer un passeport produit avec QR code. Crée le passeport d'un produit — matière, fabrication, réparation, fin de vie — avec sa page imprimable et son QR code. Pensé d'abord pour les objets imprimés en 3D (lampes, pièces de rechange…).", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Tout navigateur web", "url": "https://deligny-rd.fr/outils/product-passport-engine/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "publisher": {"@type": "Organization", "name": "DELIGNY R&D", "url": "https://deligny-rd.fr/"}}</script>
+</head>
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="g">Product Passport Engine</span></h1>
-    <div class="sub">Crée le passeport d'un produit — matière, fabrication, réparation, fin de vie — avec sa page imprimable et son QR code. Pensé d'abord pour les objets imprimés en 3D (lampes, pièces de rechange…).</div>
+    <h1><span class="g">Créer un passeport produit avec QR code</span></h1>
+    <div class="sub"><b>Product Passport Engine</b> — Crée le passeport d'un produit — matière, fabrication, réparation, fin de vie — avec sa page imprimable et son QR code. Pensé d'abord pour les objets imprimés en 3D (lampes, pièces de rechange…).</div>
     <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
     <span class="limit"><b>Limite honnête (v0) :</b> ceci est un registre <b>local à cette machine</b> (localStorage du navigateur). Ce n'est pas une base partagée entre plusieurs appareils ou personnes — pour transférer un passeport ailleurs, utilise l'export/import JSON ou le fichier HTML téléchargé, qui EST le document.</span>
   </header>
@@ -214,6 +224,13 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       <div id="list-empty" class="empty" style="display:none">Aucun passeport enregistré pour l'instant sur cette machine.</div>
     </div>
   </div>
+    <section class="pont">
+      <h2>Vous traitez régulièrement ce type de fichiers&nbsp;?</h2>
+      <p>DELIGNY R&amp;D conçoit, automatise et adapte ce genre d'outil à une activité réelle. Cet outil est un extrait de ce que nous faisons sur mesure.</p>
+      <a class="cta" href="../../contact.html?sujet=logiciel&amp;mode=devis">Parler de votre besoin</a>
+    </section>
+    <div class="voisins">Autres outils gratuits : <a href="../qr-barcode-generator/index.html">Générer des étiquettes QR et code-barres</a> · <a href="../material-genome/index.html">Choisir un matériau d'impression 3D</a> · <a href="../../index.html#outils">les 14 outils</a></div>
+
 
   <footer>
     <div class="disc">Génération 100 % locale : rien n'est envoyé à un serveur. Le registre (liste ci-dessus) vit uniquement dans le stockage local de ce navigateur, sur cet appareil — pas de synchronisation multi-machines en v0. Exporte en JSON ou conserve le fichier HTML téléchargé pour archiver/transférer un passeport.</div>

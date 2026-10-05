@@ -1,8 +1,8 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>AI DJ · Pulse Studio — préparation de mix gratuite</title>
+<title>Préparer un mix DJ dans le navigateur | AI DJ · Pulse Studio</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
-<meta name="description" content="Détection BPM automatique, point de transition suggéré, crossfade réglable en direct — 100% dans ton navigateur, aucun fichier envoyé, aucun export du mix.">
+<meta name="description" content="Préparer un mix DJ dans le navigateur. Dépose 2 morceaux que tu as le droit d'utiliser : détection BPM automatique, point de transition suggéré, crossfade réglable — écoute en direct, tout reste dans ton navigateur.">
 <style>
 :root{
   --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
@@ -88,12 +88,22 @@ input[type=range]{width:100%;accent-color:var(--blue);height:18px;}
 
 footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
 footer .disc{max-width:680px;margin:0 auto 10px;}
-</style></head>
+
+    /* Pont commercial et outils voisins (05/10/2026). Une porte d'entree qui ne
+       mene nulle part ne sert a rien. */
+    .pont{margin:26px auto 0;max-width:760px;padding:16px 18px;border:1px solid rgba(0,0,0,.12);border-radius:14px;text-align:left}
+    .pont h2{margin:0 0 6px;font-size:15px}
+    .pont p{margin:0 0 12px;font-size:13.5px;line-height:1.55;opacity:.85}
+    .pont a.cta{display:inline-block;padding:9px 16px;border-radius:999px;background:#7c5cbf;color:#fff;text-decoration:none;font-size:13.5px}
+    .voisins{margin:16px auto 0;max-width:760px;font-size:13px;text-align:left;opacity:.85}
+    .voisins a{color:inherit}
+  </style>  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "AI DJ · Pulse Studio", "description": "Préparer un mix DJ dans le navigateur. Dépose 2 morceaux que tu as le droit d'utiliser : détection BPM automatique, point de transition suggéré, crossfade réglable — écoute en direct, tout reste dans ton navigateur.", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Tout navigateur web", "url": "https://deligny-rd.fr/outils/ai-dj-pulse-studio/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "publisher": {"@type": "Organization", "name": "DELIGNY R&D", "url": "https://deligny-rd.fr/"}}</script>
+</head>
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="g">AI DJ · Pulse Studio</span></h1>
-    <div class="sub">Dépose 2 morceaux que tu as le droit d'utiliser : détection BPM automatique, point de transition suggéré, crossfade réglable — écoute en direct, tout reste dans ton navigateur.</div>
+    <h1><span class="g">Préparer un mix DJ dans le navigateur</span></h1>
+    <div class="sub"><b>AI DJ · Pulse Studio</b> — Dépose 2 morceaux que tu as le droit d'utiliser : détection BPM automatique, point de transition suggéré, crossfade réglable — écoute en direct, tout reste dans ton navigateur.</div>
     <div class="badges">
       <span class="free">100 % gratuit · aucun compte · rien n'est envoyé sur un serveur</span>
       <span class="rights">⚠️ Tu dois posséder les droits sur les fichiers déposés — aucune redistribution, aucun export du mix</span>
@@ -206,6 +216,13 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       </div>
     </div>
   </div>
+    <section class="pont">
+      <h2>Vous traitez régulièrement ce type de fichiers&nbsp;?</h2>
+      <p>DELIGNY R&amp;D conçoit, automatise et adapte ce genre d'outil à une activité réelle. Cet outil est un extrait de ce que nous faisons sur mesure.</p>
+      <a class="cta" href="../../contact.html?sujet=logiciel&amp;mode=devis">Parler de votre besoin</a>
+    </section>
+    <div class="voisins">Autres outils gratuits : <a href="../money-data-game/index.html">Jeu de décisions de trésorerie</a> · <a href="../vector-studio/index.html">Convertir une image en SVG</a> · <a href="../../index.html#outils">les 14 outils</a></div>
+
 
   <footer>
     <div class="disc">Gestion stricte des droits : aucun fichier n'est envoyé ni stocké sur un serveur — décodage, analyse BPM, lecture et crossfade ont lieu entièrement en mémoire dans ton navigateur, pour la durée de la session. Rien n'est sauvegardé au-delà de ce que toi seul choisis de faire de tes propres fichiers. Détection de tempo indicative, pas une garantie de synchronisation parfaite.</div>

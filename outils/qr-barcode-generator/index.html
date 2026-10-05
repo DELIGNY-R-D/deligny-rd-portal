@@ -1,8 +1,8 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QR & Code-barres Generator — planches d'étiquettes gratuites</title>
+<title>Générer une planche d'étiquettes QR et code-barres | QR & Code-barres Generator</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
-<meta name="description" content="Génère gratuitement une planche PDF d'étiquettes QR ou code-barres (Code128/EAN13) à partir d'une liste de références. Sans compte, sans inscription, tout se calcule dans ton navigateur.">
+<meta name="description" content="Générer une planche d'étiquettes QR et code-barres. Colle ou saisis une liste de références, choisis QR ou code-barres, obtiens une planche PDF d'étiquettes imprimable — prête à découper.">
 <style>
 :root{
   --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
@@ -92,12 +92,22 @@ select{width:100%;background:var(--card2);border:1px solid var(--sep);border-rad
 
 footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
 footer .disc{max-width:640px;margin:0 auto 10px;}
-</style></head>
+
+    /* Pont commercial et outils voisins (05/10/2026). Une porte d'entree qui ne
+       mene nulle part ne sert a rien. */
+    .pont{margin:26px auto 0;max-width:760px;padding:16px 18px;border:1px solid rgba(0,0,0,.12);border-radius:14px;text-align:left}
+    .pont h2{margin:0 0 6px;font-size:15px}
+    .pont p{margin:0 0 12px;font-size:13.5px;line-height:1.55;opacity:.85}
+    .pont a.cta{display:inline-block;padding:9px 16px;border-radius:999px;background:#7c5cbf;color:#fff;text-decoration:none;font-size:13.5px}
+    .voisins{margin:16px auto 0;max-width:760px;font-size:13px;text-align:left;opacity:.85}
+    .voisins a{color:inherit}
+  </style>  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "QR & Code-barres Generator", "description": "Générer une planche d'étiquettes QR et code-barres. Colle ou saisis une liste de références, choisis QR ou code-barres, obtiens une planche PDF d'étiquettes imprimable — prête à découper.", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Tout navigateur web", "url": "https://deligny-rd.fr/outils/qr-barcode-generator/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "publisher": {"@type": "Organization", "name": "DELIGNY R&D", "url": "https://deligny-rd.fr/"}}</script>
+</head>
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="g">QR & Code-barres Generator</span></h1>
-    <div class="sub">Colle ou saisis une liste de références, choisis QR ou code-barres, obtiens une planche PDF d'étiquettes imprimable — prête à découper.</div>
+    <h1><span class="g">Générer une planche d'étiquettes QR et code-barres</span></h1>
+    <div class="sub"><b>QR & Code-barres Generator</b> — Colle ou saisis une liste de références, choisis QR ou code-barres, obtiens une planche PDF d'étiquettes imprimable — prête à découper.</div>
     <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
   </header>
 
@@ -167,6 +177,13 @@ footer .disc{max-width:640px;margin:0 auto 10px;}
       </div>
     </div>
   </div>
+    <section class="pont">
+      <h2>Vous traitez régulièrement ce type de fichiers&nbsp;?</h2>
+      <p>DELIGNY R&amp;D conçoit, automatise et adapte ce genre d'outil à une activité réelle. Cet outil est un extrait de ce que nous faisons sur mesure.</p>
+      <a class="cta" href="../../contact.html?sujet=logiciel&amp;mode=devis">Parler de votre besoin</a>
+    </section>
+    <div class="voisins">Autres outils gratuits : <a href="../product-passport-engine/index.html">Créer un passeport produit avec QR code</a> · <a href="../maintenance-report/index.html">Créer un rapport d'intervention en PDF</a> · <a href="../../index.html#outils">les 14 outils</a></div>
+
 
   <footer>
     <div class="disc">Génération 100 % locale : rien n'est envoyé à un serveur. Formats de planche fournis à titre indicatif — vérifie l'alignement avec une impression test avant d'utiliser des planches pré-découpées.</div>

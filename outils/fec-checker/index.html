@@ -1,8 +1,8 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FEC Checker — vérifie gratuitement l'équilibre et la conformité d'un FEC</title>
+<title>Vérifier un fichier FEC avant de l'envoyer | FEC Checker</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
-<meta name="description" content="FEC Checker — vérifie gratuitement l'équilibre et la conformité d'un Fichier des Écritures Comptables (FEC), sans compte, sans envoi de données.">
+<meta name="description" content="Vérifier un fichier FEC avant de l'envoyer. Dépose un Fichier des Écritures Comptables (FEC) : équilibre débit/crédit global et par écriture, colonnes obligatoires, anomalies de saisie — en 3 secondes.">
 <style>
 :root{
   --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
@@ -81,12 +81,22 @@ footer .disc{max-width:640px;margin:0 auto 10px;}
   .r-check .line{padding:4px 0;border-bottom:1px dotted #999;font-size:12px;}
   .r-foot{margin-top:20px;font-size:10px;text-align:center;color:#333;}
 }
-</style></head>
+
+    /* Pont commercial et outils voisins (05/10/2026). Une porte d'entree qui ne
+       mene nulle part ne sert a rien. */
+    .pont{margin:26px auto 0;max-width:760px;padding:16px 18px;border:1px solid rgba(0,0,0,.12);border-radius:14px;text-align:left}
+    .pont h2{margin:0 0 6px;font-size:15px}
+    .pont p{margin:0 0 12px;font-size:13.5px;line-height:1.55;opacity:.85}
+    .pont a.cta{display:inline-block;padding:9px 16px;border-radius:999px;background:#7c5cbf;color:#fff;text-decoration:none;font-size:13.5px}
+    .voisins{margin:16px auto 0;max-width:760px;font-size:13px;text-align:left;opacity:.85}
+    .voisins a{color:inherit}
+  </style>  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "FEC Checker", "description": "Vérifier un fichier FEC avant de l'envoyer. Dépose un Fichier des Écritures Comptables (FEC) : équilibre débit/crédit global et par écriture, colonnes obligatoires, anomalies de saisie — en 3 secondes.", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Tout navigateur web", "url": "https://deligny-rd.fr/outils/fec-checker/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "publisher": {"@type": "Organization", "name": "DELIGNY R&D", "url": "https://deligny-rd.fr/"}}</script>
+</head>
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="g">FEC Checker</span></h1>
-    <div class="sub">Dépose un Fichier des Écritures Comptables (FEC) : équilibre débit/crédit global et par écriture, colonnes obligatoires, anomalies de saisie — en 3 secondes.</div>
+    <h1><span class="g">Vérifier un fichier FEC avant de l'envoyer</span></h1>
+    <div class="sub"><b>FEC Checker</b> — Dépose un Fichier des Écritures Comptables (FEC) : équilibre débit/crédit global et par écriture, colonnes obligatoires, anomalies de saisie — en 3 secondes.</div>
     <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
   </header>
 
@@ -133,6 +143,13 @@ footer .disc{max-width:640px;margin:0 auto 10px;}
       </div>
     </div>
   </div>
+    <section class="pont">
+      <h2>Vous traitez régulièrement ce type de fichiers&nbsp;?</h2>
+      <p>DELIGNY R&amp;D conçoit, automatise et adapte ce genre d'outil à une activité réelle. Cet outil est un extrait de ce que nous faisons sur mesure.</p>
+      <a class="cta" href="../../contact.html?sujet=logiciel&amp;mode=devis">Parler de votre besoin</a>
+    </section>
+    <div class="voisins">Autres outils gratuits : <a href="../echeancier-fiscal/index.html">Calendrier des échéances fiscales et sociales</a> · <a href="../bom-auditor/index.html">Auditer une nomenclature CSV</a> · <a href="../../index.html#outils">les 14 outils</a></div>
+
 
   <footer>
     <div class="disc">Contrôle indicatif basé sur le fichier fourni (équilibre + cohérence de structure) — ne remplace pas une revue du cabinet comptable ni la procédure officielle de dépôt DGFiP. Aucune donnée ne quitte ton navigateur.</div>

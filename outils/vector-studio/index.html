@@ -1,8 +1,8 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Vector Studio — vectorisation d'image gratuite</title>
+<title>Convertir une image PNG ou JPG en SVG | Vector Studio</title>
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: blob: https://atlas-studio.pro; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
-<meta name="description" content="Transforme une image PNG/JPG en tracé vectoriel SVG dans ton navigateur : réglages de couleurs et de lissage, édition de points d'ancrage, suppression de chemins, export SVG et DXF à l'échelle réelle. Sans compte, sans inscription.">
+<meta name="description" content="Convertir une image PNG ou JPG en SVG. Dépose une image PNG/JPG : vectorisation automatique en SVG, édition des points d'ancrage et suppression de chemins, export SVG et DXF à l'échelle réelle — tout dans ton navigateur.">
 <style>
 :root{
   --bg:#000; --bg1:#0a0a0c; --card:#1c1c1e; --card2:#212123;
@@ -82,12 +82,22 @@ input#dxfWidthMm:focus{outline:1px solid var(--blue);}
 
 footer{text-align:center;color:var(--dim2);font-size:12px;margin-top:34px;line-height:1.7;}
 footer .disc{max-width:660px;margin:0 auto 10px;}
-</style></head>
+
+    /* Pont commercial et outils voisins (05/10/2026). Une porte d'entree qui ne
+       mene nulle part ne sert a rien. */
+    .pont{margin:26px auto 0;max-width:760px;padding:16px 18px;border:1px solid rgba(0,0,0,.12);border-radius:14px;text-align:left}
+    .pont h2{margin:0 0 6px;font-size:15px}
+    .pont p{margin:0 0 12px;font-size:13.5px;line-height:1.55;opacity:.85}
+    .pont a.cta{display:inline-block;padding:9px 16px;border-radius:999px;background:#7c5cbf;color:#fff;text-decoration:none;font-size:13.5px}
+    .voisins{margin:16px auto 0;max-width:760px;font-size:13px;text-align:left;opacity:.85}
+    .voisins a{color:inherit}
+  </style>  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "SoftwareApplication", "name": "Vector Studio", "description": "Convertir une image PNG ou JPG en SVG. Dépose une image PNG/JPG : vectorisation automatique en SVG, édition des points d'ancrage et suppression de chemins, export SVG et DXF à l'échelle réelle — tout dans ton navigateur.", "applicationCategory": "UtilitiesApplication", "operatingSystem": "Tout navigateur web", "url": "https://deligny-rd.fr/outils/vector-studio/", "offers": {"@type": "Offer", "price": "0", "priceCurrency": "EUR"}, "publisher": {"@type": "Organization", "name": "DELIGNY R&D", "url": "https://deligny-rd.fr/"}}</script>
+</head>
 <body>
 <div class="wrap">
   <header>
-    <h1><span class="g">Vector Studio</span></h1>
-    <div class="sub">Dépose une image PNG/JPG : vectorisation automatique en SVG, édition des points d'ancrage et suppression de chemins, export SVG et DXF à l'échelle réelle — tout dans ton navigateur.</div>
+    <h1><span class="g">Convertir une image PNG ou JPG en SVG</span></h1>
+    <div class="sub"><b>Vector Studio</b> — Dépose une image PNG/JPG : vectorisation automatique en SVG, édition des points d'ancrage et suppression de chemins, export SVG et DXF à l'échelle réelle — tout dans ton navigateur.</div>
     <span class="free">100 % gratuit · aucun compte · rien n'est envoyé (tout se calcule dans ton navigateur)</span>
   </header>
 
@@ -153,6 +163,13 @@ footer .disc{max-width:660px;margin:0 auto 10px;}
       </div>
     </div>
   </div>
+    <section class="pont">
+      <h2>Vous traitez régulièrement ce type de fichiers&nbsp;?</h2>
+      <p>DELIGNY R&amp;D conçoit, automatise et adapte ce genre d'outil à une activité réelle. Cet outil est un extrait de ce que nous faisons sur mesure.</p>
+      <a class="cta" href="../../contact.html?sujet=logiciel&amp;mode=devis">Parler de votre besoin</a>
+    </section>
+    <div class="voisins">Autres outils gratuits : <a href="../pochoir-converter/index.html">Créer un pochoir à partir d'une photo</a> · <a href="../qr-barcode-generator/index.html">Générer des étiquettes QR et code-barres</a> · <a href="../../index.html#outils">les 14 outils</a></div>
+
 
   <footer>
     <div class="disc">Vectorisation automatique par régions de couleur — approximative, ne remplace pas un tracé manuel précis pour des besoins de découpe critique. L'export DXF encode les chemins en polylignes 2D ; par défaut les unités sont les pixels de l'image source — renseigne la largeur réelle (mm) pour exporter à l'échelle. Aucune donnée ne quitte ton navigateur.</div>
