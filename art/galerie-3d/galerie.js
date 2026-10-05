@@ -1,4 +1,5 @@
 (function () {
+  if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");
   const $ = id => document.getElementById(id);
   const esc = t => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const canvas = $("scene");
@@ -374,19 +375,23 @@
     $("cRef").textContent = o.id;
     $("cTitre").textContent = o.titre || ("Titre à choisir : " + (o.titres_proposes || []).join(", "));
     const cadreNom = { or: "baguette dorée sous verre", noir: "baguette noire sous verre", blanc: "baguette blanche sous verre", aucun: "sans cadre" }[o.cadre];
-    $("cFiche").innerHTML = [["Format", o.dimensions], ["Cadre", cadreNom + (o.passe_partout_mm ? ", rebord blanc " + o.passe_partout_mm + " mm" : "")],
-      ["Prix public", o.prix_public], o.numero_serie ? ["N° série", o.numero_serie] : null, ["Statut", o.statut]]
+    $("cFiche").innerHTML = [["Artiste", o.artiste], ["Création", o.date], ["Technique", o.technique],
+      ["Format", o.dimensions], ["Cadre", cadreNom + (o.passe_partout_mm ? ", rebord blanc " + o.passe_partout_mm + " mm" : "")],
+      ["Édition", o.edition], ["Prix public", o.prix_public], o.numero_serie ? ["N° série", o.numero_serie] : null, ["Statut", o.statut]]
       .filter(x => x && x[1]).map(([k, v]) => "<dt>" + esc(k) + "</dt><dd>" + esc(v) + "</dd>").join("");
     const notes = [];
     if (!o.cartouche) notes.push("Pas encore de cartouche au dos : l'œuvre n'est pas signée.");
     if (!o.image_redressee) notes.push("Image à recadrer : la 3D montre la photo telle qu'elle a été prise.");
     $("cNote").textContent = notes.join(" ");
+    // Extrait de l'intention et lien vers le certificat (galerie publique)
+    $("cIntention").textContent = o.intention || ""; $("cIntention").hidden = !o.intention;
+    $("cVerif").hidden = !o.verifier; if (o.verifier) $("cVerif").href = o.verifier;
     const img = new Image();
     img.onload = () => monter(o, { w: img.naturalWidth, h: img.naturalHeight });
     img.src = o.image_3d;
     try { localStorage.setItem("galerie.choix", o.id); } catch (e) {}
   }
-  fetch("data.json?v=6ee21566").then(r => r.json()).then(d => {
+  fetch("data.json?v=bb91a5be").then(r => r.json()).then(d => {
     ITEMS = d.items || [];
     $("liste").innerHTML = ITEMS.map((o, i) => `<button type="button" class="oeuvre" data-i="${i}" aria-pressed="false">
         <img src="${esc(o.photo)}" alt="" loading="lazy">
@@ -396,6 +401,10 @@
     document.querySelectorAll(".oeuvre").forEach(b => b.addEventListener("click", () => choisir(+b.dataset.i)));
     let dep = 0; try { const m = localStorage.getItem("galerie.choix"); const k = ITEMS.findIndex(o => o.id === m); if (k >= 0) dep = k; } catch (e) {}
     const k = location.hash ? ITEMS.findIndex(o => o.id === location.hash.slice(1)) : -1;
+    // Aperçu de l'atelier : le cadre et le rebord en cours de choix, même non enregistrés.
+    const Q = new URLSearchParams(location.search);
+    if (k >= 0 && Q.has("cadre")) ITEMS[k].cadre = Q.get("cadre");
+    if (k >= 0 && Q.has("pp")) ITEMS[k].passe_partout_mm = +Q.get("pp") || 0;
     taille(); if (ITEMS.length) choisir(k >= 0 ? k : dep);
   });
 })();
