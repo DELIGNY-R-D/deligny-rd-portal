@@ -79,6 +79,8 @@
   .capture main, .capture .scene-zone, .carte main, .carte .scene-zone { display:block !important; height:100% !important; }
   .capture #scene, .carte #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; min-height:0 !important; }
   .carte #scene { cursor:grab; }
+  /* capture sur fond transparent (verso de la page de vérification) */
+  html.transparent, html.transparent body, html.transparent #scene { background:transparent !important; }
   /* Espace propriétaire dans la fiche (?t=<jeton>) */
   .cartel { max-height:calc(100% - 32px); overflow:auto; }
   .proprio { border-top:1px solid var(--line); padding-top:10px; display:grid; gap:8px; }
@@ -130,6 +132,6 @@
 <div id="zoomC"><img id="zoomCImg" alt=""></div>
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
-<script src="galerie.js?v=60a61c18"></script>
+<script src="galerie.js?v=eb95dbc3"></script>
 
 </body></html>
