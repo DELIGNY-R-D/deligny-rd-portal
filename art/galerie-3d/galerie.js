@@ -1,5 +1,35 @@
 (function () {
   if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");
+  if (new URLSearchParams(location.search).has("capture")) document.documentElement.classList.add("capture");
+  // Propriétaire : le jeton (lien de son espace) ouvre, dans la fiche, les photos
+  // du processus et le certificat complet. Lu une fois puis retiré de l'adresse.
+  const API_PLATEFORME = "https://atlas-studio.pro/deligny/api";
+  const JETON = new URLSearchParams(location.search).get("t") || "";
+  if (JETON) history.replaceState(null, "", location.pathname + location.hash);
+  let PROPRIO = null;                                   // réponse /owner, une seule fois
+  async function espaceProprio(o) {
+    const z = document.getElementById("cProprio"); z.hidden = true; z.innerHTML = "";
+    if (!JETON || !o) return;
+    try {
+      if (!PROPRIO) { const r = await fetch(API_PLATEFORME + "/owner/" + encodeURIComponent(JETON)); PROPRIO = r.ok ? await r.json() : {}; }
+    } catch (e) { PROPRIO = {}; }
+    if (!PROPRIO.oeuvre || PROPRIO.oeuvre.id !== o.id) return;
+    const c = PROPRIO.coulisses || {}, ph = c.photos || [];
+    const t = encodeURIComponent(JETON);
+    z.innerHTML = '<h3>Espace propriétaire</h3>'
+      + (c.note ? '<p class="note-c">' + esc(c.note) + '</p>' : '')
+      + (ph.length ? '<div class="photos">' + ph.map((p, i) => '<img id="cph' + i + '" alt="' + esc(p.legende || "photo de l'atelier") + '" title="' + esc(p.legende || "") + '">').join("") + '</div>' : '')
+      + '<a href="../verify/' + esc(o.id) + '/?t=' + t + '">Certificat complet (signature) →</a>'
+      + '<a href="../proprietaire/?t=' + t + '">Gérer mon œuvre →</a>';
+    z.hidden = false;
+    ph.forEach(async (p, i) => {
+      try { const r = await fetch(API_PLATEFORME + "/owner/" + t + "/photo/" + encodeURIComponent(p.nom)); if (!r.ok) return;
+        const im = document.getElementById("cph" + i); im.src = URL.createObjectURL(await r.blob());
+        im.onclick = () => { document.getElementById("zoomCImg").src = im.src; document.getElementById("zoomC").style.display = "flex"; };
+      } catch (e) {}
+    });
+  }
+  document.getElementById("zoomC").onclick = () => { document.getElementById("zoomC").style.display = "none"; };
   const $ = id => document.getElementById(id);
   const esc = t => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const canvas = $("scene");
@@ -360,7 +390,13 @@
   function taille() { const w = canvas.clientWidth, h = canvas.clientHeight; if (!w || !h) return;
     renderer.setSize(w, h, false); camera.aspect = w / h; camera.updateProjectionMatrix(); }
   addEventListener("resize", taille);
+  // Capture : une fois toutes les textures chargées, quelques images puis arrêt de
+  // la boucle, pour que Chrome sans écran puisse prendre sa photo et terminer.
+  const CAPTURE = new URLSearchParams(location.search).has("capture");
+  let texturesPretes = false, imagesApres = 0;
+  THREE.DefaultLoadingManager.onLoad = () => { texturesPretes = true; };
   (function boucle(now) {
+    if (CAPTURE && texturesPretes && ++imagesApres > 30) { document.title = "capture-prete"; return; }
     requestAnimationFrame(boucle); if (anim) anim(now);
     if (pivotCache) { cacheAngle += ((cacheOuvert ? 2.4 : 0) - cacheAngle) * .12; pivotCache.rotation.x = cacheAngle; }
     controls.update(); renderer.render(scene, camera);
@@ -386,6 +422,7 @@
     // Extrait de l'intention et lien vers le certificat (galerie publique)
     $("cIntention").textContent = o.intention || ""; $("cIntention").hidden = !o.intention;
     $("cVerif").hidden = !o.verifier; if (o.verifier) $("cVerif").href = o.verifier;
+    espaceProprio(o);
     const img = new Image();
     img.onload = () => monter(o, { w: img.naturalWidth, h: img.naturalHeight });
     img.src = o.image_3d;
