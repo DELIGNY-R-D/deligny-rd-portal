@@ -1,0 +1,25 @@
+{
+ "items": [
+  {
+   "id": "DLG-ART-2026-UV9R-M7NP",
+   "titre": "Rébellion en Technicolor",
+   "statut": "publié",
+   "dimensions": "50 × 65 cm",
+   "collection": "Pop art",
+   "cadre": "or",
+   "passe_partout_mm": 0,
+   "photo": "../verify/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg",
+   "image_3d": "oeuvres/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg",
+   "image_redressee": true,
+   "cartouche": "oeuvres/DLG-ART-2026-UV9R-M7NP/cartouche.jpg",
+   "jeton": [
+    0.0159,
+    0.6475,
+    0.1391,
+    0.7638
+   ],
+   "etiquette": "oeuvres/DLG-ART-2026-UV9R-M7NP/etiquette.jpg",
+   "verifier": "../verify/DLG-ART-2026-UV9R-M7NP/"
+  }
+ ]
+}
