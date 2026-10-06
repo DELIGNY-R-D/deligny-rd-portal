@@ -2167,3 +2167,48 @@ img.app-banner {
 .demo-rc-bouton { display: inline-block; }
 
 .demo-rc-note { display: block; }
+
+/* PAGE INTENSION (06/10/2026). Les exemples sont des sessions REELLES : le
+   croquis a gauche, le rendu a droite, cote a cote pour qu'on voie le passage
+   de l'un a l'autre sans faire defiler. */
+.int-exemple { margin: 26px 0 0; }
+
+.int-paire {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.int-paire img {
+  width: 100%;
+  height: auto;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.int-exemple figcaption {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.int-tarifs { width: 100%; border-collapse: collapse; margin-top: 12px; }
+.int-tarifs td { padding: 7px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+.int-tarifs td:last-child { text-align: right; font-variant-numeric: tabular-nums; color: var(--muted); }
+
+.int-pack {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 14px;
+  padding: 11px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.int-pack span { font-variant-numeric: tabular-nums; color: var(--muted); }
+
+/* Sur telephone, deux images cote a cote deviennent illisibles : on empile. */
+@media (max-width: 640px) {
+  .int-paire { grid-template-columns: 1fr; }
+}
