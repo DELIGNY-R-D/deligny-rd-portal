@@ -272,12 +272,11 @@
   let tableau = null, pivotCache = null, cacheMesh = null, cacheOuvert = false, cacheAngle = 0, VUES = {};
 
   // --- ouverture au noir ---
-  const T0 = performance.now(), NOIR_INITIAL = 500;
+  // Fondu au noir retiré (06/10/2026, demande de l'artiste) : la scène est visible
+  // tout de suite. reveler() ne sert plus qu'à prévenir la carte du répertoire.
+  const T0 = performance.now(), NOIR_INITIAL = 0;
   let attenteOeuvre = false;
-  function voiler() {
-    if (CAPTURE_MODE) return;
-    canvas.style.transition = "none"; canvas.classList.add("voile"); void canvas.offsetWidth; canvas.style.transition = "";
-  }
+  function voiler() {}
   function reveler() {
     setTimeout(() => {
       canvas.classList.remove("voile");

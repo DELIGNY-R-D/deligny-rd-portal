@@ -27,12 +27,10 @@
   .carte:hover, .carte:focus-visible { transform:translateY(-3px); box-shadow:0 10px 24px rgba(25,23,19,.18); }
   .visuel.v3d { background:#14120e; }
   .visuel iframe { position:absolute; inset:0; width:100%; height:100%; border:0; display:block; background:transparent;
-                    opacity:0; transition:opacity .15s linear; }
+                    opacity:0; }
   .visuel iframe.pret { opacity:1; }
-  /* Ouverture au noir : faite DANS la 3D (3 s de noir puis fondu de 1,5 s), comme
-     partout ailleurs. La vignette fixe ne sert que de secours si la 3D ne vient pas. */
-  .visuel.v3d img { opacity:0; transition:opacity 2.2s ease-in-out; }
-  .visuel.v3d img.secours { opacity:1; }
+  /* Sans fondu : la vignette fixe (même vue de trois quarts) est affichée tout de
+     suite, et la 3D vivante la remplace d'un coup dès qu'elle est dessinée. */
   .texte { color:inherit; text-decoration:none; }
   .texte:hover h2 { color:var(--rouge); }
   .visuel { position:relative; display:block; aspect-ratio:4/3; background:#e9e0c9; overflow:hidden; border-bottom:1px solid var(--encre); }
