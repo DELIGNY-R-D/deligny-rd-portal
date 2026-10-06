@@ -79,6 +79,21 @@
   .capture main, .capture .scene-zone, .carte main, .carte .scene-zone { display:block !important; height:100% !important; }
   .capture #scene, .carte #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; min-height:0 !important; }
   .carte #scene { cursor:grab; }
+  /* Œil : masque tous les panneaux, le tableau seul en plein cadre. */
+  #oeil { position:fixed; right:18px; bottom:18px; z-index:15; width:46px; height:46px; border-radius:50%;
+          display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink);
+          background:color-mix(in srgb, var(--bg) 70%, transparent); border:1px solid var(--line);
+          transition:background .15s, color .15s, border-color .15s; }
+  #oeil:hover, #oeil:focus-visible { color:var(--accent); border-color:var(--accent); }
+  #oeil svg { width:22px; height:22px; }
+  #oeil .ferme { display:none; }
+  html.immersif #oeil .ouvert { display:none; } html.immersif #oeil .ferme { display:block; }
+  html.immersif header, html.immersif .liste, html.immersif .photo, html.immersif .cartel { display:none !important; }
+  html.immersif, html.immersif body { height:100% !important; overflow:hidden; }
+  html.immersif body { display:block !important; }
+  html.immersif main, html.immersif .scene-zone { display:block !important; height:100% !important; }
+  html.immersif #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; min-height:0 !important; }
+  .carte #oeil, .capture #oeil, .embed #oeil { display:none !important; }
   /* capture sur fond transparent (verso de la page de vérification) */
   html.transparent, html.transparent body, html.transparent #scene { background:transparent !important; }
   /* Espace propriétaire dans la fiche (?t=<jeton>) */
@@ -130,8 +145,12 @@
   </div>
 </main>
 <div id="zoomC"><img id="zoomCImg" alt=""></div>
+<button type="button" id="oeil" aria-pressed="false" aria-label="Masquer les panneaux : le tableau seul" title="Masquer les panneaux (touche H)">
+  <svg class="ouvert" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M1.5 12S5.5 4.5 12 4.5 22.5 12 22.5 12 18.5 19.5 12 19.5 1.5 12 1.5 12z"/><circle cx="12" cy="12" r="3.2"/></svg>
+  <svg class="ferme" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A9.7 9.7 0 0 1 12 4.5c6.5 0 10.5 7.5 10.5 7.5a17 17 0 0 1-3.2 4.1M6.2 6.6C3.3 8.6 1.5 12 1.5 12s4 7.5 10.5 7.5a9.5 9.5 0 0 0 4.4-1.1"/><path d="M9.9 9.9a3.2 3.2 0 0 0 4.2 4.2"/></svg>
+</button>
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
-<script src="galerie.js?v=6a519dc7"></script>
+<script src="galerie.js?v=2f9faa13"></script>
 
 </body></html>

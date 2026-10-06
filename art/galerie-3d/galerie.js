@@ -35,6 +35,21 @@
     });
   }
   document.getElementById("zoomC").onclick = () => { document.getElementById("zoomC").style.display = "none"; };
+  // Œil : bascule l'affichage « tableau seul » (bouton, touche H, Échap pour sortir).
+  function immersif(on) {
+    document.documentElement.classList.toggle("immersif", on);
+    const b = document.getElementById("oeil");
+    b.setAttribute("aria-pressed", on);
+    b.setAttribute("aria-label", on ? "Afficher les panneaux" : "Masquer les panneaux : le tableau seul");
+    b.title = on ? "Afficher les panneaux (touche H)" : "Masquer les panneaux (touche H)";
+    dispatchEvent(new Event("resize"));            // la scène reprend toute la place
+  }
+  document.getElementById("oeil").onclick = () => immersif(!document.documentElement.classList.contains("immersif"));
+  addEventListener("keydown", e => {
+    if (e.target.closest && e.target.closest("input, textarea")) return;
+    if (e.key === "h" || e.key === "H") immersif(!document.documentElement.classList.contains("immersif"));
+    else if (e.key === "Escape" && document.documentElement.classList.contains("immersif")) immersif(false);
+  });
   const $ = id => document.getElementById(id);
   const esc = t => String(t || "").replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
   const canvas = $("scene");
