@@ -13,13 +13,46 @@
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">{"@context": "https://schema.org", "@type": "VisualArtwork", "name": "Rébellion en Technicolor", "identifier": "DLG-ART-2026-UV9R-M7NP", "creator": {"@type": "Person", "name": "Baptiste Placier"}, "artform": "collage, pochoir, impression, encre, crayon", "artMedium": "200g", "dateCreated": "2025-06-26", "locationCreated": "Paris", "image": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/oeuvre.jpg", "url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/", "abstract": "Un univers où l'absurde flirte avec la révolte : l'argent, les icônes pop et les symboles de surveillance y cohabitent. Un chat rêveur et un billet détourné se mêlent aux éclats colorés, dans une tension entre contrôle et liberté. Chaque élément interpelle le statu quo, comme dans un kaléidoscope chaotique et dynamique.\n\nLe geste repose sur la profusion et la juxtaposition. Collages multicolores et pochoirs précis rendent la complexité du discours visuel : une accumulation sans ordre apparent, qui reflète le tumulte urbain tout en le bousculant.\n\nL'œuvre ne dicte rien, elle présente. Au spectateur de naviguer dans ce dédale saturé d'images et de décider comment réagir face à un monde surchargé : un espace d'interprétation libre et critique, où chacun peut trouver sa vérité.", "isPartOf": "Pop art", "width": "50 × 65 cm"}</script>
 <style>
-  body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
-         max-width: 760px; margin: 0 auto; padding: 28px 20px; line-height: 1.55; }
-  h1 { font-size: 20px; letter-spacing: .18em; } h1 small { display:block; font-size: 11px; letter-spacing:.3em; color:#5b4632; }
-  h2 { font-size: 12px; letter-spacing: .2em; color: #5b4632; margin: 26px 0 8px; text-transform: uppercase; }
-  .titre { font-family: Georgia, serif; font-style: italic; font-size: 26px; margin: 14px 0 2px; }
-  .ok { display:inline-block; border: 2px double #7e1e14; color: #7e1e14; padding: 6px 14px;
-        letter-spacing: .2em; font-weight: 800; transform: rotate(-3deg); margin: 14px 0; }
+  :root { --papier:#f5efdf; --carte:#fffdf6; --encre:#191713; --brun:#5b4632; --rouge:#7e1e14; --filet:#d8ccb0;
+           --titre-f:"Didot","Bodoni 72",Georgia,serif; }
+  * { box-sizing:border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; background: var(--papier); color: var(--encre);
+         max-width: 980px; margin: 0 auto; padding: 30px 22px 48px; line-height: 1.55; }
+  /* en-tête commun au répertoire : marque à gauche, onglets à droite */
+  .entete { display:flex; flex-wrap:wrap; align-items:flex-end; justify-content:space-between; gap:14px 28px;
+            border-bottom:1px solid var(--encre); padding-bottom:16px; margin-bottom:26px; }
+  .marque { font-size:22px; font-weight:800; letter-spacing:.24em; margin:0; text-decoration:none; color:inherit; }
+  .marque small { display:block; font-size:10px; font-weight:400; letter-spacing:.3em; color:var(--brun); margin-top:6px; }
+  .onglets { display:flex; flex-wrap:wrap; gap:6px; }
+  .onglets a { font-size:11px; letter-spacing:.14em; text-transform:uppercase; text-decoration:none; color:var(--encre);
+               border:1px solid var(--encre); padding:7px 11px; transition:background .15s, color .15s; }
+  .onglets a:hover { background:var(--encre); color:var(--papier); }
+  .tete { display:grid; grid-template-columns:minmax(0,1fr) auto; gap:10px 24px; align-items:center; }
+  .titre { font:italic 400 36px/1.08 var(--titre-f); margin:0; }
+  .ident { font-family:Menlo,monospace; font-size:11px; letter-spacing:.06em; color:var(--brun); margin-top:8px; }
+  .ok { display:inline-block; border: 2px double var(--rouge); color: var(--rouge); padding: 7px 14px;
+        letter-spacing: .2em; font-weight: 800; font-size:12px; transform: rotate(-3deg); white-space:nowrap; }
+  /* boutons d'action */
+  .actions { display:flex; flex-wrap:wrap; gap:10px; margin:22px 0 26px; }
+  .bouton { display:inline-flex; align-items:center; gap:8px; font-size:11.5px; letter-spacing:.14em; text-transform:uppercase;
+            text-decoration:none; color:var(--encre); border:1px solid var(--encre); background:transparent;
+            padding:12px 18px; transition:background .15s, color .15s, border-color .15s; }
+  .bouton.plein { background:var(--encre); color:var(--papier); }
+  .bouton:hover { background:var(--rouge); border-color:var(--rouge); color:#fff; }
+  .cession { border:1px solid var(--encre); background:var(--carte); padding:16px 18px; margin:0 0 26px;
+             display:flex; flex-wrap:wrap; align-items:center; justify-content:space-between; gap:12px 20px; }
+  .cession p { margin:0; font-size:13px; }
+  .cession small { display:block; color:var(--brun); font-size:11px; margin-top:4px; }
+  h2 { font-size: 11.5px; letter-spacing: .22em; color: var(--brun); margin: 34px 0 10px; text-transform: uppercase;
+       padding-top:14px; border-top:1px solid var(--filet); }
+  @media (max-width:720px) {
+    body { padding:22px 16px 40px; }
+    .marque { font-size:18px; }
+    .tete { grid-template-columns:minmax(0,1fr); }
+    .titre { font-size:28px; }
+    .ok { justify-self:start; }
+    .actions .bouton { flex:1 1 100%; justify-content:center; }
+  }
   table { width: 100%; border-collapse: collapse; font-size: 12px; }
   td, th { border-bottom: 1px solid #c9bb9c; padding: 6px 8px; text-align: left; vertical-align: top; }
   th { font-size: 10px; letter-spacing: .15em; color: #5b4632; }
@@ -70,13 +103,26 @@
 .cad-baguette-or-pp0-dos > .mdf { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='36' height='36'%3E%3Cg fill='%236b4f2e' opacity='.16'%3E%3Ccircle cx='4' cy='7' r='1.1'/%3E%3Ccircle cx='19' cy='3' r='.8'/%3E%3Ccircle cx='28' cy='12' r='1.3'/%3E%3Ccircle cx='9' cy='21' r='.9'/%3E%3Ccircle cx='23' cy='27' r='1.1'/%3E%3Ccircle cx='33' cy='31' r='.7'/%3E%3Ccircle cx='14' cy='33' r='1'/%3E%3C/g%3E%3C/svg%3E"), linear-gradient(165deg,#aba292,#a1978a 45%,#9b9283 70%,#a69d8d); background-size: 3.6cqw auto, auto; box-shadow: inset 0 0 0 0.28cqw rgba(0,0,0,.3), inset 0 0.9cqw 2.2cqw rgba(0,0,0,.26); }
 .cad-baguette-or-pp0-dos .colle { width: 28.60%; right: 3.666cqw; bottom: 3.666cqw; }
 .cad-baguette-or-pp0 .etiquette-collee { width: 21.04cqw; right: 3.372cqw; bottom: 2.786cqw; padding: 0.000cqw 0; background: #fff; }</style></head><body>
-<div style="font-size:11px;letter-spacing:.1em"><a href="../../">← RÉPERTOIRE DES ŒUVRES</a></div>
-<h1>DELIGNY R&amp;D<small>FICHE COMPLÈTE D'ŒUVRE · CARTOUCHE D'AUTHENTICITÉ</small></h1>
-<div class="titre">Rébellion en Technicolor</div>
-<div>DLG-ART-2026-UV9R-M7NP · statut <b>publié</b></div>
-<div class="ok">AUTHENTIFIÉ — DELIGNY R&amp;D</div>
-<div class="vues"><div><div class="vue-titre">Recto</div><div class="encadrement cad-baguette-or-pp0-bloc"><div class="cadre cad-baguette-or-pp0"><div class="pp"><img src="oeuvre.jpg" alt="Rébellion en Technicolor"><span class="etiquette-collee"><img src="etiquette_blanche.jpg" alt="étiquette visible"></span></div></div></div></div><div><div class="vue-titre">Verso — cartouche collé au dos</div><div class="encadrement cad-baguette-or-pp0-bloc"><img class="verso3d" src="../../galerie-3d/oeuvres/DLG-ART-2026-UV9R-M7NP/dos3d.webp" alt="Dos du tableau encadré, cartouche collé" loading="lazy" style="width:100%;height:auto;display:block;filter:drop-shadow(0 6px 14px rgba(0,0,0,.28))"></div></div></div><div class="cadre-mention reel">Encadrement fourni avec l'œuvre, et remplaçable sur demande.</div>
+<header class="entete">
+  <a class="marque" href="../../">DELIGNY R&amp;D<small>FICHE D'ŒUVRE · CARTOUCHE D'AUTHENTICITÉ</small></a>
+  <nav class="onglets" aria-label="Sections">
+    <a href="../../">Répertoire</a>
+    <a href="../../galerie-3d/">Galerie 3D</a>
+    <a href="../../achat-vente/">Achat / Vente</a>
+  </nav>
+</header>
+<div class="tete">
+  <div><h1 class="titre">Rébellion en Technicolor</h1>
+    <div class="ident">DLG-ART-2026-UV9R-M7NP · publié</div></div>
+  <div class="ok">AUTHENTIFIÉ — DELIGNY R&amp;D</div>
+</div>
+<div class="actions">
+  <a class="bouton plein" href="../../galerie-3d/#DLG-ART-2026-UV9R-M7NP">Voir en 3D ↻</a>
+  <a class="bouton" href="../../achat-vente/">Acquérir cette œuvre</a>
+  <a class="bouton" href="#verification">Vérification ✓</a>
+</div>
 <div id="marche"></div>
+<div class="vues"><div><div class="vue-titre">Recto</div><div class="encadrement cad-baguette-or-pp0-bloc"><div class="cadre cad-baguette-or-pp0"><div class="pp"><img src="oeuvre.jpg" alt="Rébellion en Technicolor"><span class="etiquette-collee"><img src="etiquette_blanche.jpg" alt="étiquette visible"></span></div></div></div></div><div><div class="vue-titre">Verso — cartouche collé au dos</div><div class="encadrement cad-baguette-or-pp0-bloc"><img class="verso3d" src="../../galerie-3d/oeuvres/DLG-ART-2026-UV9R-M7NP/dos3d.webp" alt="Dos du tableau encadré, cartouche collé" loading="lazy" style="width:100%;height:auto;display:block;filter:drop-shadow(0 6px 14px rgba(0,0,0,.28))"></div></div></div><div class="cadre-mention reel">Encadrement fourni avec l'œuvre, et remplaçable sur demande.</div>
 
 <h2>Intention de l'artiste</h2><p style="white-space:pre-line;font-style:italic">Un univers où l&#x27;absurde flirte avec la révolte : l&#x27;argent, les icônes pop et les symboles de surveillance y cohabitent. Un chat rêveur et un billet détourné se mêlent aux éclats colorés, dans une tension entre contrôle et liberté. Chaque élément interpelle le statu quo, comme dans un kaléidoscope chaotique et dynamique.
 
@@ -115,7 +161,7 @@ L&#x27;œuvre ne dicte rien, elle présente. Au spectateur de naviguer dans ce d
 
 
 
-<h2>Vérification</h2>
+<h2 id="verification">Vérification</h2>
 <div id="nodus-verdict" class="note">Vérification en cours dans ton navigateur…</div>
 
 <!-- Détail cryptographique : réservé au propriétaire (05/10/2026). Ouvert par
@@ -221,12 +267,11 @@ la moindre démarche à faire.</div>
     /* Avis : plus affichés sur le site (06/10/2026, demande de l'artiste). */
     if (d.a_ceder) {
       document.getElementById("marche").innerHTML =
-        '<p style="border:1px solid #191713;background:#fffdf6;padding:12px 14px;margin-top:14px">' +
-        '<b>Cette œuvre est proposée à la cession</b> par son propriétaire' +
+        '<div class="cession"><p><b>Proposée à la cession</b> par son propriétaire' +
         (d.proprietaire_pseudo ? ' (' + esc(d.proprietaire_pseudo) + ', ' + esc(d.proprietaire_pays || "") + ')' : "") +
-        (d.prix ? ' — <b id="prix">' + esc(d.prix) + '</b>' : "") +
-        '<br><a href="../../echange/" id="lienoffre">Faire une offre →</a><br>' +
-        '<span style="font-size:11px;color:#5b4632">Aucun paiement ne transite par la plateforme.</span></p>';
+        (d.prix ? ' : <b id="prix">' + esc(d.prix) + '</b>' : "") +
+        '<small>Aucun paiement ne transite par la plateforme.</small></p>' +
+        '<a class="bouton plein" href="../../echange/?o=' + encodeURIComponent(OID) + '" id="lienoffre">Faire une offre</a></div>';
       var l = document.getElementById("lienoffre");
       if (l) l.addEventListener("click", function () { post("/track", { type: "clic_prix", oeuvre: OID, tz: tz }); });
     }
