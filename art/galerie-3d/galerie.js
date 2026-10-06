@@ -272,7 +272,7 @@
   let tableau = null, pivotCache = null, cacheMesh = null, cacheOuvert = false, cacheAngle = 0, VUES = {};
 
   // --- ouverture au noir ---
-  const T0 = performance.now(), NOIR_INITIAL = 3000;
+  const T0 = performance.now(), NOIR_INITIAL = 500;
   let attenteOeuvre = false;
   function voiler() {
     if (CAPTURE_MODE) return;
