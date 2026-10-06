@@ -112,9 +112,6 @@ L&#x27;œuvre ne dicte rien, elle présente. Au spectateur de naviguer dans ce d
 
 
 
-<h2>Avis</h2>
-<div id="avis"><p style="font-size:11.5px;color:#5b4632">…</p></div>
-<p style="font-size:11.5px"><a href="../../avis/">Laisser un avis sur cette œuvre →</a></p>
 
 
 
@@ -221,12 +218,7 @@ la moindre démarche à faire.</div>
   function esc(s) { return String(s == null ? "" : s).replace(/[<>&"]/g, function (c) {
     return { "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]; }); }
   fetch(API + "/public/oeuvre/" + OID).then(function (r) { return r.json(); }).then(function (d) {
-    var av = d.avis || [];
-    document.getElementById("avis").innerHTML = av.length ? av.map(function (x) {
-      return '<p style="border-bottom:1px solid #c9bb9c;padding-bottom:8px"><b>' + esc(x.pseudo) + '</b>' +
-        (x.pays ? ' <span style="color:#5b4632">(' + esc(x.pays) + ')</span>' : "") +
-        (x.note ? ' — ' + x.note + '/5' : "") + '<br>' + esc(x.texte) + '</p>'; }).join("")
-      : '<p style="font-size:11.5px;color:#5b4632">Aucun avis publié pour l\'instant.</p>';
+    /* Avis : plus affichés sur le site (06/10/2026, demande de l'artiste). */
     if (d.a_ceder) {
       document.getElementById("marche").innerHTML =
         '<p style="border:1px solid #191713;background:#fffdf6;padding:12px 14px;margin-top:14px">' +
