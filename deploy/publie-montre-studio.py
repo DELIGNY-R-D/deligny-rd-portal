@@ -28,7 +28,7 @@ CE QUI CHANGE ENTRE LA SOURCE ET LA PAGE PUBLIEE, et pourquoi.
 Ce qui reste entier : la 3D sur les vraies pieces STL, les moteurs de motifs de
 lunette et de cadran, l'encyclopedie des 550 surfaces, l'export STL.
 
-    python3 deploy/publie-montre-studio.py [--verifier]
+    python3 deploy/publie-montre-studio.py [--verifier] [--quand-meme]
 
 `--verifier` ne copie rien et dit seulement si la page publiee correspond a la
 source actuelle. Utile pour savoir si une republication est due.
@@ -40,6 +40,7 @@ import os
 import re
 import shutil
 import sys
+import time
 
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SOURCE = os.path.expanduser(
@@ -47,6 +48,8 @@ SOURCE = os.path.expanduser(
 CIBLE = os.path.join(RACINE, "montre-3d-studio")
 
 # Les six modules que la source importe, deja deposes dans le portail.
+DELAI_REFROIDISSEMENT_MIN = 10
+
 MODULES = ("controls/OrbitControls.js", "environments/RoomEnvironment.js",
            "exporters/STLExporter.js", "loaders/RGBELoader.js",
            "loaders/STLLoader.js", "utils/BufferGeometryUtils.js")
@@ -184,6 +187,19 @@ def main(argv=None) -> int:
         print("publiee  %s" % (deja[:16] or "jamais publiee"))
         print("A JOUR" if deja == emp_src else "REPUBLICATION DUE")
         return 0 if deja == emp_src else 3
+
+    # La source est ecrite par une autre session. Republier prend ce qu'elle a
+    # ecrit A CET INSTANT, travail inachevé compris. Constate le 08/10/2026 :
+    # deux publications a 25 minutes d'ecart ont pris deux snapshots differents
+    # alors que je ne croyais changer que le script. On refuse donc de publier
+    # une source encore tiede, sauf a le demander explicitement.
+    age_min = (time.time() - os.path.getmtime(src_html)) / 60.0
+    print("source modifiee il y a %.0f min" % age_min)
+    if age_min < DELAI_REFROIDISSEMENT_MIN and "--quand-meme" not in argv:
+        print("REFUS : la source a ete modifiee il y a moins de %d minutes, une autre\n"
+              "session y travaille peut-etre. Relancer avec --quand-meme pour passer outre."
+              % DELAI_REFROIDISSEMENT_MIN)
+        return 4
 
     manquants = [m for m in MODULES
                  if not os.path.isfile(os.path.join(CIBLE, "vendor", "jsm", m))]
