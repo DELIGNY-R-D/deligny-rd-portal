@@ -21,17 +21,73 @@ cd "$(dirname "$0")/.."
 MSG="${1:?message de commit requis}"
 BASE="https://deligny-rd.fr"
 
-echo "== 1/7  Non-regression du controle lui-meme =="
+# ── Attendre le build GitHub Pages DU COMMIT QU'ON VIENT DE POUSSER ─────────
+#
+# Le 08/10/2026, un build a echoue (« Page build failed. », sans autre
+# explication) et la production a continue de servir la version precedente. Le
+# push avait reussi, le depot etait juste, et le site mentait. Rien ne l'a dit :
+# c'est un second commit, pousse par hasard quelques minutes plus tard, qui a
+# relance un build et mis la correction en ligne. UN PUSH REUSSI N'EST PAS UN
+# DEPLOIEMENT REUSSI.
+#
+# Regle : on n'accepte un build que s'il CONTIENT notre commit. Le sien, ou
+# celui d'un descendant, car GitHub regroupe parfois deux poussees rapprochees
+# en un seul build et notre SHA n'apparaitrait alors jamais. Un build d'un
+# commit qui ne contient pas le notre ne prouve rien et n'est jamais retenu.
+DEPOT=$(git remote get-url origin | sed -E 's#.*github\.com[:/]##; s#\.git$##')
+BUILD_DELAI_MAX=${BUILD_DELAI_MAX:-600}
+
+attendre_build() {
+  local sha="$1" etape="$2" t0=$SECONDS
+  echo "   build Pages attendu pour ${sha:0:7} ($etape)"
+  while :; do
+    local lignes statut commit_du_build erreur retenu=""
+    lignes=$(gh api "repos/$DEPOT/pages/builds?per_page=30" \
+             --jq '.[] | "\(.commit)\t\(.status)\t\(.error.message // "")"' 2>/dev/null || true)
+    while IFS=$'\t' read -r commit_du_build statut erreur; do
+      [ -z "${commit_du_build:-}" ] && continue
+      # Ce build contient-il notre commit ? Lui-meme, ou un descendant.
+      if [ "$commit_du_build" != "$sha" ]; then
+        git merge-base --is-ancestor "$sha" "$commit_du_build" 2>/dev/null || continue
+      fi
+      retenu="$commit_du_build"
+      case "$statut" in
+        built)
+          if [ "$commit_du_build" = "$sha" ]; then
+            echo "   build REUSSI pour ${sha:0:7} (${SECONDS}s)"
+          else
+            echo "   build REUSSI pour ${commit_du_build:0:7}, qui contient ${sha:0:7} (${SECONDS}s)"
+          fi
+          return 0;;
+        errored|cancelled|failure)
+          echo "ARRET : build Pages en echec pour ${commit_du_build:0:7} — ${erreur:-aucun message}."
+          echo "   La production sert encore la version precedente."
+          echo "   Relancer en poussant un commit, ou depuis l'onglet Pages du depot."
+          return 1;;
+      esac
+      break
+    done <<< "$lignes"
+    if [ $((SECONDS - t0)) -ge "$BUILD_DELAI_MAX" ]; then
+      echo "ARRET : aucun build termine pour ${sha:0:7} apres ${BUILD_DELAI_MAX}s."
+      echo "   Etat du dernier build retenu : ${retenu:+${retenu:0:7} }${statut:-aucun}."
+      echo "   Ne PAS considerer la publication comme faite."
+      return 1
+    fi
+    sleep 10
+  done
+}
+
+echo "== 1/9  Non-regression du controle lui-meme =="
 # Un garde-fou qui s'est mis a taire les fautes est pire que pas de garde-fou :
 # on verifie d'abord qu'il alerte ET qu'il se tait quand il faut.
 python3 deploy/tests/test_verifie_fortress.py >/dev/null || {
   echo "ARRET : le controle ne se comporte plus comme prevu (lancer le test pour voir)."; exit 1; }
 echo "   controle conforme"
 
-echo "== 2/7  Controle de la forteresse statique =="
+echo "== 2/9  Controle de la forteresse statique =="
 python3 deploy/verifie-fortress.py || { echo "ARRET : corriger les points bloquants."; exit 1; }
 
-echo "== 3/7  Empreintes de contenu (cache-bust) et balises =="
+echo "== 3/9  Empreintes de contenu (cache-bust) et balises =="
 python3 deploy/cache-bust.py
 python3 deploy/csp-studio.py      || true
 python3 deploy/csp-nano-worlds.py || true
@@ -41,7 +97,7 @@ python3 deploy/inject-beacon.py   || true
 # regle d'inclusion (canonique, indexable, pas une redirection).
 python3 deploy/genere-sitemap.py
 
-echo "== 4/7  Publication des ASSETS (js, css, images, fontes) =="
+echo "== 4/9  Publication des ASSETS (js, css, images, fontes) =="
 # NE JAMAIS SUPPRIMER UN ANCIEN ASSET VERSIONNE ICI.
 # Un HTML deja servi peut rester des heures dans le cache d'un visiteur ou d'un
 # edge Cloudflare et continuer de reclamer l'ancienne URL (…?v=<ancien hash>).
@@ -96,12 +152,14 @@ fi
 if [ -n "$ASSETS" ]; then
   echo "$ASSETS" | tr '\n' '\0' | xargs -0 git commit -q -m "$MSG (assets)" --
   git push -q origin main
-  echo "   assets pousses, attente de leur mise en ligne..."
+  SHA_ASSETS=$(git rev-parse HEAD)
+  echo "   assets pousses (${SHA_ASSETS:0:7}), attente de leur mise en ligne..."
+  attendre_build "$SHA_ASSETS" "assets" || exit 1
 else
   echo "   aucun asset modifie"
 fi
 
-echo "== 5/7  Verification que la prod sert bien le CONTENU attendu =="
+echo "== 5/9  Verification que la prod sert bien le CONTENU attendu =="
 # On ne se contente PAS d'un code 200 : le ?v=<empreinte> est une clef de cache,
 # pas un chemin, donc `styles.css?v=neuf` repond 200 meme quand le serveur sert
 # encore l'ancien fichier. Deux publications du 29/08 sont parties comme ca, les
@@ -119,16 +177,45 @@ for i in $(seq 1 12); do
   sleep 15
 done
 
-echo "== 6/7  Publication des PAGES =="
+echo "== 6/9  Publication des PAGES =="
 git add -A
+PAGES_POUSSEES=non
 if ! git diff --cached --quiet; then
   git commit -q -m "$MSG"
   git push -q origin main
-  echo "   pages publiees"
+  SHA_PAGES=$(git rev-parse HEAD)
+  PAGES_POUSSEES=oui
+  echo "   pages poussees (${SHA_PAGES:0:7})"
 else
   echo "   aucune page modifiee"
 fi
-echo "== 7/7  Controle du sitemap en production =="
+
+echo "== 7/9  Build GitHub Pages du commit pousse =="
+if [ "$PAGES_POUSSEES" = oui ]; then
+  attendre_build "$SHA_PAGES" "pages" || exit 1
+else
+  echo "   rien a attendre"
+fi
+
+echo "== 8/9  Les pages servies sont-elles CELLES DU DEPOT ? =="
+# Un build reussi dit que GitHub a construit, pas que le visiteur recoit la
+# bonne page. On compare donc l'empreinte du corps servi a celle du fichier
+# local, l'injection Cloudflare mise a part. Un 200 ne prouve rien : c'est
+# exactement ce que repondait la page perimee du 08/10.
+if [ "$PAGES_POUSSEES" = oui ]; then
+  for i in $(seq 1 10); do
+    if python3 deploy/verifie-pages-servies.py; then break; fi
+    [ "$i" = "10" ] && { echo "ARRET : la production ne sert pas les pages de ce commit."
+                         echo "   Build reussi mais contenu perime : ne pas considerer la publication comme faite."
+                         exit 1; }
+    echo "   nouvelle tentative ($i/10)"
+    sleep 15
+  done
+else
+  echo "   rien a verifier"
+fi
+
+echo "== 9/9  Controle du sitemap en production =="
 # Apres publication seulement : ces adresses sont deja en ligne, les sonder ne
 # peut donc pas empoisonner un cache. Bloquant : un sitemap qui annonce une
 # adresse morte ou non canonique fait perdre confiance dans le fichier entier.
