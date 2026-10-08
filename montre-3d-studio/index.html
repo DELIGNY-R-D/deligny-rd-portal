@@ -1331,8 +1331,32 @@ panneau('lunette'); panneau('cadran'); reconstruireLunette(); reconstruireCadran
 // ───────────────────────────── encyclopedie (550 entrees -> recettes) ─────────────────────────────
 const TYPES_ENC={parametrique:['paramétrique',''],motif:['motif',''],ia:['bas-relief IA','ia'],ornement:['volume 3D','orn'],finition:['finition','fin']};
 const plat=t=>(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/œ/g,'oe');
+// Un libelle d'infobulle ne doit JAMAIS pouvoir tuer la liste des 550 entrees.
+// Constate le 08/10/2026 : UNE entree dont la recette ne se resolvait pas levait
+// « Cannot read properties of undefined (reading 'nom') », et la liste s'arretait
+// la, en silence. L'analyse statique de l'encyclopedie ne trouvait pourtant aucune
+// cle manquante : la cause se voit a l'execution, pas dans le fichier. On attrape
+// donc par entree, on affiche quelque chose de VRAI a la place, et on garde la
+// trace de ce qui n'a pas pu etre decrit au lieu de l'avaler.
+const RECETTES_ILLISIBLES = [];
+function decrireRecetteSure(e){
+  try { return decrireRecette(e); }
+  catch (err) {
+    RECETTES_ILLISIBLES.push({nom:e&&e.nom, type:e&&e.type, motif:e&&e.motif,
+                              section:e&&e.section, erreur:String(err)});
+    return 'recette illisible (' + ((e&&e.type)||'type inconnu') + ')';
+  }
+}
 function decrireRecette(e){if(e.type==='parametrique')return FAMILLES[e.motif].nom+' · '+FAMILLES[e.motif].modes[e.params.mode||0];
-  if(e.type==='motif')return 'motif '+((MOTIFS_LUNETTE[e.motif]||MOTIFS_CADRAN[e.motif]).nom);if(e.type==='ia')return 'bas-relief IA : '+(e.sujet||e.nom);
+  if(e.type==='motif'){const M=MOTIFS_LUNETTE[e.motif]||MOTIFS_CADRAN[e.motif];if(M)return 'motif '+M.nom;
+    // La lunette est passee a trois categories le 08/10 : ecailles, perles et
+    // torsade ne sont plus des motifs, ce sont des DESSINS d'embossage.
+    // appliquerEntree le sait deja (versLunette + LEGACY_DESSIN) ; la
+    // description, elle, etait restee sur l'ancien modele et levait sur 17
+    // entrees de l'encyclopedie. Elle suit la meme table de rattrapage.
+    const d=LEGACY_DESSIN[e.motif];if(d!=null&&DESSINS[d])return 'embossage : '+DESSINS[d].nom;
+    return 'motif '+e.motif;}
+  if(e.type==='ia')return 'bas-relief IA : '+(e.sujet||e.nom);
   if(e.type==='ornement')return 'volumes : '+e.ornements.map(t=>ORN[t].nom).join(', ');return e.approche?'relief proche : '+decrireRecette(e.approche):'non représentable en relief';}
 function poser(piece,motif,params,extra){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN;const q={...defauts(M[motif]),...(params||{})};
   for(const [k,v] of Object.entries(q)){const b=M[motif].r[k];if(b)q[k]=Math.max(b[0],Math.min(b[1],v));}
@@ -1367,9 +1391,11 @@ function initEncyclopedie(){const L=document.getElementById('encListe'),Q=docume
   function lister(){const q=plat(Q.value).split(/\s+/).filter(Boolean),sec=S.value;L.innerHTML='';let n=0;
     ENC.entrees.forEach((e,i)=>{if(sec&&String(e.section)!==sec)return;if(q.length&&!q.every(w=>idx[i].includes(w)))return;n++;
       const d=document.createElement('div');d.className='it';const [lib,cl]=TYPES_ENC[e.type];
-      d.innerHTML=`<span></span><span class="ty ${cl}">${lib}</span>`;d.firstChild.textContent=e.nom;d.title=decrireRecette(e);
+      d.innerHTML=`<span></span><span class="ty ${cl}">${lib}</span>`;d.firstChild.textContent=e.nom;d.title=decrireRecetteSure(e);
       d.onclick=()=>appliquerEntree(e,PI.value);L.appendChild(d);});
-    if(!n)L.innerHTML='<div class="it">Aucune entrée. Le concierge peut l\'interpréter : décris-la plus haut.</div>';}
+    if(!n)L.innerHTML='<div class="it">Aucune entrée. Le concierge peut l\'interpréter : décris-la plus haut.</div>';
+    if(RECETTES_ILLISIBLES.length)console.warn('encyclopédie : %d recette(s) illisible(s), la liste reste complète',
+      RECETTES_ILLISIBLES.length, RECETTES_ILLISIBLES.slice(0,8));}
   Q.oninput=lister;S.onchange=lister;lister();}
 
 // ───────────────────────────── volumes 3D (moteur Blender en coulisse) ─────────────────────────────
