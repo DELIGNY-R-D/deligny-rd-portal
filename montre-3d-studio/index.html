@@ -1,0 +1,1553 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src-elem 'self' 'unsafe-inline'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://atlas-studio.pro; connect-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Montre 3D Studio</title>
+<style>
+/* Meme grammaire que le Custom 3D Lamp Studio : feuille creme, vert profond. */
+:root{
+  --acc-rgb:44,74,56; --ink-rgb:22,22,22;
+  --bg:#e3e0d6; --bg1:#f6f4ed; --card:#efede6; --card2:#e7e4da;
+  --txt:#161616; --dim:#494943; --dim2:#6b6b63; --sep:rgba(var(--ink-rgb),.17);
+  --acc:#2c4a38; --ok:#2f6b45; --warn:#8a5a12; --bad:#a33228;
+  --font:-apple-system,BlinkMacSystemFont,"SF Pro Display","Helvetica Neue",Arial,sans-serif;
+  --mono:"SF Mono",ui-monospace,Menlo,Consolas,monospace;
+}
+*,*::before,*::after{box-sizing:border-box;} html,body{margin:0;height:100%;}
+body{background:var(--bg);color:var(--txt);font:14px/1.45 var(--font);-webkit-font-smoothing:antialiased;}
+header{display:flex;align-items:baseline;gap:14px;padding:14px 22px;border-bottom:1px solid var(--sep);background:var(--bg1);}
+header h1{font-size:19px;margin:0;letter-spacing:-.02em;}
+header .sub{color:var(--dim2);font-size:12.5px;}
+main{display:grid;grid-template-columns:400px 1fr;height:calc(100% - 55px);}
+aside{overflow-y:auto;padding:16px 18px 40px;border-right:1px solid var(--sep);background:var(--card);}
+section{margin-bottom:18px;padding-bottom:16px;border-bottom:1px solid var(--sep);}
+section:last-child{border-bottom:none;}
+h2{font-size:10.5px;text-transform:uppercase;letter-spacing:.1em;color:var(--dim2);margin:0 0 10px;font-weight:700;}
+.fil{display:flex;flex-direction:column;gap:6px;max-height:220px;overflow-y:auto;margin-bottom:8px;}
+.bulle{padding:7px 11px;border-radius:12px;font-size:13px;max-width:92%;}
+.bulle.moi{align-self:flex-end;background:var(--acc);color:var(--card);}
+.bulle.lui{align-self:flex-start;background:var(--bg1);border:1px solid var(--sep);}
+.bulle.pense{opacity:.6;font-style:italic;}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:5px;}
+.tag{font-size:11px;padding:2px 7px;border-radius:99px;background:rgba(var(--acc-rgb),.12);color:var(--acc);}
+.tag.refus{background:rgba(163,50,40,.1);color:var(--bad);}
+.saisie{display:flex;gap:6px;}
+.saisie textarea{flex:1;resize:none;height:58px;padding:8px 10px;border-radius:10px;border:1px solid var(--sep);background:var(--bg1);font:13px var(--font);color:var(--txt);}
+.btn{font:600 12.5px var(--font);padding:7px 13px;border-radius:99px;border:1px solid transparent;cursor:pointer;background:rgba(var(--ink-rgb),.07);color:var(--txt);}
+.btn:hover{background:rgba(var(--ink-rgb),.12);}
+.btn.pri{background:var(--acc);color:var(--card);}
+.btn.on{background:rgba(var(--acc-rgb),.18);border-color:rgba(var(--acc-rgb),.4);}
+.btn:disabled{opacity:.4;cursor:wait;}
+.ex{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px;}
+.ex .btn{font-weight:500;font-size:11.5px;padding:5px 10px;}
+.etat{font-size:11.5px;color:var(--dim2);margin-top:7px;}
+select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);background:var(--bg1);font:13px var(--font);margin-bottom:8px;}
+.reg{display:grid;grid-template-columns:110px 1fr 46px;align-items:center;gap:8px;margin:4px 0;font-size:12.5px;}
+.reg label{color:var(--dim);}
+.reg input[type=range]{width:100%;accent-color:var(--acc);}
+.reg output{font:12px var(--mono);color:var(--dim);text-align:right;}
+.reg.case{grid-template-columns:110px 1fr;}
+.ligne{display:flex;gap:6px;flex-wrap:wrap;}
+#vue{position:relative;background:radial-gradient(900px 600px at 50% 30%,#f7f5ef,#dcd8cc);}
+#vue canvas{display:block;width:100%;height:100%;}
+#badge{position:absolute;left:16px;bottom:14px;font:12px var(--mono);color:var(--dim);background:rgba(246,244,237,.85);padding:7px 10px;border-radius:9px;border:1px solid var(--sep);}
+#charge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:13px;pointer-events:none;}
+.note{font-size:11.5px;color:var(--dim2);margin-top:6px;}
+.br textarea{width:100%;height:52px;resize:none;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);background:var(--bg1);font:12.5px var(--font);margin:6px 0;}
+.br img{width:100%;border-radius:9px;margin-top:6px;border:1px solid var(--sep);}
+.galerie{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:6px;}
+.galerie img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:7px;margin:0;cursor:pointer;border:2px solid transparent;}
+.galerie img.choisi{border-color:var(--acc);}
+.champ{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);background:var(--bg1);font:13px var(--font);margin-bottom:8px;color:var(--txt);}
+.enc{max-height:300px;overflow-y:auto;border:1px solid var(--sep);border-radius:10px;background:var(--bg1);}
+.enc .it{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:6px 10px;cursor:pointer;font-size:12.5px;border-bottom:1px solid rgba(var(--ink-rgb),.06);}
+.enc .it:hover{background:rgba(var(--acc-rgb),.08);}
+.enc .ty{flex:none;font-size:10.5px;padding:1px 7px;border-radius:99px;background:rgba(var(--acc-rgb),.12);color:var(--acc);}
+.enc .ty.ia{background:rgba(138,90,18,.12);color:var(--warn);}
+.enc .ty.fin{background:rgba(var(--ink-rgb),.08);color:var(--dim2);}
+.enc .ty.orn{background:rgba(var(--acc-rgb),.22);}
+#vue.boutique{background:radial-gradient(1100px 700px at 50% 22%,#fffdf8,#f3ebdf 55%,#e2d6c4);}
+.grp{border:1px solid var(--sep);border-radius:10px;padding:8px 10px;margin:8px 0;background:var(--bg1);}
+.grp .tete{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:12.5px;margin-bottom:4px;}
+.grp .tete button{font-size:11px;padding:3px 9px;}
+@media (max-width:820px){main{grid-template-columns:1fr;grid-template-rows:55vh auto;height:auto;}#vue{order:-1;height:55vh;}aside{border-right:none;}}
+</style>
+<script type="importmap">
+{"imports":{"three":"./vendor/three.module.js",
+ "three/addons/":"./vendor/jsm/"}}
+</script>
+</head>
+<body>
+<p id="montre-demo-publique" style="margin:0;padding:10px 16px;background:#f3efe6;color:#4a4034;font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6">Demonstration publique : le moteur de motifs, la 3D sur les vraies pieces et l&#x27;encyclopedie des 550 surfaces fonctionnent ici. L&#x27;assistant, les bas-reliefs generes et les ornements Blender appartiennent au studio local et ne sont pas disponibles sur cette page.</p>
+<header><h1>Montre 3D Studio</h1><span class="sub">DELIGNY R&amp;D · Montre T · personnalisation 3D assistée par IA : lunette et cadran</span></header>
+<main>
+<aside>
+  <section>
+    <h2>Concierge</h2>
+    <div class="fil" id="fil"></div>
+    <div class="saisie">
+      <textarea id="msg" maxlength="600" placeholder="un cadran avec des montagnes au lever du soleil, une lunette perlée…"></textarea>
+      <button class="btn pri" id="go">Envoyer</button>
+    </div>
+    <div class="ex" id="ex"></div>
+    <div class="etat" id="etat"></div>
+  </section>
+  <section>
+    <h2>Lunette</h2>
+    <select id="zoneL"><option value="biseau">Zone : biseau</option><option value="face">Zone : face avant</option><option value="tout">Zone : face avant + biseau</option></select>
+    <select id="selL"></select>
+    <div id="regL"></div>
+    <div class="note" id="raccordNote"></div>
+  </section>
+  <section>
+    <h2>Cadran</h2>
+    <select id="indexC">
+      <option value="0">Index : bâtons posés</option>
+      <option value="1">Index : sphères</option>
+      <option value="2">Index : sphères en strates</option>
+      <option value="3">Index : bâtons incorporés au décor</option>
+      <option value="4">Index : chiffres arabes</option>
+      <option value="5">Index : chiffres romains</option>
+      <option value="6">Index : auto (creusés si le décor a du volume, en plots sinon)</option>
+      <option value="7">Sans index</option>
+    </select>
+    <select id="aigH"><option value="0.8">Aiguilles : standard (0,8 mm au-dessus du cadran)</option><option value="1.2">Aiguilles : hautes (1,2 mm)</option><option value="1.6">Aiguilles : très hautes (1,6 mm, maxi sous le verre)</option></select>
+    <select id="selC"></select>
+    <div id="regC"></div>
+  </section>
+  <section>
+    <h2>Encyclopédie des surfaces</h2>
+    <input class="champ" id="encQ" type="search" placeholder="chercher : clous de Paris, martelage, gyroïde, rinceaux…">
+    <div class="ligne" style="flex-wrap:nowrap"><select id="encSec"></select><select id="encPiece" style="width:140px;flex:none"><option value="lunette">sur la lunette</option><option value="cadran">sur le cadran</option></select></div>
+    <div class="enc" id="encListe"></div>
+    <div class="note" id="encNote"></div>
+  </section>
+  <section hidden>
+    <h2>Extravagance</h2>
+    <div class="note" style="margin:0 0 8px">Gros volumes 3D qui débordent de la silhouette. Un clic applique un style complet, tout reste réglable ensuite.</div>
+    <div class="ligne" id="extra"></div>
+  </section>
+  <section hidden>
+    <h2>Volumes 3D de la lunette</h2>
+    <div class="ligne" id="ornAjout"></div>
+    <div id="ornListe"></div>
+    <div class="reg"><label>fusion</label><input type="range" id="ornFusion" min="0" max="1" step="0.05" value="0.5"><output id="ornFusionV">0.50</output></div>
+    <div class="ligne"><button class="btn pri" id="ornGo">Construire les volumes</button><button class="btn" id="ornVider">Tout retirer</button></div>
+    <div class="note" id="ornEtat">Billes, pointes, étoiles, tentacules, grappes, coques ajourées : des volumes posés sur la lunette et fusionnés en douceur. Le verre et le dessous de la lunette restent intacts.</div>
+  </section>
+  <section>
+    <h2>Vue</h2>
+    <div class="ligne">
+      <button class="btn" data-vue="face">Face</button>
+      <button class="btn" data-vue="trois">3/4</button>
+      <button class="btn" data-vue="profil">Profil</button>
+      <button class="btn" data-vue="dos">Dos</button>
+      <button class="btn" data-vue="detail">Détail</button>
+      <button class="btn" data-vue="vitrine">Vitrine</button>
+    </div>
+    <div class="ligne" style="margin-top:8px">
+      <button class="btn on" id="tVerre">Verre</button>
+      <button class="btn on" id="tAig">Aiguilles</button>
+      <button class="btn" id="tEclate">Éclaté</button>
+      <button class="btn on" id="tBracelet" title="Bracelet cuir chocolat et boucle déployante or rose">Bracelet</button>
+      <button class="btn on" id="tVis" title="Vis latérales sans tête M2 laiton">Vis</button>
+      <button class="btn on" id="tBrut" title="Flancs, dessous du boîtier et fond tels qu'ils sortent de l'impression, non polis">Alu brut</button>
+    </div>
+  </section>
+  <section>
+    <h2>Fabrication</h2>
+    <div class="ligne">
+      <button class="btn pri" id="fabGo">Produire les pièces réelles</button>
+      <button class="btn" id="fabVue" disabled>Voir l'aperçu</button>
+    </div>
+    <div class="note" id="fabEtat">Soude le relief et les volumes sur la vraie lunette et le vrai cadran (pièces de fabrication), par union exacte.</div>
+    <div class="ligne" style="margin-top:8px">
+      <button class="btn" id="expL">STL lunette</button>
+      <button class="btn" id="expC">STL cadran</button>
+    </div>
+    <div class="note">Lunette : relief jusqu'à 1,5 mm. Cadran : relief jusqu'à 1,2 mm, à condition de choisir des aiguilles assez hautes (Ronda 763 standard : 0,8 mm ; plus haut = chaussée et roue des heures spéciales à commander). Pas de choix de matière pour le moment : boîtier aluminium, cadran titane.</div>
+  </section>
+</aside>
+<div id="vue"><div id="charge">Chargement du boîtier…</div><div id="badge"></div></div>
+</main>
+
+<script type="module">
+import * as THREE from 'three';
+import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
+import {STLLoader} from 'three/addons/loaders/STLLoader.js';
+import {STLExporter} from 'three/addons/exporters/STLExporter.js';
+import {RoomEnvironment} from 'three/addons/environments/RoomEnvironment.js';
+import {RGBELoader} from 'three/addons/loaders/RGBELoader.js';
+import {mergeGeometries,toCreasedNormals} from 'three/addons/utils/BufferGeometryUtils.js';
+
+// ───────────────────────────── vocabulaire ─────────────────────────────
+// [min, max, defaut, pas, libelle]. DOIT rester identique a app/montre_concierge.py
+const MOTIFS_LUNETTE = {
+  lisse:   {nom:'Lisse', r:{}},
+  rayons:  {nom:'Rayons (soleil)', r:{n:[24,144,72,1,'nombre'], largeur:[.2,.8,.4,.01,'largeur'], relief:[.1,1.5,.4,.01,'relief mm']}},
+  torsade: {nom:'Torsade', r:{n:[24,120,60,1,'nombre'], vrille:[-2,2,.8,.05,'vrille'], largeur:[.2,.8,.45,.01,'largeur'], relief:[.1,1.5,.4,.01,'relief mm']}},
+  vagues:  {nom:'Vagues', r:{n:[4,48,12,1,'ondes'], amplitude:[.05,.4,.25,.01,'amplitude'], bandes:[1,3,2,1,'bandes'], relief:[.1,1.5,.35,.01,'relief mm']}},
+  clous:   {nom:'Clous de Paris', r:{n:[24,160,80,1,'nombre'], rangs:[1,5,3,1,'rangs'], relief:[.1,1.5,.4,.01,'relief mm']}},
+  perles:  {nom:'Perles', r:{n:[24,160,70,1,'nombre'], rangs:[1,4,2,1,'rangs'], relief:[.1,1.5,.4,.01,'relief mm']}},
+  damier:  {nom:'Damier', r:{n:[12,120,48,1,'nombre'], rangs:[1,5,3,1,'rangs'], relief:[.1,1.5,.3,.01,'relief mm']}},
+  ecailles:{nom:'Écailles', r:{n:[12,96,40,1,'nombre'], rangs:[1,5,3,1,'rangs'], relief:[.1,1.5,.35,.01,'relief mm']}},
+  image:   {nom:'Bas-relief IA', r:{relief:[.1,1.5,.45,.01,'relief mm'], echelle:[.4,2.5,1.8,.05,'échelle'], detail:[0,1,.3,.05,'détail'], contraste:[.5,2.5,1.4,.05,'contraste'], inverser:[0,1,0,1,'inverser']}},
+  dragon:  {nom:'Écailles de dragon', r:{n:[24,120,64,1,'nombre'], rangs:[1,4,2,1,'rangs'], pointe:[1.0,1.8,1.35,.05,'pointe'], arete:[0,1,.55,.01,'arête'], relief:[.1,1.5,.55,.01,'relief mm']}},
+};
+const MOTIFS_CADRAN = {
+  lisse:      {nom:'Lisse', r:{}},
+  montagnes:  {nom:'Montagnes', r:{plans:[1,4,3,1,'plans'], hauteur:[.1,1.2,.4,.01,'hauteur mm'], pics:[3,9,6,1,'pics'], rayon:[5,8.3,7.9,.1,'taille mm'], graine:[1,999,7,1,'variante'], soleil:[0,1,1,1,'soleil']}},
+  soleil:     {nom:'Soleil (rayons)', r:{n:[12,160,72,1,'rayons'], largeur:[.2,.8,.45,.01,'largeur'], relief:[.05,1.2,.2,.01,'relief mm']}},
+  guilloche:  {nom:'Guilloché', r:{petales:[4,36,12,1,'pétales'], anneaux:[2,30,10,1,'anneaux'], relief:[.05,1.2,.2,.01,'relief mm']}},
+  vagues:     {nom:'Vagues', r:{longueur:[.6,4,1.4,.05,'longueur mm'], ondulation:[0,2,.8,.05,'ondulation'], concentriques:[0,1,0,1,'concentriques'], relief:[.05,1.2,.2,.01,'relief mm']}},
+  topographie:{nom:'Topographie', r:{niveaux:[3,14,8,1,'niveaux'], echelle:[2,10,5,.1,'échelle mm'], graine:[1,999,3,1,'variante'], relief:[.1,1.2,.35,.01,'relief mm']}},
+  clous:      {nom:'Clous de Paris', r:{pas:[.5,2.5,1,.05,'pas mm'], relief:[.05,1.2,.2,.01,'relief mm']}},
+  image:      {nom:'Bas-relief IA', r:{relief:[.05,1.2,.35,.01,'relief mm'], cadrage:[.6,1.3,1,.01,'cadrage'], detail:[0,1,.5,.05,'détail'], contraste:[.5,2.5,1.2,.05,'contraste'], inverser:[0,1,0,1,'inverser']}},
+  bulles:     {nom:'Bulles et cratères', r:{nombre:[4,60,24,1,'nombre'], taille:[.8,5,2.6,.05,'taille maxi mm'], cratere:[0,1,1,1,'cratères'], graine:[1,999,5,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
+  terrasses:  {nom:'Terrasses (strates)', r:{couches:[3,14,8,1,'couches'], collines:[1,6,3,1,'collines'], taille:[2,8,4.5,.1,'taille mm'], diguette:[0,1,1,1,'diguettes'], graine:[1,999,21,1,'variante'], relief:[.1,1.2,.4,.01,'relief mm']}},
+  etoiles:    {nom:'Ciel étoilé', r:{nombre:[3,60,18,1,'étoiles'], taille:[.4,2,.9,.05,'taille mm'], graine:[1,999,11,1,'variante'], relief:[.1,1.2,.3,.01,'relief mm']}},
+};
+// Familles parametriques et catalogue : encyclopedie.json (meme source que le concierge).
+const ENC=await fetch('encyclopedie.json',{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
+const FAMILLES=ENC?ENC.familles:{};
+for(const [k,F] of Object.entries(FAMILLES)){const r={mode:[0,F.modes.length-1,0,1,'mode'],...F.r};
+  MOTIFS_CADRAN[k]={nom:F.nom,famille:1,r:{...r,relief:[r.relief[0],Math.min(r.relief[1],ENC.relief_max_cadran||1.2),r.relief[2],r.relief[3],r.relief[4]]}};}
+const estFamille=m=>!!FAMILLES[m];
+// ───────────── LUNETTE : TROIS CATEGORIES SEULEMENT (decision du 08/10) ─────────────
+// 1. EMBOSSAGE : le dessus reste la surface d'origine, POLIE ; le dessin est creuse, BRUT, de plus
+//    en plus sombre avec la profondeur ; la paroi du creux a un angle et 1 a 4 facettes.
+// 2. BAS-RELIEF : mat (brut) ou poli en option.
+// 3. 3D ARETES VIVES : clous de Paris, pyramides, diamants... (familles a aretes nettes).
+// Les motifs historiques de lunette restent dans le code (dessins de l'embossage), plus au choix.
+const DESSINS=[
+  // champs « interieur du dessin » (1 au coeur, 0 dehors) : le seuil « proportion » regle la taille
+  // des parties polies ; les fonctions de relief des anciens motifs donnaient des ecailles en cuvette
+  {nom:'écailles',f:(u,s,p)=>{const R=p.rangs*s;let v=0;for(const dr of [0,-1]){const row=Math.floor(R)+dr;if(row<0)continue;
+    const dx=(fract(u*p.n+(row&1)*.5)-.5)*2,dy=(R-row)*1.6;v=Math.max(v,1-Math.hypot(dx,dy)/1.25);}return Math.max(0,v);}},
+  {nom:'écailles de dragon',f:(u,s,p)=>{const R=p.rangs*s;let v=0;for(const dr of [0,-1]){const row=Math.floor(R)+dr;if(row<0)continue;
+    const t=(R-row)/1.35;if(t>1)continue;const dx=Math.abs(fract(u*p.n+(row&1)*.5)-.5),wv=.53*Math.pow(Math.max(0,1-Math.pow(t,2.2)),.8);
+    if(wv>0)v=Math.max(v,Math.min(1-dx/wv,(1-t)*2));}return Math.max(0,v);}},
+  {nom:'perles',f:(u,s,p)=>FL.perles(u,s,{...p,relief:1})},
+  {nom:'damier',f:(u,s,p)=>FL.damier(u,s,{...p,relief:1})},
+  {nom:'rayons',f:(u,s,p)=>FL.rayons(u,s,{...p,largeur:.5,relief:1})},
+  {nom:'vagues',f:(u,s,p)=>FL.vagues(u,s,{...p,amplitude:.25,bandes:p.rangs,relief:1})},
+  {nom:"nid d'abeille",fam:['reseau',"nid d'abeille"]},
+  {nom:'losanges',fam:['reseau','losanges']},
+  {nom:'méandre grec',fam:['generatif','méandre grec']},
+  {nom:'labyrinthe',fam:['generatif','labyrinthe']},
+  {nom:'circuit imprimé',fam:['generatif','circuit imprimé']},
+  {nom:'alvéoles (Voronoï)',fam:['facettes','alvéoles']},
+  {nom:'craquelures',fam:['texture','craquelures']},
+  {nom:'bas-relief IA (contours)',ia:1},
+  // DAMIER D'ORIGINE (Montre T V4, mesure sur « Montre T 2 V2.stl ») : losanges en damier en coordonnees
+  // POLAIRES depuis le centre, symetriques en miroir sur les axes 12-6 et 3-9 (un V a 12 h et a 3 h),
+  // continus de la face avant au biseau. n/4 losanges par quart (88 -> 1,4 mm), periode radiale 2,7/rangs mm.
+  {nom:"damier d'origine (circulaire)",f:(u,s,p)=>{const phi=Math.atan2(Math.abs(PZ.z),Math.abs(PZ.x)),r=Math.hypot(PZ.x,PZ.z);
+    const a=phi/(Math.PI/2)*Math.max(1,Math.round(p.n/4)),b=r/(2.7/Math.max(1,p.rangs));
+    return .5+.5*Math.tanh(3*Math.cos(Math.PI*(a+b))*Math.cos(Math.PI*(a-b)));}},
+];
+const FORMES=[['reseau','pyramides carrées','clous de Paris'],['reseau','pyramides tronquées','clous tronqués'],['reseau','pyramides inversées','pointes de diamant creuses'],
+  ['reseau','pyramides triangulaires','pyramides triangulaires'],['reseau','cônes','cônes'],['reseau','cubes','cubes'],['reseau','losanges','losanges'],
+  ['reseau','dents de scie','dents de scie'],['reseau','créneaux','créneaux'],['reseau','gradins','gradins'],['stries','moletage diamant','moletage diamant'],
+  ['stries','moletage croisé','moletage croisé'],['facettes','low-poly','facettes low-poly'],['facettes','voronoï cristallin','facettes cristallines'],['facettes','cristal','cristaux']];
+for(const k of Object.keys(MOTIFS_LUNETTE))delete MOTIFS_LUNETTE[k];
+const RJ=ENC&&ENC.r_lunette||{jonction:[0,2,1,1,'jonctions'],pivot:[0,360,0,1,'pivot °']};
+Object.assign(MOTIFS_LUNETTE,{
+  embossage:{nom:'Embossage',r:{dessin:[0,DESSINS.length-1,0,1,'dessin'],n:[12,160,64,1,'nombre'],rangs:[1,5,3,1,'rangs'],proportion:[.15,.85,.5,.01,'proportion'],
+    profondeur:[.1,1.2,.45,.01,'profondeur mm'],angle:[15,90,50,1,'angle °'],facettes:[1,4,2,1,'facettes'],finition:[0,2,1,1,'finition'],...RJ}},
+  image:{nom:'Bas-relief',r:{relief:[.1,1.5,.6,.01,'relief mm'],echelle:[.4,2.5,1.8,.05,'échelle'],detail:[0,1,.3,.05,'détail'],contraste:[.5,2.5,1,.05,'contraste'],
+    inverser:[0,1,0,1,'inverser'],finition:[0,2,1,1,'finition']}},
+  arete:{nom:'3D arêtes vives',r:{forme:[0,FORMES.length-1,0,1,'forme'],pas:[.4,6,1.2,.05,'pas mm'],angle:[0,90,45,1,'angle °'],tronque:[0,.9,.5,.05,'troncature'],
+    relief:[.05,1.2,.35,.01,'relief mm'],finition:[0,2,2,1,'finition'],...RJ}},
+});
+const LISTES={jonction:['fondu','raccord exact','vue de dessus (sans jonction)'],finition:['mat (brut)','poli surface (sommets polis, creux bruts)','poli intégral'],
+  dessin:DESSINS.map(d=>d.nom),forme:FORMES.map(f=>f[2])};
+const CASES = new Set(['soleil','concentriques','diguette','inverser','ventouses','cratere']);
+const defauts = M => Object.fromEntries(Object.entries(M.r).map(([k,v])=>[k,v[2]]));
+// Etat de depart du projet Montre T (07/10) : lunette ecailles de dragon, cadran terrasses.
+const state = {
+  lunette:{motif:'embossage', zone:'tout', params:{dessin:14,n:88,rangs:3,proportion:.5,profondeur:.35,angle:60,facettes:1,jonction:1,pivot:0}},   // damier d'origine de la Montre T (V4)
+  cadran:{motif:'terrasses', params:{couches:9,collines:4,taille:5,diguette:1,graine:21,relief:.4}},
+};
+
+// ───────────────────────────── outils ─────────────────────────────
+const sm=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
+const fract=x=>x-Math.floor(x);
+const bande=(w,duty,soft)=>1-sm(duty/2-soft,duty/2+soft,Math.abs(w-.5));
+function rng(seed){let a=seed>>>0||1;return()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296;};}
+function bruit2(seed){ // bruit de valeur lisse, deterministe
+  const R=rng(seed), P=new Float32Array(512); for(let i=0;i<512;i++)P[i]=R();
+  const h=(i,j)=>P[((i*73856093)^(j*19349663))&511];
+  return (x,y)=>{const i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,ux=fx*fx*(3-2*fx),uy=fy*fy*(3-2*fy);
+    return (h(i,j)*(1-ux)+h(i+1,j)*ux)*(1-uy)+(h(i,j+1)*(1-ux)+h(i+1,j+1)*ux)*uy;};
+}
+
+
+// ───────────────────────────── bas-relief IA : cartes de profondeur ─────────────────────────────
+const BASRELIEF = {lunette:null, cadran:null};   // {w,h,v:Float32Array,sujet,apercu}
+function echantillon(c,x,y){ // x,y en pixels, bilineaire, bord borne
+  x=Math.min(c.w-1.001,Math.max(0,x)); y=Math.min(c.h-1.001,Math.max(0,y));
+  const i=Math.floor(x),j=Math.floor(y),fx=x-i,fy=y-j,v=c.v,w=c.w;
+  return (v[j*w+i]*(1-fx)+v[j*w+i+1]*fx)*(1-fy)+(v[(j+1)*w+i]*(1-fx)+v[(j+1)*w+i+1]*fx)*fy;}
+function lireImage(uri){return new Promise((ok,ko)=>{const im=new Image();im.onload=()=>{
+  const c=document.createElement('canvas');c.width=im.width;c.height=im.height;const x=c.getContext('2d');x.drawImage(im,0,0);
+  const d=x.getImageData(0,0,c.width,c.height).data,v=new Float32Array(c.width*c.height);for(let k=0;k<v.length;k++)v[k]=d[4*k]/255;
+  ok({w:c.width,h:c.height,v});};im.onerror=ko;im.src=uri;});}
+// profondeur (forme) + lumiere (detail), alignees, meme taille
+async function chargerCarte(piece,uriProf,uriLum,meta){const a=await lireImage(uriProf),b=uriLum?await lireImage(uriLum):a;
+  BASRELIEF[piece]={w:a.w,h:a.h,v:a.v,l:b.v,...meta};}
+function valeurCarte(c,x,y,p){const pv=echantillon(c,x,y),lv=echantillon({w:c.w,h:c.h,v:c.l},x,y);
+  let v=(1-p.detail)*pv+p.detail*lv; v=Math.pow(Math.min(1,Math.max(0,v)),p.contraste); return p.inverser?1-v:v;}
+
+// ───────────────────────────── FAMILLES PARAMETRIQUES (encyclopedie) ─────────────────────────────
+// Une meme fonction sert la lunette et le cadran, dans le plan deplie en mm :
+// lunette X = abscisse curviligne, Y = largeur de la zone ; cadran X = x, Y = vers 12 h,
+// plus (r, t) polaires. Retour : hauteur relative 0..1 (le relief en mm multiplie).
+// Les modes et leurs reglages viennent de encyclopedie.json (meme source que le concierge).
+const tri=x=>1-2*Math.abs(fract(x)-.5);                    // dent symetrique 0..1
+const arche=x=>{const d=(fract(x)-.5)*2;return Math.sqrt(Math.max(0,1-d*d));};  // demi-cylindre
+const marche=(x,e)=>sm(-e,e,x);                            // bord adouci (e en unites de x)
+function hash2(i,j,g){let h=Math.imul(i|0,374761393)+Math.imul(j|0,668265263)+Math.imul(g|0,2147483647)|0;h=Math.imul(h^(h>>>13),1274126177);return ((h^(h>>>16))>>>0)/4294967296;}
+function worley(X,Y,taille,g){const cx=Math.floor(X/taille),cy=Math.floor(Y/taille);let d1=9,d2=9,id=0,sx=0,sy=0;
+  for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const a=cx+i,b=cy+j,px=(a+.1+.8*hash2(a,b,g))*taille,py=(b+.1+.8*hash2(b,a,g+7))*taille,d=Math.hypot(X-px,Y-py);
+    if(d<d1){d2=d1;d1=d;id=hash2(a,b,g+13);sx=px;sy=py;}else if(d<d2)d2=d;}return {d1:d1/taille,d2:d2/taille,id,sx,sy};}
+const _bruits={};function fbm(X,Y,g,oct=4){const n=_bruits[g]||(_bruits[g]=bruit2(g));let v=0,a=.5,f=1,t=0;for(let k=0;k<oct;k++){v+=a*n(X*f+k*17.3,Y*f+k*9.1);t+=a;a*=.5;f*=2.03;}return v/t;}
+function tourner(X,Y,deg){const a=deg*Math.PI/180,c=Math.cos(a),s=Math.sin(a);return [c*X-s*Y,s*X+c*Y];}
+// reaction-diffusion (Gray-Scott) : tuile periodique 128x128 calculee une fois par variante ;
+// schema explicite stable (Du 0,2, Dv 0,1 : 4D < 1), sinon la simulation diverge en NaN
+const _turing={};function turing(g){if(_turing[g])return _turing[g];const N=128,NN=N*N;let A=new Float32Array(NN).fill(1),B=new Float32Array(NN),A2=new Float32Array(NN),B2=new Float32Array(NN);const R=rng(g*31+1);
+  for(let k=0;k<90;k++){const cx=Math.floor(R()*N),cy=Math.floor(R()*N);for(let i=-3;i<=3;i++)for(let j=-3;j<=3;j++)B[((cy+j+N)%N)*N+(cx+i+N)%N]=1;}
+  const f=.037,kk=.06;
+  for(let it=0;it<3000;it++){for(let y=0;y<N;y++){const ym=((y+N-1)%N)*N,yp=((y+1)%N)*N,y0=y*N;for(let x=0;x<N;x++){const xm=(x+N-1)%N,xp=(x+1)%N,i=y0+x;
+    const la=A[y0+xm]+A[y0+xp]+A[ym+x]+A[yp+x]-4*A[i],lb=B[y0+xm]+B[y0+xp]+B[ym+x]+B[yp+x]-4*B[i],ab2=A[i]*B[i]*B[i];
+    A2[i]=A[i]+(.2*la-ab2+f*(1-A[i]));B2[i]=B[i]+(.1*lb+ab2-(kk+f)*B[i]);}}let t=A;A=A2;A2=t;t=B;B=B2;B2=t;}
+  let mn=9,mx=-9;for(const v of B){mn=Math.min(mn,v);mx=Math.max(mx,v);}const v=new Float32Array(NN);for(let i=0;i<NN;i++)v[i]=sm(.25,.75,(B[i]-mn)/(mx-mn||1));
+  return (_turing[g]={w:N,h:N,v});}
+function echantillonPeriodique(c,x,y){const x0=Math.floor(x),y0=Math.floor(y),fx=x-x0,fy=y-y0,W=c.w,H=c.h,g=(i,j)=>c.v[(((j%H)+H)%H)*W+(((i%W)+W)%W)];
+  return (g(x0,y0)*(1-fx)+g(x0+1,y0)*fx)*(1-fy)+(g(x0,y0+1)*(1-fx)+g(x0+1,y0+1)*fx)*fy;}
+// labyrinthe parfait (backtracker) sur un tore 24x24 : se raccorde sur le tour de la lunette
+const _laby={};function labyrinthe(g){if(_laby[g])return _laby[g];const N=24,vu=new Uint8Array(N*N),ouvert=new Uint8Array(N*N*2),R=rng(g*17+3),pile=[0];vu[0]=1;
+  while(pile.length){const c=pile[pile.length-1],x=c%N,y=(c/N)|0,v=[];for(const [dx,dy] of [[1,0],[-1,0],[0,1],[0,-1]])if(!vu[((y+dy+N)%N)*N+(x+dx+N)%N])v.push([dx,dy]);
+    if(!v.length){pile.pop();continue;}const [dx,dy]=v[Math.floor(R()*v.length)],nx=(x+dx+N)%N,ny=(y+dy+N)%N;
+    if(dx===1)ouvert[(y*N+x)*2]=1;if(dx===-1)ouvert[(y*N+nx)*2]=1;if(dy===1)ouvert[(y*N+x)*2+1]=1;if(dy===-1)ouvert[(ny*N+x)*2+1]=1;vu[ny*N+nx]=1;pile.push(ny*N+nx);}
+  return (_laby[g]={N,ouvert});}
+// cle grecque continue (6x6) : chaque rangee se raccorde a la suivante
+const MEANDRE=['######','.....#','####.#','#..#.#','#.##.#','#....#'];
+function hexProche(a1,b1){const j0=Math.round(b1/.8660254);let bx=0,by=0,bd=9;for(let j=j0-1;j<=j0+1;j++){const off=(j&1)?.5:0,i0=Math.round(a1-off);for(let i=i0-1;i<=i0+1;i++){const dx=a1-(i+off),dy=b1-j*.8660254,d=dx*dx+dy*dy;if(d<bd){bd=d;bx=dx;by=dy;}}}return [bx,by];}
+const _phyllo={};function phyllo(pas){const n=Math.max(20,Math.round(150/pas)),k=n;if(_phyllo[k])return _phyllo[k];   // graines de tournesol rangees par case
+  const R0=.62*11.4*Math.sqrt(1/n)*1.6,c=Math.max(R0,.3),g=new Map();for(let i=1;i<n;i++){const rr=11.4*Math.sqrt(i/n),a=i*2.399963,x=rr*Math.cos(a),y=rr*Math.sin(a),key=Math.floor((y+12)/c)*64+Math.floor((x+12)/c);
+    if(!g.has(key))g.set(key,[]);g.get(key).push([x,y]);}return (_phyllo[k]={R0,c,g});}
+function mandel(X,Y){let a=0,b=0,k=0;for(;k<80&&a*a+b*b<16;k++){const t=a*a-b*b+X;b=2*a*b+Y;a=t;}if(k>=80)return 1;const l=k+1-Math.log2(Math.log(Math.sqrt(a*a+b*b)));return Math.min(1,Math.sqrt(l/80)*1.4);}
+function famille(nom,X,Y,P,p){const F=FAMILLES[nom];if(!F)return 0;const m=F.modes[Math.round(p.mode||0)]||F.modes[0],pas=Math.max(.15,p.pas||1),dial=P.dial,r=P.r,t=P.t,g=Math.round(p.graine||1),v=p.variation??.5;
+  const [A,B]=tourner(X,Y,p.angle||0);
+  if(nom==='guillochage')switch(m){
+    case 'rectiligne':return tri(B/pas);
+    case 'croisé':{const [,D]=tourner(X,Y,(p.angle||0)+90-v*40);return Math.min(tri(B/pas),tri(D/pas));}
+    case 'ondulé':return tri((B+v*pas*1.6*Math.sin(2*Math.PI*A/(pas*7)))/pas);
+    case 'radial':return dial?tri(t*Math.max(8,Math.round(2*Math.PI*6/pas))/(2*Math.PI)):tri(A/pas);
+    case 'concentrique':return dial?tri(r/pas):tri(Y/pas);
+    case 'excentrique':return dial?tri(Math.hypot(X-v*5,Y-v*2)/pas):tri((B+pas*(.3+v)*Math.sin(2*Math.PI*A/(pas*20)))/pas);
+    case 'spiralé':return dial?tri(r/pas+t/(2*Math.PI)*Math.max(1,Math.round(v*6))):tri((A*.3+B)/pas);
+    case 'rosette':return dial?tri(r/pas+.35*(.3+v)*Math.cos(12*t)):tri(Y/pas+.35*(.3+v)*Math.sin(2*Math.PI*X/(pas*4)));
+    case 'moiré':{if(dial){const e=.4+v*2,d1=Math.hypot(X-e,Y),d2=Math.hypot(X+e,Y);return .5+.5*Math.cos(2*Math.PI*d1/pas)*Math.cos(2*Math.PI*d2/pas);}
+      // lunette : deux trames de pas 1 et 5/4 (periode commune 5 pas), la seconde ondulee sur 10 pas
+      const B2=B+v*pas*2*Math.sin(2*Math.PI*A/(pas*10));return .5+.5*Math.cos(2*Math.PI*B/pas)*Math.cos(2*Math.PI*B2/(1.25*pas));}
+    case 'flammé':return tri((B+v*pas*2.2*Math.abs(Math.sin(2*Math.PI*A/(pas*5))))/pas);
+    case 'grain d\'orge':{if(dial){const k=Math.max(6,Math.round(2*Math.PI*r/(pas*2.2))),u=t*k/(2*Math.PI);return Math.min(tri(r/pas+u),tri(r/pas-u));}return Math.min(tri((A+B)/pas),tri((A-B)/pas));}
+    case 'vieux panier':{const q=pas*4,c=(Math.floor(A/q)+Math.floor(B/q))&1;return c?tri(A/pas):tri(B/pas);}
+    case 'lignes brisées':return tri((B+pas*1.4*(.3+v)*tri(A/(pas*3)))/pas);
+    case 'pas variable':{const q=dial?r:Y;return tri(q/pas*(1+v*q/(dial?8:4)));}
+    case 'entrelacé':{const a=tri((B+pas*.8*Math.sin(2*Math.PI*A/(pas*6)))/pas),b=tri((B-pas*.8*Math.sin(2*Math.PI*A/(pas*6)))/pas);return Math.max(a,b*.8);}
+  }
+  if(nom==='reseau'){const a1=A/pas,b1=B/pas,a=fract(a1)-.5,b=fract(b1)-.5,mx=Math.max(Math.abs(a),Math.abs(b)),rr=Math.hypot(a,b),tr=p.tronque??.5,e=.03,
+      dl=x=>{const q=fract(x);return Math.min(q,1-q);};
+    switch(m){
+    case 'pyramides carrées':return 1-2*mx;
+    case 'pyramides triangulaires':return 3*Math.min(dl(b1),dl(.8660254*a1-.5*b1),dl(-.8660254*a1-.5*b1));
+    case 'pyramides tronquées':return Math.min(1,(1-2*mx)/Math.max(.05,1-tr));
+    case 'pyramides inversées':return 2*mx;
+    case 'dômes':return Math.sqrt(Math.max(0,1-4*rr*rr));
+    case 'cônes':return Math.max(0,1-2*rr);
+    case 'cônes tronqués':return Math.min(1,Math.max(0,1-2*rr)/Math.max(.05,1-tr));
+    case 'cubes':return marche(.42-mx,e);
+    case 'cubes creusés':return 1-marche(.38-mx,e);
+    case 'losanges':return Math.min(1,Math.max(0,1-2*(Math.abs(a)+Math.abs(b)))/Math.max(.05,1-tr));
+    case 'nid d\'abeille':{const [dx,dy]=hexProche(a1,b1),hd=Math.max(Math.abs(dx),Math.abs(dx)*.5+Math.abs(dy)*.8660254);return marche(.44-hd,e)*(.85+.15*Math.sqrt(Math.max(0,1-hd*hd*4)));}
+    case 'perles':{const [dx,dy]=hexProche(a1,b1),d=Math.hypot(dx,dy);return Math.sqrt(Math.max(0,1-4.2*d*d));}
+    case 'tapisserie':return marche(.44-mx,e)*(1-.5*(1-marche(Math.min(Math.abs(a),Math.abs(b))-.06,.02)));
+    case 'damier':return ((Math.floor(a1)+Math.floor(b1))&1)?marche(.47-mx,e):0;
+    case 'Kagome':return marche(.07-Math.min(dl(b1),dl(.8660254*a1-.5*b1),dl(-.8660254*a1-.5*b1+.5)),.025);
+    case 'dents de scie':return fract(a1);
+    case 'créneaux':return marche(.25-Math.abs(a),.02);
+    case 'gradins':{const q=(dial?r:B)/pas,k=Math.floor(q);return ((((k%6)+6)%6)+marche(fract(q)-.88,.03))/6;}
+    }}
+  if(nom==='facettes'){const w=worley(X,Y,pas,g);switch(m){
+    case 'voronoï cristallin':{const gx=(hash2(Math.round(w.sx*97),1,g)-.5)*1.4/pas,gy=(hash2(Math.round(w.sy*97),2,g)-.5)*1.4/pas;return Math.min(1,Math.max(0,.6+.35*(w.id-.5)+gx*(X-w.sx)+gy*(Y-w.sy)))*marche(w.d2-w.d1-.04,.03);}
+    case 'low-poly':return Math.min(1,Math.max(0,.55+.6*(w.id-.5)-.45*w.d1));
+    case 'martelage':return Math.min(1,w.d1*w.d1*2.2);
+    case 'bosses':return Math.sqrt(Math.max(0,1-w.d1*w.d1*2.6));
+    case 'cristal':return Math.max(0,1-w.d1*1.5)*(.45+.55*w.id);
+    case 'pointes':return Math.max(0,1-w.d1*1.9)*(.5+.5*w.id);
+    case 'alvéoles':return 1-marche(w.d2-w.d1-.12,.04)*Math.sqrt(Math.max(0,1-w.d1*w.d1*1.4));
+  }}
+  if(nom==='texture'){const e=pas;switch(m){
+    case 'sablage':return fbm(X/(e*.22),Y/(e*.22),g,3);
+    case 'grain':return fbm(X/e,Y/e,g,5);
+    case 'pierre':return Math.min(1,Math.abs(fbm(X/e,Y/e,g,5)-.5)*2.4);
+    case 'volcanique':{const w=worley(X,Y,e*1.6,g);return Math.min(1,.5*fbm(X/e,Y/e,g,4)+.5*(w.d1<.32?.25+.75*w.d1/.32*.6:1)*(1-.3*w.id));}
+    case 'craquelures':{const w=worley(X,Y,e*1.4,g);return marche(w.d2-w.d1-.07,.04);}
+    case 'peau d\'orange':return fbm(X/(e*.5),Y/(e*.5),g,2);
+    case 'givre':{let s=0,f=1;for(let k=0;k<4;k++){s+=Math.abs(fbm(X*f/e,Y*f/e,g+k,1)-.5)*2/(k+1);f*=2.1;}return 1-Math.min(1,s*.9);}
+    case 'cratères':{const w=worley(X,Y,e*2.2,g);if(w.id>.5)return .55;const q=w.d1/.4;return q>1.25?.55:q>1?.55+.45*(1.25-q)*4:.15+.6*q*q;}
+    case 'érosion':return Math.pow(1-Math.abs(fbm(X/e,Y/e,g,5)-.5)*2,2.2);
+    case 'dunes':{const n=fbm(X/(e*6),Y/(e*6),g,2);return tri((B+n*e*5)/e*(.6));}
+    case 'peau de requin':{const q=e*.6,ro=Math.floor(B/q),a=fract(A/q+(ro&1)*.5)-.5,b=fract(B/q)-.5;return Math.max(0,1-2*Math.hypot(a*1.3,b))*(.6+.4*tri(a*3));}
+  }}
+  if(nom==='stries')switch(m){
+    case 'côtes de Genève':return arche(B/pas);
+    case 'côtes circulaires':return dial?arche(r/pas):arche((B+.12*A)/pas);
+    case 'perlage':{let h=0,best=-1e9;const q=pas,ci=Math.floor(A/q),cj=Math.floor(B/q);   // le dernier point pose recouvre les precedents
+      for(let j=cj-1;j<=cj+1;j++)for(let i=ci-1;i<=ci+1;i++){const cx=(i+.5+((j&1)?.5:0))*q,cy=(j+.5)*q,d=Math.hypot(A-cx,B-cy)/(q*.8),ord=j*4096+i;
+        if(d<1&&ord>best){best=ord;h=(.62+.38*tri(d*3.5+.5*(i&1)+.25*(j&1)))*(1-.25*d*d);}}return h;}   // periodique : se referme sur le tour
+    case 'colimaçonnage':return dial?tri(r/pas+t/(2*Math.PI)):tri((A+B*.25)/pas);
+    case 'moletage droit':return tri(A/pas);
+    case 'moletage croisé':return Math.min(tri((A+B)/pas),tri((A-B)/pas));
+    case 'moletage diamant':{const a=fract((A+B)/pas)-.5,b=fract((A-B)/pas)-.5;return 1-2*Math.max(Math.abs(a),Math.abs(b));}
+    case 'brossage':return fbm(A*6/pas,B*.2/pas,g,3);
+    case 'cannelures':return arche(A/pas);
+    case 'chevrons':return tri((B+Math.abs(fract(A/(pas*4))-.5)*pas*3)/pas);
+    case 'zigzag':return tri((B+tri(A/(pas*2))*pas*1.5)/pas);
+    case 'hachures':return Math.min(tri(B/pas),1-.5*tri((A+B)/(pas*1.5)));
+    case 'pointillé':{const a=fract(A/pas)-.5,b=fract(B/pas)-.5;return Math.sqrt(Math.max(0,1-12*(a*a+b*b)));}
+    case 'nervures':return dial?Math.pow(tri(t*Math.round(2*Math.PI*5/pas)/(2*Math.PI)),3):Math.pow(tri(A/pas),3);
+  }
+  if(nom==='generatif'){const k=2*Math.PI/pas,z=g*.37;switch(m){
+    case 'gyroïde':return .5+.5*Math.max(-1,Math.min(1,(Math.sin(k*X)*Math.cos(k*Y)+Math.sin(k*Y)*Math.cos(z)+Math.sin(z)*Math.cos(k*X))/1.5));
+    case 'Schwarz P':return .5+.5*Math.max(-1,Math.min(1,(Math.cos(k*X)+Math.cos(k*Y)+Math.cos(z))/2.2));
+    case 'Schwarz D':return .5+.5*Math.max(-1,Math.min(1,Math.sin(k*X)*Math.sin(k*Y)*Math.sin(z)+Math.sin(k*X)*Math.cos(k*Y)*Math.cos(z)+Math.cos(k*X)*Math.sin(k*Y)*Math.cos(z)+Math.cos(k*X)*Math.cos(k*Y)*Math.sin(z)));
+    case 'réaction-diffusion':{const c=turing(g),q=pas*8;return echantillonPeriodique(c,X/q*c.w,Y/q*c.h);}
+    case 'labyrinthe':{const L=labyrinthe(g),N=L.N,q=pas,cx=Math.floor(X/q),cy=Math.floor(Y/q),fx=fract(X/q),fy=fract(Y/q),id=(i,j)=>((((j%N)+N)%N)*N+(((i%N)+N)%N));
+      const mur=.16;let d=9;                    // distance au mur le plus proche (en cellule)
+      if(!L.ouvert[id(cx,cy)*2])d=Math.min(d,1-fx);if(!L.ouvert[id(cx-1,cy)*2])d=Math.min(d,fx);if(!L.ouvert[id(cx,cy)*2+1])d=Math.min(d,1-fy);if(!L.ouvert[id(cx,cy-1)*2+1])d=Math.min(d,fy);
+      d=Math.min(d,Math.hypot(Math.min(fx,1-fx),Math.min(fy,1-fy)));return marche(mur-d,.035);}
+    case 'circuit imprimé':{const q=pas,cx=Math.floor(X/q),cy=Math.floor(Y/q),fx=fract(X/q)-.5,fy=fract(Y/q)-.5;let h=0;
+      if(hash2(cx>>1,cy,g)<.45)h=Math.max(h,marche(.11-Math.abs(fy),.03));                 // pistes horizontales (par troncons de 2 cellules)
+      if(hash2(cx,cy>>1,g+1)<.3)h=Math.max(h,marche(.11-Math.abs(fx),.03));                // pistes verticales
+      if(hash2(cx,cy,g+2)>.86){const d=Math.hypot(fx,fy);h=Math.max(h,marche(.3-d,.03)*(1-.65*marche(.11-d,.03)));}  // pastilles et vias
+      return h;}
+    case 'méandre grec':{const q=pas,i=((Math.floor(X/q)%6)+6)%6,j=((Math.floor(Y/q)%6)+6)%6;return MEANDRE[5-j][i]==='#'?1:0;}
+    case 'phyllotaxie':{if(!dial){const w=worley(X,Y,pas,g);return Math.sqrt(Math.max(0,1-w.d1*w.d1*4));}
+      const T=phyllo(pas),c=T.c,i0=Math.floor((X+12)/c),j0=Math.floor((Y+12)/c);let h=0;
+      for(let j=j0-1;j<=j0+1;j++)for(let i=i0-1;i<=i0+1;i++){const L=T.g.get(j*64+i);if(L)for(const [sx,sy] of L){const d2=((X-sx)**2+(Y-sy)**2)/(T.R0*T.R0);if(d2<1)h=Math.max(h,Math.sqrt(1-d2));}}return h;}
+    case 'vortex':return dial?tri(t*5/(2*Math.PI)+Math.log(Math.max(.4,r))*2.5/pas*(.5+v)):tri((X+pas*2*Math.sin(Y/pas))/pas);
+    case 'interférences':{const S=dial?[[4,0],[-2,3.5],[-2,-3.5]]:[[0,-6],[13,-6],[26,-6]];let s=0;for(const [sx,sy] of S)s+=Math.cos(2*Math.PI*Math.hypot(X-sx,Y-sy)/pas);return .5+.5*s/3;}
+    case 'metaballs':{let s=0;const q=pas*3,cx=Math.floor(X/q),cy=Math.floor(Y/q);for(let i=-1;i<=1;i++)for(let j=-1;j<=1;j++){const a=cx+i,b=cy+j,px=(a+hash2(a,b,g))*q,py=(b+hash2(b,a,g+3))*q,ra=q*(.25+.3*hash2(a,b,g+5));s+=ra*ra/((X-px)**2+(Y-py)**2+1e-3);}return sm(.8,1.4,s)*Math.min(1,.6+.15*s);}
+    case 'Sierpiński':{let x=fract(X/(pas*8)),y=fract(Y/(pas*8));for(let k=0;k<6;k++){x*=2;y*=2;if(Math.floor(x)%2===1&&Math.floor(y)%2===1)return 0;x=fract(x);y=fract(y);}return 1;}
+    case 'Mandelbrot':return dial?mandel(X/5.2-.6,Y/5.2):mandel(fract(X/26)*3-2.1,Y/(LZ||3.6)*2.4-1.2);
+  }}
+  return 0;}
+
+// ───────────────────────────── motifs lunette : h(u,s) en mm ─────────────────────────────
+// u in [0,1) autour de la montre, s in [0,1] du haut du biseau (0) vers le bas (1).
+const LARG=3.6; // largeur inclinee du biseau (mm) ; PERIM = abscisse curviligne mesuree plus bas
+const FL = {
+  lisse:()=>0,
+  // u est deja l'abscisse curviligne (depliage UV) ; on repete l'image autant de fois
+  // qu'il faut pour garder SES proportions sur la largeur reelle de la zone.
+  image:(u,s,p)=>{const c=BASRELIEF.lunette;if(!c)return 0;
+    if(c.dessus){const L=c.dessus.L;return p.relief*valeurCarte(c,(PZ.x/L+.5)*(c.w-1),(PZ.z/L+.5)*(c.h-1),{...p,inverser:p.inverser});}const reps=Math.max(1,Math.round(PERIM/((c.format||4)*largeurZone()*p.echelle)));
+    return p.relief*valeurCarte(c,fract(u*reps)*(c.w-1),s*(c.h-1),p);},
+  rayons:(u,s,p)=>p.relief*bande(fract(u*p.n),p.largeur,.04),
+  torsade:(u,s,p)=>p.relief*bande(fract(u*p.n+s*p.vrille),p.largeur,.04),
+  vagues:(u,s,p)=>{let v=0;const w=.5/p.bandes;for(let k=0;k<p.bandes;k++){const c=(k+.5)/p.bandes+p.amplitude/p.bandes*Math.sin(2*Math.PI*(p.n*u+k*.5));v=Math.max(v,1-sm(w/2-.02,w/2+.02,Math.abs(s-c)));}return p.relief*v;},
+  clous:(u,s,p)=>{const a=fract(u*p.n),b=fract(s*p.rangs);return p.relief*Math.max(0,1-2*Math.max(Math.abs(a-.5),Math.abs(b-.5)));},
+  perles:(u,s,p)=>{const Lu=PERIM/p.n,Ls=LARG/p.rangs,dx=(fract(u*p.n)-.5)*Lu,dy=(fract(s*p.rangs)-.5)*Ls,rr=.44*Math.min(Lu,Ls),q=1-(dx*dx+dy*dy)/(rr*rr);return p.relief*Math.sqrt(Math.max(0,q));},
+  damier:(u,s,p)=>{const a=fract(u*p.n),b=fract(s*p.rangs),c=(Math.floor(u*p.n)+Math.floor(s*p.rangs))%2;const e=Math.min(Math.min(a,1-a)*PERIM/p.n,Math.min(b,1-b)*LARG/p.rangs);return p.relief*c*sm(0,.07,e);},
+  ecailles:(u,s,p)=>{const r=Math.floor(s*p.rangs),a=fract(u*p.n+(r%2)*.5),b=fract(s*p.rangs);const dx=(a-.5)*2,dy=b*1.6,d=Math.hypot(dx,dy);return d<1.05?p.relief*sm(0,.12,1.05-d)*(.35+.65*Math.min(1,d)):0;},
+  // Ecailles de dragon : pointe vers le bas du biseau, rangs decales, la pointe
+  // d'un rang recouvre le haut du rang suivant ; arete centrale facettee.
+  dragon:(u,s,p)=>{let best=0;const R=p.rangs*s;
+    for(const dr of [0,-1]){const row=Math.floor(R)+dr; if(row<0)continue;
+      const t=(R-row)/p.pointe; if(t>1)continue;
+      const dx=fract(u*p.n+(row&1)*.5)-.5, wv=.53*Math.pow(Math.max(0,1-Math.pow(t,2.2)),.8);
+      if(Math.abs(dx)>=wv)continue;
+      const crete=1-Math.abs(dx)/wv, hauteur=(.3+.7*t)*((1-p.arete)+p.arete*crete);
+      best=Math.max(best,hauteur*sm(0,.035,wv-Math.abs(dx))*sm(0,.04,1-t+.0001));}
+    return p.relief*best;},
+};
+
+// ───────────────────────────── motifs cadran : g(x,z) en mm ─────────────────────────────
+// vue de face : u = x (droite), v = -z (vers 12 h)
+let montCache=null;
+function preparerMontagnes(p){
+  const R=rng(p.graine*7919+p.pics*31+p.plans), sc=p.rayon/7.9, couches=[];
+  for(let k=0;k<p.plans;k++){
+    const base=-(2.0+k*1.4)*sc, pics=[];
+    for(let j=0;j<p.pics;j++){
+      const u=-p.rayon+(j+.5+(R()-.5)*.7)*(2*p.rayon/p.pics);
+      pics.push([u,(0.8+R()*1.4)*sc*(1-.15*k),(1.0+R()*1.0)*sc]);
+    }
+    couches.push({base,pics,lev:p.hauteur*(k+1)/p.plans});
+  }
+  const crete0=Math.max(...couches[0].pics.map(q=>q[1]))+couches[0].base;
+  montCache={cle:JSON.stringify(p),couches,sc,soleil:{u:-.5*p.rayon,v:Math.min(crete0+1.1*sc,-0.2*sc+1.6),r:.6*sc}};
+}
+const FC = {
+  lisse:()=>0,
+  image:(x,z,r,t,p)=>{const c=BASRELIEF.cadran;if(!c)return 0;const R=11.7*p.cadrage;if(r>R)return 0;
+    return p.relief*valeurCarte(c,(.5+x/(2*R))*(c.w-1),(.5+z/(2*R))*(c.h-1),p)*(1-sm(R-.4,R,r));},
+  montagnes:(x,z,r,t,p)=>{
+    const k0=JSON.stringify(p); if(!montCache||montCache.cle!==k0) preparerMontagnes(p);
+    const u=x,v=-z; let h=0; const masque=sm(0,.08,p.rayon-Math.hypot(u,v));
+    if(masque>0) for(const c of montCache.couches){
+      let cr=c.base; for(const [pu,ph,pw] of c.pics) cr=Math.max(cr,c.base+ph*Math.max(0,1-Math.abs(u-pu)/pw));
+      h=Math.max(h,c.lev*sm(-.04,.04,cr-v)*masque);
+    }
+    if(p.soleil){const s=montCache.soleil;h=Math.max(h,p.hauteur*.4*sm(0,.06,s.r-Math.hypot(u-s.u,v-s.v)));}
+    return h;
+  },
+  soleil:(x,z,r,t,p)=>p.relief*bande(fract(t/(2*Math.PI)*p.n),p.largeur,.05)*sm(1.4,2.2,r)*(1-sm(11.5,12,r)),
+  guilloche:(x,z,r,t,p)=>{const k=2*Math.PI*p.anneaux*r/12.4,f=.5+.5*Math.cos(p.petales*t+k),g=.5+.5*Math.cos(p.petales*t-k);return p.relief*sm(.35,.65,f)*sm(.35,.65,g)*sm(1.3,1.8,r);},
+  vagues:(x,z,r,t,p)=>{const val=p.concentriques?.5+.5*Math.sin(2*Math.PI*r/p.longueur):.5+.5*Math.sin(2*Math.PI*((-z)+p.ondulation*.6*Math.sin(x*2*Math.PI/6))/p.longueur);return p.relief*sm(.3,.7,val);},
+  topographie:(()=>{let n=null,seed=-1;return (x,z,r,t,p)=>{if(seed!==p.graine){n=bruit2(p.graine);seed=p.graine;}
+    const q=.55*n(x/p.echelle,z/p.echelle)+.3*n(x/p.echelle*2.1+7,z/p.echelle*2.1+3)+.15*n(x/p.echelle*4.3+1,z/p.echelle*4.3+9);
+    const tt=q*p.niveaux,k=Math.floor(tt);return p.relief*(k+sm(.9,1,tt-k))/p.niveaux;};})(),
+  clous:(x,z,r,t,p)=>{const a=(x+z)/Math.SQRT2/p.pas,b=(x-z)/Math.SQRT2/p.pas;return p.relief*Math.max(0,1-2*Math.max(Math.abs(fract(a)-.5),Math.abs(fract(b)-.5)));},
+  // Terrasses vues du dessus : collines lisses decoupees en strates a plat,
+  // marches presque verticales, petite diguette au bord de chaque strate.
+  bulles:(()=>{let cle='',B=[];return (x,z,r,t,p)=>{const c=p.graine+'/'+p.nombre+'/'+p.taille;
+      if(c!==cle){cle=c;B=[];const R=rng(p.graine*9973+p.nombre);let essais=0;
+        while(B.length<p.nombre&&essais++<4000){const rr=Math.sqrt(R())*10.6,a=R()*6.283,ra=p.taille/2*(.3+.7*R()*R());
+          const bx=rr*Math.cos(a),bz=rr*Math.sin(a);if(Math.hypot(bx,bz)<1.6+ra)continue;
+          if(B.every(q=>Math.hypot(q[0]-bx,q[1]-bz)>q[2]+ra-.15))B.push([bx,bz,ra]);}}
+      let h=0;for(const [bx,bz,ra] of B){const d=Math.hypot(x-bx,z-bz);if(d>=ra)continue;const q=d/ra;
+        let v=Math.sqrt(1-q*q);if(p.cratere&&ra>.9)v=Math.max(0,v-.75*Math.exp(-(((q-.15)/.32)**2))*(1-q));h=Math.max(h,p.relief*v*(ra/(p.taille/2)));}
+      return h;};})(),
+  terrasses:(()=>{let cle='',C=[],n=null;return (x,z,r,t,p)=>{const k=p.graine+'/'+p.collines+'/'+p.taille;
+      if(k!==cle){cle=k;C=[];const R=rng(p.graine*7349+p.collines);n=bruit2(p.graine+17);
+        for(let i=0;i<p.collines;i++){const rr=R()*7.5,a=R()*6.283;C.push([rr*Math.cos(a),rr*Math.sin(a),p.taille*(.7+.6*R()),.6+.4*R()]);}}
+      let f=0;for(const [cx,cz,ra,hh] of C){const d2=((x-cx)**2+(z-cz)**2)/(ra*ra);f=Math.max(f,hh*Math.exp(-d2));}
+      f=Math.min(.999,f*(.9+.2*n(x/1.7,z/1.7)));
+      const tt=f*p.couches,lev=Math.floor(tt),fr=tt-lev;
+      let h=(lev+sm(.965,.995,fr))/p.couches;
+      if(p.diguette&&lev>0)h+=.02*(1-sm(.0,.06,fr))*(1-sm(.94,.965,fr));
+      return p.relief*Math.min(1,h)*(1-sm(11.3,11.9,r));};})(),
+  etoiles:(()=>{let cle='',E=[];return (x,z,r,t,p)=>{const c=p.graine+'/'+p.nombre+'/'+p.taille;if(c!==cle){cle=c;E=[];const R=rng(p.graine*104729+p.nombre);
+      for(let i=0;i<p.nombre;i++){const rr=2+R()*8.6,a=R()*2*Math.PI;E.push([rr*Math.cos(a),rr*Math.sin(a),p.taille*(.55+.45*R()),R()*6.283]);}}
+    let h=0;for(const [sx,sz,ta,ph] of E){const dx=x-sx,dz=z-sz,d=Math.hypot(dx,dz);if(d>ta)continue;const k=.5+.5*Math.cos(5*(Math.atan2(dz,dx)+ph));
+      const Rs=ta*(.4+.6*k*k);h=Math.max(h,p.relief*sm(0,.05,Rs-d));}return h;};})(),
+};
+
+// ───────────────────────────── geometrie lunette ─────────────────────────────
+// Familles : lunette depliee (X le long du tour, Y dans la largeur). La piece se referme
+// sur elle-meme : trois facons de traiter le raccord (reglage « jonctions ») :
+//  0 fondu    : melange sur 4 mm autour du raccord ;
+//  1 exact    : pas et angle recales pour qu'un nombre ENTIER de periodes fasse le tour
+//               (table RACCORD) ; si le motif n'a pas de periode (bruit, Voronoi...), on
+//               repasse en fondu ;
+//  2 dessus   : le motif est pose a plat sur toute la montre (coordonnees du plan, comme
+//               le cadran) : aucune jonction par construction.
+// pivot (degres) deplace le raccord le long du tour, ou fait tourner le motif en vue de dessus.
+let LZ=3.6;
+function pasLunette(p){return PERIM/Math.max(1,Math.round(PERIM/Math.max(.15,p.pas||1)));}
+// Periode de chaque motif dans le repere tourne (A le long des stries, B en travers), en
+// multiples du pas :
+//   {l:[a,b],q}  motif a une dimension, fonction de (a.A + b.B)/pas, periode q : n'importe
+//                quel angle se referme exactement, seul le pas bouge un peu ;
+//   [QA,QB]      reseau : periodes QA.pas le long de A et QB.pas le long de B ; l'angle est
+//                rapproche d'une direction rationnelle (compromis angle / pas minimal) ;
+//   0            ne depend pas du tour ; 'h1'/'h2' hexagonal/triangulaire (angle multiple de
+//                60) ; 'xN' tuile de N cellules non tournee ; absent = aucune periode.
+const L1=(a,b,q=1)=>({l:[a,b],q});
+const RACCORD={
+  guillochage:{rectiligne:L1(0,1),'ondulé':[7,1],'flammé':[5,1],'vieux panier':[8,8],'lignes brisées':[3,1],'entrelacé':[6,1],"grain d'orge":[1,1],
+    radial:L1(1,0),concentrique:0,'pas variable':0,rosette:'x4','moiré':[10,5],excentrique:[20,1],'spiralé':L1(.3,1)},
+  reseau:{'pyramides carrées':[1,1],'pyramides tronquées':[1,1],'pyramides inversées':[1,1],'dômes':[1,1],'cônes':[1,1],'cônes tronqués':[1,1],cubes:[1,1],'cubes creusés':[1,1],
+    losanges:[1,1],tapisserie:[1,1],damier:[2,2],'dents de scie':L1(1,0),'créneaux':L1(1,0),gradins:L1(0,1,6),
+    "nid d'abeille":'h1',perles:'h1','pyramides triangulaires':'h2',Kagome:'h2'},
+  stries:{'côtes de Genève':L1(0,1),'côtes circulaires':L1(.12,1),perlage:[2,2],'colimaçonnage':L1(1,.25),'moletage droit':L1(1,0),'moletage croisé':[1,1],
+    'moletage diamant':[1,1],cannelures:L1(1,0),chevrons:[4,1],zigzag:[2,1],hachures:[3,3],'pointillé':[1,1],nervures:L1(1,0)},
+  generatif:{labyrinthe:'x24','méandre grec':'x6','Sierpiński':'x8','gyroïde':'x1','Schwarz P':'x1','Schwarz D':'x1','réaction-diffusion':'x8',vortex:'x1'},
+};
+const ecartAngle=(a,b)=>Math.abs(((a-b)%360+540)%360-180);
+let _raccords=new WeakMap();   // vide a chaque construction (les curseurs modifient params en place)
+// Recalage : ecart toleré 8° d'angle OU 8 % de pas (1° compte comme 1 %) ; au-dela, pas de raccord exact.
+function raccordExact(k,p){if(_raccords.has(p))return _raccords.get(p);let r=null;
+  const F=FAMILLES[k],md=F.modes[Math.round(p.mode||0)],R=(RACCORD[k]||{})[md],pas=Math.max(.15,p.pas||1),ang=p.angle||0,rad=ang*Math.PI/180;
+  const nb=L=>Math.max(1,Math.round(PERIM/L));
+  if(R===0)r={...p,pas,angle:ang,ecart:0};
+  else if(R&&R.l){const c=R.l[0]*Math.cos(rad)+R.l[1]*Math.sin(rad);          // derivee de (aA+bB) le long du tour
+    if(Math.abs(c)<1e-3)r={...p,pas,angle:ang,ecart:0};
+    else{const j=nb(R.q*pas/Math.abs(c)),pe=PERIM*Math.abs(c)/(R.q*j);r={...p,pas:pe,angle:ang,ecart:100*Math.abs(pe-pas)/pas};}}
+  else if(Array.isArray(R)){const [QA,QB]=R;let best=null;
+    for(let i=-16;i<=16;i++)for(let jj=-16;jj<=16;jj++){if(!i&&!jj)continue;
+      const a=Math.atan2(jj*QB,i*QA)*180/Math.PI,L=pas*Math.hypot(i*QA,jj*QB),kk=nb(L),pe=pas*PERIM/(kk*L),e=ecartAngle(a,ang)+100*Math.abs(pe-pas)/pas;
+      if(!best||e<best.ecart)best={...p,pas:pe,angle:a,ecart:e};}
+    r=best;}
+  else if(R==='h1'||R==='h2'){const a6=Math.round(ang/60)*60,cc=R==='h1'?1:1/.8660254,pe=PERIM/(nb(pas*cc)*cc);r={...p,angle:a6,pas:pe,ecart:ecartAngle(a6,ang)+100*Math.abs(pe-pas)/pas};}
+  else if(R&&R[0]==='x'){const N=+R.slice(1),pe=PERIM/(nb(pas*N)*N);r={...p,pas:pe,ecart:100*Math.abs(pe-pas)/pas};}
+  if(r&&r.ecart>8)r=null;
+  _raccords.set(p,r);return r;}
+const SANS_POLAIRE=new Set(['phyllotaxie','Mandelbrot']);
+// raccord exact impossible (bruit, Voronoi, interferences...) : ces motifs n'ont pas de
+// direction privilegiee, on les pose a plat (vue de dessus), sans jonction. Seul Mandelbrot
+// (une tuile, pas un motif continu) garde le fondu.
+function motifLunette(k,u,s,p){const ua=fract(u+(p.pivot||0)/360),Y=s*LZ,md=FAMILLES[k].modes[Math.round(p.mode||0)];
+  let j=Math.round(p.jonction??1);if(j===1&&!raccordExact(k,p))j=md==='Mandelbrot'?0:2;
+  if(j===2){const R=PERIM/(2*Math.PI)+Y,t=2*Math.PI*u+(p.pivot||0)*Math.PI/180;
+    return famille(k,R*Math.cos(t),R*Math.sin(t),{dial:!SANS_POLAIRE.has(md),r:R,t},p);}
+  const X=ua*PERIM,P={dial:false};
+  if(j===1){const q=raccordExact(k,p);if(q)return famille(k,X,Y,P,q);}
+  let v=famille(k,X,Y,P,p);const L=4;if(X>PERIM-L){const w=sm(PERIM-L,PERIM,X);v=(1-w)*v+w*famille(k,X-PERIM,Y,P,p);}
+  return v;}
+// parametres derives figes a chaque construction (meme objet pour tous les sommets : le cache
+// du raccord exact s'appuie dessus)
+let DERIVE=null;
+function deriver(){const m=state.lunette.motif,p=state.lunette.params;DERIVE=null;
+  if(m==='arete'){const [k,md]=FORMES[Math.round(p.forme||0)];DERIVE={k,p:{mode:FAMILLES[k].modes.indexOf(md),pas:p.pas,angle:p.angle,tronque:p.tronque,graine:7,variation:.5,jonction:p.jonction,pivot:p.pivot}};}
+  if(m==='embossage'){const d=DESSINS[Math.round(p.dessin||0)];if(d.fam){const [k,md]=d.fam;DERIVE={k,p:{mode:FAMILLES[k].modes.indexOf(md),pas:PERIM/Math.max(8,p.n),angle:0,tronque:.5,graine:7,variation:.5,jonction:p.jonction,pivot:p.pivot}};}}}
+const famEff=()=>DERIVE;
+// 3D ARETES VIVES : la forme choisie, en hauteur 0..relief (le dessus reste poli)
+FL.arete=(u,s,p)=>DERIVE?p.relief*Math.max(0,Math.min(1,motifLunette(DERIVE.k,u,s,DERIVE.p))):0;
+// EMBOSSAGE : champ du dessin -> distance signee (mm) a son contour -> profil du creux.
+// La paroi part de la surface avec l'angle donne ; avec plusieurs facettes, chaque facette suivante
+// est moins raide (creusage progressif), jusqu'au fond plat a la profondeur demandee.
+function champDessin(u,s,p){const d=DESSINS[Math.round(p.dessin||0)];
+  if(d.ia){const c=BASRELIEF.lunette;if(!c)return 1;if(c.dessus){const L=c.dessus.L;return valeurCarte(c,(PZ.x/L+.5)*(c.w-1),(PZ.z/L+.5)*(c.h-1),{detail:.3,contraste:1,inverser:0});}
+    const reps=Math.max(1,Math.round(PERIM/((c.format||4)*LZ*1.8)));return valeurCarte(c,fract(u*reps)*(c.w-1),s*(c.h-1),{detail:.3,contraste:1,inverser:0});}
+  if(d.fam)return DERIVE?Math.max(0,Math.min(1,motifLunette(DERIVE.k,u,s,DERIVE.p))):0;
+  return Math.max(0,Math.min(1,d.f(u,s,p)));}
+function profilCreux(t,p){const D=p.profondeur,n=Math.max(1,Math.round(p.facettes||1)),a0=Math.max(15,Math.min(90,p.angle))*Math.PI/180;
+  let x=0,y=0;for(let k=0;k<n;k++){const a=a0*(1-k/(2*n)),dy=D/n,dx=a>=Math.PI/2-1e-3?0:dy/Math.tan(a);
+    if(t<=x+dx)return y+(dx>0?(t-x)*Math.tan(a):dy);x+=dx;y+=dy;}return D;}
+FL.embossage=(u,s,p)=>{const seuil=1-p.proportion,e=.03,du=e/PERIM,ds=e/Math.max(.5,LZ),f=champDessin(u,s,p)-seuil;
+  const gx=(champDessin(u+du,s,p)-champDessin(u-du,s,p))/(2*e),gy=(champDessin(u,Math.min(1,s+ds),p)-champDessin(u,Math.max(0,s-ds),p))/(2*e);
+  const g=Math.hypot(gx,gy),d=g>1e-6?f/g:(f>=0?9:-9);                         // distance signee approchee (mm), > 0 sur le dessus
+  return d>=0?0:-profilCreux(-d,p);};
+for(const k of Object.keys(FAMILLES)){
+  FL[k]=(u,s,p)=>p.relief*Math.max(0,Math.min(1,motifLunette(k,u,s,p)));
+  FC[k]=(x,z,r,t,p)=>{const Y=-z;return p.relief*Math.max(0,Math.min(1,famille(k,x,Y,{dial:true,r,t:Math.atan2(Y,x)},p)));};}
+// Contours releves sur la piece reelle (Inventor, Montre T V5, 07/10/2026),
+// tous les 5 deg de 3 h (0) a 6 h (90) ; la montre est symetrique.
+const T_OUT=[18.45,18.55,18.73,19.04,19.45,19.95,20.5,21.03,21.47,21.74,21.81,21.68,21.42,21.11,20.79,20.51,20.28,20.14,20.09];
+const T_C4 =[18.30,18.40,18.59,18.90,19.31,19.81,20.36,20.89,21.33,21.60,21.63,21.49,21.22,20.90,20.57,20.29,20.06,19.92,19.87];
+const T_TOP=[15.94,16.00,16.17,16.44,16.82,17.29,17.83,18.38,18.71,18.66,18.29,17.86,17.42,17.01,16.66,16.37,16.16,16.03,15.99];
+function tab(T,th){let d=(th*180/Math.PI%360+360)%360; if(d>180)d=360-d; if(d>90)d=180-d;
+  const i=Math.min(17,Math.floor(d/5)),f=(d-5*i)/5; const p0=T[Math.max(0,i-1)],p1=T[i],p2=T[i+1],p3=T[Math.min(18,i+2)];
+  return p1+.5*f*(p2-p0+f*(2*p0-5*p1+4*p2-p3+f*(3*(p1-p2)+p3-p0)));} // Catmull-Rom
+const Y_BAS=2.78, Y_HAUT=6.465, Y_C4=4.0, Y_FL=3.85, R_IN=15.0;
+
+// Decoupage d'un quadrilatere a,c (rang suivant) / b,d (colonne suivante) : on garde
+// la diagonale qui plie le moins (normales des 2 triangles les plus alignees). Sur une
+// pyramide ou une arete d'ecaille, c'est la diagonale qui SUIT l'arete : plus de dents.
+function diag(P,a,b,c,d,I){
+  const n=(i,j,k)=>{const ux=P[3*j]-P[3*i],uy=P[3*j+1]-P[3*i+1],uz=P[3*j+2]-P[3*i+2],vx=P[3*k]-P[3*i],vy=P[3*k+1]-P[3*i+1],vz=P[3*k+2]-P[3*i+2];
+    const x=uy*vz-uz*vy,y=uz*vx-ux*vz,z=ux*vy-uy*vx,l=Math.hypot(x,y,z)||1;return [x/l,y/l,z/l];};
+  const dot=(p,q)=>p[0]*q[0]+p[1]*q[1]+p[2]*q[2];
+  const s1=dot(n(a,c,b),n(b,c,d)), s2=dot(n(a,c,d),n(a,d,b));
+  if(s1>=s2) I.push(a,c,b,b,c,d); else I.push(a,c,d,a,d,b);}
+function grille(N,M,pos){ // N autour (ferme), M rangs le long du profil
+  const P=new Float32Array(N*M*3); for(let i=0;i<N;i++)for(let j=0;j<M;j++){const q=pos(i,j);P.set(q,(i*M+j)*3);}
+  const I=[]; for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M-1;j++){const a=i*M+j,b=i2*M+j;diag(P,a,b,a+1,b+1,I);}}
+  const g=new THREE.BufferGeometry(); g.setAttribute('position',new THREE.BufferAttribute(P,3)); g.setIndex(I); return g;
+}
+// bandes de la lunette : memes colonnes (abscisse curviligne) que la zone decoree
+function bandeArc(N,f0,f1){return grille(N,2,(i,j)=>{const th=thetaArc(i/N);const [r,y]=(j?f1:f0)(th);return [r*Math.cos(th),y,r*Math.sin(th)];});}
+function bande2(N,f0,f1){return grille(N,2,(i,j)=>{const th=2*Math.PI*i/N;const [r,y]=(j?f1:f0)(th);return [r*Math.cos(th),y,r*Math.sin(th)];});}
+
+// ── Depliage UV de la lunette ──────────────────────────────────────────────
+// u = abscisse curviligne le long du milieu de la zone decoree (et non l'angle :
+// sur un coussin, l'angle etire les coins) ; s = position dans la largeur.
+const R_FACE0=15.6;   // la face avant decorable commence apres la portee du verre
+const ARC=(()=>{const K=2048,L=new Float64Array(K+1);let px=null,pz=null;
+  for(let k=0;k<=K;k++){const th=2*Math.PI*k/K,r=(tab(T_TOP,th)+tab(T_C4,th))/2,x=r*Math.cos(th),z=r*Math.sin(th);
+    L[k]=k?L[k-1]+Math.hypot(x-px,z-pz):0;px=x;pz=z;}
+  return {K,L,tot:L[K]};})();
+const PERIM=ARC.tot;
+function uArc(u){const f=fract(u)*ARC.K,k=Math.floor(f),t=f-k;return (ARC.L[k]+(ARC.L[Math.min(ARC.K,k+1)]-ARC.L[k])*t)/ARC.tot;}
+// profil de la zone decoree a l'angle th : [face avant ?] + [biseau ?]
+function profilZone(th){const rt=tab(T_TOP,th),rc=tab(T_C4,th),zone=state.lunette.zone||'biseau';
+  const P=[];if(zone!=='biseau')P.push([R_FACE0,Y_HAUT]);P.push([rt,Y_HAUT]);if(zone!=='face')P.push([rc,Y_C4]);return P;}
+function largeurZone(){const P=profilZone(Math.PI/4);let L=0;for(let k=1;k<P.length;k++)L+=Math.hypot(P[k][0]-P[k-1][0],P[k][1]-P[k-1][1]);return L;}
+// point + normale sortante a la fraction s (abscisse) du profil
+function surProfil(P,s){const seg=[];let tot=0;for(let k=1;k<P.length;k++){const l=Math.hypot(P[k][0]-P[k-1][0],P[k][1]-P[k-1][1]);seg.push(l);tot+=l;}
+  let d=s*tot,k=0;while(k<seg.length-1&&d>seg[k]){d-=seg[k];k++;}const t=Math.min(1,d/seg[k]),a=P[k],b=P[k+1];
+  const nor=(q,w)=>{const dr=w[0]-q[0],dy=w[1]-q[1],L=Math.hypot(dr,dy);return [-dy/L,dr/L];};
+  let n=nor(a,b); // a la jonction face/biseau : normale moyenne, la surface reste continue
+  if(t>.999&&k<seg.length-1){const n2=nor(P[k+1],P[k+2]);n=[(n[0]+n2[0])/2,(n[1]+n2[1])/2];}
+  if(t<.001&&k>0){const n0=nor(P[k-1],P[k]);n=[(n[0]+n0[0])/2,(n[1]+n0[1])/2];}
+  const Ln=Math.hypot(n[0],n[1]);return [a[0]+t*(b[0]-a[0]),a[1]+t*(b[1]-a[1]),n[0]/Ln,n[1]/Ln];}
+// angle dont l'abscisse curviligne vaut ua (inverse de uArc) : les colonnes de la
+// grille sont equidistantes LE LONG de la piece, comme les cellules du motif.
+function thetaArc(ua){const cible=fract(ua)*ARC.tot;let lo=0,hi=ARC.K;while(hi-lo>1){const m=(lo+hi)>>1;if(ARC.L[m]<=cible)lo=m;else hi=m;}
+  const t=(cible-ARC.L[lo])/((ARC.L[hi]-ARC.L[lo])||1);return 2*Math.PI*(lo+t)/ARC.K;}
+// Grille haute definition calee sur le motif : N multiple du nombre de cellules
+// (les bords ET le centre de chaque cellule tombent sur des points), rangees
+// multiples du nombre de rangs ; en zone « tout », le pli face/biseau tombe
+// entre deux rangees de cellules.
+// cellules d'une famille sur la lunette : alignees sur la grille seulement si le motif est
+// droit (angle 0) en raccord exact, sinon grille fine uniforme
+function celluleDroite(){const F=famEff();if(!F)return null;const p=F.p,k=F.k;if(Math.round(p.jonction??1)!==1)return null;
+  const q=raccordExact(k,p);if(!q||Math.abs(q.angle||0)>1e-6)return null;const md=FAMILLES[k].modes[Math.round(p.mode||0)];
+  return ['h1','h2'].includes((RACCORD[k]||{})[md])?null:q.pas;}
+function rangsLunette(){const p=state.lunette.params;if(famEff()){const c=celluleDroite();return c?Math.max(1,Math.round(LZ/c)):0;}return Math.round(p.rangs||0);}
+let KF_PLI=null;
+function grilleMotif(){const p=state.lunette.params;LZ=largeurZone();_raccords=new WeakMap();KF_PLI=null;deriver();
+  {const rg=rangsLunette();if((state.lunette.zone||'biseau')==='tout'&&rg>=2){let a=0;for(let k=0;k<72;k++){const th=2*Math.PI*k/72,rt=tab(T_TOP,th),rc=tab(T_C4,th),lf=rt-R_FACE0,lb=Math.hypot(rc-rt,Y_HAUT-Y_C4);a+=lf/(lf+lb);}
+    KF_PLI=Math.min(rg-1,Math.max(1,Math.round(rg*a/72)));}}
+  const fam=!!famEff(),cel=fam?celluleDroite():null,droit=!!cel;
+  if(state.lunette.motif==='embossage'&&DESSINS[Math.round(p.dessin||0)].ia)return APERCU?{N:1440,M:60}:{N:3600,M:120};   // contours d'une image : grille fine uniforme
+  if(state.lunette.motif==='image'&&BASRELIEF.lunette&&BASRELIEF.lunette.dessus)return APERCU?{N:1440,M:60}:{N:3600,M:130};   // ~0,035 mm le long du tour
+  const n=fam?(droit?Math.round(PERIM/cel):0):Math.round(p.n||0),rg=rangsLunette();
+  if(fam&&!droit){const pasMin=Math.max(.15,p.pas||1),a=APERCU?3:1;return {N:Math.round(Math.min(4800,Math.max(2160,Math.round(PERIM/pasMin*10)))/a),M:Math.round(Math.min(181,Math.max(72,Math.round(LZ/pasMin*10)))/(APERCU?2:1))};}
+  let N=APERCU?1080:2160; if(n>0){const k=2*Math.max(APERCU?1:4,Math.round((fam?3600:2400)/n/2/(APERCU?3:1)));N=n*k;}
+  let M=APERCU?36:72; if(rg>0){const k=2*Math.max(APERCU?1:(fam?4:6),Math.round(72/rg/2/(APERCU?2:1)));M=Math.min(241,rg*k+1);}
+  return {N,M};}
+function sZone(sGeo,th){ // s geometrique (abscisse dans le profil) -> s du motif
+  const zone=state.lunette.zone||'biseau',rg=rangsLunette();
+  if(zone!=='tout'||rg<2)return sGeo;
+  const rt=tab(T_TOP,th),rc=tab(T_C4,th),lf=rt-R_FACE0,lb=Math.hypot(rc-rt,Y_HAUT-Y_C4),sf=lf/(lf+lb);
+  // rangee du pli FIXE sur tout le tour (calculee une fois sur la largeur moyenne) : prise
+  // localement, elle sautait d'une rangee aux coins du coussin -> cellules decalees
+  const kf=KF_PLI??Math.min(rg-1,Math.max(1,Math.round(rg*sf))),sm2=kf/rg;   // le pli = frontiere de rangee
+  return sGeo<=sf?sGeo/sf*sm2:sm2+(sGeo-sf)/(1-sf)*(1-sm2);}
+const PZ={x:0,z:0};
+const MARGE_FINE=.5;   // mm laisses intacts sur les bords fins de la zone decoree   // point de la lunette en cours (x, z) : les bas-reliefs composes se lisent de dessus
+function pointZone(i,N,j,M,decal){const ua=i/N,th=thetaArc(ua),sg=j/(M-1),P=profilZone(th),[r0,y0,nr,ny]=surProfil(P,sg),s=sZone(sg,th);PZ.x=r0*Math.cos(th);PZ.z=r0*Math.sin(th);
+  // MARGES NON MODIFIABLES : 0,5 mm intacts sur chaque bord de la zone decoree (portee du verre, arete de la
+  // lunette : parties fines), puis le motif s'installe sur 0,25 mm
+  const dm=Math.min(sg,1-sg)*LZ,garde=sm(MARGE_FINE,MARGE_FINE+.25,dm);
+  const h=decal!==undefined?decal:(garde>0?FL[state.lunette.motif](ua,s,state.lunette.params)*garde:0);
+  dernierH=h;const r=r0+h*nr;return [r*Math.cos(th),y0+h*ny,r*Math.sin(th)];}
+let dernierH=0;
+// POLISSAGE (photo des ecailles, 08/10) : le polisseur n'atteint que les SOMMETS du relief ;
+// les creux restent bruts (gris, grenus), avec une limite nette. Un triangle est poli si sa
+// hauteur moyenne depasse SEUIL_POLI x le relief maxi de la piece.
+const SEUIL_POLI=.45;
+// Par categorie : EMBOSSAGE poli sur la surface d'origine, creux bruts assombris avec la profondeur ;
+// BAS-RELIEF mat = tout brut (sommets un peu plus clairs), poli = sommets polis ; ARETES VIVES = poli.
+function grilleSeparee(N,M,pos){const H=new Float32Array(N*M);const g=grille(N,M,(i,j)=>{const q=pos(i,j);H[i*M+j]=dernierH;return q;});
+  const m=state.lunette.motif,p=state.lunette.params;let hmax=0,hmin=0;for(const v of H){hmax=Math.max(hmax,v);hmin=Math.min(hmin,v);}
+  const C=new Float32Array(N*M*3);
+  for(let i=0;i<N*M;i++){let c=1;
+    if(m==='embossage')c=1-.62*Math.min(1,-H[i]/Math.max(.05,p.profondeur));
+    else if(m==='image')c=.55+.45*(hmax>1e-4?H[i]/hmax:1);
+    if(Math.round(p.finition??1)===2)c=1;
+    C[i*3]=C[i*3+1]=C[i*3+2]=c;}
+  g.setAttribute('color',new THREE.BufferAttribute(C,3));
+  // finition : 0 mat (tout brut), 1 poli surface (sommets / dessus d'origine polis, creux bruts), 2 poli integral
+  const fin=Math.round(p.finition??(m==='arete'?2:1));
+  const poli=moy=>fin===0?false:fin===2?true:m==='embossage'?moy>-.012:(hmax>1e-4&&moy>=SEUIL_POLI*hmax);
+  const I=g.index.array,haut=[],bas=[];
+  for(let t=0;t<I.length;t+=3){const moy=(H[I[t]]+H[I[t+1]]+H[I[t+2]])/3;(poli(moy)?haut:bas).push(I[t],I[t+1],I[t+2]);}
+  const mk=ix=>{const n=new THREE.BufferGeometry();n.setAttribute('position',g.getAttribute('position'));n.setAttribute('color',g.getAttribute('color'));n.setIndex(ix);return n;};
+  return [mk(haut),mk(bas)];}
+function noteRaccord(){const el=document.getElementById('raccordNote');if(!el)return;const F=famEff();
+  if(!F){el.textContent='';return;}const k=F.k,p=F.p;const j=Math.round(p.jonction??1),md=FAMILLES[k].modes[Math.round(p.mode||0)];
+  if(j===0){el.textContent='Jonction en fondu sur 4 mm, placée au pivot.';return;}
+  if(j===2){el.textContent='Vue de dessus : motif posé à plat sur toute la montre, aucune jonction.';return;}
+  const q=raccordExact(k,p);if(!q){el.textContent=md==='Mandelbrot'?'Pas de raccord exact pour ce motif : fondu.':'Pas de période pour ce motif : posé en vue de dessus, aucune jonction.';return;}
+  const f=x=>(+x).toFixed(2).replace('.',',');const dA=ecartAngle(q.angle||0,p.angle||0),dP=Math.abs(q.pas-p.pas)/p.pas*100;
+  el.textContent=`Raccord exact : un nombre entier de motifs fait le tour, aucune jonction. Pas réel ${f(q.pas)} mm`+(dA>.05?`, angle réel ${(+q.angle).toFixed(1).replace('.',',')}°`:'')+(dP>.5||dA>.05?` (recalé de ${dP.toFixed(1).replace('.',',')} %${dA>.05?' et '+dA.toFixed(1).replace('.',',')+'°':''}).`:'.');}
+function construireLunette(){
+  const {N,M}=grilleMotif(), zone=state.lunette.zone||'biseau';noteRaccord();
+  // fl / bas : contour MESURE de la tranche du boitier (si charge) -> lunette affleurante, meme reflet
+  const top=th=>[tab(T_TOP,th),Y_HAUT], c4=th=>[tab(T_C4,th),Y_C4], fl=th=>[encoche(rayonTranche(th),th,Y_FL),Y_FL], bas=th=>[encoche(rayonTranche(th),th,Y_BAS),Y_BAS];
+  const [sommets,creux]=grilleSeparee(N,M,(i,j)=>pointZone(i,N,j,M));    // zone decoree (UV depliee)
+  const alesage=bandeArc(N,th=>[R_IN,Y_BAS],th=>[R_IN,Y_HAUT]);           // alesage du verre : interieur, BRUT
+  // portee du verre : MEME finition que le dessus du decor qui la borde (bas-relief mat -> brut ; embossage,
+  // aretes vives ou bas-relief poli -> poli), pour qu'elle se fonde dans la lunette
+  const lp=state.lunette.params,mat=Math.round(lp.finition??(state.lunette.motif==='arete'?2:1))===0;
+  const portee=bandeArc(N,th=>[R_IN,Y_HAUT],th=>[zone==='biseau'?tab(T_TOP,th):R_FACE0,Y_HAUT]);
+  const polis=[...(mat?[]:[portee]),
+    sommets];
+  if(zone==='face') polis.push(bandeArc(N,top,c4));                       // biseau lisse
+  // tranche verticale : grille de 14 rangees pour porter l'encoche ronde de la couronne
+  const tr1=bandeArc(N,c4,fl),tr2=grille(N,80,(i,j)=>{const th=thetaArc(i/N),y=Y_FL+(Y_BAS-Y_FL)*j/79,r=encoche(rayonTranche(th),th,y);return [r*Math.cos(th),y,r*Math.sin(th)];});
+  // l'interieur de l'encoche de couronne est BRUT : on separe ses triangles (en retrait du contour)
+  const [tr2p,tr2b]=(()=>{const P=tr2.getAttribute('position').array,I=tr2.index.array,a=[],b=[];
+    for(let t=0;t<I.length;t+=3){let x=0,z=0;for(let k=0;k<3;k++){x+=P[I[t+k]*3]/3;z+=P[I[t+k]*3+2]/3;}
+      (Math.hypot(x,z)<tab(T_OUT,Math.atan2(z,x))-.05?b:a).push(I[t],I[t+1],I[t+2]);}
+    const mk=ix=>{const g=new THREE.BufferGeometry();g.setAttribute('position',tr2.getAttribute('position'));g.setIndex(ix);return g;};return [mk(a),mk(b)];})();
+  polis.push(tr1,tr2p);  // tranche polie
+  const bruts=[creux, bandeArc(N,bas,th=>[R_IN,Y_BAS]), alesage, tr2b, ...(mat?[portee]:[])];         // creux du motif + dessous + alesage
+  // deux groupes : 0 poli, 1 brut (le materiau 1 devient poli si « Alu brut » est coupe)
+  // normales : bandes lisses (alesage, portee, tranche, dessous) lissees sur leur grille indexee
+  // -> reflet continu ; zone decoree en normales par facette -> aretes du motif nettes
+  const lisse=gg=>{gg.computeVertexNormals();const n=gg.toNonIndexed(),o=new THREE.BufferGeometry();o.setAttribute('position',n.getAttribute('position'));o.setAttribute('normal',n.getAttribute('normal'));return o;};
+  const blanc=o=>{if(!o.getAttribute('color'))o.setAttribute('color',new THREE.BufferAttribute(new Float32Array(o.getAttribute('position').count*3).fill(1),3));return o;};
+  const facette=gg=>{const n=gg.toNonIndexed(),o=new THREE.BufferGeometry();o.setAttribute('position',n.getAttribute('position'));if(n.getAttribute('color'))o.setAttribute('color',n.getAttribute('color'));o.computeVertexNormals();return o;};
+  const prep=gg=>gg===sommets||gg===creux?facette(gg):gg===tr1?aligneTranche(lisse(gg)):gg===tr2p?normaleBoitier(lisse(gg)):gg===tr2b?facette(gg):lisse(gg);
+  const g=mergeGeometries([mergeGeometries(polis.map(gg=>blanc(prep(gg)))),mergeGeometries(bruts.map(gg=>blanc(prep(gg))))],true);
+  if(volumeSigne(g)<0){retourner(g);const N=g.getAttribute('normal').array;                  // permuter AUSSI les normales, puis les inverser
+    const Cc=g.getAttribute('color').array;for(let i=0;i<Cc.length;i+=9)for(let k=0;k<3;k++){const t=Cc[i+3+k];Cc[i+3+k]=Cc[i+6+k];Cc[i+6+k]=t;}
+    for(let i=0;i<N.length;i+=9)for(let k=0;k<3;k++){const t=N[i+3+k];N[i+3+k]=N[i+6+k];N[i+6+k]=t;}for(let i=0;i<N.length;i++)N[i]=-N[i];}
+  return uvBoite(g);                                                      // UV apres orientation (retourner permute les sommets)
+}
+// Une piece fermee doit avoir un volume signe positif (normales vers l'exterieur) :
+// sinon l'apercu est noir et le slicer voit l'interieur comme exterieur.
+function volumeSigne(g){const P=g.getAttribute('position').array;let v=0;
+  for(let i=0;i<P.length;i+=9){const ax=P[i],ay=P[i+1],az=P[i+2],bx=P[i+3],by=P[i+4],bz=P[i+5],cx=P[i+6],cy=P[i+7],cz=P[i+8];
+    v+=ax*(by*cz-bz*cy)-ay*(bx*cz-bz*cx)+az*(bx*cy-by*cx);}return v/6;}
+function retourner(g){const P=g.getAttribute('position').array;
+  for(let i=0;i<P.length;i+=9)for(let k=0;k<3;k++){const t=P[i+3+k];P[i+3+k]=P[i+6+k];P[i+6+k]=t;}g.getAttribute('position').needsUpdate=true;return g;}
+function orienter(g){ if(volumeSigne(g)<0) retourner(g); g.computeVertexNormals(); return g; }
+const pos=g=>{const q=g.index?g.toNonIndexed():g, n=new THREE.BufferGeometry(); n.setAttribute('position',q.getAttribute('position')); return n;};
+
+// ───────────────────────────── geometrie cadran ─────────────────────────────
+const C_Y=3.1, C_BAS=2.78, C_R0=.7,   // trou du canon : D1,4 (etait D2,0)
+      C_R1=12.4, C_RH=13.8, C_YH=4.4;
+// LOGO DELIGNY EN BOSSAGE (pas une image posee) : lettres de 0,12 mm venues de matiere, 7,3 mm de large,
+// sur un cartouche aplani (le motif s'efface autour), bords adoucis ; il part aussi a la fabrication.
+const LOGO=(()=>{const W=2048,H=384,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
+  x.fillStyle='#000';x.fillRect(0,0,W,H);x.filter='blur(5px)';x.font='700 264px Helvetica, Arial';   /* flanc de lettre sur ~0,04 mm = une maille du cadran : net, sans escalier */x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff';x.fillText('DELIGNY',W/2,H/2+12);
+  const d=x.getImageData(0,0,W,H).data,v=new Float32Array(W*H);for(let i=0;i<W*H;i++)v[i]=d[i*4]/255;
+  const L=9.7;return {w:W,h:H,v,L,Hmm:L*H/W,cz:-6.3,haut:.25};})();   // 1/3 plus grand, plus haut, plus saillant (08/10)
+function logoCadran(x,z){const u=(x/LOGO.L+.5)*(LOGO.w-1),v=((z-LOGO.cz)/LOGO.Hmm+.5)*(LOGO.h-1);
+  const dx=Math.max(0,Math.abs(x)-LOGO.L/2),dz=Math.max(0,Math.abs(z-LOGO.cz)-LOGO.Hmm/2),cart=1-sm(.15,.6,Math.hypot(dx,dz));
+  const m=u>=0&&u<=LOGO.w-1&&v>=0&&v<=LOGO.h-1?echantillon(LOGO,u,v):0;return {cart,m};}
+// hauteur du logo seul (ajoutee APRES le cassage d'aretes : bords nets, flanc des lettres sur ~0,03 mm)
+function logoHauteur(x,z){const {m}=logoCadran(x,z);if(m<=0)return 0;const creux=state.cadran.motif!=='lisse'&&reliefMaxCadran()>.02;
+  return (creux?-.2:LOGO.haut)*sm(.2,.8,m);}
+function reliefCadranSansLogo(x,z){const r=Math.hypot(x,z),t=Math.atan2(z,x);
+  return FC[state.cadran.motif](x,z,r,t,state.cadran.params)*sm(C_R0,C_R0+.35,r)*(1-sm(C_R1-.25,C_R1,r));}
+function ajouterLogo(g,N,M,S=M){const P=g.getAttribute('position').array;for(let i=0;i<N;i++)for(let j=0;j<M;j++){const k=(i*S+j)*3,h=logoHauteur(P[k],P[k+2]);if(h)P[k+1]+=h;}g.getAttribute('position').needsUpdate=true;}
+function reliefCadran(x,z){const r=Math.hypot(x,z),t=Math.atan2(z,x),{cart,m}=logoCadran(x,z);
+  const base=FC[state.cadran.motif](x,z,r,t,state.cadran.params)*sm(C_R0,C_R0+.35,r)*(1-sm(C_R1-.25,C_R1,r));   // pas de cadre : seules les lettres sortent
+  // cadran lisse : logo en BOSSAGE (sort de 0,25) ; cadran avec du volume : logo en EMBOSSAGE (creuse de 0,2,
+  // le cadran ne fait que 0,32 mm sous son dessus)
+  const creux=state.cadran.motif!=='lisse'&&reliefMaxCadran()>.02;
+  return creux?base-.2*sm(.25,.75,m):base+LOGO.haut*sm(.25,.75,m);}
+// CADRAN : titane brut, jamais poli, ARETES CASSEES : deux passes de moyenne sur la hauteur du
+// relief (rayon ~0,1 mm) arrondissent toutes les aretes vives, comme un ebavurage.
+function casserAretes(g,N,M,passes=2,S=M){const P=g.getAttribute('position').array,id=(i,j)=>i*S+j;let Y=new Float32Array(N*M);
+  for(let i=0;i<N;i++)for(let j=0;j<M;j++)Y[i*M+j]=P[id(i,j)*3+1];
+  for(let k=0;k<passes;k++){const Z=new Float32Array(N*M);for(let i=0;i<N;i++){const a=((i+N-1)%N)*M,b=((i+1)%N)*M,c=i*M;
+    for(let j=0;j<M;j++){const jm=Math.max(0,j-1),jp=Math.min(M-1,j+1);Z[c+j]=(4*Y[c+j]+Y[a+j]+Y[b+j]+Y[c+jm]+Y[c+jp])/8;}}Y=Z;}
+  for(let i=0;i<N;i++)for(let j=1;j<M-1;j++)P[id(i,j)*3+1]=Y[i*M+j];      // bords inchanges : le cadran reste ferme
+  g.getAttribute('position').needsUpdate=true;}
+// TITANE FRITTE POREUX (IMG_8444/8445) : vraie geometrie, pas un filtre. Chaque sommet du dessus du cadran
+// (maille ~0,035 mm) est deplace : grains de poudre (domes de 0,06-0,10 mm, Voronoi aleatoire, jusqu'a
+// +0,022 mm) et pores (6 % des cellules creusees jusqu'a -0,035 mm). Apercu seulement (pas exporte).
+function poreux(g,N,M){const P=g.getAttribute('position').array,c=.075;
+  for(let i=0;i<N;i++)for(let j=1;j<M-1;j++){const k=(i*M+j)*3,x=P[k],z=P[k+2],ix=Math.floor(x/c),iz=Math.floor(z/c);let d1=9,id=0;
+    for(let a=-1;a<=1;a++)for(let b=-1;b<=1;b++){const u=ix+a,w=iz+b,px=(u+hash2(u,w,71))*c,pz=(w+hash2(w,u,73))*c,d=Math.hypot(x-px,z-pz)/c;if(d<d1){d1=d;id=hash2(u,w,79);}}
+    const grainH=.022*(.55+.45*hash2(Math.floor(id*1e4),3,5))*Math.sqrt(Math.max(0,1-d1*d1*1.6)),pore=id<.06?-.035*Math.max(0,1-d1*1.4):0;
+    P[k+1]+=grainH+pore;}
+  g.getAttribute('position').needsUpdate=true;}
+function resCadran(){const a=APERCU?2:1;return {N:1440/a,M:240/a};}   // ~0,035 mm : bords du logo nets
+function construireCadran(){
+  const {N,M}=resCadran();
+  const dessus=grille(N,M,(i,j)=>{const th=2*Math.PI*i/N, r=C_R0+(C_R1-C_R0)*j/(M-1), x=r*Math.cos(th), z=r*Math.sin(th);
+    return [x,C_Y+reliefCadranSansLogo(x,z),z];});
+  casserAretes(dessus,N,M);ajouterLogo(dessus,N,M);ajouterIndexRelief(dessus,N,M);
+  const parts=[dessus,
+    bande2(N,th=>[C_R1,C_Y],th=>[C_RH,C_YH]),      // rehaut
+    bande2(N,th=>[C_RH,C_YH],th=>[C_RH,C_BAS]),
+    bande2(N,th=>[C_RH,C_BAS],th=>[C_R0,C_BAS]),
+    bande2(N,th=>[C_R0,C_BAS],th=>[C_R0,C_Y])];
+  const g=mergeGeometries(parts.map(pos)); if(volumeSigne(g)<0) retourner(g);
+  const tout=mergeGeometries([g,...indexVolumes()]); tout.computeVertexNormals(); return uvBoite(tout,2.5);
+}
+// ───────────── INDEX DES HEURES (8 choix) ─────────────
+// 0 batons poses, 1 spheres, 2 spheres en strates : volumes rapportes, POSES sur le decor local ;
+// 3 batons incorpores (relief qui suit le decor, +0,18), 4 chiffres arabes, 5 romains : dans la matiere ;
+// 6 auto : creuses (-0,2) si le decor a du volume, batons poses sinon ; 7 sans index.
+const R_IDX=9.8;
+const decorA=(x,z)=>C_Y+reliefCadranSansLogo(x,z);
+function styleIndex(){const s=state.index??0;if(s!==6)return s;return reliefMaxCadran()>.02&&state.cadran.motif!=='lisse'?66:0;}   // 66 = batons creuses
+function indexVolumes(){const s=styleIndex(),out=[];if(![0,1,2].includes(s))return out;
+  for(let k=0;k<12;k++){const a=-Math.PI/2+k*Math.PI/6,fort=k%3===0,x=R_IDX*Math.cos(a),z=R_IDX*Math.sin(a),y0=decorA(x,z);
+    if(s===0){const h=.3,b=new THREE.BoxGeometry(2.4,h+.1,fort?.7:.45);b.translate(R_IDX,y0+h/2-.05,0);b.rotateY(-a);out.push(pos(b));}
+    else if(s===1){const r=fort?.62:.42,b=new THREE.SphereGeometry(r,40,20,0,Math.PI*2,0,Math.PI/2);b.translate(x,y0-.02,z);out.push(pos(b));}
+    else{const r=fort?.66:.46,n=4;for(let q=0;q<n;q++){const rq=r*Math.sqrt(1-(q/n)**2),h=r/n,c=new THREE.CylinderGeometry(rq,rq,h,48);c.translate(x,y0-.02+h*(q+.5),z);out.push(pos(c));}}}
+  return out;}
+const _masqueIdx={};
+function masqueIndex(s){if(_masqueIdx[s])return _masqueIdx[s];const W=2048,L=2*C_R1,c=document.createElement('canvas');c.width=c.height=W;const x=c.getContext('2d');
+  x.fillStyle='#000';x.fillRect(0,0,W,W);x.filter='blur(4px)';x.fillStyle='#fff';const px=v=>(v/L+.5)*W,u=W/L;
+  if(s===3||s===66)for(let k=0;k<12;k++){const a=-Math.PI/2+k*Math.PI/6;x.save();x.translate(px(R_IDX*Math.cos(a)),px(R_IDX*Math.sin(a)));x.rotate(a);const w=(k%3?.45:.7)*u;x.fillRect(-1.2*u,-w/2,2.4*u,w);x.restore();}
+  else{const T=s===4?['12','1','2','3','4','5','6','7','8','9','10','11']:['XII','I','II','III','IIII','V','VI','VII','VIII','IX','X','XI'];
+    x.textAlign='center';x.textBaseline='middle';
+    for(let k=0;k<12;k++){const a=-Math.PI/2+k*Math.PI/6,rr=R_IDX-.3;x.font=`700 ${Math.round((s===4?2.2:1.7)*u)}px Helvetica, Arial`;x.fillText(T[k],px(rr*Math.cos(a)),px(rr*Math.sin(a)));}}
+  const d=x.getImageData(0,0,W,W).data,v=new Float32Array(W*W);for(let i=0;i<W*W;i++)v[i]=d[i*4]/255;return (_masqueIdx[s]={w:W,h:W,v,L});}
+function ajouterIndexRelief(g,N,M,S=M){const s=styleIndex();if(![3,4,5,66].includes(s))return;const Mq=masqueIndex(s===66?3:s);
+  const vol=reliefMaxCadran()>.02&&state.cadran.motif!=='lisse',dh=s===66?-.2:s===3?.18:(vol?-.2:.2);   // chiffres : creuses si decor en volume
+  const P=g.getAttribute('position').array;
+  for(let i=0;i<N;i++)for(let j=0;j<M;j++){const k=(i*S+j)*3,u=(P[k]/Mq.L+.5)*(Mq.w-1),v=(P[k+2]/Mq.L+.5)*(Mq.h-1);
+    if(u<0||v<0||u>Mq.w-1||v>Mq.h-1)continue;const m=echantillon(Mq,u,v);if(m>.01)P[k+1]+=dh*sm(.2,.8,m);}
+  g.getAttribute('position').needsUpdate=true;}
+function reliefMaxCadran(){const p=state.cadran.params;return state.cadran.motif==='montagnes'?p.hauteur:(p.relief||0)*(state.cadran.motif==='terrasses'&&p.diguette?1.05:1);}
+
+// ───────────────────────────── scene ─────────────────────────────
+const vue=document.getElementById('vue');
+const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
+renderer.setPixelRatio(Math.min(2,devicePixelRatio)); renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=.8;   // scene 20 % moins lumineuse (08/10)
+vue.prepend(renderer.domElement);
+const scene=new THREE.Scene();
+const envAtelier=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),.04).texture;scene.environment=envAtelier;
+// HDRI de studio (Poly Haven « studio small 08 », CC0, media/) : de vraies boites a lumiere
+// tres intenses sur fond sombre, c'est ce contraste qui fait lire le poli miroir comme du chrome
+// (l'environnement genere, trop doux, le rendait satine). Repli sur l'atelier s'il manque.
+if(!/rapide=1/.test(location.hash))new RGBELoader().load('media/studio_small_08_1k.hdr',t=>{t.mapping=THREE.EquirectangularReflectionMapping;
+  const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromEquirectangular(t).texture;t.dispose();pm.dispose();},undefined,()=>{});
+const cam=new THREE.PerspectiveCamera(30,1,1,2000);
+const ctl=new OrbitControls(cam,renderer.domElement); ctl.enableDamping=true; ctl.target.set(0,3,0);
+const lum=new THREE.DirectionalLight(0xffffff,1.6); lum.position.set(-40,90,-30); scene.add(lum);
+scene.add(new THREE.HemisphereLight(0xffffff,0x9a958a,.5));
+// lumiere rasante : c'est elle qui fait lire les strates et les aretes
+const rasante=new THREE.DirectionalLight(0xfff4e6,1.3); rasante.position.set(70,14,45); scene.add(rasante);
+// OMBRES : la lumiere rasante porte des ombres douces (aiguilles sur le cadran, lunette, relief, bracelet)
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;
+rasante.castShadow=true;rasante.shadow.mapSize.set(2048,2048);rasante.shadow.bias=-.0004;rasante.shadow.normalBias=.02;rasante.shadow.radius=3;
+Object.assign(rasante.shadow.camera,{left:-45,right:45,top:45,bottom:-45,near:1,far:200});rasante.shadow.camera.updateProjectionMatrix();
+const zenith=new THREE.DirectionalLight(0xffffff,.55);zenith.position.set(-8,80,12);zenith.castShadow=true;zenith.shadow.mapSize.set(2048,2048);
+zenith.shadow.bias=-.0004;zenith.shadow.normalBias=.02;zenith.shadow.radius=4;Object.assign(zenith.shadow.camera,{left:-25,right:25,top:25,bottom:-25,near:1,far:160});zenith.shadow.camera.updateProjectionMatrix();scene.add(zenith);
+let _ombresN=-1;function ombres(){let n=0;scene.traverse(o=>{if(o.isMesh){n++;if(!o.userData.ombre){o.castShadow=o!==verre&&o!==refletVerre;o.receiveShadow=true;o.userData.ombre=1;}}});_ombresN=n;}
+const dessous=new THREE.DirectionalLight(0xf2f0ea,.45); dessous.position.set(-30,-80,-20); scene.add(dessous);   // lit le fond en vue de dos
+// alu POLI MIROIR (dessus, tranche, sommets du relief) : rugosite 0,06 ; a 0,32 il paraissait satine
+const alu=new THREE.MeshStandardMaterial({color:0xd9dbde,metalness:1,roughness:.06});
+// TITANE BRUT D'IMPRESSION (cadran, photos IMG_8429/8430) : gris chaud plus sombre que l'alu,
+// mat, grain fin de frittage avec de minuscules points brillants ; meme carte de grain que l'alu
+// brut, posee plus fine (tuile 1,4 mm). Cartes branchees juste apres la creation de « brut ».
+const titane=new THREE.MeshStandardMaterial({color:0x3b3a32,metalness:.5,roughness:.75,envMapIntensity:.8,normalScale:new THREE.Vector2(.7,.7)});
+// ALUMINIUM BRUT D'IMPRESSION (photo de la Montre T, 08/10) : seule la bande du dessus est
+// polie ; flancs, dessous du boitier et fond sortent de l'imprimante grenus et mats (poudre
+// frittee, grains ~0,1-0,3 mm, quelques piqures). Grain procedural : carte de hauteur ->
+// carte de normales + carte de rugosite, projetees en boite (pas d'UV dans les STL).
+const brut=(()=>{const N=512,h=new Float32Array(N*N),R=rng(8420);
+  const couche=(cell,amp)=>{const G=Math.ceil(N/cell)+1,v=new Float32Array(G*G).map(()=>R());     // bruit de valeur periodique
+    for(let y=0;y<N;y++)for(let x=0;x<N;x++){const gx=x/cell,gy=y/cell,ix=Math.floor(gx),iy=Math.floor(gy),fx=gx-ix,fy=gy-iy,w=Math.floor(N/cell),
+      g=(i,j)=>v[(((j%w)+w)%w)*G+(((i%w)+w)%w)],sx=fx*fx*(3-2*fx),sy=fy*fy*(3-2*fy);
+      h[y*N+x]+=amp*((g(ix,iy)*(1-sx)+g(ix+1,iy)*sx)*(1-sy)+(g(ix,iy+1)*(1-sx)+g(ix+1,iy+1)*sx)*sy);}};
+  couche(32,.35);couche(16,.3);couche(8,.25);couche(4,.18);couche(2,.1);
+  for(let k=0;k<900;k++){const cx=R()*N,cy=R()*N,r=1.5+R()*4,d=.25+R()*.35;               // piqures de frittage
+    for(let y=Math.floor(cy-r);y<=cy+r;y++)for(let x=Math.floor(cx-r);x<=cx+r;x++){const q=Math.hypot(x-cx,y-cy)/r;if(q<1)h[((y+N)%N)*N+((x+N)%N)]-=d*(1-q*q);}}
+  const cn=document.createElement('canvas'),cr=document.createElement('canvas');cn.width=cn.height=cr.width=cr.height=N;
+  const xn=cn.getContext('2d'),xr=cr.getContext('2d'),In=xn.createImageData(N,N),Ir=xr.createImageData(N,N),H=(x,y)=>h[((y+N)%N)*N+((x+N)%N)];
+  for(let y=0;y<N;y++)for(let x=0;x<N;x++){const dx=(H(x+1,y)-H(x-1,y))*3,dy=(H(x,y+1)-H(x,y-1))*3,l=Math.hypot(dx,dy,1),i=4*(y*N+x);
+    In.data[i]=128-127*dx/l;In.data[i+1]=128-127*dy/l;In.data[i+2]=255/l;In.data[i+3]=255;
+    const r8=Math.max(0,Math.min(255,170+60*(H(x,y)-.6)*-1));Ir.data[i]=Ir.data[i+1]=Ir.data[i+2]=r8;Ir.data[i+3]=255;}
+  xn.putImageData(In,0,0);xr.putImageData(Ir,0,0);
+  const tex=c=>{const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return t;};
+  return new THREE.MeshStandardMaterial({color:0x6b6862,metalness:.35,roughness:.9,envMapIntensity:.85,normalMap:tex(cn),normalScale:new THREE.Vector2(.9,.9),roughnessMap:tex(cr)});})();
+// UV en projection boite : chaque triangle prend le plan de sa normale dominante (1 tuile = 2,5 mm)
+function uvBoite(g,tuile=2.5){const P=g.getAttribute('position').array,U=new Float32Array(P.length/3*2);
+  for(let t=0;t<P.length;t+=9){const ax=P[t+3]-P[t],ay=P[t+4]-P[t+1],az=P[t+5]-P[t+2],bx=P[t+6]-P[t],by=P[t+7]-P[t+1],bz=P[t+8]-P[t+2];
+    const nx=Math.abs(ay*bz-az*by),ny=Math.abs(az*bx-ax*bz),nz=Math.abs(ax*by-ay*bx);
+    for(let k=0;k<3;k++){const x=P[t+3*k],y=P[t+3*k+1],z=P[t+3*k+2],o=(t/3+k)*2;
+      if(ny>=nx&&ny>=nz){U[o]=x/tuile;U[o+1]=z/tuile;}else if(nx>=nz){U[o]=z/tuile;U[o+1]=y/tuile;}else{U[o]=x/tuile;U[o+1]=y/tuile;}}}
+  g.setAttribute('uv',new THREE.BufferAttribute(U,2));return g;}
+// separe une piece en poli / brut. Poli : le dessus (normale vers le haut) ET la tranche
+// (face verticale tournee vers l'exterieur). Brut : chanfrein du dessous, dessous, interieur
+// des trous de vis (normale perpendiculaire au rayon) et des passages de bracelet.
+function separerPoli(g,seuil=.55){const q=g.index?g.toNonIndexed():g,P=q.getAttribute('position').array,A=[],B=[],tranche=[],nf=P.length/9;
+  // 1) candidats tranche : face verticale tournee vers l'exterieur
+  const cand=new Uint8Array(nf),haut=new Uint8Array(nf),rc=new Float32Array(nf),K=720,rmax=new Float32Array(K),sect=(x,z)=>((Math.floor((Math.atan2(z,x)+Math.PI)/(2*Math.PI)*K)%K)+K)%K;
+  for(let f=0;f<nf;f++){const t=f*9,ax=P[t+3]-P[t],ay=P[t+4]-P[t+1],az=P[t+5]-P[t+2],bx=P[t+6]-P[t],by=P[t+7]-P[t+1],bz=P[t+8]-P[t+2];
+    const nx=ay*bz-az*by,ny=az*bx-ax*bz,nz=ax*by-ay*bx,l=Math.hypot(nx,ny,nz)||1;
+    const cx=(P[t]+P[t+3]+P[t+6])/3,cz=(P[t+2]+P[t+5]+P[t+8])/3,r=Math.hypot(cx,cz)||1,radial=(nx*cx+nz*cz)/(l*r);
+    haut[f]=ny/l>seuil&&r>tab(T_OUT,Math.atan2(cz,cx))-1.5?1:0;   /* dessus poli seulement au bord exterieur : l'interieur du boitier est BRUT */cand[f]=Math.abs(ny/l)<.1&&radial>.7?1:0;rc[f]=r;   /* tranche = faces VERTICALES seulement : le petit chanfrein a 15° du bas (y 0,8) reste brut, sinon il fausse la normale moyenne */
+    if(cand[f])for(let v=0;v<3;v++){const k=sect(P[t+3*v],P[t+3*v+2]),rv=Math.hypot(P[t+3*v],P[t+3*v+2]);if(rv>rmax[k])rmax[k]=rv;}}
+  // 2) une face en retrait du contour exterieur (logement de couronne, poches) reste BRUTE :
+  //    le polisseur ne passe que sur la tranche affleurante
+  for(let f=0;f<nf;f++){const t=f*9;let tr=false;
+    // tranche = face verticale SUR le contour exterieur (T_OUT, a 0,35 mm pres) : exclut d'un coup le tube du
+    // verre, les parois internes et les logements (la comparaison au voisinage prenait le tube a 12 h / 6 h)
+    if(cand[f]){const cx0=(P[t]+P[t+3]+P[t+6])/3,cz0=(P[t+2]+P[t+5]+P[t+8])/3;tr=Math.abs(rc[f]-tab(T_OUT,Math.atan2(cz0,cx0)))<.35;   /* +-0,5° : plus large, la pente du rayon sur la tranche plate (0,5 mm sur 3°) faisait passer des triangles en brut */
+      // logement de couronne (releve sur carrure.stl : plan x 16,5, z +-2,4, y -1,23..2,63) : plus large que la fenetre, BRUT
+      const cx=(P[t]+P[t+3]+P[t+6])/3,cy=(P[t+1]+P[t+4]+P[t+7])/3,cz=(P[t+2]+P[t+5]+P[t+8])/3;if(cx>15&&cx<17.5&&Math.abs(cz)<2.6&&cy>-1.5&&cy<2.8)tr=false;}
+    // interieur des 4 trous de vis laterales (axe X, y 1,81, z +-8, D1,7) : BRUT (le polisseur n'y entre pas)
+    const fx=(P[t]+P[t+3]+P[t+6])/3,fy=(P[t+1]+P[t+4]+P[t+7])/3,fz=(P[t+2]+P[t+5]+P[t+8])/3;
+    const ux=P[t+3]-P[t],uy=P[t+4]-P[t+1],uz=P[t+5]-P[t+2],vx=P[t+6]-P[t],vy=P[t+7]-P[t+1],vz=P[t+8]-P[t+2],qx=uy*vz-uz*vy,qy=uz*vx-ux*vz,qz=ux*vy-uy*vx;
+    const trou=Math.abs(fx)>14.5&&Math.hypot(fy-1.81,Math.abs(fz)-8)<1.0&&Math.abs(qx)<.5*Math.hypot(qx,qy,qz);   /* paroi du percage : normale ~ perpendiculaire a X */
+    const poli=!trou&&(haut[f]||tr);(poli?A:B).push(...P.subarray(t,t+9));if(poli)tranche.push(tr);}
+  // normales lissees sous 30° (les vraies aretes restent vives) : en normales par facette,
+  // les longs triangles du STL donnaient des dents de scie sur la tranche polie
+  const mk=a=>{const n=new THREE.BufferGeometry();n.setAttribute('position',new THREE.Float32BufferAttribute(a,3));return uvBoite(toCreasedNormals(n,Math.PI/6));};
+  const gA=mk(A);normalesTranche(gA,tranche);return [gA,mk(B)];}
+// TRANCHE POLIE : les longs triangles en eventail du STL faisaient des stries de lumiere meme
+// en normales lissees (interpolation sur des sommets mal repartis). La tranche est une surface
+// reglee verticale : sa normale ne depend que de la position le long du contour. On la mesure
+// par secteur angulaire (1 440 secteurs, ponderes par l'aire, lisses sur +-1°) et on
+// l'impose a chaque sommet : reflet continu, sans facette.
+let TRANCHE_H=null,TRANCHE_N=null,TRANCHE_R=null;
+// valeur interpolee d'une table par secteur a l'angle th (atan2(z, x))
+function parSecteur(T,dim,c,th){const K=T.length/dim,u=((th+Math.PI)/(2*Math.PI)*K-.5+K)%K,k=Math.floor(u),t=u-k,k2=(k+1)%K;return T[k*dim+c]*(1-t)+T[k2*dim+c]*t;}
+// ENCOCHE DE COURONNE dans la lunette (IMG_8435) : le logement rond de la couronne se prolonge dans
+// la lunette. Cercle centre sur l'axe du tube (y 0,90, z 0), rayon 3,05 (largeur +-2,4 au plan de
+// joint, comme le logement du boitier), fond au plan du logement x 16,5.
+const ENC_Y=.9,ENC_R=2.6,ENC_X=16.5;   // logement de couronne RECOUPE dans carrure.stl (08/10) : cylindre net D5,2 coaxial au tube, meme cercle pour la lunette
+const dansEncoche=(x,y,z)=>x>0&&(y-ENC_Y)**2+z*z<ENC_R*ENC_R;
+// paroi de l'encoche lissee sur ~0,15 mm le long du cercle (sinon elle suit la grille en escalier)
+function encoche(r,th,y){const x=r*Math.cos(th),z=r*Math.sin(th);if(x<=ENC_X)return r;const d=ENC_R-Math.hypot(y-ENC_Y,z),t=sm(-.012,.012,d);   /* arete vive, sans conge */
+  return t>0?r*(1-t)+(ENC_X/Math.cos(th))*t:r;}
+function rayonTranche(th){return tab(T_OUT,th);}   // contour propre de la lunette ; la tranche du boitier y est a 0,12 mm pres (mesure 08/10)
+// tranche verticale de la lunette = la tranche du boitier prolongee : normale 3D identique
+function normaleBoitier(g){if(!TRANCHE_N)return g;const P=g.getAttribute('position').array,N=g.getAttribute('normal').array;
+  for(let i=0;i<P.length;i+=3){if(dansEncoche(P[i]+.01,P[i+1],P[i+2])&&P[i]<ENC_X+.05){const sg=N[i]<0?-1:1;N[i]=sg;N[i+1]=0;N[i+2]=0;continue;}   /* fond de l'encoche : plan */
+    const th=Math.atan2(P[i+2],P[i]);if(isNaN(parSecteur(TRANCHE_N,3,0,th)))continue;let x=parSecteur(TRANCHE_N,3,0,th),y=parSecteur(TRANCHE_N,3,1,th),z=parSecteur(TRANCHE_N,3,2,th);
+    const l=Math.hypot(x,y,z)||1,sg=(N[i]*x+N[i+2]*z)<0?-1:1;N[i]=sg*x/l;N[i+1]=sg*y/l;N[i+2]=sg*z/l;}
+  return g;}
+// la tranche de la lunette prolonge celle du boitier : meme direction horizontale de normale
+// (mesuree sur carrure.stl), on garde seulement l'inclinaison propre a chaque bande
+function aligneTranche(g){if(!TRANCHE_H)return g;const P=g.getAttribute('position').array,N=g.getAttribute('normal').array,K=TRANCHE_H.length/2;
+  for(let i=0;i<P.length;i+=3){const k=((Math.floor((Math.atan2(P[i+2],P[i])+Math.PI)/(2*Math.PI)*K)%K)+K)%K;let hx=TRANCHE_H[k*2],hz=TRANCHE_H[k*2+1];if(isNaN(hx))continue;
+    const ny=N[i+1],c=Math.sqrt(Math.max(0,1-ny*ny));if(N[i]*hx+N[i+2]*hz<0){hx=-hx;hz=-hz;}N[i]=hx*c;N[i+2]=hz*c;}
+  return g;}
+function normalesTranche(g,tranche){const P=g.getAttribute('position').array,Nn=g.getAttribute('normal').array,K=1440,acc=new Float64Array(K*3);
+  const sect=(x,z)=>((Math.floor((Math.atan2(z,x)+Math.PI)/(2*Math.PI)*K)%K)+K)%K;
+  for(let f=0;f<tranche.length;f++){if(!tranche[f])continue;const t=f*9,ax=P[t+3]-P[t],ay=P[t+4]-P[t+1],az=P[t+5]-P[t+2],bx=P[t+6]-P[t],by=P[t+7]-P[t+1],bz=P[t+8]-P[t+2];
+    const nx=ay*bz-az*by,ny=az*bx-ax*bz,nz=ax*by-ay*bx;                    // longueur = 2 x aire : ponderation
+    const s0=sect(P[t],P[t+2]),s1=sect(P[t+3],P[t+5]),s2=sect(P[t+6],P[t+8]);let lo=Math.min(s0,s1,s2),hi=Math.max(s0,s1,s2);if(hi-lo>K/2){lo=hi;hi=Math.min(s0,s1,s2)+K;}
+    const n=hi-lo+1;for(let k=lo;k<=hi;k++){const i=(k%K)*3;acc[i]+=nx/n;acc[i+1]+=ny/n;acc[i+2]+=nz/n;}}
+  const lis=new Float64Array(K*3),W=4;
+  for(let k=0;k<K;k++)for(let d=-W;d<=W;d++){const j=((k+d)%K+K)%K;for(let c=0;c<3;c++)lis[k*3+c]+=acc[j*3+c];}
+  // direction horizontale de la tranche par secteur : partagee avec la lunette (meme surface)
+  TRANCHE_H=new Float32Array(K*2);TRANCHE_N=new Float32Array(K*3);
+  // secteurs SANS tranche mesuree (passages du bracelet a 12 h et 6 h) : NaN -> la lunette garde ses propres
+  // normales ; avant, ils valaient 0 et la tranche de lunette y devenait noire, comme un trou
+  for(let k=0;k<K;k++){const x=lis[k*3],y=lis[k*3+1],z=lis[k*3+2],l=Math.hypot(x,z),l3=Math.hypot(x,y,z),ok=l3>1e-9;
+    TRANCHE_H[k*2]=ok?x/l:NaN;TRANCHE_H[k*2+1]=ok?z/l:NaN;TRANCHE_N[k*3]=ok?x/l3:NaN;TRANCHE_N[k*3+1]=ok?y/l3:NaN;TRANCHE_N[k*3+2]=ok?z/l3:NaN;}
+  // rayon de la tranche par secteur (sommets du haut de la tranche, y > 2), lisse : la lunette s'y raccorde
+  const rs=new Float64Array(K),rn=new Float64Array(K);
+  for(let f=0;f<tranche.length;f++){if(!tranche[f])continue;for(let v=0;v<3;v++){const i=f*9+v*3;if(P[i+1]<2)continue;const k=sect(P[i],P[i+2]);rs[k]+=Math.hypot(P[i],P[i+2]);rn[k]++;}}
+  const rb=new Float64Array(K);for(let k=0;k<K;k++){let a=0,b=0;for(let d=-8;d<=8;d++){const j=((k+d)%K+K)%K;a+=rs[j];b+=rn[j];}rb[k]=b?a/b:NaN;}
+  // trou (passage du bracelet) : on suit le contour propre de la lunette (T_OUT), decale pour se raccorder
+  // en continu a la tranche mesuree des deux cotes
+  const thK=k=>(k+.5)/K*2*Math.PI-Math.PI,r0=Float64Array.from(rb),ec=k=>r0[k]-tab(T_OUT,thK(k));   // lecture sur une copie
+  for(let k=0;k<K;k++)if(isNaN(r0[k])){let a=1,b=1;while(a<K&&isNaN(r0[(k-a+K)%K]))a++;while(b<K&&isNaN(r0[(k+b)%K]))b++;
+    const ea=ec((k-a+K)%K),eb=ec((k+b)%K),t=a/(a+b);rb[k]=tab(T_OUT,thK(k))+(1-t)*ea+t*eb;}
+  TRANCHE_R=Float32Array.from(rb);
+  for(let f=0;f<tranche.length;f++){if(!tranche[f])continue;for(let v=0;v<3;v++){const i=f*9+v*3,k=sect(P[i],P[i+2])*3;let x=lis[k],y=lis[k+1],z=lis[k+2];const l=Math.hypot(x,y,z);
+    if(l>0){Nn[i]=x/l;Nn[i+1]=y/l;Nn[i+2]=z/l;}}}
+  g.getAttribute('normal').needsUpdate=true;}
+const BRUTS=[];let brutActif=true;
+const brutCreux=brut.clone();brutCreux.vertexColors=true;   // creux de lunette : plus sombre en profondeur
+// cadran : MEME matiere que le fond brut du boitier (demande 08/10) : memes cartes de grain (relief + rugosite),
+// meme tuile 2,5 mm, teinte titane plus sombre
+titane.normalMap=brut.normalMap;titane.roughnessMap=brut.roughnessMap;titane.normalScale=brut.normalScale.clone();
+titane.roughness=brut.roughness;titane.metalness=brut.metalness;titane.needsUpdate=true;
+const monture=new THREE.Group(); scene.add(monture);
+let mLunette=null, mCadran=null;
+const groupeLunette=new THREE.Group(), groupeCadran=new THREE.Group(); monture.add(groupeLunette,groupeCadran);
+const JEU_LUNETTE=.01;groupeLunette.position.y=JEU_LUNETTE;   // 0,01 mm : la ligne de separation lunette / boitier se lit
+
+// verre
+const verre=new THREE.Mesh(new THREE.CylinderGeometry(15,15,1.2,128),
+  // pas de « transmission » : three.js la calcule dans une image reduite, ce qui
+  // rend flou tout ce qu'on voit a travers (cadran, aiguilles). Verre net + reflets.
+  new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0,transparent:true,opacity:.14,clearcoat:1,clearcoatRoughness:0,ior:1.77,reflectivity:1,specularIntensity:1,envMapIntensity:3.2,depthWrite:false})   /* saphir : reflets nets de l'environnement */);
+verre.position.y=5.865; groupeLunette.add(verre);
+// REFLET DU VERRE : une couche « miroir » additive juste sous la face du dessus. Metal noir a 18 %
+// = la reflectance d'un saphir sous incidence moyenne ; additive : elle ajoute le reflet de
+// l'environnement sans voiler le cadran (le verre transparent, lui, ne reflechissait presque rien).
+const refletVerre=new THREE.Mesh(new THREE.CircleGeometry(15,128),new THREE.MeshStandardMaterial({color:0x2e2e2e,metalness:1,roughness:.02,
+  envMapIntensity:1.6,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+refletVerre.rotation.x=-Math.PI/2;refletVerre.position.y=6.462;groupeLunette.add(refletVerre);
+// aiguilles a 10 h 10
+const orRoseCache=new THREE.MeshStandardMaterial({color:0xd8b45c,metalness:1,roughness:.3});   // laiton
+const aig=new THREE.Group(); state.aiguilles=.8; const noir=new THREE.MeshStandardMaterial({color:0x1d1f22,metalness:.6,roughness:.35});
+function aiguille(L,l,y,ang,ep=.12){const g=new THREE.BoxGeometry(L,ep,l);g.translate(L/2-1,0,0);const m=new THREE.Mesh(g,noir);m.position.y=y;m.rotation.y=-ang;aig.add(m);}
+// AIGUILLES DE LA MONTRE T (photo au poignet) : batons fins blanc argente, pointe effilee,
+// cache central or rose ; version quartz SANS trotteuse. Heure 6,8 mm, minute 10,6 mm.
+const argent=new THREE.MeshStandardMaterial({color:0xefeee9,metalness:.05,roughness:.45});   // aiguilles laquees blanc mat (IMG_8443)
+function baton(L,l,y,ang){const f=new THREE.Shape(),q=l/2;
+  f.moveTo(0,-q*1.15);f.lineTo(L-l*1.6,-q*.8);f.lineTo(L,0);f.lineTo(L-l*1.6,q*.8);f.lineTo(0,q*1.15);f.lineTo(0,-q*1.15);   /* pas de contrepoids visible : le canon rond couvre le depart */
+  const g=new THREE.ExtrudeGeometry(f,{depth:.1,bevelEnabled:true,bevelThickness:.02,bevelSize:.02,bevelSegments:1,curveSegments:16});
+  g.rotateX(Math.PI/2);const m=new THREE.Mesh(g,argent);m.position.y=y;m.rotation.y=-ang;aig.add(m);}
+baton(6.8,.62,3.95,-Math.PI/2+10*Math.PI/6+Math.PI/36); baton(10.6,.5,4.12,-Math.PI/2+2*Math.PI/6);
+// MOYEU (IMG_8443) : canon blanc de chaque aiguille (heure en dessous, plus large ; minute au-dessus),
+// fine rondelle laiton par-dessus avec le petit pivot au centre
+{const canonH=new THREE.Mesh(new THREE.CylinderGeometry(1.0,1.0,.18,48),argent);canonH.position.y=3.95;aig.add(canonH);
+ const canonM=new THREE.Mesh(new THREE.CylinderGeometry(.78,.78,.18,48),argent);canonM.position.y=4.13;aig.add(canonM);}
+const axe=new THREE.Mesh(new THREE.CylinderGeometry(.62,.64,.07,48),orRoseCache); axe.position.y=4.255; aig.add(axe);
+{const pivot=new THREE.Mesh(new THREE.CylinderGeometry(.16,.18,.1,24),new THREE.MeshStandardMaterial({color:0x9a7a45,metalness:1,roughness:.35}));pivot.position.y=4.32;aig.add(pivot);}
+// ARBRE DES AIGUILLES chrome : canon des heures D1,1 depuis sous le cadran, puis tube des minutes D0,76
+const chrome=new THREE.MeshStandardMaterial({color:0xeceef0,metalness:1,roughness:.05});
+{const canon=new THREE.Mesh(new THREE.CylinderGeometry(.4,.4,3.95-(C_Y-.4),32),chrome);canon.position.y=(3.95+C_Y-.4)/2;aig.add(canon);
+ const tube=new THREE.Mesh(new THREE.CylinderGeometry(.38,.38,.35,32),chrome);tube.position.y=4.0;aig.add(tube);} groupeCadran.add(aig);
+// (ancienne signature DELIGNY en image posee : remplacee par le logo en bossage, voir reliefCadran)
+false&&(function(){const c=document.createElement('canvas');c.width=512;c.height=96;const x=c.getContext('2d');
+  x.font='700 64px Helvetica, Arial';x.textAlign='center';x.textBaseline='middle';x.fillStyle='#1d1f22';x.fillText('DELIGNY',256,52);
+  const t=new THREE.CanvasTexture(c);const m=new THREE.Mesh(new THREE.PlaneGeometry(5.6,1.05),new THREE.MeshBasicMaterial({map:t,transparent:true}));
+  m.rotation.x=-Math.PI/2; m.position.set(0,C_Y+.42,-5.2); groupeCadran.add(m); window.__signature=m;})();
+
+const loader=new STLLoader(); let pieces=0;
+for(const [f,mat,yoff] of [['media/carrure.stl',alu,0],['media/fond.stl',alu,0]]){
+  loader.load(f,g=>{let m;
+    if(f.includes('carrure')){const [poli,reste]=separerPoli(g);setTimeout(()=>reconstruire('lunette'),0);/* la lunette reprend la normale de tranche mesuree */m=new THREE.Group();const b=new THREE.Mesh(reste,brut);BRUTS.push(b);m.add(new THREE.Mesh(poli,alu),b);}
+    else{const gl=uvBoite(toCreasedNormals(g,Math.PI/6));m=new THREE.Mesh(gl,brut);BRUTS.push(m);}
+    m.userData.fixe=yoff;monture.add(m);
+    if(++pieces===2)document.getElementById('charge').remove();},undefined,()=>{document.getElementById('charge').textContent='Boîtier introuvable (media/*.stl) : la lunette et le cadran restent modifiables.';});
+}
+
+// VIS LATERALES : 4 vis sans tete M2 en laiton, six pans creux (cle 0,9), bout pointeau, qui
+// bloquent les plots de la lunette. Trous releves dans media/carrure.stl (08/10) : axe X,
+// y 1,81, z +-8,0, percage D1,7, surface du flanc a x +-18,24 ; vis D1,6 en retrait de 0,5 mm.
+const laiton=new THREE.MeshStandardMaterial({color:0xc8a04e,metalness:1,roughness:.28});
+const laitonCouronne=new THREE.MeshStandardMaterial({color:0xd4ac5c,metalness:1,roughness:.18,side:THREE.DoubleSide});
+// COURONNE EN LAITON (3 h) : trou de tube releve sur carrure.stl (D2,48, centre y 0,90, z 0), logement
+// plan a x 16,5 (z +-2,4, y -1,23..2,63) : couronne D4,5 cannelee (IMG_8435) (24 cannelures), face bombee, tube D2,3
+// dans le trou ; depasse la tranche (x 18,4) de 0,8 mm.
+const couronne=new THREE.Group();
+(function(){const NA=360,prof=[[0,0],[0,1.95],[.08,2.25],[.3,2.25],[2.2,2.25],[2.38,2.08],[2.52,1.65],[2.6,.95],[2.63,0]],K=prof.length,pos=[];
+  for(let i=0;i<=NA;i++){const a=2*Math.PI*i/NA,fl=.5+.5*Math.cos(24*a);   // cannelures arrondies (plus de dents de scie)
+    for(const [t,r] of prof){const cannele=t>=.3&&t<=2.2?r-.13*(1-fl):r;pos.push(t,cannele*Math.cos(a),cannele*Math.sin(a));}}
+  const I=[];for(let i=0;i<NA;i++)for(let k=0;k<K-1;k++){const a=i*K+k,b=(i+1)*K+k;I.push(a,b,a+1,b,b+1,a+1);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(I);
+  const ng=toCreasedNormals(g,Math.PI/5);const m=new THREE.Mesh(ng,laitonCouronne);m.position.set(16.55,.9,0);couronne.add(m);
+  const tube=new THREE.Mesh(new THREE.CylinderGeometry(1.15,1.15,1.6,40),laitonCouronne);tube.rotation.z=Math.PI/2;tube.position.set(15.8,.9,0);couronne.add(tube);
+  monture.add(couronne);})();
+// VIS DE FOND : M1,2 tete cylindrique SIX PANS CREUX, laiton : tete D2,2 x 0,8, empreinte 0,9 sur plats,
+// 0,45 de profondeur + fond conique (vraie geometrie), dans les lamages D2,4 x 0,85 / passage D1,4 recoupes
+// dans media/fond.stl (original M2 : fond_M2_origine.stl). Face de tete a fleur du fond.
+const visFond=new THREE.Group();
+(function(){const R=1.1,s6=.9/Math.sqrt(3),P=.45;
+  const f=new THREE.Shape();f.absarc(0,0,R-.05,0,Math.PI*2,false);const h=new THREE.Path();
+  for(let k=0;k<=6;k++){const a=k*Math.PI/3+Math.PI/6,px=s6*Math.cos(a),pz=s6*Math.sin(a);k?h.lineTo(px,pz):h.moveTo(px,pz);}f.holes.push(h);
+  const anneau=new THREE.ExtrudeGeometry(f,{depth:P,bevelEnabled:true,bevelThickness:.04,bevelSize:.04,bevelSegments:3,curveSegments:64});
+  anneau.translate(0,0,.04);anneau.rotateX(-Math.PI/2);                 // z extrude -> +y (dans la plaque)
+  const fond6=new THREE.CylinderGeometry(0,s6,.25,6,1);fond6.translate(0,P+.165,0);fond6.rotateY(Math.PI/6);   // cone au fond de l'empreinte
+  const reste=new THREE.LatheGeometry([[0,P+.04],[R,P+.04],[R,.8],[.6,.8],[.6,2.4],[.5,2.5],[0,2.5]].map(([r,y])=>new THREE.Vector2(r,y)),64);
+  for(const [x,z] of [[9.51,10.83],[-9.51,10.83],[9.51,-10.83],[-9.51,-10.83]]){const g=new THREE.Group();
+    for(const geo of [anneau,fond6,reste])g.add(new THREE.Mesh(geo,laitonCouronne));
+    g.rotation.y=.35*(x>0?1:2)+(z>0?.4:0);g.position.set(x,-3.72,z);visFond.add(g);}
+  monture.add(visFond);})();
+const vis=new THREE.Group();
+(function(){const L=3.2,R=.8,six=1.0/Math.sqrt(3),prof=.9,RETRAIT=.5;  // R = rayon vu dans le taraudage D1,6 ; six pans 1,0 sur plats ; enfoncee de 0,5
+  const forme=new THREE.Shape();forme.absarc(0,0,R-.04,0,Math.PI*2,false);
+  const trou=new THREE.Path();for(let k=0;k<=6;k++){const a=k*Math.PI/3+Math.PI/6;k?trou.lineTo(six*Math.cos(a),six*Math.sin(a)):trou.moveTo(six*Math.cos(a),six*Math.sin(a));}
+  forme.holes.push(trou);
+  const tete=new THREE.ExtrudeGeometry(forme,{depth:prof,bevelEnabled:true,bevelThickness:.04,bevelSize:.04,bevelSegments:2,curveSegments:40});
+  tete.translate(0,0,.06);                                            // z 0 = face visible, z+ vers l'interieur
+  // corps : fond de l'empreinte (cone de foret) puis filet et bout pointeau (lathe autour de z)
+  const prof2=[[0,prof+.06+six*.6],[six,prof+.06],[R-.04,prof+.06],[R,prof+.2],[R,L-.55],[R-.1,L-.45],[.45,L-.45],[.26,L],[0,L]].map(([r,z])=>new THREE.Vector2(r,z));
+  const corps=new THREE.LatheGeometry(prof2,40);corps.rotateX(Math.PI/2);  // axe du tour : y -> z
+  for(const sx of [1,-1])for(const sz of [1,-1]){
+    for(const g of [tete,corps]){const m=new THREE.Mesh(g,laiton);
+      m.position.set(sx*(18.24-RETRAIT),1.81,sz*8.0);m.rotation.y=sx>0?-Math.PI/2:Math.PI/2;   // z local -> vers le centre
+      vis.add(m);}}
+  monture.add(vis);})();
+// ───────────────────────────── BRACELET CUIR + BOUCLE DEPLOYANTE (photos IMG_8422-8427, 08/10) ─────────────────────────────
+// Bracelet en DEUX brins de 18 mm (marque « 18 », photo de dos IMG_8428) : rien ne passe sous
+// le fond. Chaque brin s'accroche de son cote : il entre sous le debord de la lunette, fait le
+// tour d'une barrette (pompe) logee dans la poche au-dessus de la paroi d'extremite (z = +-15,3,
+// relevee dans carrure.stl) et revient en double epaisseur ; de dos on voit le pli de cuir brun
+// au bord du boitier, puis la doublure creme. Cuir chocolat grain galet, tranches teintes ;
+// boucle deployante or rose : capot brosse, lames, passant en cuir.
+const BR={larg:18,ep:1.8,zParoi:15.3,zBar:17.2,yBar:.8,rBar:.55,zSortie:20.5,demiLarg:29,demiHaut:25};   // boucle ovale relevee sur IMG_8440 (largeur 1,5 x boitier, hauteur sous le boitier 1,3 x)
+const cuirTex=(()=>{const N=256,c=document.createElement('canvas');c.width=c.height=N;const x=c.getContext('2d'),I=x.createImageData(N,N),R=rng(8424);
+  const P=[];for(let k=0;k<420;k++)P.push([R()*N,R()*N]);const H=new Float32Array(N*N);
+  for(let y=0;y<N;y++)for(let xx=0;xx<N;xx++){let d1=1e9,d2=1e9;for(const [px,py] of P){let dx=Math.abs(xx-px),dy=Math.abs(y-py);dx=Math.min(dx,N-dx);dy=Math.min(dy,N-dy);const d=dx*dx+dy*dy;if(d<d1){d2=d1;d1=d;}else if(d<d2)d2=d;}
+    H[y*N+xx]=Math.min(1,(Math.sqrt(d2)-Math.sqrt(d1))/5);}                                         // galets separes par des sillons
+  const h=(a,b)=>H[((b+N)%N)*N+((a+N)%N)];
+  for(let y=0;y<N;y++)for(let xx=0;xx<N;xx++){const dx=(h(xx+1,y)-h(xx-1,y))*1.6,dy=(h(xx,y+1)-h(xx,y-1))*1.6,l=Math.hypot(dx,dy,1),i=4*(y*N+xx);
+    I.data[i]=128-127*dx/l;I.data[i+1]=128-127*dy/l;I.data[i+2]=255/l;I.data[i+3]=255;}
+  x.putImageData(I,0,0);const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;return t;})();
+const matCuir=new THREE.MeshPhysicalMaterial({side:THREE.DoubleSide,color:0x3b231a,roughness:.62,metalness:0,sheen:.6,sheenColor:new THREE.Color(0x6b4a3a),sheenRoughness:.5,clearcoat:.12,clearcoatRoughness:.6,normalMap:cuirTex,normalScale:new THREE.Vector2(.55,.55)});
+const matDoublure=new THREE.MeshStandardMaterial({side:THREE.DoubleSide,color:0xe6d8c0,roughness:.9,metalness:0});
+const matTranche=new THREE.MeshStandardMaterial({side:THREE.DoubleSide,color:0x24140e,roughness:.45,metalness:0});
+const orRose=new THREE.MeshStandardMaterial({color:0xd8b45c,metalness:1,roughness:.22});   // boucle en LAITON (08/10)
+const orBrosse=new THREE.MeshStandardMaterial({color:0xd0ac58,metalness:1,roughness:.4});
+// ligne moyenne du bracelet dans le plan (z, y), boucle fermee, puis lissage et reechantillonnage
+function cheminBracelet(){const b=BR,dem=[];const bez=(p0,p1,p2,p3,n)=>{for(let i=0;i<=n;i++){const t=i/n,u=1-t;dem.push([u*u*u*p0[0]+3*u*u*t*p1[0]+3*u*t*t*p2[0]+t*t*t*p3[0],u*u*u*p0[1]+3*u*u*t*p1[1]+3*u*t*t*p2[1]+t*t*t*p3[1]]);}};
+  // UNE SEULE EPAISSEUR (IMG_8434) : la barrette est noyee dans l'epaisseur du cuir au bout du bracelet ;
+  // le cuir, tres fin autour d'elle (~0,2 mm), forme un bout arrondi. La ligne moyenne passe par l'axe de la
+  // barrette ; l'epaisseur grossit doucement au bout (voir epBout).
+  const yH=b.yBar;dem.push([b.zBar-.85,yH]);
+  // boucle du poignet relevee sur IMG_8431/8432 : le brin descend presque droit sous la boite puis
+  // forme un ovale large (1,6 x la largeur du boitier, 1,4 x en profondeur), fond aplati sous la boucle
+  const A=BR.demiLarg,ex=2/2.15,tz=Math.acos(Math.pow(b.zBar/A,1/ex)),   /* l'ovale part DE la barrette : poignet continu, sans cassure */sy=Math.pow(Math.sin(tz),ex),Bv=BR.demiHaut,cy=yH-Bv*sy;
+  for(let i=1;i<=90;i++){const t=tz-(tz+Math.PI/2)*i/90,c=Math.cos(t),sn=Math.sin(t);dem.push([A*Math.sign(c)*Math.pow(Math.abs(c),ex),cy+Bv*Math.sign(sn)*Math.pow(Math.abs(sn),ex)]);}
+  const droite=dem,gauche=droite.map(([z,y])=>[-z,y]).reverse();
+  let P=[...droite,...gauche.slice(1)];                                    // ouvert : bout cousu droit -> bout cousu gauche
+  for(let it=0;it<2;it++){const Q=[P[0]];for(let i=0;i<P.length-1;i++){const a=P[i],c=P[i+1];Q.push([.75*a[0]+.25*c[0],.75*a[1]+.25*c[1]],[.25*a[0]+.75*c[0],.25*a[1]+.75*c[1]]);}Q.push(P[P.length-1]);P=Q;}
+  const L=[0];for(let i=1;i<P.length;i++)L.push(L[i-1]+Math.hypot(P[i][0]-P[i-1][0],P[i][1]-P[i-1][1]));
+  const tot=L[L.length-1],n=Math.round(tot/.3),Rs=[];let k=0;
+  for(let i=0;i<=n;i++){const s=i*tot/n;while(k<L.length-2&&L[k+1]<s)k++;const t=Math.min(1,(s-L[k])/((L[k+1]-L[k])||1)),a=P[k],c=P[k+1];Rs.push([a[0]+t*(c[0]-a[0]),a[1]+t*(c[1]-a[1])]);}
+  return Rs;}
+// cadre (point, tangente, normale) a chaque echantillon ; chemin ouvert : differences d'un cote aux bouts
+function cadres(R){const n=R.length,F=[];let s=0;
+  for(let i=0;i<n;i++){const a=R[Math.max(0,i-1)],c=R[Math.min(n-1,i+1)],tz=c[0]-a[0],ty=c[1]-a[1],l=Math.hypot(tz,ty)||1;
+    if(i)s+=Math.hypot(R[i][0]-R[i-1][0],R[i][1]-R[i-1][1]);F.push({z:R[i][0],y:R[i][1],tz:tz/l,ty:ty/l,nz:ty/l,ny:-tz/l,s});}
+  return F;}
+// ruban epais : faces exterieure (cuir), interieure (doublure), tranches ; section a coins arrondis
+function ruban(F,larg,ep,decal=0,boucle=true,mats=[matCuir,matDoublure,matTranche],epLe=null){
+  const r=Math.min(.45,ep/2-.05),sec=[];                                    // section (x, e) : e > 0 vers l'exterieur
+  const coin=(cx,ce,a0)=>{for(let k=0;k<=4;k++){const a=a0+k*Math.PI/8;sec.push([cx+r*Math.cos(a),ce+r*Math.sin(a)]);}};
+  coin(larg/2-r,ep/2-r,0);coin(-larg/2+r,ep/2-r,Math.PI/2);coin(-larg/2+r,-ep/2+r,Math.PI);coin(larg/2-r,-ep/2+r,3*Math.PI/2);
+  const S=sec.length,face=k=>{const e=sec[k][1],x=sec[k][0];return Math.abs(x)<larg/2-r+1e-6?(e>0?0:1):2;};
+  const pos=[],uv=[],gr=[[],[],[]],nF=F.length,nb=boucle?nF:nF-1;
+  F.forEach((f,i)=>{const k=epLe?epLe(i/Math.max(1,F.length-1))/ep:1;for(const [x,e] of sec){const o=e*k+decal;pos.push(x,f.y+o*f.ny,f.z+o*f.nz);uv.push(f.s/6,(x+larg/2)/6);}});
+  for(let i=0;i<nb;i++){const i2=(i+1)%nF;for(let k=0;k<S;k++){const k2=(k+1)%S,a=i*S+k,b=i2*S+k,c=i*S+k2,d=i2*S+k2,g=face(k)===face(k2)?face(k):2;gr[g].push(a,b,c,b,d,c);}}
+  if(!boucle)for(const i of [0,nF-1]){const c0=pos.length/3;const f=F[i];pos.push(0,f.y+decal*f.ny,f.z+decal*f.nz);uv.push(0,0);
+    for(let k=0;k<S;k++){const k2=(k+1)%S;i?gr[2].push(c0,i*S+k,i*S+k2):gr[2].push(c0,k2,k);}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
+  const I=[...gr[0],...gr[1],...gr[2]];g.setIndex(I);g.addGroup(0,gr[0].length,0);g.addGroup(gr[0].length,gr[1].length,1);g.addGroup(gr[0].length+gr[1].length,gr[2].length,2);
+  g.computeVertexNormals();return new THREE.Mesh(g,mats);}
+const bracelet=new THREE.Group();
+(function(){const b=BR,F=cadres(cheminBracelet());
+  // le bon cote du cuir vers l'exterieur du poignet : au point le plus bas, la normale doit descendre
+  const bas=F.reduce((m,f)=>f.y<m.y?f:m,F[0]);if(bas.ny>0)for(const f of F){f.nz=-f.nz;f.ny=-f.ny;}
+  // epaisseur : 1,3 courant, 1,5 sur les 2 mm du bout (barrette D1,1 dedans), bout arrondi
+  const Ltot=F[F.length-1].s,eM=b.ep+.15,epBout=t=>{const d=Math.min(t,1-t)*Ltot;return d<.85?Math.max(.35,eM*Math.sqrt(Math.max(0,1-((.85-d)/.85)**2))):b.ep+.15*sm(2.6,1.2,d);};
+  bracelet.add(ruban(F,b.larg,b.ep,0,false,[matCuir,matDoublure,matTranche],epBout));
+  // REMPLIE (IMG_8434) : le cuir brun se rabat sur la doublure beige cote poignet, rectangle de 6 mm a
+  // chaque attache, a fleur (0,15 mm), coupe net : pas de bourrelet
+  for(const [s0,s1] of [[0,6.5],[Ltot-6.5,Ltot]]){const seg=F.filter(f=>f.s>=s0&&f.s<=s1);
+    bracelet.add(ruban(seg,b.larg-.1,.15,-(b.ep/2+.06),false,[matCuir,matCuir,matTranche]));}
+  // barrettes (pompes) acier dans les deux poches
+  for(const sz of [1,-1]){const bar=new THREE.Mesh(new THREE.CylinderGeometry(b.rBar,b.rBar,b.larg+1.2,24),new THREE.MeshStandardMaterial({color:0xb9bcc0,metalness:1,roughness:.3}));
+    bar.rotation.z=Math.PI/2;bar.position.set(0,b.yBar,sz*b.zBar);bracelet.add(bar);}
+  // bas du poignet : la queue du bracelet (trous) recouvre le brin principal, sous la boucle
+  const iBas=F.indexOf(bas),pas=F[1].s,seg=(s0,s1)=>{const T=[];for(const f of F){let d=f.s-bas.s;const tot=F[F.length-1].s+pas;if(d>tot/2)d-=tot;if(d<-tot/2)d+=tot;if(d>=s0&&d<=s1)T.push({...f,d});}return T.sort((p,q)=>p.d-q.d);};
+  const queue=seg(-24,9);bracelet.add(ruban(queue,b.larg-.4,b.ep*.9,b.ep*.95,false));
+  const off=b.ep*.95+b.ep*.45;                                             // dessus de la queue
+  for(const f of queue)if(f.d<-4&&Math.abs(((f.d+4)%6.5+6.5)%6.5-3.25)<pas/2){  // trous tous les 6,5 mm
+    const h=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.2,20),new THREE.MeshBasicMaterial({color:0x0c0705}));
+    h.position.set(0,f.y+(off+.02)*f.ny,f.z+(off+.02)*f.nz);h.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(0,f.ny,f.nz));bracelet.add(h);}
+  // BOUCLE DEPLOYANTE LAITON, fermee (IMG_8447-8458) : passant-boite qui entoure les deux epaisseurs, lame
+  // ajouree en H (deux longerons + traverses) a plat sous le cuir, blocs de charniere aux bouts, goupilles fines
+  const laitonP=orRose,laitonB=orBrosse,bord=(b.larg+1.1)/2;
+  const cote=(seg0,larg,ep,dec,x,mat)=>{const m=ruban(seg0,larg,ep,dec,false,[mat,mat,mat]);m.position.x=x;bracelet.add(m);return m;};
+  {const k=seg(-3.4,3.4),haut=off+.62,bas=-(b.ep/2+.32);                       // passant-boite
+   bracelet.add(ruban(k,b.larg+1.6,.45,haut,false,[laitonB,laitonP,laitonP]));
+   bracelet.add(ruban(k,b.larg+1.6,.4,bas,false,[laitonP,laitonP,laitonP]));
+   for(const sx of [-1,1])cote(k,.45,haut-bas+.2,(haut+bas)/2,sx*(bord+.1),laitonP);}
+  const dL=-(b.ep/2+.34);                                                         // lame ajouree sous le cuir
+  for(const sx of [-1,1])cote(seg(-17,17),1.9,.42,dL,sx*(b.larg/2-1.5),laitonP);
+  for(const c0 of [-17,-6,5,15.5])bracelet.add(ruban(seg(c0,c0+1.5),b.larg-2.2,.42,dL,false,[laitonP,laitonP,laitonP]));
+  for(const [a0,a1] of [[-20,-16.5],[16,19.5]]){bracelet.add(ruban(seg(a0,a1),b.larg-1,1.1,dL-.35,false,[laitonB,laitonP,laitonP]));   // blocs de charniere
+    const f=seg(a0,a1)[0];for(const sx of [-1,1]){const g=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.12,16),new THREE.MeshStandardMaterial({color:0x8a6a3a,metalness:1,roughness:.4}));
+      g.rotation.z=Math.PI/2;const o=dL-.35;g.position.set(sx*((b.larg-1)/2+.06),f.y+o*f.ny,f.z+o*f.nz);bracelet.add(g);}}
+  const pas2=seg(-15.5,-11.5);bracelet.add(ruban(pas2.map(f=>({...f})),b.larg+1.4,b.ep*2.6+.8,b.ep*.7,false,[matCuir,matCuir,matTranche]));
+  monture.add(bracelet);})();
+// (vitrine, coussin et plateau retires le 08/10 : on ne montre que la montre)
+function reconstruireLunette(){ if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
+  mLunette=new THREE.Mesh(construireLunette(),[alu,brutActif?brutCreux:alu]); groupeLunette.add(mLunette); badge(); }
+function reconstruireCadran(){ if(mCadran){groupeCadran.remove(mCadran);mCadran.geometry.dispose();}
+  mCadran=new THREE.Mesh(construireCadran(),titane); groupeCadran.add(mCadran); badge(); }
+function badge(){const lp=state.lunette.params,pl=state.lunette.motif==='embossage'?-(lp.profondeur||0):(lp.relief||0), pc=reliefMaxCadran(), jeu=state.aiguilles-pc, b=document.getElementById('badge');
+  b.textContent=`lunette ${MOTIFS_LUNETTE[state.lunette.motif].nom.toLowerCase()} ${pl.toFixed(2)} mm · cadran ${MOTIFS_CADRAN[state.cadran.motif].nom.toLowerCase()} ${pc.toFixed(2)} mm · jeu aiguilles ${jeu.toFixed(2)} mm`
+    +(jeu<.15?' : les aiguilles touchent le relief, monte les aiguilles ou baisse le relief':'');
+  b.style.color=jeu<.15?'#a33228':''; b.style.borderColor=jeu<.15?'#a33228':'';}
+
+// Rendu progressif : si la haute definition coute plus de 0,35 s, on montre d'abord un
+// apercu (grille divisee par 2 a 3, toujours calee sur les cellules), puis la HD des
+// qu'on lache le reglage. Les exports et la fabrication sont TOUJOURS en HD.
+let APERCU=false; const tache={},tacheHD={},coutHD={lunette:0,cadran:0};
+function planifier(q,f){cancelAnimationFrame(tache[q]);clearTimeout(tacheHD[q]);
+  tache[q]=requestAnimationFrame(()=>{const hd=()=>{const t=performance.now();f();coutHD[q]=performance.now()-t;};
+    if(coutHD[q]>350){APERCU=true;try{f();}finally{APERCU=false;}tacheHD[q]=setTimeout(hd,450);}else hd();});}
+
+// ───────────────────────────── vues ─────────────────────────────
+function vueDe(n){const d=Math.max(75, 100*(innerWidth<820?1.4:1));
+  const P={face:[0,d,0.01],trois:[d*.55,d*.62,d*.6],profil:[d,3,0],dos:[0,-d,0.01],detail:[d*.12,d*.42,d*.30],vitrine:[d*.95,d*.55,d*1.35]}[n];
+  // de dos, le bracelet et la vitrine cachent le fond grave : on les masque le temps de la vue
+  vueDos=n==='dos';majPresentation();
+  cam.up.set(0,n==='face'||n==='dos'?0:1,n==='face'||n==='dos'?-1:0); cam.position.set(...P); ctl.target.set(0,n==='vitrine'?-14:3,0); ctl.update();}
+let vueDos=false;
+function majPresentation(){bracelet.visible=document.getElementById('tBracelet').classList.contains('on')&&!vueDos;}
+document.querySelectorAll('[data-vue]').forEach(b=>b.onclick=()=>vueDe(b.dataset.vue));
+const bascule=(id,f)=>{const b=document.getElementById(id);b.onclick=()=>{b.classList.toggle('on');f(b.classList.contains('on'));};};
+bascule('tVerre',v=>{verre.visible=v;refletVerre.visible=v;}); bascule('tAig',v=>aig.visible=v);
+bascule('tEclate',v=>{groupeLunette.position.y=v?7:JEU_LUNETTE;groupeCadran.position.y=v?2:0;});
+
+function taille(){const w=vue.clientWidth,h=vue.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
+addEventListener('resize',taille); taille(); vueDe('trois');
+let _tic=0;(function boucle(){ctl.update();if((_tic++&15)===0)ombres();renderer.render(scene,cam);requestAnimationFrame(boucle);})();
+
+// ───────────────────────────── panneau ─────────────────────────────
+// ── Bibliotheque : chaque bas-relief genere devient un motif (« IA : sujet ») ──
+const BIB={lunette:[],cadran:[]};
+async function chargerBibliotheque(){try{const r=await (await fetch(AI_BASE+'/api/montre/bibliotheque',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"action":"liste"}'})).json();
+  if(!r.ok)return; BIB.lunette=r.motifs.filter(m=>m.piece==='lunette'); BIB.cadran=r.motifs.filter(m=>m.piece==='cadran');
+  for(const piece of ['lunette','cadran'])remplirSelect(document.getElementById(piece==='lunette'?'selL':'selC'),piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN,piece);
+  panneau('lunette');panneau('cadran');}catch(e){}}
+async function appliquerIA(piece,id){const r=await (await fetch(AI_BASE+'/api/montre/bibliotheque',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'lire',id})})).json();
+  if(!r.ok)return;await chargerCarte(piece,r.profondeur,r.lumiere,{sujet:r.sujet,apercu:r.image,format:r.format||(piece==='lunette'?4:1),id,dessus:r.dessus||null});
+  const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN;const garde=state[piece].motif==='image'?state[piece].params:defauts(M.image);
+  state[piece]={...state[piece],motif:'image',params:garde,sujet:r.sujet,ia:id};panneau(piece);reconstruire(piece);}
+function valeurSelect(piece){return state[piece].motif==='image'&&state[piece].ia?'ia:'+state[piece].ia:state[piece].motif;}
+function remplirSelect(sel,M,piece){sel.innerHTML='';const gf=document.createElement('optgroup');gf.label='Familles paramétriques (encyclopédie)';
+  for(const [k,v] of Object.entries(M)){if(!v.famille)continue;const o=document.createElement('option');o.value=k;o.textContent=v.nom;gf.appendChild(o);}
+  for(const [k,v] of Object.entries(M)){if(k==='image'||v.famille)continue;const o=document.createElement('option');o.value=k;o.textContent=v.nom;sel.appendChild(o);}
+  if(gf.children.length)sel.appendChild(gf);
+  const g=document.createElement('optgroup');g.label='Bas-relief IA';const o0=document.createElement('option');o0.value='image';o0.textContent='Nouveau bas-relief IA…';g.appendChild(o0);
+  for(const m of BIB[piece]){const o=document.createElement('option');o.value='ia:'+m.id;o.textContent='IA : '+m.sujet.slice(0,40);g.appendChild(o);}
+  sel.appendChild(g); sel.value=valeurSelect(piece);
+  sel.onchange=()=>{const v=sel.value;if(v.startsWith('ia:'))return appliquerIA(piece,v.slice(3));
+    state[piece]={...(piece==='lunette'?{zone:state.lunette.zone}:{}),motif:v,params:defauts(M[v])};if(v==='image')BASRELIEF[piece]=null;panneau(piece);reconstruire(piece);};}
+function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, box=document.getElementById(piece==='lunette'?'regL':'regC');
+  document.getElementById(piece==='lunette'?'selL':'selC').value=valeurSelect(piece); box.innerHTML='';
+  for(const [k,[lo,hi,def,pas,lib]] of Object.entries(M[state[piece].motif].r)){
+    const d=document.createElement('div'); const val=state[piece].params[k]??def;
+    if(CASES.has(k)){d.className='reg case';d.innerHTML=`<label>${lib}</label><input type="checkbox" ${val?'checked':''}>`;
+      d.querySelector('input').onchange=e=>{state[piece].params[k]=e.target.checked?1:0;reconstruire(piece);};}
+    else if(LISTES[k]){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
+      LISTES[k].forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
+      se.value=String(Math.round(val));d.innerHTML=`<label>${lib}</label>`;d.appendChild(se);se.onchange=()=>{state[piece].params[k]=+se.value;reconstruire(piece);};}
+    else if(k==='mode'&&estFamille(state[piece].motif)){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
+      FAMILLES[state[piece].motif].modes.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
+      se.value=String(Math.round(val));d.innerHTML='<label>mode</label>';d.appendChild(se);se.onchange=()=>{state[piece].params.mode=+se.value;reconstruire(piece);};}
+    else{d.className='reg';d.innerHTML=`<label>${lib}</label><input type="range" min="${lo}" max="${hi}" step="${pas}" value="${val}"><output>${(+val).toFixed(pas<1?2:0)}</output>`;
+      const inp=d.querySelector('input'),out=d.querySelector('output');
+      inp.oninput=()=>{state[piece].params[k]=+inp.value;out.textContent=(+inp.value).toFixed(pas<1?2:0);reconstruire(piece);};}
+    box.appendChild(d);}
+  if(state[piece].motif==='image'){const d=document.createElement('div');d.className='br';const c=BASRELIEF[piece];
+    d.innerHTML=`<textarea maxlength="160" placeholder="sujet du bas-relief : une pieuvre et des vagues, des fleurs baroques…"></textarea><div class="ligne"><button class="btn pri">Générer le relief (IA)</button></div><div class="note">${c?'Relief : '+c.sujet:'Pas encore de relief : décris un sujet.'}</div>${c?`<img alt="image source" src="${c.apercu}">`:''}`;
+    d.querySelector('textarea').value=(c&&c.sujet)||state[piece].sujet||'';
+    d.querySelector('button').onclick=()=>genererBasRelief(piece,d.querySelector('textarea').value);box.appendChild(d);
+    if(BIB[piece].length){const gal=document.createElement('div');gal.className='galerie';
+      for(const m of BIB[piece].slice(0,24)){const im=document.createElement('img');im.src=m.image;im.title=m.sujet+' ('+m.date+')';if(state[piece].ia===m.id)im.className='choisi';
+        im.onclick=()=>appliquerIA(piece,m.id);gal.appendChild(im);}
+      const t=document.createElement('div');t.className='note';t.textContent='Mes bas-reliefs ('+BIB[piece].length+') : clique pour réappliquer.';d.appendChild(t);d.appendChild(gal);}}}
+function gabaritLunette(){const n=1024,L=48,c=document.createElement('canvas');c.width=c.height=n;const x=c.getContext('2d'),P=(px,pz)=>[(px/L+.5)*n,(pz/L+.5)*n];
+  const contour=(f)=>{x.beginPath();for(let k=0;k<=720;k++){const th=2*Math.PI*k/720,r=f(th),[a,b]=P(r*Math.cos(th),r*Math.sin(th));k?x.lineTo(a,b):x.moveTo(a,b);}x.closePath();};
+  const zone=state.lunette.zone||'biseau';x.fillStyle='#fff';x.fillRect(0,0,n,n);
+  x.fillStyle='#969696';contour(th=>zone==='face'?tab(T_TOP,th):tab(T_C4,th));x.fill();                       // anneau a sculpter
+  x.fillStyle='#282828';contour(th=>zone==='biseau'?tab(T_TOP,th):R_FACE0);x.fill();                          // cadran et verre : vide
+  return c.toDataURL('image/png');}
+async function genererBasRelief(piece,sujet){sujet=(sujet||'').trim();if(!sujet)return;state[piece].sujet=sujet;
+  const box=document.getElementById(piece==='lunette'?'regL':'regC'),note=box.querySelector('.br .note'),bt=box.querySelector('.br button');
+  if(note)note.textContent='Génération de l\'image puis de la profondeur (environ 10 s)…'; if(bt)bt.disabled=true;
+  try{const r=await (await fetch(AI_BASE+'/api/montre/basrelief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({piece,sujet,...(piece==='lunette'?{gabarit:gabaritLunette()}:{})})})).json();
+    if(!r.ok)throw new Error(r.note||'refus');
+    await chargerCarte(piece,r.profondeur,r.lumiere,{sujet:r.sujet,apercu:r.image,format:r.format||(piece==='lunette'?4:1),id:r.id,dessus:r.dessus||null});
+    if(r.dessus){state[piece].params={...defauts(MOTIFS_LUNETTE.image),relief:.7,detail:.25,contraste:1,inverser:0};}   // reglages propres pour un relief compose
+    if(r.id){BIB[piece].unshift({id:r.id,piece,sujet:r.sujet,date:'maintenant',image:r.image});state[piece].ia=r.id;remplirSelect(document.getElementById(piece==='lunette'?'selL':'selC'),piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN,piece);} if(state[piece].motif!=='image'){state[piece]={...(piece==='lunette'?{zone:state.lunette.zone}:{}),motif:'image',params:defauts((piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN).image),sujet,ia:r.id};}
+    panneau(piece); reconstruire(piece);}
+  catch(e){const n=box.querySelector('.br .note');if(n)n.textContent='Échec : '+(e.message||e);}
+  finally{const b2=box.querySelector('.br button');if(b2)b2.disabled=false;}}
+function reconstruire(piece){planifier(piece,piece==='lunette'?reconstruireLunette:reconstruireCadran);}
+remplirSelect(document.getElementById('selL'),MOTIFS_LUNETTE,'lunette'); remplirSelect(document.getElementById('selC'),MOTIFS_CADRAN,'cadran');
+// hauteur des aiguilles : on monte tout l'ensemble (heures, minutes, secondes, axe)
+const ah=document.getElementById('aigH');ah.onchange=()=>{state.aiguilles=+ah.value;aig.position.y=state.aiguilles-.8;badge();};
+const zl=document.getElementById('zoneL');zl.value=state.lunette.zone;zl.onchange=()=>{state.lunette.zone=zl.value;reconstruire('lunette');};
+panneau('lunette'); panneau('cadran'); reconstruireLunette(); reconstruireCadran();
+
+// ───────────────────────────── encyclopedie (550 entrees -> recettes) ─────────────────────────────
+const TYPES_ENC={parametrique:['paramétrique',''],motif:['motif',''],ia:['bas-relief IA','ia'],ornement:['volume 3D','orn'],finition:['finition','fin']};
+const plat=t=>(t||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/œ/g,'oe');
+function decrireRecette(e){if(e.type==='parametrique')return FAMILLES[e.motif].nom+' · '+FAMILLES[e.motif].modes[e.params.mode||0];
+  if(e.type==='motif')return 'motif '+((MOTIFS_LUNETTE[e.motif]||MOTIFS_CADRAN[e.motif]).nom);if(e.type==='ia')return 'bas-relief IA : '+(e.sujet||e.nom);
+  if(e.type==='ornement')return 'volumes : '+e.ornements.map(t=>ORN[t].nom).join(', ');return e.approche?'relief proche : '+decrireRecette(e.approche):'non représentable en relief';}
+function poser(piece,motif,params,extra){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN;const q={...defauts(M[motif]),...(params||{})};
+  for(const [k,v] of Object.entries(q)){const b=M[motif].r[k];if(b)q[k]=Math.max(b[0],Math.min(b[1],v));}
+  state[piece]={...(piece==='lunette'?{zone:state.lunette.zone}:{}),motif,params:q,...(extra||{})};panneau(piece);reconstruire(piece);}
+// Lunette = 3 categories : une entree s'y traduit si elle est une forme a aretes vives, un dessin
+// d'embossage ou un bas-relief ; sinon elle part sur le cadran, et on le dit.
+const LEGACY_DESSIN={ecailles:0,dragon:1,perles:2,damier:3,rayons:4,torsade:4,vagues:5};
+function versLunette(e){
+  if(e.type==='parametrique'){const md=FAMILLES[e.motif].modes[e.params.mode||0];
+    const f=FORMES.findIndex(([k,m])=>k===e.motif&&m===md);if(f>=0)return {motif:'arete',params:{forme:f,...(e.params.pas?{pas:e.params.pas}:{}),...(e.params.angle!=null?{angle:e.params.angle}:{}),...(e.params.tronque!=null?{tronque:e.params.tronque}:{}),...(e.params.relief?{relief:e.params.relief}:{})}};
+    const d=DESSINS.findIndex(x=>x.fam&&x.fam[0]===e.motif&&x.fam[1]===md);if(d>=0)return {motif:'embossage',params:{dessin:d}};return null;}
+  if(e.type==='motif'&&LEGACY_DESSIN[e.motif]!=null)return {motif:'embossage',params:{dessin:LEGACY_DESSIN[e.motif]}};
+  return null;}
+function appliquerEntree(e,piece){const note=document.getElementById('encNote');let msg='';
+  if(piece==='lunette'&&(e.type==='parametrique'||e.type==='motif')){const L=versLunette(e);
+    if(L){poser('lunette',L.motif,L.params);note.textContent=`${e.nom} → lunette : ${MOTIFS_LUNETTE[L.motif].nom.toLowerCase()} (${L.motif==='arete'?FORMES[L.params.forme][2]:DESSINS[L.params.dessin].nom}). Tout reste réglable plus haut.`;return;}
+    piece='cadran';msg='(la lunette n\'accepte que embossage, bas-relief et arêtes vives : appliqué au cadran) ';}
+  if(piece==='lunette'&&e.type==='ornement'){note.textContent=`${e.nom} : les volumes 3D ne sont plus proposés sur la lunette (3 catégories : embossage, bas-relief, arêtes vives).`;return;}
+  if(e.type==='parametrique'){poser(piece,e.motif,e.params);msg+=`${e.nom} → ${piece} : ${decrireRecette(e)}. Tout reste réglable plus haut.`;}
+  else if(e.type==='motif'){let p=piece;const M=p==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN;if(!M[e.motif]){p=piece==='lunette'?'cadran':'lunette';}
+    poser(p,e.motif,e.params);msg=`${e.nom} → ${p}${p!==piece?' (ce motif n\'existe que sur le '+p+')':''} : ${decrireRecette(e)}.`;}
+  else if(e.type==='ia'){const sujet=e.sujet||e.nom;BASRELIEF[piece]=null;poser(piece,'image',null,{sujet});
+    msg=`${e.nom} : décor figuratif, il passe par le bas-relief IA. Sujet prérempli (« ${sujet} ») : clique « Générer le relief ».`;}
+  else if(e.type==='ornement'){for(const t of e.ornements){if(state.ornements.length>=6)break;state.ornements.push({type:t,params:Object.fromEntries(Object.entries(ORN[t].r).map(([a,q])=>[a,q[2]]))});}
+    listeOrnements();msg=`${e.nom} : volume qui sort de la silhouette, ajouté aux volumes 3D de la lunette. Clique « Construire les volumes ».`;}
+  else{msg=e.note||'';if(e.approche){appliquerEntree({...e.approche,nom:e.nom},piece);msg+=' Relief le plus proche appliqué : '+decrireRecette(e.approche)+'.';}}
+  note.textContent=msg;}
+function initEncyclopedie(){const L=document.getElementById('encListe'),Q=document.getElementById('encQ'),S=document.getElementById('encSec'),PI=document.getElementById('encPiece');
+  if(!ENC){L.innerHTML='<div class="it">Encyclopédie indisponible.</div>';return;}
+  S.innerHTML='<option value="">Toutes les sections ('+ENC.entrees.length+')</option>'+Object.entries(ENC.sections).map(([k,v])=>`<option value="${k}">${k}. ${v}</option>`).join('');
+  const idx=ENC.entrees.map(e=>plat(e.nom+' '+(e.sujet||'')+' '+(e.type==='parametrique'?FAMILLES[e.motif].modes[e.params.mode||0]:e.motif||'')));
+  function lister(){const q=plat(Q.value).split(/\s+/).filter(Boolean),sec=S.value;L.innerHTML='';let n=0;
+    ENC.entrees.forEach((e,i)=>{if(sec&&String(e.section)!==sec)return;if(q.length&&!q.every(w=>idx[i].includes(w)))return;n++;
+      const d=document.createElement('div');d.className='it';const [lib,cl]=TYPES_ENC[e.type];
+      d.innerHTML=`<span></span><span class="ty ${cl}">${lib}</span>`;d.firstChild.textContent=e.nom;d.title=decrireRecette(e);
+      d.onclick=()=>appliquerEntree(e,PI.value);L.appendChild(d);});
+    if(!n)L.innerHTML='<div class="it">Aucune entrée. Le concierge peut l\'interpréter : décris-la plus haut.</div>';}
+  Q.oninput=lister;S.onchange=lister;lister();}
+
+// ───────────────────────────── volumes 3D (moteur Blender en coulisse) ─────────────────────────────
+// [min,max,defaut,pas,libelle] : IDENTIQUE a app/montre_blender.py TYPES
+const ORN = {
+  bille:    {nom:'Billes', r:{n:[1,200,48,1,'nombre'], taille:[.4,5,1.2,.05,'taille mm'], zone:[0,2,0,1,'zone'], variation:[0,1,.4,.05,'variation'], rangee:[0,1,.5,.01,'position'], dispersion:[0,1,.3,.05,'dispersion'], graine:[1,999,3,1,'variante']}},
+  pointe:   {nom:'Pointes', r:{n:[1,80,16,1,'nombre'], zone:[0,2,0,1,'zone'], taille:[.6,3,1.6,.05,'base mm'], hauteur:[.5,5,2.2,.05,'hauteur mm'], variation:[0,1,.3,.05,'variation'], rangee:[0,1,.55,.01,'position'], graine:[1,999,5,1,'variante']}},
+  etoile:   {nom:'Étoiles', r:{n:[1,24,4,1,'nombre'], taille:[1,10,3.5,.1,'taille mm'], branches:[4,6,4,1,'branches'], hauteur:[.3,4,1.2,.05,'hauteur mm'], zone:[0,2,0,1,'zone'], rangee:[0,1,.5,.01,'position'], graine:[1,999,9,1,'variante']}},
+  grappe:   {nom:'Grappe (bulles)', r:{densite:[.2,1,.7,.05,'densité'], taille:[.6,4,2.2,.05,'taille maxi mm'], pointes:[0,24,8,1,'pointes'], hauteur_pointes:[1,6,3.5,.1,'hauteur pointes mm'], zone:[0,2,2,1,'zone'], graine:[1,999,17,1,'variante']}},
+  coque:    {nom:'Coque ajourée', r:{epaisseur:[1,4,2,.05,'épaisseur mm'], trous:[8,80,32,1,'alvéoles'], ondulation:[0,1,.6,.05,'ondulation'], zone:[0,2,2,1,'zone'], graine:[1,999,21,1,'variante']}},
+  tentacule:{nom:'Tentacules', r:{n:[1,8,4,1,'nombre'], epaisseur:[.6,3,1.6,.05,'épaisseur mm'], longueur:[.08,.45,.22,.01,'longueur'], ondulations:[1,6,2,1,'ondulations'], ventouses:[0,1,1,1,'ventouses'], graine:[1,999,13,1,'variante']}},
+};
+state.ornements=[]; state.fusion=.5; let mOrn=null;
+function listeOrnements(){const L=document.getElementById('ornListe');L.innerHTML='';
+  state.ornements.forEach((g,i)=>{const d=document.createElement('div');d.className='grp';d.innerHTML=`<div class="tete">${ORN[g.type].nom}<button class="btn">retirer</button></div>`;
+    d.querySelector('button').onclick=()=>{state.ornements.splice(i,1);listeOrnements();};
+    for(const [k,[lo,hi,def,pas,lib]] of Object.entries(ORN[g.type].r)){const r=document.createElement('div');const v=g.params[k]??def;
+      if(k==='zone'){r.className='reg case';r.innerHTML=`<label>zone</label><select style="margin:0"><option value="0">biseau</option><option value="1">face avant</option><option value="2">face avant + biseau</option></select>`;const se=r.querySelector('select');se.value=String(v);se.onchange=()=>g.params[k]=+se.value;}
+      else if(CASES.has(k)){r.className='reg case';r.innerHTML=`<label>${lib}</label><input type="checkbox" ${v?'checked':''}>`;r.querySelector('input').onchange=e=>g.params[k]=e.target.checked?1:0;}
+      else{r.className='reg';r.innerHTML=`<label>${lib}</label><input type="range" min="${lo}" max="${hi}" step="${pas}" value="${v}"><output>${(+v).toFixed(pas<1?2:0)}</output>`;
+        const inp=r.querySelector('input'),o=r.querySelector('output');inp.oninput=()=>{g.params[k]=+inp.value;o.textContent=(+inp.value).toFixed(pas<1?2:0);};}
+      d.appendChild(r);}
+    L.appendChild(d);});}
+for(const [k,v] of Object.entries(ORN)){const b=document.createElement('button');b.className='btn';b.textContent='+ '+v.nom;
+  b.onclick=()=>{if(state.ornements.length>=6)return;state.ornements.push({type:k,params:Object.fromEntries(Object.entries(v.r).map(([a,q])=>[a,q[2]]))});listeOrnements();};
+  document.getElementById('ornAjout').appendChild(b);}
+const fu=document.getElementById('ornFusion');fu.oninput=()=>{state.fusion=+fu.value;document.getElementById('ornFusionV').textContent=(+fu.value).toFixed(2);};
+async function construireOrnements(){const et=document.getElementById('ornEtat'),go=document.getElementById('ornGo');
+  if(!state.ornements.length){if(mOrn){groupeLunette.remove(mOrn);mOrn=null;}et.textContent='Aucun ornement.';return;}
+  go.disabled=true;et.textContent='Construction des volumes en cours (de 10 à 40 s selon la complexité)…';
+  try{const r=await (await fetch(AI_BASE+'/api/montre/ornements',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({ornements:state.ornements.map(g=>({type:g.type,...g.params})),fusion:state.fusion})})).json();
+    if(!r.ok)throw new Error(r.note||'refus');
+    const bin=Uint8Array.from(atob(r.stl_b64),c=>c.charCodeAt(0)).buffer, g=new STLLoader().parse(bin); g.computeVertexNormals();
+    if(mOrn){groupeLunette.remove(mOrn);mOrn.geometry.dispose();} mOrn=new THREE.Mesh(g,alu); groupeLunette.add(mOrn);
+    et.textContent=`${r.primitives} volumes fusionnés, ${r.volume_mm3} mm³, ${r.aretes_ouvertes===0?'surface fermée':r.aretes_ouvertes+' arêtes ouvertes'}, ${(r.ms_total/1000).toFixed(1)} s.`;}
+  catch(e){et.textContent='Échec : '+(e.message||e)+' (le serveur du studio tourne-t-il ?)';}
+  finally{go.disabled=false;}}
+// ── Extravagance : styles complets (volumes + cadran assorti) ──
+const EXTRAVAGANCE={
+  'Bouillonnement':{orn:[{type:'grappe',params:{densite:.85,taille:2.6,pointes:10,hauteur_pointes:4,zone:2,graine:17}}],fusion:.35,
+    cadran:{motif:'bulles',params:{nombre:26,taille:3.2,cratere:1,relief:.9,graine:5}}},
+  'Cosmique':{orn:[{type:'coque',params:{epaisseur:2.2,trous:30,ondulation:.7,zone:2,graine:21}},{type:'etoile',params:{n:3,taille:8,branches:4,hauteur:3,rangee:.5,zone:2,graine:9}},{type:'bille',params:{n:7,taille:4,variation:.6,rangee:.5,dispersion:.9,zone:2,graine:3}}],fusion:.6,
+    cadran:{motif:'etoiles',params:{nombre:9,taille:1.8,relief:.9,graine:11}}},
+  'Kraken ajouré':{orn:[{type:'coque',params:{epaisseur:2.6,trous:22,ondulation:1,zone:2,graine:33}},{type:'tentacule',params:{n:3,epaisseur:2.4,longueur:.3,ondulations:2,ventouses:1,graine:13}}],fusion:.7,
+    cadran:{motif:'vagues',params:{longueur:2.2,ondulation:1.4,concentriques:0,relief:.8}}},
+};
+for(const [nom,st] of Object.entries(EXTRAVAGANCE)){const b=document.createElement('button');b.className='btn';b.textContent=nom;
+  b.onclick=()=>{state.ornements=st.orn.map(g=>({type:g.type,params:{...Object.fromEntries(Object.entries(ORN[g.type].r).map(([a,q])=>[a,q[2]])),...g.params}}));
+    state.fusion=st.fusion;document.getElementById('ornFusion').value=st.fusion;document.getElementById('ornFusionV').textContent=st.fusion.toFixed(2);
+    if(state.aiguilles<1.2){state.aiguilles=1.2;const a=document.getElementById('aigH');a.value='1.2';a.onchange();}
+    appliquer({cadran:st.cadran});listeOrnements();construireOrnements();};
+  document.getElementById('extra').appendChild(b);}
+document.getElementById('ornGo').onclick=construireOrnements;
+document.getElementById('ornVider').onclick=()=>{state.ornements=[];listeOrnements();construireOrnements();};
+
+// ───────────────────────────── fabrication : pieces reelles ─────────────────────────────
+// Peau de relief FERMEE : surface du motif + meme surface enfoncee de 0,35 mm sous
+// la piece (ancrage), reliees par les bords. Blender l'unit a la vraie piece.
+const ANCRAGE=.35;
+function grilleFermee(N,M,pos){const P=new Float32Array(N*M*3);for(let i=0;i<N;i++)for(let j=0;j<M;j++)P.set(pos(i,j),(i*M+j)*3);
+  const I=[];for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M;j++){const j2=(j+1)%M,a=i*M+j,b=i2*M+j,c=i*M+j2,d=i2*M+j2;diag(P,a,b,c,d,I);}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setIndex(I);return g;}
+function peauLunette(){const {N,M}=grilleMotif();
+  const g=grilleFermee(N,2*M,(i,j)=>{const dedans=j>=M,jj=dedans?2*M-1-j:j;return pointZone(i,N,jj,M,dedans?-ANCRAGE:undefined);});
+  return orienter(pos(g));}
+function peauCadran(){const {N,M}=resCadran(),R0=C_R0+.3,R1=11.6,YB=C_Y-ANCRAGE/2;
+  const g=grilleFermee(N,M+2,(i,j)=>{const th=2*Math.PI*i/N;
+    if(j<M){const r=R0+(R1-R0)*j/(M-1),x=r*Math.cos(th),z=r*Math.sin(th);return [x,C_Y+reliefCadranSansLogo(x,z),z];}
+    const r=j===M?R1:R0;return [r*Math.cos(th),YB,r*Math.sin(th)];});
+  casserAretes(g,N,M,2,M+2);ajouterLogo(g,N,M,M+2);ajouterIndexRelief(g,N,M,M+2);                       // memes aretes cassees que l'apercu, logo net
+  return orienter(pos(g));}
+function b64stl(geom){const buf=new STLExporter().parse(new THREE.Mesh(geom),{binary:true});const u=new Uint8Array(buf.buffer||buf);
+  let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
+const REELLES={lunette:null,cadran:null}; let vueReelle=false;
+function afficherReelles(v){vueReelle=v&&!!(REELLES.lunette||REELLES.cadran);
+  for(const [m,r] of [[mLunette,REELLES.lunette],[mCadran,REELLES.cadran]]){if(r){r.visible=vueReelle;if(m)m.visible=!vueReelle;}}
+  if(mOrn)mOrn.visible=!(vueReelle&&REELLES.lunette);
+  if(window.__signature)window.__signature.visible=!(vueReelle&&REELLES.cadran); // le vrai cadran porte deja sa signature
+  const b=document.getElementById('fabVue');b.disabled=!(REELLES.lunette||REELLES.cadran);b.textContent=vueReelle?'Voir l\'aperçu':'Voir les pièces réelles';}
+async function produire(){const et=document.getElementById('fabEtat'),go=document.getElementById('fabGo');go.disabled=true;const lignes=[];
+  for(const piece of ['lunette','cadran']){
+    et.textContent=`Fabrication de ${piece==='lunette'?'la lunette réelle':'du cadran réel'}… (${lignes.join(' · ')||'environ 30 s par pièce'})`;
+    try{const corps={piece,peau_b64:b64stl(piece==='lunette'?peauLunette():peauCadran())};
+      if(piece==='lunette'&&mOrn)corps.ornements_b64=b64stl(pos(mOrn.geometry));
+      const r=await (await fetch(AI_BASE+'/api/montre/fabriquer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corps)})).json();
+      if(!r.ok)throw new Error(r.note||'refus');
+      const g=new STLLoader().parse(Uint8Array.from(atob(r.stl_b64),c=>c.charCodeAt(0)).buffer);g.computeVertexNormals();
+      if(REELLES[piece]){(piece==='lunette'?groupeLunette:groupeCadran).remove(REELLES[piece]);}
+      REELLES[piece]=new THREE.Mesh(g,piece==='lunette'?alu:titane);(piece==='lunette'?groupeLunette:groupeCadran).add(REELLES[piece]);
+      lignes.push(`${piece} ${r.volume_mm3} mm³, ${r.aretes_ouvertes===0?'fermée':r.aretes_ouvertes+' arêtes ouvertes'}, ${(r.ms_total/1000).toFixed(0)} s`);}
+    catch(e){lignes.push(piece+' : échec ('+(e.message||e)+')');}}
+  et.textContent='Pièces réelles : '+lignes.join(' · ');afficherReelles(true);go.disabled=false;}
+document.getElementById('fabGo').onclick=produire;
+document.getElementById('fabVue').onclick=()=>afficherReelles(!vueReelle);
+
+// ───────────────────────────── export ─────────────────────────────
+function telecharger(mesh,nom){const s=new STLExporter().parse(mesh,{binary:true});const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([s],{type:'model/stl'}));a.download=nom;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),4000);}
+document.getElementById('expL').onclick=()=>{if(vueReelle&&REELLES.lunette)return telecharger(REELLES.lunette,`lunette-reelle-${state.lunette.motif}.stl`);const g=mOrn?mergeGeometries([pos(mLunette.geometry),pos(mOrn.geometry)]):mLunette.geometry;
+  telecharger(new THREE.Mesh(g),`lunette-${state.lunette.motif}${mOrn?'-ornements':''}.stl`);};
+document.getElementById('expC').onclick=()=>telecharger(vueReelle&&REELLES.cadran?REELLES.cadran:mCadran,`cadran-${vueReelle&&REELLES.cadran?'reel-':''}${state.cadran.motif}.stl`);
+
+// ───────────────────────────── concierge ─────────────────────────────
+const AI_BASE = '';   // publie: pas de serveur local, repli hors ligne;
+const fil=document.getElementById('fil');
+function bulle(qui,txt,cls=''){const b=document.createElement('div');b.className='bulle '+qui+' '+cls;b.textContent=txt;fil.appendChild(b);fil.scrollTop=fil.scrollHeight;return b;}
+function borne(M,motif,params){const out=defauts(M[motif]),refus=[];
+  for(const [k,v] of Object.entries(params||{})){const r=M[motif].r[k];if(!r){refus.push('réglage inconnu : '+k);continue;}
+    let x=+v; if(isNaN(x)){refus.push(k+' illisible');continue;} if(x<r[0]||x>r[1]){refus.push(`${k} ramené dans [${r[0]}, ${r[1]}]`);x=Math.min(r[1],Math.max(r[0],x));}
+    out[k]=r[3]>=1?Math.round(x):x;}
+  return {params:out,refus};}
+function appliquer(d){const faits=[],refus=[...(d.rejets||[])];
+  for(const [piece,M] of [['lunette',MOTIFS_LUNETTE],['cadran',MOTIFS_CADRAN]]){const b=d[piece]; if(!b)continue;
+    if(!M[b.motif]){refus.push(`${piece} : motif inconnu ${b.motif}`);continue;}
+    const {params,refus:r}=borne(M,b.motif,b.params); state[piece]={motif:b.motif,params,...(piece==='lunette'?{zone:['biseau','face','tout'].includes(b.zone)?b.zone:(state.lunette.zone||'biseau')}:{})};
+    if(piece==='lunette')document.getElementById('zoneL').value=state.lunette.zone; refus.push(...r.map(x=>piece+' : '+x));
+    if(b.motif==='image'&&b.sujet){state[piece].sujet=b.sujet;genererBasRelief(piece,b.sujet);}
+    faits.push(`${piece} : ${M[b.motif].nom.toLowerCase()}${b.sujet?' « '+b.sujet+' »':''}`); panneau(piece); reconstruire(piece);}
+  if(Array.isArray(d.ornements)){state.ornements=d.ornements.filter(g=>ORN[g.type]).slice(0,6).map(g=>{const {params,refus:r}=borne(ORN,g.type,g.params);refus.push(...r);return {type:g.type,params};});
+    listeOrnements(); faits.push('ornements : '+(state.ornements.map(g=>ORN[g.type].nom.toLowerCase()).join(', ')||'aucun')); construireOrnements();}
+  return {faits,refus};}
+// Repli hors ligne : meme dictionnaire que montre_concierge.local (sans IA, et il le dit).
+const MOTS=[[['terrasse','rizi','strat','couche','vue de haut'],'cadran','terrasses'],[['montagn','alpes','sommet','massif'],'cadran','montagnes'],[['topograph','courbes de niveau','carte'],'cadran','topographie'],
+  [['etoile','étoile','ciel','nuit','constellation','cosmos'],'cadran','etoiles'],[['guilloch','rosace','spirograph'],'cadran','guilloche'],
+  [['soleil','sunburst','rayonn'],'cadran','soleil'],[['perle','pointill','points'],'lunette','perles'],[['damier','echiquier','échiquier','carreau'],'lunette','damier'],
+  [['dragon','reptile'],'lunette','dragon'],[['ecaille','écaille','poisson','serpent'],'lunette','ecailles'],[['torsad','spiral','vrill','tresse'],'lunette','torsade'],
+  [['clou','pyramide','diamant','pointe'],'lunette','clous'],[['cannel','nervur','strie','rayons','crant'],'lunette','rayons'],
+  [['vague','ocean','océan','mer ','ondul','houle'],'deux','vagues'],[['lisse','sobre','minimal','épuré','epure'],'deux','lisse']];
+function local(msg){const p=' '+msg.toLowerCase()+' ', seg={lunette:'',cadran:'',commun:''};
+  for(const m of p.split(/[,.;]| et | avec /)){if(/lunette|biseau|contour/.test(m))seg.lunette+=' '+m;else if(/cadran/.test(m))seg.cadran+=' '+m;else seg.commun+=' '+m;}
+  const choix={};
+  for(const piece of ['lunette','cadran'])for(const [mots,,motif] of MOTS)if(mots.some(w=>seg[piece].includes(w))&&(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[motif]){choix[piece]=motif;break;}
+  for(const [mots,def,motif] of MOTS)if(mots.some(w=>seg.commun.includes(w)))for(const c of def==='deux'?['lunette','cadran']:[def])if(!choix[c])choix[c]=motif;
+  const d={ok:true,moteur:'navigateur',rejets:[]},dit=[];
+  for(const [piece,motif] of Object.entries(choix)){const txt=seg[piece].trim()?seg[piece]:seg.commun,M=(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[motif].r,params={};
+    const fort=/profond|marqu|fort|volume/.test(txt),fin=/discret|fin |l[ée]ger|subtil/.test(txt),nb=(txt.match(/\b\d{1,3}\b/)||[])[0];
+    if(M.relief)params.relief=fort?M.relief[1]:fin?(M.relief[0]+M.relief[2])/2:M.relief[2];
+    for(const c of ['n','nombre','pics','petales'])if(M[c]&&nb){params[c]=+nb;break;}
+    d[piece]={motif,params};dit.push(piece+' '+motif);}
+  d.reponse=dit.length?'Hors ligne, j\'ai reconnu : '+dit.join(', ')+'.':'Hors ligne et rien reconnu. Essaie : cadran montagnes et lunette perles.';
+  return d;}
+async function envoyer(t){t=(t||document.getElementById('msg').value).trim();if(!t)return;
+  document.getElementById('msg').value='';const go=document.getElementById('go');go.disabled=true;
+  bulle('moi',t);const att=bulle('lui','Je regarde…','pense');let d;
+  try{const ctl2=new AbortController();const to=setTimeout(()=>ctl2.abort(),45000);
+    const r=await fetch(AI_BASE+'/api/montre/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:ctl2.signal,
+      body:JSON.stringify({message:t,etat:state})});clearTimeout(to);d=await r.json();
+    if(!d.ok)throw new Error(d.note||'refus');}
+  catch(e){d=local(t);d.reponse='Le moteur du studio ne répond pas ('+(e.message||e)+'). '+d.reponse;}
+  att.remove();const b=bulle('lui',d.reponse||'Voilà.');const {faits,refus}=appliquer(d);
+  const tg=document.createElement('div');tg.className='tags';faits.forEach(f=>{const s=document.createElement('span');s.className='tag';s.textContent=f;tg.appendChild(s);});
+  refus.slice(0,6).forEach(f=>{const s=document.createElement('span');s.className='tag refus';s.textContent=f;tg.appendChild(s);});b.appendChild(tg);
+  document.getElementById('etat').textContent=d.moteur==='local'?'Réponse du dictionnaire du serveur : aucun fournisseur IA configuré sur ce poste.'
+    :d.moteur==='navigateur'?'Mode hors ligne : dictionnaire du navigateur.':'Réponse de l\'IA ('+d.moteur+'), bornée puis construite par le studio. Tout reste réglable à la main.';
+  go.disabled=false;}
+document.getElementById('go').onclick=()=>envoyer();
+document.getElementById('msg').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();envoyer();}});
+['un cadran montagnes au lever du soleil','une lunette perlée et un ciel étoilé','vagues partout, très marquées','lunette torsadée, cadran guilloché','sobre et lisse'].forEach(t=>{
+  const b=document.createElement('button');b.className='btn';b.textContent=t;b.onclick=()=>envoyer(t);document.getElementById('ex').appendChild(b);});
+bulle('lui','Décris la montre que tu veux : un motif pour la lunette, un motif pour le cadran. Je règle, le studio construit et vérifie les reliefs.');
+chargerBibliotheque(); // apres AI_BASE (declare plus haut dans le concierge)
+window.__studio={cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');for(const m of BRUTS)m.material=on?brut:alu;if(mLunette)mLunette.material=[alu,on?brutCreux:alu];};
+document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
+for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
+majPresentation();
+// lien direct vers une vue (#vue=vitrine), utile aussi pour les rendus automatiques
+// liens de test : #vue=vitrine, #cam=x,y,z,cx,cy,cz, #appliquer={json comme le concierge}, combinables par &
+setTimeout(()=>{const H=Object.fromEntries(location.hash.slice(1).split('&').filter(Boolean).map(x=>{const i=x.indexOf('=');return [x.slice(0,i),decodeURIComponent(x.slice(i+1))];}));
+  if(H.appliquer){const d=JSON.parse(H.appliquer);if(d.lunette&&d.lunette.zone){state.lunette.zone=d.lunette.zone;document.getElementById('zoneL').value=d.lunette.zone;}appliquer(d);}
+  if(H.ia){const [pc,id]=H.ia.split(':');if(H.zone){state.lunette.zone=H.zone;document.getElementById('zoneL').value=H.zone;}appliquerIA(pc,id);}
+  if(H.index!=null){state.index=+H.index;document.getElementById('indexC').value=H.index;reconstruire('cadran');}
+  if(H.vue)vueDe(H.vue);
+  if(H.cam){const v=H.cam.split(',').map(Number);cam.up.set(0,1,0);cam.position.set(v[0],v[1],v[2]);ctl.target.set(v[3],v[4],v[5]);ctl.update();}},300);
+{const ic=document.getElementById('indexC');state.index=+ic.value;ic.onchange=()=>{state.index=+ic.value;reconstruire('cadran');};}
+initEncyclopedie();   // apres ORN : le catalogue decrit aussi les volumes 3D
+</script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=montre-3d-studio" alt="" width="1" height="1" loading="eager">
+</body>
+</html>
