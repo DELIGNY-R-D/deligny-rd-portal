@@ -63,10 +63,11 @@ BANDEAU = (
     '<p id="montre-demo-publique" '
     'style="margin:0;padding:10px 16px;background:#f3efe6;color:#4a4034;'
     'font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6">'
-    'Demonstration publique : le moteur de motifs, la 3D sur les vraies pieces et '
-    'l&#x27;encyclopedie des 550 surfaces fonctionnent ici. L&#x27;assistant, les '
-    'bas-reliefs generes et les ornements Blender appartiennent au studio local et '
-    'ne sont pas disponibles sur cette page.</p>')
+    'Demonstration publique. Le moteur de motifs, la 3D sur les vraies pieces, '
+    'l&#x27;encyclopedie des 550 surfaces et l&#x27;export STL fonctionnent ici. '
+    'Le concierge repond en <b>mode limite</b> : il lit votre phrase avec un '
+    'dictionnaire de mots, sans assistant. Les bas-reliefs generes et les ornements '
+    'Blender, eux, demandent le studio local.</p>')
 
 
 def empreinte(chemin: str) -> str:
@@ -117,6 +118,33 @@ def transformer(html: str) -> tuple[str, list]:
         raise SystemExit("ECHEC : AI_BASE introuvable. La source a change de facon "
                          "de joindre son serveur : relire avant de republier.")
     faits.append("AI_BASE neutralise (concierge en repli hors ligne)")
+
+    # Le concierge SAIT travailler hors ligne (dictionnaire de mots, sans IA) et
+    # il le fait bien : il reconnait « ciel etoile » et l'applique. Mais il
+    # passait d'abord par le reseau, echouait, et affichait au visiteur
+    # « Unexpected token '<' ... is not valid JSON ». Une trace technique brute
+    # dans une page client est un defaut, pas un detail. En public, on saute
+    # l'appel et on annonce le mode limite (constate le 08/10/2026).
+    avant = html
+    html = html.replace(
+        "  try{const ctl2=new AbortController();",
+        "  try{if(!AI_BASE)throw new Error('DEMO_PUBLIQUE');const ctl2=new AbortController();", 1)
+    html = html.replace(
+        "catch(e){d=local(t);d.reponse='Le moteur du studio ne répond pas ('+(e.message||e)+'). '+d.reponse;}",
+        "catch(e){d=local(t);d.reponse=(e&&e.message==='DEMO_PUBLIQUE'"
+        "?'Mode limité : je lis votre phrase avec un dictionnaire de mots, sans assistant. '"
+        ":'Le moteur du studio ne répond pas ('+(e.message||e)+'). ')+d.reponse;}", 1)
+    if html == avant:
+        raise SystemExit("ECHEC : le chemin du concierge a change, relire avant de republier.")
+    faits.append("concierge en mode limite, sans appel reseau")
+
+    # Meme chose pour la bibliotheque de bas-reliefs : inutile d'appeler.
+    avant = html
+    html = html.replace("async function chargerBibliotheque(){try{",
+                        "async function chargerBibliotheque(){if(!AI_BASE)return;try{", 1)
+    if html == avant:
+        raise SystemExit("ECHEC : chargerBibliotheque introuvable.")
+    faits.append("bibliotheque de bas-reliefs non appelee en public")
 
     m = re.search(r"<body[^>]*>", html)
     if not m:

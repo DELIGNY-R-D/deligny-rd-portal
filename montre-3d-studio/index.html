@@ -80,7 +80,7 @@ select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);
 </script>
 </head>
 <body>
-<p id="montre-demo-publique" style="margin:0;padding:10px 16px;background:#f3efe6;color:#4a4034;font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6">Demonstration publique : le moteur de motifs, la 3D sur les vraies pieces et l&#x27;encyclopedie des 550 surfaces fonctionnent ici. L&#x27;assistant, les bas-reliefs generes et les ornements Blender appartiennent au studio local et ne sont pas disponibles sur cette page.</p>
+<p id="montre-demo-publique" style="margin:0;padding:10px 16px;background:#f3efe6;color:#4a4034;font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6">Demonstration publique. Le moteur de motifs, la 3D sur les vraies pieces, l&#x27;encyclopedie des 550 surfaces et l&#x27;export STL fonctionnent ici. Le concierge repond en <b>mode limite</b> : il lit votre phrase avec un dictionnaire de mots, sans assistant. Les bas-reliefs generes et les ornements Blender, eux, demandent le studio local.</p>
 <header><h1>Montre 3D Studio</h1><span class="sub">DELIGNY R&amp;D · Montre T · personnalisation 3D assistée par IA : lunette et cadran</span></header>
 <main>
 <aside>
@@ -1038,13 +1038,13 @@ const JEU_LUNETTE=.01;groupeLunette.position.y=JEU_LUNETTE;   // 0,01 mm : la li
 const verre=new THREE.Mesh(new THREE.CylinderGeometry(15,15,1.2,128),
   // pas de « transmission » : three.js la calcule dans une image reduite, ce qui
   // rend flou tout ce qu'on voit a travers (cadran, aiguilles). Verre net + reflets.
-  new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0,transparent:true,opacity:.14,clearcoat:1,clearcoatRoughness:0,ior:1.77,reflectivity:1,specularIntensity:1,envMapIntensity:3.2,depthWrite:false})   /* saphir : reflets nets de l'environnement */);
+  new THREE.MeshPhysicalMaterial({color:0xffffff,metalness:0,roughness:0,transparent:true,opacity:.14,clearcoat:1,clearcoatRoughness:0,ior:1.77,reflectivity:1,specularIntensity:1,envMapIntensity:1.6,depthWrite:false})   /* saphir : reflets nets de l'environnement */);
 verre.position.y=5.865; groupeLunette.add(verre);
 // REFLET DU VERRE : une couche « miroir » additive juste sous la face du dessus. Metal noir a 18 %
 // = la reflectance d'un saphir sous incidence moyenne ; additive : elle ajoute le reflet de
 // l'environnement sans voiler le cadran (le verre transparent, lui, ne reflechissait presque rien).
 const refletVerre=new THREE.Mesh(new THREE.CircleGeometry(15,128),new THREE.MeshStandardMaterial({color:0x2e2e2e,metalness:1,roughness:.02,
-  envMapIntensity:1.6,transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
+  envMapIntensity:.8,   /* reflet reduit de moitie (08/10) */transparent:true,blending:THREE.AdditiveBlending,depthWrite:false}));
 refletVerre.rotation.x=-Math.PI/2;refletVerre.position.y=6.462;groupeLunette.add(refletVerre);
 // aiguilles a 10 h 10
 const orRoseCache=new THREE.MeshStandardMaterial({color:0xd8b45c,metalness:1,roughness:.3});   // laiton
@@ -1262,7 +1262,7 @@ let _tic=0;(function boucle(){ctl.update();if((_tic++&15)===0)ombres();renderer.
 // ───────────────────────────── panneau ─────────────────────────────
 // ── Bibliotheque : chaque bas-relief genere devient un motif (« IA : sujet ») ──
 const BIB={lunette:[],cadran:[]};
-async function chargerBibliotheque(){try{const r=await (await fetch(AI_BASE+'/api/montre/bibliotheque',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"action":"liste"}'})).json();
+async function chargerBibliotheque(){if(!AI_BASE)return;try{const r=await (await fetch(AI_BASE+'/api/montre/bibliotheque',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"action":"liste"}'})).json();
   if(!r.ok)return; BIB.lunette=r.motifs.filter(m=>m.piece==='lunette'); BIB.cadran=r.motifs.filter(m=>m.piece==='cadran');
   for(const piece of ['lunette','cadran'])remplirSelect(document.getElementById(piece==='lunette'?'selL':'selC'),piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN,piece);
   panneau('lunette');panneau('cadran');}catch(e){}}
@@ -1541,11 +1541,11 @@ function local(msg){const p=' '+msg.toLowerCase()+' ', seg={lunette:'',cadran:''
 async function envoyer(t){t=(t||document.getElementById('msg').value).trim();if(!t)return;
   document.getElementById('msg').value='';const go=document.getElementById('go');go.disabled=true;
   bulle('moi',t);const att=bulle('lui','Je regarde…','pense');let d;
-  try{const ctl2=new AbortController();const to=setTimeout(()=>ctl2.abort(),45000);
+  try{if(!AI_BASE)throw new Error('DEMO_PUBLIQUE');const ctl2=new AbortController();const to=setTimeout(()=>ctl2.abort(),45000);
     const r=await fetch(AI_BASE+'/api/montre/chat',{method:'POST',headers:{'Content-Type':'application/json'},signal:ctl2.signal,
       body:JSON.stringify({message:t,etat:state})});clearTimeout(to);d=await r.json();
     if(!d.ok)throw new Error(d.note||'refus');}
-  catch(e){d=local(t);d.reponse='Le moteur du studio ne répond pas ('+(e.message||e)+'). '+d.reponse;}
+  catch(e){d=local(t);d.reponse=(e&&e.message==='DEMO_PUBLIQUE'?'Mode limité : je lis votre phrase avec un dictionnaire de mots, sans assistant. ':'Le moteur du studio ne répond pas ('+(e.message||e)+'). ')+d.reponse;}
   att.remove();const b=bulle('lui',d.reponse||'Voilà.');const {faits,refus}=appliquer(d);
   const tg=document.createElement('div');tg.className='tags';faits.forEach(f=>{const s=document.createElement('span');s.className='tag';s.textContent=f;tg.appendChild(s);});
   refus.slice(0,6).forEach(f=>{const s=document.createElement('span');s.className='tag refus';s.textContent=f;tg.appendChild(s);});b.appendChild(tg);
