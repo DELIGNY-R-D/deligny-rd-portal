@@ -63,14 +63,23 @@ CSP = ("default-src 'none'; "
        "upgrade-insecure-requests")
 
 BANDEAU = (
-    '<p id="montre-demo-publique" '
-    'style="margin:0;padding:10px 16px;background:#f3efe6;color:#4a4034;'
+    '<div id="montre-demo-publique" '
+    'style="display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 16px;'
+    'margin:0;padding:10px 16px;background:#f3efe6;color:#4a4034;'
     'font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6">'
+    # Le studio est une application plein ecran : sans ce lien, le visiteur qui
+    # y entre depuis l'accueil n'a aucun chemin de retour, et seul le bouton
+    # « precedent » du navigateur l'en sort. Une demonstration dont on ne
+    # revient pas est une impasse.
+    '<a href="/" style="flex:0 0 auto;color:#4a4034;font-weight:600;'
+    'text-decoration:none;border-bottom:1px solid currentColor">'
+    '&larr; DELIGNY R&amp;D</a>'
+    '<span style="flex:1 1 320px;min-width:260px">'
     'Demonstration publique. Le moteur de motifs, la 3D sur les vraies pieces, '
     'l&#x27;encyclopedie des 550 surfaces et l&#x27;export STL fonctionnent ici. '
     'Le concierge repond en <b>mode limite</b> : il lit votre phrase avec un '
     'dictionnaire de mots, sans assistant. Les bas-reliefs generes et les ornements '
-    'Blender, eux, demandent le studio local.</p>')
+    'Blender, eux, demandent le studio local.</span></div>')
 
 
 def empreinte(chemin: str) -> str:
