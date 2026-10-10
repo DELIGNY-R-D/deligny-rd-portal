@@ -1,0 +1,23 @@
+#!/bin/sh
+# Trois réparations automatiques avant chaque commit, quel que soit l'outil (ou la
+# session) qui a régénéré les pages :
+#   1. la CSP du studio, dont les empreintes changent à chaque modif du moteur ;
+#   2. la balise de mesure d'audience, effacée par la régénération des gabarits ;
+#   3. le ?v=<empreinte> sur les CSS/JS locaux, pour que Cloudflare ne serve
+#      jamais une version périmée d'un asset modifié (voir deploy/cache-bust.py).
+# On ne remet en scène QUE les fichiers déjà mis en scène : jamais le travail en
+# cours d'une autre session ouverte sur le même dépôt.
+R="$(git rev-parse --show-toplevel)"
+python3 "$R/deploy/csp-studio.py"    || exit 0
+python3 "$R/deploy/inject-beacon.py" || exit 0
+python3 "$R/deploy/cache-bust.py"    || exit 0
+# --diff-filter=ACMR : ajouts, modifications, copies, renommages. JAMAIS les
+# suppressions. Sans ce filtre, un `git rm --cached` d'un fichier encore
+# present sur le disque etait ANNULE par ce crochet, silencieusement : la
+# suppression apparait en scene, le fichier existe, donc il etait re-ajoute.
+# Constate le 10/10/2026 en sortant trois .pyc de l'index ; seul le .gitignore
+# pose au meme moment a empeche la resurrection.
+git diff --name-only --cached --diff-filter=ACMR | while IFS= read -r f; do
+  [ -f "$R/$f" ] && git add -- "$f"
+done
+exit 0
