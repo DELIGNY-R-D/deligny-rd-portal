@@ -77,12 +77,46 @@ attendre_build() {
   done
 }
 
+# ── Quel commit la production sert-elle AVANT que l'on touche a quoi que ce
+# soit ? C'est la seule base honnete pour dire « ce qui n'est pas publie ».
+#
+# Le 09/10/2026, l'etape 8 a annonce « aucune page HTML dans ce lot » et le
+# script a affiche TERMINE sans avoir compare l'accueil, qui venait de changer.
+# Elle ne regardait que le DERNIER commit, et le changement etait dans un commit
+# fait a la main juste avant de lancer le script ; le dernier commit, celui du
+# script, ne portait que le sitemap. Le controle le plus important du script se
+# desactivait donc silencieusement des qu'on avait commite soi-meme.
+#
+# On ne prend pas `origin/main` comme base : main est ce qui est DECLARE, le
+# build est ce qui est SERVI, et l'incident du 08/10 a montre que les deux
+# divergent (build en echec, main en avance, production perimee). On prend donc
+# le commit du dernier build REUSSI.
+base_publiee() {
+  gh api "repos/$DEPOT/pages/builds?per_page=30" \
+     --jq 'map(select(.status == "built")) | .[0].commit // empty' 2>/dev/null || true
+}
+BASE_PUBLIEE=$(base_publiee)
+if [ -n "$BASE_PUBLIEE" ]; then
+  git cat-file -e "${BASE_PUBLIEE}^{commit}" 2>/dev/null || git fetch -q origin || true
+  git cat-file -e "${BASE_PUBLIEE}^{commit}" 2>/dev/null || BASE_PUBLIEE=""
+fi
+if [ -n "$BASE_PUBLIEE" ]; then
+  echo "   production servie depuis ${BASE_PUBLIEE:0:7} (dernier build reussi)"
+else
+  echo "   AVERTISSEMENT : commit servi par la production indeterminable."
+  echo "   L'etape 8 controlera TOUTES les pages au lieu des seules modifiees."
+fi
+
 echo "== 1/9  Non-regression du controle lui-meme =="
 # Un garde-fou qui s'est mis a taire les fautes est pire que pas de garde-fou :
 # on verifie d'abord qu'il alerte ET qu'il se tait quand il faut.
 python3 deploy/tests/test_verifie_fortress.py >/dev/null || {
-  echo "ARRET : le controle ne se comporte plus comme prevu (lancer le test pour voir)."; exit 1; }
-echo "   controle conforme"
+  echo "ARRET : le controle de forteresse ne se comporte plus comme prevu (lancer le test)."; exit 1; }
+# Ajoute le 09/10/2026 : ce test reproduit le defaut du jour meme, ou l'etape 8
+# ne voyait aucune page a controler alors que l'accueil venait de changer.
+python3 deploy/tests/test_verifie_pages_servies.py >/dev/null || {
+  echo "ARRET : le controle des pages servies ne selectionne plus ce qu'il faut (lancer le test)."; exit 1; }
+echo "   controles conformes"
 
 echo "== 2/9  Controle de la forteresse statique =="
 python3 deploy/verifie-fortress.py || { echo "ARRET : corriger les points bloquants."; exit 1; }
@@ -202,18 +236,29 @@ echo "== 8/9  Les pages servies sont-elles CELLES DU DEPOT ? =="
 # bonne page. On compare donc l'empreinte du corps servi a celle du fichier
 # local, l'injection Cloudflare mise a part. Un 200 ne prouve rien : c'est
 # exactement ce que repondait la page perimee du 08/10.
-if [ "$PAGES_POUSSEES" = oui ]; then
-  for i in $(seq 1 10); do
-    if python3 deploy/verifie-pages-servies.py; then break; fi
-    [ "$i" = "10" ] && { echo "ARRET : la production ne sert pas les pages de ce commit."
-                         echo "   Build reussi mais contenu perime : ne pas considerer la publication comme faite."
-                         exit 1; }
-    echo "   nouvelle tentative ($i/10)"
-    sleep 15
-  done
+#
+# Cette etape ne depend PLUS de `PAGES_POUSSEES`. Ce lancement peut n'avoir
+# rien a commiter et laisser pourtant des pages non servies : un commit fait a
+# la main avant le script, une poussee precedente dont le build a echoue. Ce
+# qu'on controle, c'est l'ecart entre ce que la production SERT et ce que le
+# depot contient, pas ce que cette execution a ecrit.
+CTRL=()
+if [ -n "$BASE_PUBLIEE" ]; then
+  CTRL=(--depuis "$BASE_PUBLIEE")
 else
-  echo "   rien a verifier"
+  # Base indeterminable : on elargit au lieu de se taire. Long, mais rare, et
+  # un controle lent vaut mieux qu'un controle absent.
+  while IFS= read -r f; do CTRL+=("$f"); done < <(git ls-files '*.html')
+  echo "   base inconnue : controle elargi a ${#CTRL[@]} page(s)"
 fi
+for i in $(seq 1 10); do
+  if python3 deploy/verifie-pages-servies.py "${CTRL[@]}"; then break; fi
+  [ "$i" = "10" ] && { echo "ARRET : la production ne sert pas les pages du depot."
+                       echo "   Build reussi mais contenu perime : ne pas considerer la publication comme faite."
+                       exit 1; }
+  echo "   nouvelle tentative ($i/10)"
+  sleep 15
+done
 
 echo "== 9/9  Controle du sitemap en production =="
 # Apres publication seulement : ces adresses sont deja en ligne, les sonder ne

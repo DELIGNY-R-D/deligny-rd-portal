@@ -18,9 +18,20 @@ comparaison. Tout le reste doit coincider a l'octet pres : si Cloudflare se met
 un jour a minifier le HTML, ce controle le dira au lieu de l'ignorer.
 
     python3 deploy/verifie-pages-servies.py [chemin.html ...]
+    python3 deploy/verifie-pages-servies.py --depuis <sha>
 
-Sans argument, controle les pages HTML du DERNIER COMMIT. Rend 0 seulement si
-toutes les pages demandees sont servies a l'identique.
+CE QUE « LES PAGES A CONTROLER » VEUT DIRE. Le 09/10/2026 ce controle a
+annonce « aucune page HTML dans ce lot » et publie.sh a affiche TERMINE sans
+avoir compare l'accueil, qui venait justement de changer : le changement
+etait dans un commit fait A LA MAIN avant de lancer le script, et le dernier
+commit, celui du script, ne portait que le sitemap. Un controle qui ne
+regarde que le dernier commit ne couvre donc QUE les publications ou l'on a
+laisse le script commiter, et il se tait dans les autres sans le dire.
+
+`--depuis <sha>` prend tout ce qui a change depuis le commit REELLEMENT
+publie en production, quel que soit le nombre de commits intermediaires.
+C'est la forme que publie.sh utilise. Sans argument, on retombe sur le
+dernier commit, utile a la main mais insuffisant pour une publication.
 """
 from __future__ import annotations
 
@@ -47,6 +58,28 @@ def pages_du_dernier_commit() -> list:
     return [p for p in out.split("\n") if p.endswith(".html")]
 
 
+def pages_depuis(sha: str) -> tuple:
+    """Pages HTML ajoutees ou modifiees entre `sha` et HEAD. Rend (pages, erreur).
+
+    Trois sorties distinctes, jamais une liste vide muette : la liste des pages,
+    « commit inconnu » (on ne peut rien affirmer, l'appelant doit s'arreter ou
+    elargir), ou une liste vide AVEC erreur None, qui signifie pour de bon
+    qu'aucune page n'a change.
+
+    Les suppressions sont ecartees (--diff-filter=ACMR) : une page supprimee n'a
+    plus de fichier local auquel comparer le servi.
+    """
+    connu = subprocess.run(["git", "cat-file", "-e", sha + "^{commit}"],
+                           capture_output=True)
+    if connu.returncode != 0:
+        return [], "commit %s inconnu du depot local" % sha[:12]
+    r = subprocess.run(["git", "diff", "--name-only", "--diff-filter=ACMR",
+                        sha, "HEAD"], capture_output=True, text=True)
+    if r.returncode != 0:
+        return [], (r.stderr.strip().split("\n")[-1] or "git diff a echoue")
+    return [p for p in r.stdout.split("\n") if p.endswith(".html")], None
+
+
 def empreinte(donnees: bytes) -> str:
     return hashlib.sha256(donnees).hexdigest()
 
@@ -71,7 +104,25 @@ def servie(chemin: str) -> tuple:
 
 def main(argv=None) -> int:
     argv = list(argv if argv is not None else sys.argv[1:])
-    pages = argv or pages_du_dernier_commit()
+    if "--depuis" in argv:
+        i = argv.index("--depuis")
+        if i + 1 >= len(argv):
+            print("   --depuis attend un commit")
+            return 2
+        sha = argv[i + 1]
+        pages, err = pages_depuis(sha)
+        if err:
+            # Fail-closed : ne pas rendre 0 sur une base qu'on ne sait pas lire,
+            # ce serait rejouer exactement la panne que ce controle existe pour
+            # attraper, en plus discret.
+            print("   REFUS : impossible d'etablir ce qui n'est pas publie (%s)" % err)
+            return 2
+        if not pages:
+            print("   aucune page HTML modifiee depuis %s, rien a comparer" % sha[:7])
+            return 0
+        print("   %d page(s) non publiee(s) depuis %s" % (len(pages), sha[:7]))
+    else:
+        pages = argv or pages_du_dernier_commit()
     if not pages:
         print("   aucune page HTML dans ce lot")
         return 0
