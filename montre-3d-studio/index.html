@@ -58,6 +58,7 @@ select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);
 body.sans-reglages main{grid-template-columns:1fr;}
 body.sans-reglages aside{display:none;}
 body.sans-reglages #badge{display:none;}
+#badge[hidden]{display:none;}   /* explicite : le bandeau ne sort que sur defaut */
 @media (max-width:820px){body.sans-reglages #vue{height:calc(100vh - 55px);}}
 #charge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:13px;pointer-events:none;}
 .note{font-size:11.5px;color:var(--dim2);margin-top:6px;}
@@ -192,7 +193,7 @@ body.sans-reglages #badge{display:none;}
     <div class="note">Lunette : relief jusqu'à 1,5 mm. Cadran : relief jusqu'à 1,2 mm, à condition de choisir des aiguilles assez hautes (Ronda 763 standard : 0,8 mm ; plus haut = chaussée et roue des heures spéciales à commander). Pas de choix de matière pour le moment : boîtier aluminium, cadran titane.</div>
   </section>
 </aside>
-<div id="vue"><button id="basculeReglages" type="button" aria-pressed="false" title="Afficher ou masquer le panneau de personnalisation">Masquer les modifications</button><div id="charge">Chargement du boîtier…</div><div id="badge"></div></div>
+<div id="vue"><button id="basculeReglages" type="button" aria-pressed="false" title="Afficher ou masquer le panneau de personnalisation">Masquer les modifications</button><div id="charge">Chargement du boîtier…</div><div id="badge" hidden></div></div>
 </main>
 
 <script type="module">
@@ -1319,10 +1320,17 @@ function reconstruireLunette(){ if(mLunette){groupeLunette.remove(mLunette);mLun
   mLunette=new THREE.Mesh(construireLunette(),[alu,brutActif?brutCreux:alu]); groupeLunette.add(mLunette); badge(); }
 function reconstruireCadran(){ if(mCadran){groupeCadran.remove(mCadran);mCadran.geometry.dispose();}
   mCadran=new THREE.Mesh(construireCadran(),titane); groupeCadran.add(mCadran); badge(); }
-function badge(){const lp=state.lunette.params,pl=state.lunette.motif==='embossage'?-(lp.profondeur||0):(lp.relief||0), pc=reliefMaxCadran(), jeu=state.aiguilles-pc, b=document.getElementById('badge');
-  b.textContent=`lunette ${MOTIFS_LUNETTE[state.lunette.motif].nom.toLowerCase()} ${pl.toFixed(2)} mm · cadran ${MOTIFS_CADRAN[state.cadran.motif].nom.toLowerCase()} ${pc.toFixed(2)} mm · jeu aiguilles ${jeu.toFixed(2)} mm`
-    +(jeu<.15?' : les aiguilles touchent le relief, monte les aiguilles ou baisse le relief':'');
-  b.style.color=jeu<.15?'#a33228':''; b.style.borderColor=jeu<.15?'#a33228':'';}
+// (10/10) Le bandeau ne RELEVE plus en permanence les reglages par-dessus la
+// montre : ces trois chiffres sont deja lisibles dans le panneau, et les
+// reafficher sur la piece masquait ce qu'on est venu regarder.
+// Il reste pour UNE chose : prevenir que les aiguilles touchent le relief.
+// Ce n'est pas un relevé, c'est un defaut : sans ce mot, on exporte un STL
+// dont les aiguilles ne tournent pas, et rien ne le dit avant l'usinage.
+function badge(){const pc=reliefMaxCadran(), jeu=state.aiguilles-pc, b=document.getElementById('badge');
+  if(jeu>=.15){ b.hidden=true; b.textContent=''; return; }
+  b.hidden=false;
+  b.textContent=`jeu aiguilles ${jeu.toFixed(2)} mm : les aiguilles touchent le relief, monte les aiguilles ou baisse le relief`;
+  b.style.color='#a33228'; b.style.borderColor='#a33228';}
 
 // Rendu progressif : si la haute definition coute plus de 0,35 s, on montre d'abord un
 // apercu (grille divisee par 2 a 3, toujours calee sur les cellules), puis la HD des
