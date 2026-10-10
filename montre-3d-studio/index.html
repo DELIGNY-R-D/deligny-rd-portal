@@ -53,6 +53,12 @@ select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);
 #vue{position:relative;background:radial-gradient(900px 600px at 50% 30%,#f7f5ef,#dcd8cc);}
 #vue canvas{display:block;width:100%;height:100%;}
 #badge{position:absolute;left:16px;bottom:14px;font:12px var(--mono);color:var(--dim);background:rgba(246,244,237,.85);padding:7px 10px;border-radius:9px;border:1px solid var(--sep);}
+#basculeReglages{position:absolute;left:16px;top:14px;z-index:5;font:600 12px var(--font);color:var(--txt);background:rgba(246,244,237,.9);border:1px solid var(--sep);border-radius:999px;padding:7px 13px;cursor:pointer;}
+#basculeReglages:hover{background:#fff;}
+body.sans-reglages main{grid-template-columns:1fr;}
+body.sans-reglages aside{display:none;}
+body.sans-reglages #badge{display:none;}
+@media (max-width:820px){body.sans-reglages #vue{height:calc(100vh - 55px);}}
 #charge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:13px;pointer-events:none;}
 .note{font-size:11.5px;color:var(--dim2);margin-top:6px;}
 .br textarea{width:100%;height:52px;resize:none;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);background:var(--bg1);font:12.5px var(--font);margin:6px 0;}
@@ -69,6 +75,16 @@ select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);
 .enc .ty.fin{background:rgba(var(--ink-rgb),.08);color:var(--dim2);}
 .enc .ty.orn{background:rgba(var(--acc-rgb),.22);}
 #vue.boutique{background:radial-gradient(1100px 700px at 50% 22%,#fffdf8,#f3ebdf 55%,#e2d6c4);}
+.vign{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0 10px;}
+.vign .v{cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden;background:var(--bg1);text-align:center;}
+.vign .v:hover{border-color:rgba(var(--acc-rgb),.45);}
+.vign .v.sel{border-color:var(--acc);}
+.vign .v canvas,.vign .v img{display:block;width:100%;aspect-ratio:2.4;background:#d6d3ca;}
+.vign .v span{display:block;font-size:10.5px;line-height:1.2;padding:3px 2px 4px;color:var(--dim);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.vign.sph .v img{aspect-ratio:1;background:radial-gradient(circle at 50% 45%,#f4f2ec,#dcd8ce);padding:6px;box-sizing:border-box;}
+.vign-titre{font-size:10.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--dim2);margin:6px 0 2px;}
+#encApercu{position:fixed;z-index:20;pointer-events:none;width:200px;background:var(--bg1);border:1px solid var(--sep);border-radius:10px;padding:6px;box-shadow:0 6px 24px rgba(0,0,0,.18);display:none;font-size:11px;color:var(--dim);}
+#encApercu img{width:100%;border-radius:6px;display:block;margin-bottom:4px;}
 .grp{border:1px solid var(--sep);border-radius:10px;padding:8px 10px;margin:8px 0;background:var(--bg1);}
 .grp .tete{display:flex;justify-content:space-between;align-items:center;font-weight:600;font-size:12.5px;margin-bottom:4px;}
 .grp .tete button{font-size:11px;padding:3px 9px;}
@@ -176,7 +192,7 @@ select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);
     <div class="note">Lunette : relief jusqu'à 1,5 mm. Cadran : relief jusqu'à 1,2 mm, à condition de choisir des aiguilles assez hautes (Ronda 763 standard : 0,8 mm ; plus haut = chaussée et roue des heures spéciales à commander). Pas de choix de matière pour le moment : boîtier aluminium, cadran titane.</div>
   </section>
 </aside>
-<div id="vue"><div id="charge">Chargement du boîtier…</div><div id="badge"></div></div>
+<div id="vue"><button id="basculeReglages" type="button" aria-pressed="false" title="Afficher ou masquer le panneau de personnalisation">Masquer les modifications</button><div id="charge">Chargement du boîtier…</div><div id="badge"></div></div>
 </main>
 
 <script type="module">
@@ -259,7 +275,7 @@ const DESSINS=[
     return .5+.5*Math.tanh(3*Math.cos(Math.PI*(a+b))*Math.cos(Math.PI*(a-b)));}},
 ];
 let CARTE_ORIGINE=null;
-lireImage('media/motif_origine.png').then(c=>{CARTE_ORIGINE=c;if(state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)].carte)reconstruire('lunette');}).catch(()=>{});
+lireImage('media/motif_origine.png').then(c=>{CARTE_ORIGINE=c;for(const k of [..._vign.keys()])if(k.startsWith('L|'))_vign.delete(k);try{panneau('lunette');}catch(e){}if(state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)].carte)reconstruire('lunette');}).catch(()=>{});
 const FORMES=[['reseau','pyramides carrées','clous de Paris'],['reseau','pyramides tronquées','clous tronqués'],['reseau','pyramides inversées','pointes de diamant creuses'],
   ['reseau','pyramides triangulaires','pyramides triangulaires'],['reseau','cônes','cônes'],['reseau','cubes','cubes'],['reseau','losanges','losanges'],
   ['reseau','dents de scie','dents de scie'],['reseau','créneaux','créneaux'],['reseau','gradins','gradins'],['stries','moletage diamant','moletage diamant'],
@@ -284,6 +300,7 @@ const state = {
   lunette:{motif:'embossage', zone:'tout', params:{dessin:14,n:88,rangs:3,proportion:.5,profondeur:.35,angle:60,facettes:1,jonction:1,pivot:0}},   // damier d'origine de la Montre T (V4)
   cadran:{motif:'terrasses', params:{couches:9,collines:4,taille:5,diguette:1,graine:21,relief:.4}},
 };
+
 
 // ───────────────────────────── outils ─────────────────────────────
 const sm=(a,b,x)=>{const t=Math.min(1,Math.max(0,(x-a)/(b-a)));return t*t*(3-2*t);};
@@ -818,7 +835,7 @@ const C_Y=3.1, C_BAS=2.78, C_R0=.7,   // trou du canon : D1,4 (etait D2,0)
 const LOGO=(()=>{const W=1024,H=192,c=document.createElement('canvas');c.width=W;c.height=H;const x=c.getContext('2d');
   x.fillStyle='#000';x.fillRect(0,0,W,H);x.font='700 132px Helvetica, Arial';   /* flanc de lettre sur ~0,04 mm = une maille du cadran : net, sans escalier */x.textAlign='center';x.textBaseline='middle';x.fillStyle='#fff';x.fillText('DELIGNY',W/2,H/2+6);
   const d=x.getImageData(0,0,W,H).data,v=new Float32Array(W*H);for(let i=0;i<W*H;i++)v[i]=d[i*4]/255;
-  const L=9.7;return {w:W,h:H,v,L,Hmm:L*H/W,cz:-6.3,haut:.25};})();   // 1/3 plus grand, plus haut, plus saillant (08/10)
+  const L=12.9;return {w:W,h:H,v,L,Hmm:L*H/W,cz:-6.3,haut:.25};})();   // 1/3 plus grand, plus haut, plus saillant (08/10) ; encore +1/3 (09/10)
 function logoCadran(x,z){const u=(x/LOGO.L+.5)*(LOGO.w-1),v=((z-LOGO.cz)/LOGO.Hmm+.5)*(LOGO.h-1);
   const dx=Math.max(0,Math.abs(x)-LOGO.L/2),dz=Math.max(0,Math.abs(z-LOGO.cz)-LOGO.Hmm/2),cart=1-sm(.15,.6,Math.hypot(dx,dz));
   const m=u>=0&&u<=LOGO.w-1&&v>=0&&v<=LOGO.h-1?echantillon(LOGO,u,v):0;return {cart,m};}
@@ -905,7 +922,25 @@ const envAtelier=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironmen
 // tres intenses sur fond sombre, c'est ce contraste qui fait lire le poli miroir comme du chrome
 // (l'environnement genere, trop doux, le rendait satine). Repli sur l'atelier s'il manque.
 if(!/rapide=1/.test(location.hash))new RGBELoader().load('media/studio_small_08_1k.hdr',t=>{t.mapping=THREE.EquirectangularReflectionMapping;
-  const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromEquirectangular(t).texture;t.dispose();pm.dispose();},undefined,()=>{});
+  const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(envEnrichi(t),.012,.1,400).texture;t.dispose();pm.dispose();},undefined,()=>{});
+// ENVIRONNEMENT ENRICHI (09/10) : sous l'horizon le HDRI n'est qu'un sol uni ; or le fond poli (et le dessous des
+// flancs) reflete cette moitie-la -> aplat gris. On pose sous la montre un vrai plateau de studio : sol gris moyen,
+// deux longues boites a lumiere, des panneaux lateraux (dont un chaud) et un drapeau noir pour le contraste.
+// Le ciel du HDRI (ce que reflechissent le dessus et la lunette) reste intact.
+function envEnrichi(t){const s=new THREE.Scene();s.background=t;
+  const pan=(w,h,int,pos,col=0xffffff)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),new THREE.MeshBasicMaterial({color:new THREE.Color(col).multiplyScalar(int),side:THREE.DoubleSide}));
+    m.position.set(...pos);m.lookAt(0,0,0);s.add(m);};
+  pan(300,300,.12,[0,-90,0]);                                   // sol du studio, sombre
+  // sous la montre : bandes de lumiere de 7 a 11 de large separees de noir. Au 105 mm la face plane ne reflete
+  // qu'un cone de ~15 degres : il faut des BORDS de lumiere dans ce cone, pas une grande boite uniforme.
+  {const R=rng(31);let x=-75;while(x<75){const w=6+R()*5;const m=new THREE.Mesh(new THREE.PlaneGeometry(w,170),
+    new THREE.MeshBasicMaterial({color:new THREE.Color(0xffffff).multiplyScalar(R()<.35?5.5:1.2+R()*1.8),side:THREE.DoubleSide}));
+    m.rotation.x=-Math.PI/2;m.rotation.z=.5;m.position.set(x*Math.cos(.5),-55,-x*Math.sin(.5));s.add(m);x+=w+5+R()*9;}}
+  // couronne de panneaux entre -25 et -60 degres : c'est la que tombent les reflets du fond vu de biais
+  const R=rng(7);for(let k=0;k<14;k++){const az=2*Math.PI*k/14+R()*.2,el=-(.45+R()*.6),d=85,c=Math.cos(el),
+    lum=k%3===2?0:k%4===0?5:1.2+R()*2.4;
+    pan(18+R()*34,10+R()*30,lum,[d*c*Math.cos(az),d*Math.sin(el),d*c*Math.sin(az)],k%5===1?0xffe0bc:k%5===3?0xdfe8ff:0xffffff);}
+  return s;}
 // objectif 105 mm (plein format 24x36) : champ vertical 2*atan(12/105) = 13,0° ; vues reculees d'autant (x2,34)
 const FOCALE=105,CAM_K=Math.tan(15*Math.PI/180)/(12/FOCALE);
 const cam=new THREE.PerspectiveCamera(2*Math.atan(12/FOCALE)*180/Math.PI,1,1,4000);
@@ -1046,6 +1081,19 @@ const brutCreux=brut.clone();brutCreux.vertexColors=true;   // creux de lunette 
 // meme tuile 2,5 mm, teinte titane plus sombre
 titane.normalMap=brut.normalMap;titane.roughnessMap=brut.roughnessMap;titane.normalScale=brut.normalScale.clone();
 titane.roughness=brut.roughness;titane.metalness=brut.metalness;titane.needsUpdate=true;
+// ANTI-REPETITION (cadran) : « texture bombing » : chaque case de la tuile prend un decalage aleatoire et les 9
+// cases voisines sont melangees en douceur -> plus aucune grille ni ligne droite visible, meme grain.
+// textureGrad garde le filtrage correct (pas de scintillement ni de couture).
+titane.onBeforeCompile=sh=>{
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>',`#include <common>
+vec4 h4(vec2 p){vec4 q=vec4(dot(p,vec2(127.1,311.7)),dot(p,vec2(269.5,183.3)),dot(p,vec2(419.2,371.9)),dot(p,vec2(81.7,233.9)));return fract(sin(q)*43758.5453);}
+vec4 sansRepet(sampler2D t,vec2 uv){vec2 iu=floor(uv),fu=fract(uv),dx=dFdx(uv),dy=dFdy(uv);vec4 acc=vec4(0.);float ws=0.;
+  for(int j=-1;j<=1;j++)for(int i=-1;i<=1;i++){vec2 g=vec2(float(i),float(j));vec4 o=h4(iu+g);vec2 r=g-fu+o.xy;float w=exp(-6.*dot(r,r));
+    acc+=w*textureGrad(t,uv+o.zw*7.31,dx,dy);ws+=w;}
+  return acc/ws;}`)
+  .replace('texture2D( normalMap, vNormalMapUv )','sansRepet( normalMap, vNormalMapUv )')
+  .replace('texture2D( roughnessMap, vRoughnessMapUv )','sansRepet( roughnessMap, vRoughnessMapUv )');};
+titane.customProgramCacheKey=()=>'titane-sans-repet';titane.normalScale.multiplyScalar(1.6);   /* le melange adoucit le relief : on le remonte */titane.needsUpdate=true;
 const monture=new THREE.Group(); scene.add(monture);
 let mLunette=null, mCadran=null;
 const groupeLunette=new THREE.Group(), groupeCadran=new THREE.Group(); monture.add(groupeLunette,groupeCadran);
@@ -1095,7 +1143,7 @@ const loader=new STLLoader(); let pieces=0;
 for(const [f,mat,yoff] of [['media/carrure.stl',alu,0],['media/fond.stl',alu,0]]){
   loader.load(f,g=>{let m;
     if(f.includes('carrure')){const [poli,reste]=separerPoli(g);setTimeout(()=>reconstruire('lunette'),0);/* la lunette reprend la normale de tranche mesuree */m=new THREE.Group();const b=new THREE.Mesh(reste,brut);BRUTS.push(b);m.add(new THREE.Mesh(poli,alu),b);}
-    else{const gl=uvBoite(toCreasedNormals(g,Math.PI/6));m=new THREE.Mesh(gl,brut);BRUTS.push(m);}
+    else{/* fond : entierement BRUT d'impression (face, lamages, gravure), sans personnalisation (10/10) */const gl=uvBoite(toCreasedNormals(g,Math.PI/6));m=new THREE.Mesh(gl,brut);BRUTS.push(m);}
     m.userData.fixe=yoff;monture.add(m);
     if(++pieces===2)document.getElementById('charge').remove();},undefined,()=>{document.getElementById('charge').textContent='Boîtier introuvable (media/*.stl) : la lunette et le cadran restent modifiables.';});
 }
@@ -1193,13 +1241,17 @@ function cadres(R){const n=R.length,F=[];let s=0;
     if(i)s+=Math.hypot(R[i][0]-R[i-1][0],R[i][1]-R[i-1][1]);F.push({z:R[i][0],y:R[i][1],tz:tz/l,ty:ty/l,nz:ty/l,ny:-tz/l,s});}
   return F;}
 // ruban epais : faces exterieure (cuir), interieure (doublure), tranches ; section a coins arrondis
-function ruban(F,larg,ep,decal=0,boucle=true,mats=[matCuir,matDoublure,matTranche],epLe=null){
+function ruban(F,larg,ep,decal=0,boucle=true,mats=[matCuir,matDoublure,matTranche],epLe=null,rondDebut=0){
   const r=Math.min(.45,ep/2-.05),sec=[];                                    // section (x, e) : e > 0 vers l'exterieur
   const coin=(cx,ce,a0)=>{for(let k=0;k<=4;k++){const a=a0+k*Math.PI/8;sec.push([cx+r*Math.cos(a),ce+r*Math.sin(a)]);}};
   coin(larg/2-r,ep/2-r,0);coin(-larg/2+r,ep/2-r,Math.PI/2);coin(-larg/2+r,-ep/2+r,Math.PI);coin(larg/2-r,-ep/2+r,3*Math.PI/2);
   const S=sec.length,face=k=>{const e=sec[k][1],x=sec[k][0];return Math.abs(x)<larg/2-r+1e-6?(e>0?0:1):2;};
   const pos=[],uv=[],gr=[[],[],[]],nF=F.length,nb=boucle?nF:nF-1;
-  F.forEach((f,i)=>{const k=epLe?epLe(i/Math.max(1,F.length-1))/ep:1;for(const [x,e] of sec){const o=e*k+decal;pos.push(x,f.y+o*f.ny,f.z+o*f.nz);uv.push(f.s/6,(x+larg/2)/6);}});
+  // bout arrondi (pointe en demi-cercle d'un bracelet) : la largeur se referme sur les rondDebut premiers mm
+  const s0=F.length?F[0].s:0,sN=F.length?F[F.length-1].s:0,dir=Math.sign(sN-s0)||1;
+  F.forEach((f,i)=>{const k=epLe?epLe(i/Math.max(1,F.length-1))/ep:1;let kx=1;
+    if(rondDebut>0){const d=Math.abs(f.s-s0);if(d<rondDebut){const q=(rondDebut-d)/rondDebut;kx=Math.max(.04,Math.sqrt(Math.max(0,1-q*q)));}}
+    const dc=typeof decal==='function'?decal(f):decal;for(const [x,e] of sec){const o=e*k+dc;pos.push(x*kx,f.y+o*f.ny,f.z+o*f.nz);uv.push(f.s/6,(x*kx+larg/2)/6);}});
   for(let i=0;i<nb;i++){const i2=(i+1)%nF;for(let k=0;k<S;k++){const k2=(k+1)%S,a=i*S+k,b=i2*S+k,c=i*S+k2,d=i2*S+k2,g=face(k)===face(k2)?face(k):2;gr[g].push(a,b,c,b,d,c);}}
   if(!boucle)for(const i of [0,nF-1]){const c0=pos.length/3;const f=F[i];pos.push(0,f.y+decal*f.ny,f.z+decal*f.nz);uv.push(0,0);
     for(let k=0;k<S;k++){const k2=(k+1)%S;i?gr[2].push(c0,i*S+k,i*S+k2):gr[2].push(c0,k2,k);}}
@@ -1212,7 +1264,6 @@ const bracelet=new THREE.Group();
   const bas=F.reduce((m,f)=>f.y<m.y?f:m,F[0]);if(bas.ny>0)for(const f of F){f.nz=-f.nz;f.ny=-f.ny;}
   // epaisseur : 1,3 courant, 1,5 sur les 2 mm du bout (barrette D1,1 dedans), bout arrondi
   const Ltot=F[F.length-1].s,eM=b.ep+.15,epBout=t=>{const d=Math.min(t,1-t)*Ltot;return d<.85?Math.max(.35,eM*Math.sqrt(Math.max(0,1-((.85-d)/.85)**2))):b.ep+.15*sm(2.6,1.2,d);};
-  bracelet.add(ruban(F,b.larg,b.ep,0,false,[matCuir,matDoublure,matTranche],epBout));
   // REMPLIE (IMG_8434) : le cuir brun se rabat sur la doublure beige cote poignet, rectangle de 6 mm a
   // chaque attache, a fleur (0,15 mm), coupe net : pas de bourrelet
   for(const [s0,s1] of [[0,6.5],[Ltot-6.5,Ltot]]){const seg=F.filter(f=>f.s>=s0&&f.s<=s1);
@@ -1222,9 +1273,21 @@ const bracelet=new THREE.Group();
     bar.rotation.z=Math.PI/2;bar.position.set(0,b.yBar,sz*b.zBar);bracelet.add(bar);}
   // bas du poignet : la queue du bracelet (trous) recouvre le brin principal, sous la boucle
   const iBas=F.indexOf(bas),pas=F[1].s,seg=(s0,s1)=>{const T=[];for(const f of F){let d=f.s-bas.s;const tot=F[F.length-1].s+pas;if(d>tot/2)d-=tot;if(d<-tot/2)d+=tot;if(d>=s0&&d<=s1)T.push({...f,d});}return T.sort((p,q)=>p.d-q.d);};
-  const queue=seg(-24,9);bracelet.add(ruban(queue,b.larg-.4,b.ep*.9,b.ep*.95,false));
+  // DEUX NIVEAUX (IMG_8456-8458) : le brin INTERIEUR s'arrete a la boucle (de part et d'autre de la plaque, sous
+  // le bloc de charniere d'un cote, au bout de la plaque de l'autre) ; le brin EXTERIEUR (trous) passe dans le
+  // passant laiton, au-dessus, et DEPASSE la boucle jusqu'a sa pointe arrondie, tenue par le passant cuir.
+  const dOf=f=>{let d=f.s-bas.s;const tot=F[F.length-1].s+pas;if(d>tot/2)d-=tot;if(d<-tot/2)d+=tot;return d;};
+  // brin A : niveau interieur, s'arrete au passant laiton
+  {const pA=F.filter(f=>dOf(f)>=-1.8);   /* (10/10) entre dans le passant-boite laiton */bracelet.add(ruban(pA,b.larg,b.ep,0,false,[matCuir,matDoublure,matTranche],t=>epBout(pA[Math.round(t*(pA.length-1))].s/Ltot)));}
+  // brin B : UNE seule bande continue qui monte en douceur du niveau interieur au niveau exterieur avant la
+  // charniere (d -56 -> -19,5), passe dans le passant laiton et depasse la boucle jusqu'a sa pointe arrondie
+  // (10/10) la montee sur 6,5 mm faisait une marche en S visible de profil : elle est etalee sur 36 mm du
+  // poignet (rien dessous a ce niveau, le brin A s'arrete a la boucle), en courbe C2 : silhouette continue
+  const NIV=b.ep*.95,monte=f=>{const q=Math.max(0,Math.min(1,(f.d+56)/36.5));return NIV*q*q*q*(q*(6*q-15)+10);};
+  const queue=F.filter(f=>dOf(f)<=26).map(f=>({...f,d:dOf(f)})).reverse();
+  bracelet.add(ruban(queue,b.larg,b.ep,monte,false,[matCuir,matDoublure,matTranche],t=>epBout(queue[Math.round(t*(queue.length-1))].s/Ltot),b.larg/2));
   const off=b.ep*.95+b.ep*.45;                                             // dessus de la queue
-  for(const f of queue)if(f.d<-4&&Math.abs(((f.d+4)%6.5+6.5)%6.5-3.25)<pas/2){  // trous tous les 6,5 mm
+  for(const f of queue)if(f.d>4&&f.d<19&&Math.abs(((f.d-4)%6.5+6.5)%6.5-3.25)<pas/2){  // trous tous les 6,5 mm
     const h=new THREE.Mesh(new THREE.CylinderGeometry(.55,.55,.2,20),new THREE.MeshBasicMaterial({color:0x0c0705}));
     h.position.set(0,f.y+(off+.02)*f.ny,f.z+(off+.02)*f.nz);h.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(0,f.ny,f.nz));bracelet.add(h);}
   // BOUCLE DEPLOYANTE LAITON, fermee (IMG_8447-8458) : passant-boite qui entoure les deux epaisseurs, lame
@@ -1238,17 +1301,18 @@ const bracelet=new THREE.Group();
   // PLAQUE DE BOUCLE fermee (IMG_8456/8457) : une seule lame pleine, plus etroite que le bracelet, a plat
   // cote poignet, avec cadre en relief et panneau grave en creux ; loquet en H pres du bloc de charniere ;
   // bloc rectangulaire a 2 goupilles ; l'autre bout s'amincit sur le cuir
-  const dL=-(b.ep/2+.3),LP=11.5;
-  bracelet.add(ruban(seg(-16,14),LP,.45,dL,false,[laitonP,laitonB,laitonP],t=>.45-.25*sm(.75,1,t)));       // lame pleine, bout aminci
-  for(const sx of [-1,1])cote(seg(-15,13),1.0,.25,dL-.32,sx*(LP/2-.55),laitonP);                           // cadre (longerons)
-  for(const c0 of [-15,12])bracelet.add(ruban(seg(c0,c0+1),LP,.25,dL-.32,false,[laitonP,laitonP,laitonP])); // cadre (traverses)
-  bracelet.add(ruban(seg(-8,11),LP-2.4,.08,dL-.24,false,[laitonB,laitonB,laitonB]));                        // panneau grave (en creux)
-  bracelet.add(ruban(seg(-12.6,-11.8),4.2,.3,dL-.36,false,[laitonP,laitonP,laitonP]));                      // loquet en H : barre
-  for(const sx of [-1,1])cote(seg(-13.8,-10.6),.7,.3,dL-.36,sx*1.75,laitonP);                               // loquet en H : montants
-  {const a0=-19.5,a1=-16;bracelet.add(ruban(seg(a0,a1),LP+.6,1.3,dL-.25,false,[laitonP,laitonP,laitonP]));  // bloc de charniere
+  // (10/10) plaque decalee de 6,5 mm vers le passant cuir : elle le COUVRE cote poignet ; abaissee de 0,4 mm pour
+  // passer sous le passant (le cuir du passant glisse entre le bracelet et la plaque)
+  const dL=-(b.ep/2+.7),LP=11.5,DP=6.5;
+  bracelet.add(ruban(seg(-2.6,14+DP),LP,.45,dL,false,[laitonP,laitonB,laitonP],t=>.45-.25*sm(.75,1,t)));       // lame pleine, bout aminci
+  for(const sx of [-1,1])cote(seg(-1.6,13+DP),1.0,.25,dL-.32,sx*(LP/2-.55),laitonP);                           // cadre (longerons)
+  for(const c0 of [-1.6,12+DP])bracelet.add(ruban(seg(c0,c0+1),LP,.25,dL-.32,false,[laitonP,laitonP,laitonP])); // cadre (traverses)
+  bracelet.add(ruban(seg(4.5,11+DP),LP-2.4,.08,dL-.24,false,[laitonB,laitonB,laitonB]));                        // panneau grave (en creux)
+  // (loquet en H retire le 08/10)
+  {/* (10/10) plus de porte-a-faux : la plaque et sa charniere commencent sous le passant-boite */const a0=-2.6,a1=.9;bracelet.add(ruban(seg(a0,a1),LP+.6,1.0,dL-.35,false,[laitonP,laitonP,laitonP]));  // bloc de charniere
    const f=seg(a0,a1)[Math.floor(seg(a0,a1).length/2)];for(const sx of [-1,1]){const g=new THREE.Mesh(new THREE.CylinderGeometry(.22,.22,.1,16),new THREE.MeshStandardMaterial({color:0x6e5528,metalness:1,roughness:.4}));
-     g.rotation.z=Math.PI/2;const o=dL-.25;g.position.set(sx*((LP+.6)/2+.05),f.y+o*f.ny,f.z+o*f.nz);bracelet.add(g);}}
-  const pas2=seg(-24.5,-21);   /* passant cuir apres le bloc de charniere (IMG_8457) */bracelet.add(ruban(pas2.map(f=>({...f})),b.larg+1.4,b.ep*2.6+.8,b.ep*.7,false,[matCuir,matCuir,matTranche]));
+     g.rotation.z=Math.PI/2;const o=dL-.35;g.position.set(sx*((LP+.6)/2+.05),f.y+o*f.ny,f.z+o*f.nz);bracelet.add(g);}}
+  const pas2=seg(15.5,19);   /* passant cuir apres le bloc de charniere (IMG_8457) */bracelet.add(ruban(pas2.map(f=>({...f})),b.larg+1.4,b.ep*2.95,b.ep*.75,false,[matCuir,matCuir,matTranche]));
   monture.add(bracelet);})();
 // (vitrine, coussin et plateau retires le 08/10 : on ne montre que la montre)
 function reconstruireLunette(){ if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
@@ -1284,15 +1348,25 @@ bascule('tVerre',v=>{verre.visible=v;refletVerre.visible=v;}); bascule('tAig',v=
 bascule('tEclate',v=>{groupeLunette.position.y=v?7:JEU_LUNETTE;groupeCadran.position.y=v?2:0;});
 
 function taille(){const w=vue.clientWidth,h=vue.clientHeight;renderer.setSize(w,h,false);cam.aspect=w/h;cam.updateProjectionMatrix();}
-addEventListener('resize',taille); taille(); vueDe('trois');
+addEventListener('resize',taille); taille();
+// MONTRER / CACHER LES MODIFICATIONS (10/10) : replie tout le panneau de personnalisation pour ne voir que la
+// montre en grand ; memorise par visiteur (confort, pas de donnee)
+{const bt=document.getElementById('basculeReglages'),poser=c=>{document.body.classList.toggle('sans-reglages',c);bt.textContent=c?'Montrer les modifications':'Masquer les modifications';
+   bt.setAttribute('aria-pressed',String(c));requestAnimationFrame(taille);try{localStorage.setItem('montre-sans-reglages',c?'1':'0');}catch(e){}};
+ bt.onclick=()=>poser(!document.body.classList.contains('sans-reglages'));
+ try{if(localStorage.getItem('montre-sans-reglages')==='1')poser(true);}catch(e){}} vueDe('trois');
+/* outil de verification (pane masque = rAF gele) : reconstruit et rend sans attendre une image */
+window.__capture=(q=.9)=>{APERCU=false;reconstruireLunette();reconstruireCadran();ctl.update();renderer.render(scene,cam);return renderer.domElement.toDataURL('image/jpeg',q);};
 let _tic=0;(function boucle(){ctl.update();if((_tic++&15)===0)ombres();renderer.render(scene,cam);requestAnimationFrame(boucle);})();
 
 // ───────────────────────────── panneau ─────────────────────────────
 // ── Bibliotheque : chaque bas-relief genere devient un motif (« IA : sujet ») ──
 const BIB={lunette:[],cadran:[]};
+const SEL={lunette:'selL',cadran:'selC'},REG={lunette:'regL',cadran:'regC'};
+const garder=piece=>piece==='lunette'?{zone:state.lunette.zone}:{};
 async function chargerBibliotheque(){if(!AI_BASE)return;try{const r=await (await fetch(AI_BASE+'/api/montre/bibliotheque',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"action":"liste"}'})).json();
   if(!r.ok)return; BIB.lunette=r.motifs.filter(m=>m.piece==='lunette'); BIB.cadran=r.motifs.filter(m=>m.piece==='cadran');
-  for(const piece of ['lunette','cadran'])remplirSelect(document.getElementById(piece==='lunette'?'selL':'selC'),piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN,piece);
+  for(const piece of ['lunette','cadran'])remplirSelect(document.getElementById(SEL[piece]),piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN,piece);
   panneau('lunette');panneau('cadran');}catch(e){}}
 async function appliquerIA(piece,id,encore){const r=await (await fetch(AI_BASE+'/api/montre/bibliotheque',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'lire',id})})).json();
   if(!r.ok||(encore&&!encore()))return;await chargerCarte(piece,r.profondeur,r.lumiere,{sujet:r.sujet,apercu:r.image,format:r.format||(piece==='lunette'?4:1),id,dessus:r.dessus||null});
@@ -1307,13 +1381,123 @@ function remplirSelect(sel,M,piece){sel.innerHTML='';const gf=document.createEle
   for(const m of BIB[piece]){const o=document.createElement('option');o.value='ia:'+m.id;o.textContent='IA : '+m.sujet.slice(0,40);g.appendChild(o);}
   sel.appendChild(g); sel.value=valeurSelect(piece);
   sel.onchange=()=>{const v=sel.value;if(v.startsWith('ia:'))return appliquerIA(piece,v.slice(3));
-    state[piece]={...(piece==='lunette'?{zone:state.lunette.zone}:{}),motif:v,params:defauts(M[v])};if(v==='image')BASRELIEF[piece]=null;panneau(piece);reconstruire(piece);};}
-function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, box=document.getElementById(piece==='lunette'?'regL':'regC');
-  document.getElementById(piece==='lunette'?'selL':'selC').value=valeurSelect(piece); box.innerHTML='';
+    state[piece]={...garder(piece),motif:v,params:defauts(M[v])};if(v==='image')BASRELIEF[piece]=null;panneau(piece);reconstruire(piece);};}
+// ───────────── APERCUS : vignettes en relief de chaque choix, calculees avec les VRAIES fonctions du studio ─────────────
+// Lunette : un morceau deplie de la vraie lunette (~6,5 mm le long du tour, toute la zone decoree) via pointZone ;
+// cadran : le disque entier via les fonctions du cadran. Ombrage rasant + teinte de finition (poli clair / brut sombre).
+const _vign=new Map();let _fileVign=[],_vignEnCours=false;
+// APERCUS « MATIERE » (10/10) : chaque pixel est rendu selon sa matiere, pas en simple gris ombre.
+//  - poli : metal miroir, il REFLECHIT un petit studio (zenith clair, boite a lumiere a gauche, bande fine a droite,
+//    horizon sombre) le long d'un vecteur de vue legerement en perspective -> degrades et reflets comme a l'ecran ;
+//  - brut / titane : diffus, grain de frittage (bruit de valeur 2 echelles), reflet large et faible ;
+//  - occlusion des creux (hauteur locale sous la moyenne voisine) pour lire la profondeur.
+function _bruitV(i,j,s){const h=(a,b)=>{let n=(a*374761393+b*668265263+s*1442695041)|0;n=(n^(n>>>13))*1274126177|0;return((n^(n>>>16))>>>0)/4294967295;};
+  const fi=Math.floor(i),fj=Math.floor(j),u=i-fi,v=j-fj,su=u*u*(3-2*u),sv=v*v*(3-2*v);
+  return (h(fi,fj)*(1-su)+h(fi+1,fj)*su)*(1-sv)+(h(fi,fj+1)*(1-su)+h(fi+1,fj+1)*su)*sv;}
+function _studio(rx,ry,rz){const el=Math.max(-1,Math.min(1,ry));let v=.2+.5*sm(.15,.98,el);
+  v+=.75*Math.exp(-((rx+.38)**2/.035+(rz+.12)**2/.09));                 // boite a lumiere douce (haut gauche)
+  v+=.45*Math.exp(-((rx-.34)**2/.0016));                                 // bande fine a droite
+  if(el<.42)v*=.25+.75*sm(.2,.42,el);                                    // horizon sombre
+  return v;}
+function ombrer(H,w,h,dx,teinte,exa=1){const c=document.createElement('canvas');c.width=w;c.height=h;const x=c.getContext('2d'),im=x.createImageData(w,h);
+  let mx=1e-6;for(const v of H)if(v!==-99)mx=Math.max(mx,Math.abs(v));const L=[-.55,.62,.56],Ln=Math.hypot(...L);
+  const val=(i,j)=>{const q=H[Math.max(0,Math.min(h-1,j))*w+Math.max(0,Math.min(w-1,i))];return q===-99?0:q;};
+  /* moyenne voisine (rayon 3) pour l'occlusion des creux */
+  const M=new Float32Array(w*h);for(let j=0;j<h;j++)for(let i=0;i<w;i++){let t=0;for(let b=-3;b<=3;b+=2)for(let a=-3;a<=3;a+=2)t+=val(i+a,j+b);M[j*w+i]=t/16;}
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i;if(H[k]===-99){im.data[k*4+3]=0;continue;}
+    const hx=exa*(val(i+1,j)-val(i-1,j))/(2*dx),hz=exa*(val(i,j+1)-val(i,j-1))/(2*dx),nl=Math.hypot(hx,1,hz),nx=-hx/nl,ny=1/nl,nz=-hz/nl;
+    const lam=Math.max(0,(nx*L[0]+ny*L[1]+nz*L[2])/Ln),ao=Math.max(.45,Math.min(1,1-2.2*exa*(M[k]-H[k])/Math.max(mx*exa,.05)));
+    let t=teinte(H[k],mx,k);if(Array.isArray(t))t={m:'brut',c:t};const a=t.a??1,col=t.c||[180,180,180];let r,g,b;
+    if(t.m==='poli'){/* vue en legere perspective, reflexion R = V - 2(V.n)n */const vx=(i/w-.5)*.55,vz=(j/h-.5)*.35,vy=-1,vl=Math.hypot(vx,vy,vz);
+      const Vx=vx/vl,Vy=vy/vl,Vz=vz/vl,d=Vx*nx+Vy*ny+Vz*nz,e=_studio(Vx-2*d*nx,Vy-2*d*ny,Vz-2*d*nz)*ao*a;
+      r=col[0]*e;g=col[1]*e;b=col[2]*e*1.02;}
+    else{const fin=t.m==='titane',gr=fin?.75*_bruitV(i*.9,j*.9,7)+.25*_bruitV(i*.3,j*.3,3):.6*_bruitV(i*.55,j*.55,11)+.4*_bruitV(i*.2,j*.2,5);
+      const f=(.3+.78*lam)*(.8+.4*gr)*ao*a,sp=Math.pow(lam,6)*(fin?.07:.1)*ao;
+      r=col[0]*f+255*sp;g=col[1]*f+255*sp;b=col[2]*f+255*sp;}
+    im.data[k*4]=Math.min(255,r);im.data[k*4+1]=Math.min(255,g);im.data[k*4+2]=Math.min(255,b);im.data[k*4+3]=255;}
+  x.putImageData(im,0,0);return c.toDataURL();}
+const POLI={m:'poli',c:[226,229,233]},BRUT={m:'brut',c:[112,109,102]},TITANE={m:'titane',c:[92,90,80]};
+function vignetteLunette(motif,params){const W=198,Hh=78,N=2160,i0=Math.round(.11*N);const sauve=state.lunette;
+  state.lunette={...sauve,motif,params:{...defauts(MOTIFS_LUNETTE[motif]),...params}};const H=new Float32Array(W*Hh);
+  try{grilleMotif();for(let j=0;j<Hh;j++)for(let i=0;i<W;i++){pointZone(i0+i,N,j,Hh);H[j*W+i]=dernierH;}}
+  finally{state.lunette=sauve;grilleMotif();}
+  const fin=Math.round((params&&params.finition)??(motif==='arete'?2:motif==='lisse'?2:1)),emb=motif==='embossage';
+  return ombrer(H,W,Hh,PERIM/N,(v,mx)=>{if(fin===0)return BRUT;if(fin===2)return POLI;
+    if(emb){const t=Math.min(1,-v/Math.max(.05,params.profondeur||.45));return v>-.012?POLI:{...BRUT,a:1-.5*t};}
+    return v>=SEUIL_POLI*mx?POLI:BRUT;});}
+// APERCU DE FINITION SUR SPHERE (10/10) : le motif (bande depliee de la vraie lunette) est enroule sur une sphere,
+// en relief (normales perturbees par la carte de hauteur), et chaque pixel prend la matiere de la finition :
+// poli miroir qui reflete le studio, brut grenu assombri dans les creux. On lit la finition sous toutes les
+// orientations a la fois, comme une bille d'echantillon.
+// studio vu par une bille (camera horizontale) : ciel clair, sol gris, horizon sombre, boite a lumiere en haut a
+// gauche cote camera, bande fine a droite
+function _studioS(rx,ry,rz){const dot=(a,b,c)=>{const l=Math.hypot(a,b,c);return (rx*a+ry*b+rz*c)/l;};
+  let v=ry>0?.38+.55*ry:.3+.08*ry;v*=.3+.7*sm(.03,.2,Math.abs(ry));
+  v+=1.2*sm(.84,.95,dot(-.55,.55,.62));v+=.8*sm(.965,.99,dot(.85,.2,.45));return v;}
+function vignetteSphere(motif,params){const W=198,Hh=78,N=2160,i0=Math.round(.11*N);const sauve=state.lunette;
+  state.lunette={...sauve,motif,params:{...defauts(MOTIFS_LUNETTE[motif]),...params}};const H=new Float32Array(W*Hh);
+  try{grilleMotif();for(let j=0;j<Hh;j++)for(let i=0;i<W;i++){pointZone(i0+i,N,j,Hh);H[j*W+i]=dernierH;}}
+  finally{state.lunette=sauve;grilleMotif();}
+  let mx=1e-6;for(const v of H)mx=Math.max(mx,Math.abs(v));
+  const fin=Math.round((params&&params.finition)??(motif==='arete'?2:1)),emb=motif==='embossage';
+  const S=150,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d'),im=x.createImageData(S,S);
+  const hv=(u,v)=>{u=((u%1)+1)%1;v=Math.max(0,Math.min(.9999,v));const fx=u*W,fy=v*(Hh-1),i=Math.floor(fx),j=Math.floor(fy),a=fx-i,b=fy-j,i2=(i+1)%W,j2=Math.min(Hh-1,j+1);
+    return (H[j*W+i]*(1-a)+H[j*W+i2]*a)*(1-b)+(H[j2*W+i]*(1-a)+H[j2*W+i2]*a)*b;};
+  const L=[-.5,.62,.6],Ln=Math.hypot(...L),exa=1.6/mx,du=1/W,dv=1/Hh;
+  for(let py=0;py<S;py++)for(let px=0;px<S;px++){const k=(py*S+px)*4,sx=(px+.5)/S*2-1,sy=1-(py+.5)/S*2,r2=sx*sx+sy*sy;
+    if(r2>1){im.data[k+3]=0;continue;}const sz=Math.sqrt(1-r2);
+    /* coordonnees spheriques : 2 tours de bande autour de l'equateur, la hauteur de bande couvre ~-50..+50 degres */
+    const phi=Math.atan2(sx,sz),u=phi/Math.PI,lat=Math.asin(sy),v=.5-lat/1.75;
+    if(v<0||v>1){/* calottes : surface d'origine lisse */}
+    const h=(v>=0&&v<=1)?hv(u,v):mx,hu=(v>=0&&v<=1)?(hv(u+du,v)-hv(u-du,v))*exa:0,hw=(v>=0&&v<=1)?(hv(u,v+dv)-hv(u,v-dv))*exa:0;
+    const T=[Math.cos(phi),0,-Math.sin(phi)],B=[-Math.sin(phi)*Math.sin(lat),Math.cos(lat),-Math.cos(phi)*Math.sin(lat)];
+    let nx=sx-.35*(hu*T[0]-hw*B[0]),ny=sy-.35*(hu*T[1]-hw*B[1]),nz=sz-.35*(hu*T[2]-hw*B[2]);const nl=Math.hypot(nx,ny,nz);nx/=nl;ny/=nl;nz/=nl;
+    let poli;if(fin===0)poli=false;else if(fin===2)poli=true;else poli=emb?h>-.012:h>=SEUIL_POLI*mx;
+    const prof=emb?Math.min(1,Math.max(0,-h)/Math.max(.05,params.profondeur||.45)):Math.max(0,1-h/mx),ao=1-.45*prof;
+    let r,g,b;
+    if(poli){const d=nz,Rx=2*d*nx,Ry=2*d*ny,Rz=-1+2*d*nz;   /* V=(0,0,-1) ; R=V-2(V.n)n */
+      const e=_studioS(Rx,Ry,Rz)*ao;r=226*e;g=229*e;b=234*e;}
+    else{const lam=Math.max(0,(nx*L[0]+ny*L[1]+nz*L[2])/Ln),gr=.6*_bruitV(px*.7,py*.7,11)+.4*_bruitV(px*.25,py*.25,5),f=(.28+.8*lam)*(.8+.4*gr)*ao*(emb?1-.35*prof:1),sp=Math.pow(lam,6)*.1;
+      r=112*f+255*sp;g=109*f+255*sp;b=102*f+255*sp;}
+    const bord=Math.min(1,(1-Math.sqrt(r2))*S*.5);   /* bord antialiase */
+    im.data[k]=Math.min(255,r);im.data[k+1]=Math.min(255,g);im.data[k+2]=Math.min(255,b);im.data[k+3]=255*bord;}
+  x.putImageData(im,0,0);return c.toDataURL();}
+function vignetteCadran(motif,params){const W=168,Hh=70,R=11.6;const p={...defauts(MOTIFS_CADRAN[motif]),...params},H=new Float32Array(W*Hh),dx=2*R/W;
+  for(let j=0;j<Hh;j++)for(let i=0;i<W;i++){const x=(i-W/2+.5)*dx,z=(j-Hh/2+.5)*dx+ -4.5;const r=Math.hypot(x,z),t=Math.atan2(z,x);
+    H[j*W+i]=r>C_R1?-99:FC[motif](x,z,r,t,p)*sm(C_R0,C_R0+.35,r)*(1-sm(C_R1-.25,C_R1,r));}
+  return ombrer(H,W,Hh,dx,()=>TITANE,4);}   // relief exagere x4 : lisible a la taille d'une vignette
+function demanderVignette(cle,fn,img){if(_vign.has(cle)){img.src=_vign.get(cle);return;}_fileVign.push({cle,fn,img});if(!_vignEnCours)pomperVign();}
+function pomperVign(){_vignEnCours=true;const job=_fileVign.shift();if(!job){_vignEnCours=false;return;}
+  if(!job.img.isConnected){setTimeout(pomperVign,0);return;}
+  if(!_vign.has(job.cle)){try{_vign.set(job.cle,job.fn());}catch(e){_vign.set(job.cle,'');}}job.img.src=_vign.get(job.cle);setTimeout(pomperVign,0);}
+function tuile(grille,label,cle,fn,sel,click){const d=document.createElement('div');d.className='v'+(sel?' sel':'');const im=document.createElement('img');im.alt=label;
+  const sp=document.createElement('span');sp.textContent=label;d.title=label;d.append(im,sp);d.onclick=click;grille.appendChild(d);demanderVignette(cle,fn,im);}
+function galerieApercus(piece,box){_fileVign=_fileVign.filter(j=>j.img.isConnected);
+  const bloc=(titre)=>{const t=document.createElement('div');t.className='vign-titre';t.textContent=titre;const g=document.createElement('div');g.className='vign';box.append(t,g);return g;};
+  const st=state[piece],p=st.params;
+  if(piece==='lunette'){
+    const g=bloc('Catégorie');const cat=[['lisse','Lisse',{}],['embossage','Embossage',st.motif==='embossage'?p:{}],['arete','Arêtes vives',st.motif==='arete'?p:{}]];
+    for(const [m,lib,pp] of cat)tuile(g,lib,'L|'+m+'|'+JSON.stringify(pp)+'|'+st.zone,()=>vignetteLunette(m,pp),st.motif===m,()=>{poser('lunette',m,pp);});
+    if(st.motif==='embossage'){const g2=bloc('Dessin');DESSINS.forEach((d,k)=>{if(d.ia&&!BASRELIEF.lunette)return;const pp={...p,dessin:k};
+      tuile(g2,d.nom,'L|emb|'+k+'|'+[p.n,p.rangs,p.proportion,p.profondeur,p.angle,p.facettes,p.finition,st.zone].join(','),()=>vignetteLunette('embossage',pp),Math.round(p.dessin)===k,()=>{state.lunette.params.dessin=k;panneau('lunette');reconstruire('lunette');});});}
+    if(st.motif==='arete'){const g2=bloc('Forme');FORMES.forEach((f,k)=>{const pp={...p,forme:k};
+      tuile(g2,f[2],'L|ar|'+k+'|'+[p.pas,p.angle,p.tronque,p.relief,p.finition,st.zone].join(','),()=>vignetteLunette('arete',pp),Math.round(p.forme)===k,()=>{state.lunette.params.forme=k;panneau('lunette');reconstruire('lunette');});});}
+  }else{
+    const g=bloc('Motif du cadran');for(const [m,M] of Object.entries(MOTIFS_CADRAN)){if(m==='image')continue;const pp=st.motif===m?p:{};
+      tuile(g,M.nom,'C|'+m+'|'+JSON.stringify(pp),()=>vignetteCadran(m,pp),st.motif===m,()=>{poser(piece,m,pp);});}
+    if(estFamille(st.motif)){const g2=bloc('Mode');FAMILLES[st.motif].modes.forEach((md,k)=>{const pp={...p,mode:k};
+      tuile(g2,md,'C|'+st.motif+'|'+JSON.stringify(pp),()=>vignetteCadran(st.motif,pp),Math.round(p.mode)===k,()=>{state[piece].params.mode=k;panneau(piece);reconstruire(piece);});});}}
+}
+function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, box=document.getElementById(REG[piece]);
+  document.getElementById(SEL[piece]).value=valeurSelect(piece); box.innerHTML='';galerieApercus(piece,box);
   for(const [k,[lo,hi,def,pas,lib]] of Object.entries(M[state[piece].motif].r)){
     const d=document.createElement('div'); const val=state[piece].params[k]??def;
     if(CASES.has(k)){d.className='reg case';d.innerHTML=`<label>${lib}</label><input type="checkbox" ${val?'checked':''}>`;
       d.querySelector('input').onchange=e=>{state[piece].params[k]=e.target.checked?1:0;reconstruire(piece);};}
+    else if(k==='finition'&&piece==='lunette'){d.className='reg';d.innerHTML='<label>finition</label>';const g=document.createElement('div');g.className='vign sph';
+      LISTES.finition.forEach((lib,i)=>{const pp={...state.lunette.params,finition:i},mo=state.lunette.motif;
+        tuile(g,['Mat (brut)','Poli surface','Poli intégral'][i]||lib,'S|'+mo+'|'+JSON.stringify(pp)+'|'+state.lunette.zone,()=>vignetteSphere(mo,pp),Math.round(val)===i,
+          ()=>{state.lunette.params.finition=i;panneau('lunette');reconstruire('lunette');});});d.appendChild(g);}
     else if(LISTES[k]){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
       LISTES[k].forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
       se.value=String(Math.round(val));d.innerHTML=`<label>${lib}</label>`;d.appendChild(se);se.onchange=()=>{state[piece].params[k]=+se.value;reconstruire(piece);};}
@@ -1322,7 +1506,8 @@ function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, 
       se.value=String(Math.round(val));d.innerHTML='<label>mode</label>';d.appendChild(se);se.onchange=()=>{state[piece].params.mode=+se.value;reconstruire(piece);};}
     else{d.className='reg';d.innerHTML=`<label>${lib}</label><input type="range" min="${lo}" max="${hi}" step="${pas}" value="${val}"><output>${(+val).toFixed(pas<1?2:0)}</output>`;
       const inp=d.querySelector('input'),out=d.querySelector('output');
-      inp.oninput=()=>{state[piece].params[k]=+inp.value;out.textContent=(+inp.value).toFixed(pas<1?2:0);reconstruire(piece);};}
+      inp.oninput=()=>{state[piece].params[k]=+inp.value;out.textContent=(+inp.value).toFixed(pas<1?2:0);reconstruire(piece);};
+      inp.onchange=()=>panneau(piece);}   // au relachement : apercus mis a jour avec le nouveau reglage
     box.appendChild(d);}
   if(state[piece].motif==='image'){const d=document.createElement('div');d.className='br';const c=BASRELIEF[piece];
     d.innerHTML=`<textarea maxlength="160" placeholder="sujet du bas-relief : une pieuvre et des vagues, des fleurs baroques…"></textarea><div class="ligne"><button class="btn pri">Générer le relief (IA)</button></div><div class="note">${c?'Relief : '+c.sujet:'Pas encore de relief : décris un sujet.'}</div>${c?`<img alt="image source" src="${c.apercu}">`:''}`;
@@ -1339,16 +1524,17 @@ function gabaritLunette(){const n=1024,L=48,c=document.createElement('canvas');c
   x.fillStyle='#282828';contour(th=>zone==='biseau'?tab(T_TOP,th):R_FACE0);x.fill();                          // cadran et verre : vide
   return c.toDataURL('image/png');}
 async function genererBasRelief(piece,sujet){sujet=(sujet||'').trim();if(!sujet)return;state[piece].sujet=sujet;
-  const box=document.getElementById(piece==='lunette'?'regL':'regC'),note=box.querySelector('.br .note'),bt=box.querySelector('.br button');
+  const box=document.getElementById(REG[piece]),note=box.querySelector('.br .note'),bt=box.querySelector('.br button');
   if(note)note.textContent='Génération de l\'image puis de la profondeur (environ 10 s)…'; if(bt)bt.disabled=true;
   try{const r=await (await fetch(AI_BASE+'/api/montre/basrelief',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({piece,sujet,...(piece==='lunette'?{gabarit:gabaritLunette()}:{})})})).json();
     if(!r.ok)throw new Error(r.note||'refus');
     await chargerCarte(piece,r.profondeur,r.lumiere,{sujet:r.sujet,apercu:r.image,format:r.format||(piece==='lunette'?4:1),id:r.id,dessus:r.dessus||null});
     if(r.dessus){state[piece].params={...defauts(MOTIFS_LUNETTE.image),relief:.7,detail:.25,contraste:1,inverser:0};}   // reglages propres pour un relief compose
-    if(r.id){BIB[piece].unshift({id:r.id,piece,sujet:r.sujet,date:'maintenant',image:r.image});state[piece].ia=r.id;remplirSelect(document.getElementById(piece==='lunette'?'selL':'selC'),piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN,piece);} if(state[piece].motif!=='image'){state[piece]={...(piece==='lunette'?{zone:state.lunette.zone}:{}),motif:'image',params:defauts((piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN).image),sujet,ia:r.id};}
+    if(r.id){BIB[piece].unshift({id:r.id,piece,sujet:r.sujet,date:'maintenant',image:r.image});state[piece].ia=r.id;remplirSelect(document.getElementById(SEL[piece]),piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN,piece);} if(state[piece].motif!=='image'){state[piece]={...garder(piece),motif:'image',params:defauts((piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN).image),sujet,ia:r.id};}
     panneau(piece); reconstruire(piece);}
   catch(e){const n=box.querySelector('.br .note');if(n)n.textContent='Échec : '+(e.message||e);}
   finally{const b2=box.querySelector('.br button');if(b2)b2.disabled=false;}}
+
 function reconstruire(piece){planifier(piece,piece==='lunette'?reconstruireLunette:reconstruireCadran);}
 remplirSelect(document.getElementById('selL'),MOTIFS_LUNETTE,'lunette'); remplirSelect(document.getElementById('selC'),MOTIFS_CADRAN,'cadran');
 // hauteur des aiguilles : on monte tout l'ensemble (heures, minutes, secondes, axe)
@@ -1388,7 +1574,7 @@ function decrireRecette(e){if(e.type==='parametrique')return FAMILLES[e.motif].n
   if(e.type==='ornement')return 'volumes : '+e.ornements.map(t=>ORN[t].nom).join(', ');return e.approche?'relief proche : '+decrireRecette(e.approche):'non représentable en relief';}
 function poser(piece,motif,params,extra){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN;const q={...defauts(M[motif]),...(params||{})};
   for(const [k,v] of Object.entries(q)){const b=M[motif].r[k];if(b)q[k]=Math.max(b[0],Math.min(b[1],v));}
-  state[piece]={...(piece==='lunette'?{zone:state.lunette.zone}:{}),motif,params:q,...(extra||{})};panneau(piece);reconstruire(piece);}
+  state[piece]={...garder(piece),motif,params:q,...(extra||{})};panneau(piece);reconstruire(piece);}
 // Lunette = 3 categories : une entree s'y traduit si elle est une forme a aretes vives, un dessin
 // d'embossage ou un bas-relief ; sinon elle part sur le cadran, et on le dit.
 const LEGACY_DESSIN={ecailles:0,dragon:1,perles:2,damier:3,rayons:4,torsade:4,vagues:5};
@@ -1412,6 +1598,15 @@ function appliquerEntree(e,piece){const note=document.getElementById('encNote');
     listeOrnements();msg=`${e.nom} : volume qui sort de la silhouette, ajouté aux volumes 3D de la lunette. Clique « Construire les volumes ».`;}
   else{msg=e.note||'';if(e.approche){appliquerEntree({...e.approche,nom:e.nom},piece);msg+=' Relief le plus proche appliqué : '+decrireRecette(e.approche)+'.';}}
   note.textContent=msg;}
+function placerApercu(ev){const a=document.getElementById('encApercu');a.style.left=Math.min(innerWidth-215,ev.clientX+18)+'px';a.style.top=Math.min(innerHeight-170,ev.clientY-20)+'px';}
+function montrerApercuEntree(e,piece,ev){let a=document.getElementById('encApercu');if(!a){a=document.createElement('div');a.id='encApercu';document.body.appendChild(a);}
+  a.innerHTML='';const im=document.createElement('img');const t=document.createElement('div');t.textContent=e.nom+' : '+decrireRecette(e);
+  let fn=null,cle=null;const L=piece==='lunette'?(e.type==='parametrique'||e.type==='motif')&&versLunette(e):null;
+  if(L){fn=()=>vignetteLunette(L.motif,L.params);cle='L|'+L.motif+'|'+JSON.stringify(L.params)+'|'+state.lunette.zone;}
+  else if(e.type==='parametrique'){fn=()=>vignetteCadran(e.motif,e.params);cle='C|'+e.motif+'|'+JSON.stringify(e.params);}
+  else if(e.type==='motif'&&MOTIFS_CADRAN[e.motif]){fn=()=>vignetteCadran(e.motif,e.params||{});cle='C|'+e.motif+'|'+JSON.stringify(e.params||{});}
+  if(fn){a.appendChild(im);demanderVignette(cle,fn,im);}else t.textContent+=' (aperçu après génération)';
+  a.appendChild(t);a.style.display='block';placerApercu(ev);}
 function initEncyclopedie(){const L=document.getElementById('encListe'),Q=document.getElementById('encQ'),S=document.getElementById('encSec'),PI=document.getElementById('encPiece');
   if(!ENC){L.innerHTML='<div class="it">Encyclopédie indisponible.</div>';return;}
   S.innerHTML='<option value="">Toutes les sections ('+ENC.entrees.length+')</option>'+Object.entries(ENC.sections).map(([k,v])=>`<option value="${k}">${k}. ${v}</option>`).join('');
@@ -1420,7 +1615,9 @@ function initEncyclopedie(){const L=document.getElementById('encListe'),Q=docume
     ENC.entrees.forEach((e,i)=>{if(sec&&String(e.section)!==sec)return;if(q.length&&!q.every(w=>idx[i].includes(w)))return;n++;
       const d=document.createElement('div');d.className='it';const [lib,cl]=TYPES_ENC[e.type];
       d.innerHTML=`<span></span><span class="ty ${cl}">${lib}</span>`;d.firstChild.textContent=e.nom;d.title=decrireRecetteSure(e);
-      d.onclick=()=>appliquerEntree(e,PI.value);L.appendChild(d);});
+      d.onclick=()=>appliquerEntree(e,PI.value);
+      d.onmouseenter=ev=>montrerApercuEntree(e,PI.value,ev);d.onmousemove=ev=>placerApercu(ev);d.onmouseleave=()=>{document.getElementById('encApercu').style.display='none';};
+      L.appendChild(d);});
     if(!n)L.innerHTML='<div class="it">Aucune entrée. Le concierge peut l\'interpréter : décris-la plus haut.</div>';
     if(RECETTES_ILLISIBLES.length)console.warn('encyclopédie : %d recette(s) illisible(s), la liste reste complète',
       RECETTES_ILLISIBLES.length, RECETTES_ILLISIBLES.slice(0,8));}
@@ -1606,6 +1803,9 @@ setTimeout(()=>{const H=Object.fromEntries(location.hash.slice(1).split('&').fil
 const CFG_CLE='montre-studio-configs';
 const lireCfg=()=>{try{return JSON.parse(localStorage.getItem(CFG_CLE)||'[]');}catch(e){return [];}};
 const ecrireCfg=l=>{try{localStorage.setItem(CFG_CLE,JSON.stringify(l));}catch(e){}};
+// configuration par defaut (chargee a l'ouverture) : par son nom ; « DESIGN ORIGINAL » si rien n'est choisi
+const lireDefaut=()=>{try{const v=localStorage.getItem(CFG_CLE+'-defaut');return v===null?'DESIGN ORIGINAL':v;}catch(e){return 'DESIGN ORIGINAL';}};
+const ecrireDefaut=n=>{try{localStorage.setItem(CFG_CLE+'-defaut',n);}catch(e){}};
 function instantane(){return JSON.parse(JSON.stringify({lunette:state.lunette,cadran:state.cadran,index:state.index??0,aiguilles:state.aiguilles??.8}));}
 let _cfgJeton=0;   // une application plus recente annule celle en cours (bas-relief charge en asynchrone)
 async function appliquerCfg(c){const jeton=++_cfgJeton;state.index=c.index;document.getElementById('indexC').value=String(c.index);
@@ -1614,14 +1814,16 @@ async function appliquerCfg(c){const jeton=++_cfgJeton;state.index=c.index;docum
   for(const piece of ['lunette','cadran']){const b=c[piece];
     if(b.motif==='image'&&b.ia){await appliquerIA(piece,b.ia,()=>jeton===_cfgJeton);if(jeton!==_cfgJeton)return;state[piece].params={...state[piece].params,...b.params};}
     else state[piece]={...b,params:{...b.params}};
-    document.getElementById(piece==='lunette'?'selL':'selC').value=valeurSelect(piece);panneau(piece);reconstruire(piece);}}
+    document.getElementById(SEL[piece]).value=valeurSelect(piece);panneau(piece);reconstruire(piece);}}
 function listerCfg(){const L=document.getElementById('cfgListe');L.innerHTML='';const l=lireCfg();
   if(!l.length){L.innerHTML='<div class="note">Aucune configuration enregistrée.</div>';return;}
   l.forEach((c,i)=>{const d=document.createElement('div');d.className='grp';
-    d.innerHTML=`<div class="tete"><span></span><span class="ligne" style="gap:4px"><button class="btn">Charger</button><button class="btn">Remplacer</button><button class="btn">×</button></span></div><div class="note" style="margin:0"></div>`;
+    const estDef=lireDefaut()===c.nom;
+    d.innerHTML=`<div class="tete"><span></span><span class="ligne" style="gap:4px"><button class="btn">Charger</button><button class="btn">Remplacer</button><button class="btn ${estDef?'on':''}" title="Configuration chargée à l'ouverture du studio">${estDef?'★ Défaut':'☆ Défaut'}</button><button class="btn">×</button></span></div><div class="note" style="margin:0"></div>`;
     d.querySelector('.tete span').textContent=c.nom;
     d.querySelector('.note').textContent=`lunette ${MOTIFS_LUNETTE[c.etat.lunette.motif]?.nom||c.etat.lunette.motif} · cadran ${MOTIFS_CADRAN[c.etat.cadran.motif]?.nom||c.etat.cadran.motif} · ${c.date}`;
-    const [bC,bR,bX]=d.querySelectorAll('button');
+    const [bC,bR,bD,bX]=d.querySelectorAll('button');
+    bD.onclick=()=>{ecrireDefaut(estDef?'':c.nom);listerCfg();};
     bC.onclick=()=>appliquerCfg(c.etat);
     bR.onclick=()=>{const l2=lireCfg();l2[i].etat=instantane();l2[i].date=new Date().toLocaleString('fr-FR');ecrireCfg(l2);listerCfg();};
     bX.onclick=()=>{const l2=lireCfg();l2.splice(i,1);ecrireCfg(l2);listerCfg();};
@@ -1644,6 +1846,7 @@ document.getElementById('cfgAlea').onclick=()=>{
   if(cad.params.relief!=null)cad.params.relief=Math.min(cad.params.relief,.5);   // jeu sous les aiguilles standard
   appliquerCfg({lunette:lun,cadran:cad,index:Math.floor(Math.random()*7),aiguilles:.8});};
 listerCfg();
+if(!location.hash.includes('appliquer=')&&!location.hash.includes('ia=')){const c=lireCfg().find(x=>x.nom===lireDefaut());if(c)setTimeout(()=>appliquerCfg(c.etat),0);}
 initEncyclopedie();   // apres ORN : le catalogue decrit aussi les volumes 3D
 </script>
 <img src="https://atlas-studio.pro/deligny/api/px?page=montre-3d-studio" alt="" width="1" height="1" loading="eager">
