@@ -212,16 +212,27 @@ for i in $(seq 1 12); do
 done
 
 echo "== 6/9  Publication des PAGES =="
+# Deux questions distinctes, et les confondre a laisse un commit au sol le
+# 09/10/2026 : « y a-t-il quelque chose a COMMITER ? » et « y a-t-il quelque
+# chose a POUSSER ? ». Le script ne posait que la premiere, donc un commit
+# fait a la main avant de le lancer n'etait jamais pousse, et TERMINE
+# s'affichait quand meme. Un commit local n'est pas une publication.
 git add -A
-PAGES_POUSSEES=non
 if ! git diff --cached --quiet; then
   git commit -q -m "$MSG"
+  echo "   commit cree ($(git rev-parse --short HEAD))"
+fi
+PAGES_POUSSEES=non
+git fetch -q origin || true
+if [ -n "$(git log --oneline origin/main..HEAD 2>/dev/null)" ]; then
+  echo "   $(git rev-list --count origin/main..HEAD) commit(s) a pousser :"
+  git log --format='     %h %s' origin/main..HEAD
   git push -q origin main
   SHA_PAGES=$(git rev-parse HEAD)
   PAGES_POUSSEES=oui
-  echo "   pages poussees (${SHA_PAGES:0:7})"
+  echo "   pousse (${SHA_PAGES:0:7})"
 else
-  echo "   aucune page modifiee"
+  echo "   rien a pousser, le depot distant est a jour"
 fi
 
 echo "== 7/9  Build GitHub Pages du commit pousse =="
