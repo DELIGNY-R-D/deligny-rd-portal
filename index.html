@@ -134,8 +134,13 @@
           </div>
           <p>Le studio d&#x27;horlogerie, embarque ici tel quel : choisis un motif pour la lunette et un pour le cadran, regle le relief au centieme de millimetre, et la montre se reconstruit en 3D sur les vraies pieces, carrure, lunette, cadran et fond. Une encyclopedie de 550 surfaces, du guillochage aux textures minerales, et l&#x27;export STL pour l&#x27;usinage. Sans compte, sans rien installer.</p>
         </div>
-        <div class="nano-embed">
-          <iframe src="montre-3d-studio/index.html" title="Montre 3D Studio, demonstration : motifs de lunette et de cadran reconstruits en 3D sur les vraies pieces" loading="lazy" allow="fullscreen"></iframe>
+        <div class="nano-embed"
+             data-demo-src="montre-3d-studio/index.html"
+             data-demo-titre="Montre 3D Studio, demonstration : motifs de lunette et de cadran reconstruits en 3D sur les vraies pieces"
+             data-demo-libelle="Lancer le studio d&#x27;horlogerie en 3D"
+             data-demo-poids="environ 4,5 Mo"
+             data-demo-allow="fullscreen">
+          <noscript><a class="btn btn-primary" href="montre-3d-studio/index.html">Ouvrir le studio en plein ecran &rarr;</a></noscript>
         </div>
         <div class="tool-widget-actions">
           <a class="btn btn-primary" href="montre-3d-studio/index.html">Ouvrir en plein ecran &rarr;</a>
@@ -670,53 +675,6 @@
         </div>
       </div>
 
-      <div class="tool-widget">
-        <div class="tool-widget-head">
-          <div class="app-title-row">
-            <h3>Nano Worlds</h3>
-            <span class="tag tag-live">Demo jouable</span>
-          </div>
-          <p>Le vrai moteur, ici meme, reduit a l'essentiel : sculpter le relief. A chaque ouverture, un monde aleatoire different. Choisis un outil a gauche (elever, creuser, eau, neige, montagne, foret, bateau, rail, train...), peins sur le monde ; clic droit pour pivoter, molette pour zoomer. Le jeu complet (routes, villes, vehicules, saisons, compagnon IA) est en plein ecran.</p>
-        </div>
-        <div class="nano-embed">
-          <iframe src="nano-worlds/index.html?ui=topo&amp;dev" title="Nano Worlds, demo jouable : sculpter le relief d'un monde aleatoire" loading="lazy" allow="fullscreen"></iframe>
-        </div>
-        <div class="tool-widget-actions">
-          <a class="btn btn-primary" href="nano-worlds/index.html?world=default">Jouer en plein ecran &rarr;</a>
-        </div>
-      </div>
-
-      <!-- GAIA (10/09) : le globe du poste de pilotage interne interroge
-           127.0.0.1:4567 en direct. Une page publique ne peut pas joindre cette
-           adresse et on ne perce pas de tunnel vers l'atelier pour une vitrine :
-           on publie donc un INSTANTANE date, produit par
-           deploy/instantane-gaia.py, et la page le presente comme tel. Le
-           domaine « opportunites » (prospection nominative, SIREN et adresses)
-           en est retire a la source. -->
-      <div class="tool-widget">
-        <div class="tool-widget-head">
-          <div class="app-title-row">
-            <h3>GAIA</h3>
-            <span class="tag tag-live">Globe manipulable</span>
-          </div>
-          <p>Le capteur du monde de la maison. GAIA interroge en continu des sources publiques
-          ouvertes, séismes, températures, feux de végétation, qualité de l&rsquo;air, marchés,
-          indicateurs économiques et tensions diplomatiques, puis remet tout dans un format unique
-          et le pose sur la carte. Glisse pour tourner le globe, zoome, touche un point : tu lis la
-          mesure, sa valeur, sa source et son heure de relevé. Ce sont de vraies récoltes, figées à
-          la date affichée, car la moisson tourne en atelier et n&rsquo;est pas branchée sur cette
-          page. Ce qui fonctionne aujourd&rsquo;hui : la récolte, la carte et les liens entre
-          signaux. Ce qui reste à construire : le compte visiteur, les listes de surveillance et les
-          alertes poussées.</p>
-        </div>
-        <div class="nano-embed">
-          <iframe src="gaia/index.html" title="GAIA, globe manipulable des signaux du monde recoltes par DELIGNY R&amp;D" loading="lazy" allow="fullscreen"></iframe>
-        </div>
-        <div class="tool-widget-actions">
-          <a class="btn btn-primary" href="gaia/index.html">Ouvrir en plein ecran &rarr;</a>
-        </div>
-      </div>
-
       <div class="app-grid">
       
         <article class="app-card">
@@ -734,141 +692,9 @@
             </div>
           </div>
         </article>
-        <article class="app-card app-card-visual">
-          <svg class="app-banner" viewBox="0 0 400 132" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-            <defs>
-              <linearGradient id="bg-symbyose" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="var(--purple-2)" />
-                <stop offset="100%" stop-color="var(--accent)" />
-              </linearGradient>
-            </defs>
-            <rect width="400" height="132" fill="url(#bg-symbyose)" />
-            <g fill="none" stroke="#fff" stroke-width="2.5" opacity="0.9">
-              <rect x="60" y="36" width="34" height="60" rx="5" />
-              <rect x="102" y="36" width="34" height="60" rx="5" stroke-dasharray="6 4" />
-              <line x1="136" y1="66" x2="196" y2="66" stroke-width="2" opacity="0.7" />
-              <rect x="196" y="30" width="44" height="16" rx="4" />
-              <rect x="196" y="58" width="44" height="16" rx="4" />
-              <rect x="196" y="86" width="44" height="16" rx="4" />
-              <line x1="240" y1="38" x2="290" y2="38" stroke-width="1.6" opacity="0.6" />
-              <line x1="240" y1="66" x2="290" y2="66" stroke-width="1.6" opacity="0.6" />
-              <line x1="240" y1="94" x2="290" y2="94" stroke-width="1.6" opacity="0.6" />
-              <circle cx="310" cy="38" r="7" /><circle cx="310" cy="66" r="7" /><circle cx="310" cy="94" r="7" />
-            </g>
-          </svg>
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>SYMBYOSE</h3>
-              <span class="tag">R&amp;D matériel · en conception</span>
-            </div>
-            <p>Un ordinateur mère en miroir et des boîtiers de 400 g sans disque sur chaque poste : 3 fois moins d'électricité, 5 à 15 fois moins de matière, données dans vos murs. Programme en phase d'étude, mesures en cours.</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="symbyose/index.html">Découvrir le programme</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card app-card-primary app-card-visual">
-          <svg class="app-banner" viewBox="0 0 400 172" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-            <defs>
-              <linearGradient id="bg-nodus" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="var(--accent)" />
-                <stop offset="100%" stop-color="var(--purple-2)" />
-              </linearGradient>
-            </defs>
-            <rect width="400" height="172" fill="url(#bg-nodus)" />
-            <g fill="#fff" opacity="0.9">
-              <rect x="40" y="46" width="14" height="14" rx="3" opacity="0.55" />
-              <rect x="60" y="46" width="14" height="14" rx="3" opacity="0.3" />
-              <rect x="40" y="66" width="14" height="14" rx="3" opacity="0.3" />
-              <rect x="60" y="66" width="14" height="14" rx="3" opacity="0.85" />
-              <rect x="80" y="66" width="14" height="14" rx="3" opacity="0.4" />
-              <rect x="60" y="86" width="14" height="14" rx="3" opacity="0.3" />
-              <rect x="80" y="46" width="14" height="14" rx="3" opacity="0.5" />
-            </g>
-            <path d="M180 90 L205 115 L260 55" fill="none" stroke="#fff" stroke-width="8" stroke-linecap="round" stroke-linejoin="round" opacity="0.95" />
-          </svg>
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>NODUS</h3>
-              <span class="tag tag-live">Verificateur public</span>
-            </div>
-            <p>Un certificat d'authenticite signe, verifiable par un simple QR : hors ligne, sans serveur, sans blockchain. Meme si ce site disparait, un certificat imprime reste verifiable.</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="nodus/index.html">Verifier un certificat</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card app-card-visual">
-          <svg class="app-banner" viewBox="0 0 400 132" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-            <defs>
-              <linearGradient id="bg-print" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="var(--green)" />
-                <stop offset="100%" stop-color="#1c4d30" />
-              </linearGradient>
-            </defs>
-            <rect width="400" height="132" fill="url(#bg-print)" />
-            <g fill="none" stroke="#fff" stroke-width="4" stroke-linecap="round" opacity="0.9">
-              <line x1="160" y1="42" x2="260" y2="42" />
-              <line x1="150" y1="56" x2="270" y2="56" opacity="0.75" />
-              <line x1="155" y1="70" x2="265" y2="70" opacity="0.6" />
-              <line x1="145" y1="84" x2="275" y2="84" opacity="0.45" />
-              <line x1="160" y1="98" x2="260" y2="98" opacity="0.3" />
-            </g>
-          </svg>
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>3D Print Checker</h3>
-              <span class="tag tag-free">Gratuit</span>
-            </div>
-            <p>Depose un fichier STL, OBJ ou 3MF et obtiens ses risques d'impression, son cout et son temps de fabrication : FDM ou resine/cire pour la bijouterie.</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="https://deligny-r-d.github.io/print-checker/" target="_blank" rel="noopener">Ouvrir</a>
-            </div>
-          </div>
-        </article>
-
-        <article class="app-card app-card-visual">
-          <svg class="app-banner" viewBox="0 0 400 132" preserveAspectRatio="xMidYMid slice" role="img" aria-hidden="true">
-            <defs>
-              <linearGradient id="bg-lumine" x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0%" stop-color="var(--gold)" />
-                <stop offset="100%" stop-color="var(--accent)" />
-              </linearGradient>
-            </defs>
-            <rect width="400" height="132" fill="url(#bg-lumine)" />
-            <g fill="none" stroke="#fff" stroke-width="3.5" stroke-linecap="round" opacity="0.9">
-              <path d="M150 90 Q180 40 210 90 T270 90" />
-              <path d="M150 70 Q180 30 210 70 T270 70" opacity="0.55" />
-              <path d="M150 105 Q180 65 210 105 T270 105" opacity="0.4" />
-            </g>
-          </svg>
-          <div class="app-body">
-            <div class="app-title-row">
-              <h3>Lumine</h3>
-              <span class="tag tag-lab">Lab</span>
-            </div>
-            <p>Une technique de neuroevolution sim-to-real, adaptable a tout projet qui doit apprendre un comportement en simulation avant de le transferer au reel. Premier cas d'usage : un tripode qui apprend a marcher.</p>
-            <div class="app-actions">
-              <a class="btn btn-small btn-muted" href="lumine/index.html">Voir l'avancement</a>
-            </div>
-          </div>
-        </article>
-
       </div>
 
       <div class="infra-list">
-        <div class="infra-row">
-          <strong>GENESIS</strong>
-          <span>Laboratoire de recherche interne : hypotheses, experimentation, validation.</span>
-          <span class="tag tag-lab">Interne</span>
-        </div>
-        <div class="infra-row">
-          <strong>FISCUS</strong>
-          <span>Analyste fiscal et patrimonial a usage interne.</span>
-          <span class="tag tag-private">Prive</span>
-        </div>
 </div>
     </section>
 
@@ -931,7 +757,7 @@
               <h3>Applications DELIGNY R&amp;D</h3>
               <span class="tag tag-live">9 logiciels &amp; studios</span>
             </div>
-            <p>NODUS, Atlas Studio Pro, Lampe Designer... developpes en interne, certains deja utilisables, d'autres en laboratoire.</p>
+            <p>Atlas Studio Pro, Lampe Designer, Montre 3D Studio... developpes en interne, certains deja utilisables, d'autres en laboratoire.</p>
             <div class="app-actions">
               <a class="btn btn-small" href="#logiciels">Voir les demos</a>
             </div>
@@ -991,17 +817,15 @@
             <h3><a class="store-lien" href="offre/conception-industrielle.html">Conception et fabrication industrielle</a></h3>
             <span class="store-etat bientot">Bêta</span>
           </div>
-          <p>Transformer une intention en objet fabricable : CAO assistée, analyse d'impression et de fabrication. 3D Print Checker, l'outil gratuit d'entrée, est déjà en ligne.</p>
+          <p>Transformer une intention en objet fabricable : CAO assistée, analyse d'impression et de fabrication.</p>
           <p class="store-prix"><span>À partir de</span> <b>2 500 &euro; HT</b> <span class="store-prix-suite">Prototype et matière en supplément.</span></p>
           <div class="store-note">
-            <span>Gratuit, sans inscription.</span>
-            <a class="btn btn-small btn-muted store-preuve" href="https://deligny-r-d.github.io/print-checker/" target="_blank" rel="noopener">Essayer 3D Print Checker</a>
           <a class="btn btn-small btn-primary" href="contact.html?sujet=fabrication&amp;mode=offre">Cette offre</a><a class="btn btn-small" href="contact.html?sujet=fabrication&amp;mode=devis">Devis personnalisé</a></div>
         </article>
       </div>
       <div class="section-head mag-sous-tete">
         <p class="eyebrow">En développement</p>
-        <h2>Cinq chantiers en cours</h2>
+        <h2>Trois chantiers en cours</h2>
       </div>
       <p class="section-lead">Tout ce qui est en cours de construction, réuni ici. Certaines s'ouvrent déjà, d'autres se lisent seulement. Aucune n'est vendue, aucune n'est comptée parmi les outils gratuits, et chacune dit où elle en est.</p>
       <div class="app-grid">
@@ -1035,36 +859,6 @@
           </div>
         </article>
 <article class="app-card">
-          <div class="app-icon">SY</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>SYMBYOSE</h3>
-              <span class="tag tag-wait">En développement</span>
-            </div>
-            <p>Résout : diviser la consommation et la matière d&rsquo;un parc informatique. Un ordinateur mère en miroir, des boîtiers de 400 g sans disque sur chaque poste, les données dans vos murs.</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="symbyose/index.html">Découvrir le programme</a>
-              <span>Phase d&rsquo;étude, mesures en cours. Rien n&rsquo;est vendu.</span>
-            </div>
-          </div>
-        </article>
-
-<article class="app-card">
-          <div class="app-icon">LU</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>Lumine</h3>
-              <span class="tag tag-wait">En développement</span>
-            </div>
-            <p>Résout : apprendre un comportement en simulation avant de le transférer au réel. Neuroévolution du simulé vers le physique ; premier cas d&rsquo;usage, un tripode qui apprend à marcher.</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="lumine/index.html">Voir l&rsquo;avancement</a>
-              <span>Laboratoire. Rien à commander, tout à lire.</span>
-            </div>
-          </div>
-        </article>
-
-<article class="app-card">
           <div class="app-icon">IN</div>
           <div class="app-content">
             <div class="app-title-row">
@@ -1088,21 +882,6 @@
         <h2>14 outils gratuits, sans compte</h2>
       </div>
       <div class="app-grid">
-<article class="app-card">
-          <div class="app-icon">3D</div>
-          <div class="app-content">
-            <div class="app-title-row">
-              <h3>3D Print Checker</h3>
-              <span class="tag tag-free">Gratuit</span>
-            </div>
-            <p>Resout : eviter une impression 3D ratee. Depose un STL/OBJ/3MF/GLTF..., obtiens risques, cout et temps : FDM ou resine/cire pour la bijouterie (casting).</p>
-            <div class="app-actions">
-              <a class="btn btn-small" href="https://deligny-r-d.github.io/print-checker/" target="_blank" rel="noopener">Ouvrir</a>
-              <span>Herite du moteur d'analyse de maillage de la Factory.</span>
-            </div>
-          </div>
-        </article>
-
         <article class="app-card">
           <div class="app-icon">FEC</div>
           <div class="app-content">
@@ -1415,5 +1194,6 @@
      deploy/cache-bust.py continue de la versionner. -->
 <script id="lampeDiffere" data-src="lampe-embed.js?v=41eddf22"></script>
 <script src="lampe-differe.js?v=e55d4aba"></script>
+<script src="demos-a-la-demande.js?v=b108a993" defer></script>
 </body>
 </html>
