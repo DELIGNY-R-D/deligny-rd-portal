@@ -74,7 +74,10 @@ details.fins[open]{padding-bottom:8px;}
 body.sans-reglages main{grid-template-columns:1fr;}
 body.sans-reglages aside{display:none;}
 body.sans-reglages #badge{display:none;}
-#badge[hidden]{display:none;}   /* explicite : le bandeau ne sort que sur defaut */
+#badge[hidden]{display:none;}
+#fabNote{position:absolute;left:16px;right:16px;bottom:14px;max-width:560px;font:12px/1.4 var(--font);color:#21452f;background:rgba(236,244,236,.94);padding:8px 11px;border-radius:9px;border:1px solid #9cbf9f;}
+#fabNote[hidden]{display:none;}
+#badge:not([hidden])~#fabNote{bottom:56px;}   /* explicite : le bandeau ne sort que sur defaut */
 @media (max-width:820px){body.sans-reglages #vue{height:calc(100vh - 55px);}}
 #charge{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:var(--dim2);font-size:13px;pointer-events:none;}
 .note{font-size:11.5px;color:var(--dim2);margin-top:6px;}
@@ -192,7 +195,7 @@ body.sans-reglages #badge{display:none;}
   </section>
   <section>
     <h2>Texte personnalisé du fond</h2>
-    <input class="champ" id="gravPerso" maxlength="30" placeholder="ex. POUR CLAIRE · 12.10.2026" autocomplete="off">
+    <input class="champ" id="gravPerso" maxlength="30" placeholder="ex. POUR CLAIRE · 12.10.2026" autocomplete="off"><div class="note" id="gravPersoNote"></div>
     <div class="ligne" style="margin-top:8px"><button class="btn" id="btnGraver" type="button">Embosser le fond (fichier STL de fabrication)</button></div>
     <div class="note" id="noteGraver"></div>
     <div class="note">Une ligne libre embossée au fond, à la place de « IMAGINE BY YOU » (30 caractères maximum), comme le reste du texte du fond : lettres formées en creux à l'impression, pas gravées après coup. Le reste du texte suit automatiquement la configuration : matières (« 3D PRINTED GOLD 18 CT 750 » pour l'or), crédits consommés et année.</div>
@@ -261,7 +264,7 @@ body.sans-reglages #badge{display:none;}
     <div class="note">Lunette : relief jusqu'à 1,5 mm. Cadran : relief jusqu'à 1,2 mm, à condition de choisir des aiguilles assez hautes (Ronda 763 standard : 0,8 mm ; plus haut = chaussée et roue des heures spéciales à commander). Pas de choix de matière pour le moment : boîtier aluminium, cadran titane.</div>
   </section>
 </aside>
-<div id="vue"><button id="basculeReglages" type="button" aria-pressed="false" title="Afficher ou masquer le panneau de personnalisation">Masquer les modifications</button><div id="charge">Chargement du boîtier…</div><div id="badge" hidden></div></div>
+<div id="vue"><button id="basculeReglages" type="button" aria-pressed="false" title="Afficher ou masquer le panneau de personnalisation">Masquer les modifications</button><div id="charge">Chargement du boîtier…</div><div id="badge" hidden></div><div id="fabNote" hidden role="status"></div></div>
 </main>
 
 <script type="module">
@@ -368,7 +371,7 @@ Object.assign(MOTIFS_LUNETTE,{
     profondeur:[.1,1.2,.45,.01,'profondeur mm'],angle:[15,90,50,1,'angle °'],facettes:[1,4,2,1,'facettes'],finition:[0,2,1,1,'finition'],...RJ}},
   image:{nom:'Bas-relief',r:{relief:[.1,1.5,.6,.01,'relief mm'],echelle:[.4,2.5,1.8,.05,'échelle'],detail:[0,1,.3,.05,'détail'],contraste:[.5,2.5,1,.05,'contraste'],
     inverser:[0,1,0,1,'inverser'],finition:[0,2,1,1,'finition']}},
-  arete:{nom:'3D arêtes vives',r:{forme:[0,FORMES.length-1,0,1,'forme'],pas:[.4,6,1.2,.05,'pas mm'],angle:[0,90,45,1,'angle °'],tronque:[0,.9,.5,.05,'troncature'],
+  arete:{nom:'3D arêtes vives',r:{forme:[0,FORMES.length-1,0,1,'forme'],pas:[.8,6,1.2,.05,'pas mm'],angle:[0,90,45,1,'angle °'],tronque:[0,.9,.5,.05,'troncature'],
     relief:[.05,1.2,.35,.01,'relief mm'],finition:[0,2,2,1,'finition'],...RJ}},
 });
 const LISTES={jonction:['fondu','raccord exact','vue de dessus (sans jonction)'],finition:['mat (brut)','poli surface (sommets polis, creux bruts)','poli intégral'],
@@ -1614,7 +1617,7 @@ function ruban(F,larg,ep,decal=0,boucle=true,mats=[matCuir,matDoublure,matTranch
     if(rondDebut>0){const d=Math.abs(f.s-s0);if(d<rondDebut){const q=(rondDebut-d)/rondDebut;kx=Math.max(.04,Math.sqrt(Math.max(0,1-q*q)));}}
     const dc=typeof decal==='function'?decal(f):decal;for(const [x,e] of sec){const o=e*k+dc;pos.push(x*kx,f.y+o*f.ny,f.z+o*f.nz);uv.push(f.s/6,(x*kx+larg/2)/6);}});
   for(let i=0;i<nb;i++){const i2=(i+1)%nF;for(let k=0;k<S;k++){const k2=(k+1)%S,a=i*S+k,b=i2*S+k,c=i*S+k2,d=i2*S+k2,g=face(k)===face(k2)?face(k):2;gr[g].push(a,b,c,b,d,c);}}
-  if(!boucle)for(const i of [0,nF-1]){const c0=pos.length/3;const f=F[i];pos.push(0,f.y+decal*f.ny,f.z+decal*f.nz);uv.push(0,0);
+  if(!boucle)for(const i of [0,nF-1]){const c0=pos.length/3;const f=F[i],dc=typeof decal==='function'?decal(f):decal;pos.push(0,f.y+dc*f.ny,f.z+dc*f.nz);   // (12/10) decal peut etre une fonction : NaN aux deux bouchonsuv.push(0,0);
     for(let k=0;k<S;k++){const k2=(k+1)%S;i?gr[2].push(c0,i*S+k,i*S+k2):gr[2].push(c0,k2,k);}}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setAttribute('uv',new THREE.Float32BufferAttribute(uv,2));
   const I=[...gr[0],...gr[1],...gr[2]];g.setIndex(I);g.addGroup(0,gr[0].length,0);g.addGroup(gr[0].length,gr[1].length,1);g.addGroup(gr[0].length+gr[1].length,gr[2].length,2);
@@ -1702,10 +1705,80 @@ const bracelet=new THREE.Group();
   const pas2=seg(15.5,19);   /* passant cuir apres le bloc de charniere (IMG_8457) */bracelet.add(ruban(pas2.map(f=>({...f})),b.larg+1.4,b.ep*2.95,b.ep*.75,false,[matCuir,matCuir,matTranche]));
   monture.add(bracelet);})();
 // (vitrine, coussin et plateau retires le 08/10 : on ne montre que la montre)
-function reconstruireLunette(){ bornerFinition(); majPrix(); if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
-  mLunette=new THREE.Mesh(construireLunette(),[aluLunette,brutActif?brutCreux:aluLunette]); groupeLunette.add(mLunette); badge(); }
-function reconstruireCadran(){ if(mCadran){groupeCadran.remove(mCadran);mCadran.geometry.dispose();}
-  mCadran=new THREE.Mesh(construireCadran(),state.cadranFin?aluCadran:titane); groupeCadran.add(mCadran); badge(); }
+// ───────────── LIMITES DE FABRICATION (12/10, Baptiste : « éprouve toutes les configs, mets des limites ») ─────────────
+// Procedes : DMLS (alu, titane, inox) et fonderie a cire perdue (bronze, laiton, argent, or). Regles tirees du banc
+// outils/banc_limites.js (600 configurations mesurees sur la geometrie generee, pas sur les reglages) :
+//  - detail : un decor dont plus de 5 % des ilots (cretes ou creux, a mi-hauteur) font moins de 0,3 mm ne sort pas
+//    (impression) ou s'efface (fonderie, polissage) ; un relief <= 0,12 mm est un GRAIN (sablage, givre), pas un detail ;
+//  - matiere : >= 0,6 mm sous les creux de l'embossage (a 1,2 mm de profondeur il en restait 0,12 : percage) ;
+//  - aretes vives : pas >= 0,8 mm, facettes <= 60° (au pas de 0,4 et 1,2 mm de relief : aiguilles a 85°, coupantes) ;
+//  - cadran : relief sous les aiguilles avec 0,15 mm de jeu (aiguilles montees si besoin, 1,6 mm maxi sous le verre).
+const FAB={detail:.3,fins:5,grain:.12,ep:.6,pasArete:.8,penteArete:60,jeu:.15,aigMax:1.6};
+const FAB_FIXES=new Set(['dessin','forme','mode','finition','jonction','graine','inverser','soleil','concentriques','diguette','cratere','pivot','angle','branches','zone']);
+// profondeur maxi de l'embossage : le creux suit la normale vers l'interieur ; il doit rester FAB.ep jusqu'a
+// l'alesage du verre (R_IN) et jusqu'au dessous de la lunette (Y_BAS), partout ou le motif peut creuser
+function profMaxEmbossage(){LZ=largeurZone();let d=9;
+  for(let k=0;k<72;k++){const th=2*Math.PI*k/72,P=profilZone(th);for(let j=0;j<=48;j++){const sg=j/48;if(sg*LZ<MARGE_FINE)continue;
+    const [r0,y0,nr,ny]=surProfil(P,sg);if(nr>1e-3)d=Math.min(d,(r0-R_IN-FAB.ep)/nr);if(ny>1e-3)d=Math.min(d,(y0-Y_BAS-FAB.ep)/ny);}}
+  return Math.max(.1,Math.floor(d*100)/100);}
+// bornes immediates (sans mesure) : appelees avant chaque construction
+function bornerFab(piece){const s=state[piece],p=s.params,m=s.motif,notes=[];
+  const cl=(k,lo,hi,pourquoi)=>{if(typeof p[k]!=='number')return;const v=Math.min(hi,Math.max(lo,p[k]));if(Math.abs(v-p[k])>1e-6){p[k]=+v.toFixed(2);notes.push(pourquoi);}};
+  if(piece==='lunette'){
+    if(m==='arete'){cl('pas',FAB.pasArete,99,`pas ramené à ${String(FAB.pasArete).replace('.',',')} mm mini (facettes plus fines que 0,4 mm : non fabricables)`);
+      const rmax=Math.floor(Math.tan(FAB.penteArete*Math.PI/180)*p.pas/2*100)/100;cl('relief',0,rmax,`relief ramené à ${String(rmax).replace('.',',')} mm (facettes de ${FAB.penteArete}° maxi : pas d'arêtes coupantes)`);}
+    if(m==='embossage'){const d=profMaxEmbossage();cl('profondeur',0,d,`profondeur ramenée à ${String(d).replace('.',',')} mm (${String(FAB.ep).replace('.',',')} mm de matière sous le creux)`);}}
+  else{const pc=reliefMaxCadran();
+    if(state.aiguilles-pc<FAB.jeu){const a=[1.2,1.6].find(a=>a>state.aiguilles&&a-pc>=FAB.jeu);
+      if(a){state.aiguilles=a;const e=document.getElementById('aigH');if(e)e.value=String(a);aig.position.y=a-.8;notes.push(`aiguilles montées à ${String(a).replace('.',',')} mm (le relief les touchait)`);}
+      else{const k=m==='montagnes'?'hauteur':'relief',f=m==='terrasses'&&p.diguette?1.05:1;cl(k,0,(FAB.aigMax-FAB.jeu)/f,'relief ramené sous les aiguilles');}}}
+  return notes;}
+// mesure (apres construction, au repos) : null si fabricable, sinon les raisons
+function controleFab(piece){const s=state[piece],R=[];
+  if(piece==='lunette'){if(!['embossage','image'].includes(s.motif))return R;
+    if(s.motif==='image'&&!BASRELIEF.lunette)return R;
+    const d=diagLunette(1440);if(d.ep!=null&&d.ep<FAB.ep-.03)R.push(`matière sous le creux ${d.ep.toFixed(2).replace('.',',')} mm`);
+    if(d.hmax-d.hmin>FAB.grain)for(const [c,lib] of [['crete','reliefs'],['creux','creux']]){const o=d[c];if(o&&o.fins>FAB.fins)R.push(`${lib} trop fins (${String(o.fins).replace('.',',')} % sous ${String(FAB.detail).replace('.',',')} mm)`);}}
+  else{if(s.motif==='lisse'||(s.motif==='image'&&!BASRELIEF.cadran))return R;
+    const d=diagCadran(.06);if(d.hmax-d.hmin>FAB.grain)for(const [c,lib] of [['crete','reliefs'],['creux','creux']]){const o=d[c];if(o&&o.fins>FAB.fins)R.push(`${lib} trop fins (${String(o.fins).replace('.',',')} % sous ${String(FAB.detail).replace('.',',')} mm)`);}}
+  return R;}
+// remedes : dans quel sens un reglage GROSSIT le dessin
+const FAB_REMEDES={pas:1,echelle:1,detail:-1,contraste:-1,taille:1,longueur:1,rayon:1,n:-1,rangs:-1,anneaux:-1,petales:-1,niveaux:-1,couches:-1,nombre:-1,collines:-1,pics:-1};
+const FAB_VALIDE={lunette:null,cadran:null};
+function rendreFabricable(piece){const s=state[piece],M=(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[s.motif];if(!M)return null;
+  const raisons=controleFab(piece);if(!raisons.length){FAB_VALIDE[piece]={motif:s.motif,params:{...s.params}};return null;}
+  const cur={...s.params},arr=p=>{for(const [k,v] of Object.entries(M.r))if(typeof p[k]==='number'&&!FAB_FIXES.has(k)){const st=v[3]||.01;p[k]=+Math.min(v[1],Math.max(v[0],Math.round(p[k]/st)*st)).toFixed(3);}return p;};
+  const ok=p=>{s.params=p;bornerFab(piece);return !controleFab(piece).length;};
+  const mix=(a,b,t)=>{const o={...b};for(const k of Object.keys(M.r))if(!FAB_FIXES.has(k)&&typeof a[k]==='number'&&typeof b[k]==='number')o[k]=a[k]+(b[k]-a[k])*t;return arr(o);};
+  const bissecte=(a,b)=>{let lo=0,hi=1;for(let i=0;i<7;i++){const m=(lo+hi)/2;if(ok(mix(a,b,m)))lo=m;else hi=m;}return mix(a,b,lo);};
+  let fixe=null;const V=FAB_VALIDE[piece];
+  // 1. la limite la plus proche : on revient vers le dernier reglage fabricable du meme motif
+  if(V&&V.motif===s.motif&&ok(mix(V.params,cur,0)))fixe=bissecte(V.params,cur);
+  // 2. on grossit le dessin d'un seul reglage (le premier qui suffit)
+  if(!fixe)for(const [k,sg] of Object.entries(FAB_REMEDES)){if(!M.r[k]||FAB_FIXES.has(k))continue;const ext={...cur,[k]:sg>0?M.r[k][1]:M.r[k][0]};
+    if(ok(arr({...ext}))){let lo=0,hi=1;for(let i=0;i<7;i++){const m=(lo+hi)/2;if(ok(arr({...cur,[k]:cur[k]+(ext[k]-cur[k])*m})))hi=m;else lo=m;}fixe=arr({...cur,[k]:cur[k]+(ext[k]-cur[k])*hi});break;}}
+  // 3. sinon on baisse le relief jusqu'au grain (toujours fabricable)
+  if(!fixe){const k=M.r.relief?'relief':M.r.profondeur?'profondeur':M.r.hauteur?'hauteur':null;
+    if(k){const lo={...cur,[k]:Math.max(M.r[k][0],FAB.grain)};fixe=ok(arr({...lo}))?(()=>{let a=0,b=1;for(let i=0;i<5;i++){const m=(a+b)/2;if(ok(arr({...cur,[k]:cur[k]+(lo[k]-cur[k])*m})))b=m;else a=m;}return arr({...cur,[k]:cur[k]+(lo[k]-cur[k])*b});})():null;}}
+  if(!fixe)fixe=arr({...defauts(M),...Object.fromEntries([...FAB_FIXES].filter(k=>k in cur).map(k=>[k,cur[k]]))});
+  s.params=fixe;bornerFab(piece);FAB_VALIDE[piece]={motif:s.motif,params:{...s.params}};
+  const chg=Object.keys(M.r).filter(k=>typeof cur[k]==='number'&&Math.abs((fixe[k]??0)-cur[k])>1e-6).map(k=>`${M.r[k][4]} ${fmtFab(cur[k])} → ${fmtFab(fixe[k])}`);
+  return `${raisons.join(' ; ')} : ${chg.join(', ')||'réglage par défaut'}`;}
+const fmtFab=v=>(+v).toFixed(Math.abs(v)<10?2:0).replace('.',',');
+function noteFab(piece,txt){const e=document.getElementById('fabNote');if(!e)return;(window._notesFab=window._notesFab||{})[piece]=txt;
+  const t=Object.entries(window._notesFab).filter(([,v])=>v).map(([k,v])=>`${k==='lunette'?'Lunette':'Cadran'} : ${v}`);
+  e.hidden=!t.length;e.textContent=t.length?'Limite de fabrication. '+t.join(' · '):'';}
+const _fabT={};
+function planifierFab(piece,notes){if(notes&&notes.length)noteFab(piece,notes.join(' ; '));
+  clearTimeout(_fabT[piece]);_fabT[piece]=setTimeout(()=>{let msg=null;try{msg=rendreFabricable(piece);}catch(e){console.warn('controle fab',e);}
+    if(msg){noteFab(piece,msg);_fabGarde[piece]=true;try{panneau(piece);}catch(e){}reconstruire(piece);}
+    else if(_fabGarde[piece])delete _fabGarde[piece];   // reconstruction issue de la correction : la note reste affichee
+    else if(!(notes&&notes.length))noteFab(piece,null);},700);}
+const _fabGarde={};
+function reconstruireLunette(){ bornerFinition(); const nf=bornerFab('lunette'); majPrix(); if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
+  mLunette=new THREE.Mesh(construireLunette(),[aluLunette,brutActif?brutCreux:aluLunette]); groupeLunette.add(mLunette); badge(); planifierFab('lunette',nf); }
+function reconstruireCadran(){ const nf=bornerFab('cadran'); if(mCadran){groupeCadran.remove(mCadran);mCadran.geometry.dispose();}
+  mCadran=new THREE.Mesh(construireCadran(),state.cadranFin?aluCadran:titane); groupeCadran.add(mCadran); badge(); planifierFab('cadran',nf); }
 // (10/10) Le bandeau ne RELEVE plus en permanence les reglages par-dessus la
 // montre : ces trois chiffres sont deja lisibles dans le panneau, et les
 // reafficher sur la piece masquait ce qu'on est venu regarder.
@@ -2261,12 +2334,12 @@ function initEncyclopedie(){const L=document.getElementById('encListe'),Q=docume
 // ───────────────────────────── volumes 3D (moteur Blender en coulisse) ─────────────────────────────
 // [min,max,defaut,pas,libelle] : IDENTIQUE a app/montre_blender.py TYPES
 const ORN = {
-  bille:    {nom:'Billes', r:{n:[1,200,48,1,'nombre'], taille:[.4,5,1.2,.05,'taille mm'], zone:[0,2,0,1,'zone'], variation:[0,1,.4,.05,'variation'], rangee:[0,1,.5,.01,'position'], dispersion:[0,1,.3,.05,'dispersion'], graine:[1,999,3,1,'variante']}},
-  pointe:   {nom:'Pointes', r:{n:[1,80,16,1,'nombre'], zone:[0,2,0,1,'zone'], taille:[.6,3,1.6,.05,'base mm'], hauteur:[.5,5,2.2,.05,'hauteur mm'], variation:[0,1,.3,.05,'variation'], rangee:[0,1,.55,.01,'position'], graine:[1,999,5,1,'variante']}},
-  etoile:   {nom:'Étoiles', r:{n:[1,24,4,1,'nombre'], taille:[1,10,3.5,.1,'taille mm'], branches:[4,6,4,1,'branches'], hauteur:[.3,4,1.2,.05,'hauteur mm'], zone:[0,2,0,1,'zone'], rangee:[0,1,.5,.01,'position'], graine:[1,999,9,1,'variante']}},
-  grappe:   {nom:'Grappe (bulles)', r:{densite:[.2,1,.7,.05,'densité'], taille:[.6,4,2.2,.05,'taille maxi mm'], pointes:[0,24,8,1,'pointes'], hauteur_pointes:[1,6,3.5,.1,'hauteur pointes mm'], zone:[0,2,2,1,'zone'], graine:[1,999,17,1,'variante']}},
-  coque:    {nom:'Coque ajourée', r:{epaisseur:[1,4,2,.05,'épaisseur mm'], trous:[8,80,32,1,'alvéoles'], ondulation:[0,1,.6,.05,'ondulation'], zone:[0,2,2,1,'zone'], graine:[1,999,21,1,'variante']}},
-  tentacule:{nom:'Tentacules', r:{n:[1,8,4,1,'nombre'], epaisseur:[.6,3,1.6,.05,'épaisseur mm'], longueur:[.08,.45,.22,.01,'longueur'], ondulations:[1,6,2,1,'ondulations'], ventouses:[0,1,1,1,'ventouses'], graine:[1,999,13,1,'variante']}},
+  bille:    {nom:'Billes', r:{n:[1,200,48,1,'nombre'], taille:[.6,5,1.2,.05,'taille mm'], zone:[0,2,0,1,'zone'], variation:[0,1,.4,.05,'variation'], rangee:[0,1,.5,.01,'position'], dispersion:[0,1,.3,.05,'dispersion'], graine:[1,999,3,1,'variante']}},
+  pointe:   {nom:'Pointes', r:{n:[1,80,16,1,'nombre'], zone:[0,2,0,1,'zone'], taille:[.8,3,1.6,.05,'base mm'], hauteur:[.5,3,2.2,.05,'hauteur mm'], variation:[0,1,.3,.05,'variation'], rangee:[0,1,.55,.01,'position'], graine:[1,999,5,1,'variante']}},
+  etoile:   {nom:'Étoiles', r:{n:[1,24,4,1,'nombre'], taille:[1,10,3.5,.1,'taille mm'], branches:[4,6,4,1,'branches'], hauteur:[.3,3,1.2,.05,'hauteur mm'], zone:[0,2,0,1,'zone'], rangee:[0,1,.5,.01,'position'], graine:[1,999,9,1,'variante']}},
+  grappe:   {nom:'Grappe (bulles)', r:{densite:[.2,1,.7,.05,'densité'], taille:[.8,4,2.2,.05,'taille maxi mm'], pointes:[0,24,8,1,'pointes'], hauteur_pointes:[1,3,2.5,.1,'hauteur pointes mm'], zone:[0,2,2,1,'zone'], graine:[1,999,17,1,'variante']}},
+  coque:    {nom:'Coque ajourée', r:{epaisseur:[1.2,4,2,.05,'épaisseur mm'], trous:[8,80,32,1,'alvéoles'], ondulation:[0,1,.6,.05,'ondulation'], zone:[0,2,2,1,'zone'], graine:[1,999,21,1,'variante']}},
+  tentacule:{nom:'Tentacules', r:{n:[1,8,4,1,'nombre'], epaisseur:[.8,3,1.6,.05,'épaisseur mm'], longueur:[.08,.45,.22,.01,'longueur'], ondulations:[1,6,2,1,'ondulations'], ventouses:[0,1,1,1,'ventouses'], graine:[1,999,13,1,'variante']}},
 };
 state.ornements=[]; state.fusion=.5; let mOrn=null;
 function listeOrnements(){const L=document.getElementById('ornListe');L.innerHTML='';
@@ -2283,11 +2356,15 @@ for(const [k,v] of Object.entries(ORN)){const b=document.createElement('button')
   b.onclick=()=>{if(state.ornements.length>=6)return;state.ornements.push({type:k,params:Object.fromEntries(Object.entries(v.r).map(([a,q])=>[a,q[2]]))});listeOrnements();};
   document.getElementById('ornAjout').appendChild(b);}
 const fu=document.getElementById('ornFusion');fu.oninput=()=>{state.fusion=+fu.value;document.getElementById('ornFusionV').textContent=(+fu.value).toFixed(2);};
+// ornements : chaque valeur dans les bornes de fabrication (prereglages compris) ; une pointe ne depasse pas 2 x sa base
+// (au-dela : aiguille fragile en DMLS et coupante au porter), une grappe pas plus de 3 mm
+function bornerOrnement(g){const R=ORN[g.type]?ORN[g.type].r:{},p={...g.params};for(const [k,v] of Object.entries(R))if(typeof p[k]==='number')p[k]=Math.min(v[1],Math.max(v[0],p[k]));
+  if(g.type==='pointe')p.hauteur=Math.min(p.hauteur,2*p.taille);g.params=p;return p;}
 async function construireOrnements(){const et=document.getElementById('ornEtat'),go=document.getElementById('ornGo');
   if(!state.ornements.length){if(mOrn){groupeLunette.remove(mOrn);mOrn=null;}et.textContent='Aucun ornement.';return;}
   go.disabled=true;et.textContent='Construction des volumes en cours (de 10 à 40 s selon la complexité)…';
   try{const r=await (await fetch(AI_BASE+'/api/montre/ornements',{method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({ornements:state.ornements.map(g=>({type:g.type,...g.params})),fusion:state.fusion})})).json();
+      body:JSON.stringify({ornements:state.ornements.map(g=>({type:g.type,...bornerOrnement(g)})),fusion:state.fusion})})).json();
     if(!r.ok)throw new Error(r.note||'refus');
     const bin=Uint8Array.from(atob(r.stl_b64),c=>c.charCodeAt(0)).buffer, g=new STLLoader().parse(bin); g.computeVertexNormals();
     if(mOrn){groupeLunette.remove(mOrn);mOrn.geometry.dispose();} mOrn=new THREE.Mesh(g,aluLunette); groupeLunette.add(mOrn);
@@ -2419,7 +2496,44 @@ document.getElementById('msg').addEventListener('keydown',e=>{if(e.key==='Enter'
   const b=document.createElement('button');b.className='btn';b.textContent=t;b.onclick=()=>envoyer(t);document.getElementById('ex').appendChild(b);});
 bulle('lui','Décris la montre que tu veux : un motif pour la lunette, un motif pour le cadran. Je règle, le studio construit et vérifie les reliefs.');
 chargerBibliotheque(); // apres AI_BASE (declare plus haut dans le concierge)
-window.__studio={reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+// ── DIAGNOSTIC DE FABRICABILITE (12/10) : mesures sur la geometrie generee (pas sur les reglages) ──
+// ep : matiere restante sous le decor (vers l'alesage R_IN et le dessous Y_BAS) ; detail : plus petite crete /
+// plus petit creux (largeur a mi-hauteur, 2e centile) ; pente : paroi la plus raide (99e centile).
+// ilots (cretes = au-dessus de mi-hauteur, creux = en dessous) : epaisseur = 2 x distance maxi au bord dans l'ilot
+// (plus grand cercle inscrit) ; un ilot plus fin que le procede ne sort pas (impression) ou s'efface (polissage)
+function ilots(H,nx,ny,dx,dy,cyc,seuil){const n=nx*ny,cl=new Uint8Array(n),D=new Float32Array(n),INF=1e9;
+  for(let k=0;k<n;k++)cl[k]=H[k]>seuil?1:0;
+  for(let k=0;k<n;k++)D[k]=INF;
+  const id=(x,y)=>cyc?(((x%nx)+nx)%nx)*ny+y:x*ny+y,dd=Math.hypot(dx,dy);
+  for(let x=0;x<nx;x++)for(let y=0;y<ny;y++){const k=x*ny+y,c=cl[k];   // bord : voisin d'une autre classe
+    for(const [a,b] of [[1,0],[-1,0],[0,1],[0,-1]]){const X=x+a,Y=y+b;if(Y<0||Y>=ny||(!cyc&&(X<0||X>=nx)))continue;if(cl[id(X,Y)]!==c){D[k]=Math.min(a?dx:dy)/2;break;}}}
+  const pass=(x0,x1,sx,y0,y1,sy)=>{for(let x=x0;x!==x1;x+=sx)for(let y=y0;y!==y1;y+=sy){const k=x*ny+y;let v=D[k];
+    for(const [a,b,w] of [[-sx,0,dx],[0,-sy,dy],[-sx,-sy,dd],[-sx,sy,dd]]){const X=x+a,Y=y+b;if(Y<0||Y>=ny||(!cyc&&(X<0||X>=nx)))continue;const q=id(X,Y);if(cl[q]===cl[k]&&D[q]+w<v)v=D[q]+w;}D[k]=v;}};
+  for(let r=0;r<2;r++){pass(0,nx,1,0,ny,1);pass(nx-1,-1,-1,ny-1,-1,-1);pass(0,nx,1,ny-1,-1,-1);pass(nx-1,-1,-1,0,ny,1);}
+  const vu=new Uint8Array(n),res={haut:[],bas:[]},st=new Int32Array(n);
+  for(let k0=0;k0<n;k0++){if(vu[k0])continue;let top=0,mx=0,aire=0,bord=false;st[top++]=k0;vu[k0]=1;const c=cl[k0];
+    while(top){const k=st[--top],x=(k/ny)|0,y=k%ny;aire++;if(D[k]>mx)mx=D[k];if(y===0||y===ny-1)bord=true;
+      for(const [a,b] of [[1,0],[-1,0],[0,1],[0,-1]]){const X=x+a,Y=y+b;if(Y<0||Y>=ny||(!cyc&&(X<0||X>=nx)))continue;const q=id(X,Y);if(!vu[q]&&cl[q]===c){vu[q]=1;st[top++]=q;}}}
+    if(aire>3)(c?res.haut:res.bas).push({e:2*mx,aire:aire*dx*dy,bord});}
+  return res;}
+const pct=(a,q)=>{if(!a.length)return null;const s=Float64Array.from(a).sort();return s[Math.min(s.length-1,Math.floor(q*s.length))];};
+const resumeIlots=(I,lim)=>{const f=L=>{const a=L.filter(o=>!o.bord);if(!a.length)return {min:null,fins:0};const t=a.reduce((s,o)=>s+o.aire,0);
+  return {min:+Math.min(...a.map(o=>o.e)).toFixed(3),fins:+(100*a.filter(o=>o.e<lim).reduce((s,o)=>s+o.aire,0)/t).toFixed(1)};};return {crete:f(I.haut),creux:f(I.bas)};};
+function diagLunette(Nd=2400){const {M}=grilleMotif(),Md=Math.max(M,72),H=new Float32Array(Nd*Md);let ep=99,hmax=-9,hmin=9;
+  for(let i=0;i<Nd;i++)for(let j=0;j<Md;j++){const q=pointZone(i,Nd,j,Md),h=dernierH;H[i*Md+j]=h;if(h>hmax)hmax=h;if(h<hmin)hmin=h;
+    if(h<-.01)ep=Math.min(ep,Math.hypot(q[0],q[2])-R_IN,q[1]-Y_BAS);}   // seulement sous les creux : la piece nue est donnee
+  const amp=hmax-hmin,du=PERIM/Nd,ds=LZ/(Md-1),pentes=[],out={};
+  if(amp>.03){const seuil=hmin+amp/2;
+    for(let i=0;i<Nd;i++)for(let j=1;j<Md-1;j++){const a=H[i*Md+j],gu=(H[((i+1)%Nd)*Md+j]-H[((i+Nd-1)%Nd)*Md+j])/(2*du),gs=(H[i*Md+j+1]-H[i*Md+j-1])/(2*ds);pentes.push(Math.atan(Math.hypot(gu,gs))*180/Math.PI);}
+    Object.assign(out,resumeIlots(ilots(H,Nd,Md,du,ds,true,seuil),FAB.detail));}
+  return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),ep:ep<99?+ep.toFixed(3):null,crete:out.crete,creux:out.creux,pente:pct(pentes,.99)};}
+function diagCadran(pas=.04){const r1=C_R1-.25,n=Math.round(2*r1/pas),H=new Float32Array(n*n),pentes=[];let hmax=-9,hmin=9;
+  for(let x=0;x<n;x++)for(let y=0;y<n;y++){const X=-r1+x*pas,Z=-r1+y*pas,h=Math.hypot(X,Z)<r1?reliefCadranSansLogo(X,Z):0;H[x*n+y]=h;if(h>hmax)hmax=h;if(h<hmin)hmin=h;}
+  const amp=hmax-hmin;let o={crete:null,creux:null};
+  if(amp>.03){for(let x=1;x<n-1;x++)for(let y=1;y<n-1;y+=2){const g=Math.hypot(H[(x+1)*n+y]-H[(x-1)*n+y],H[x*n+y+1]-H[x*n+y-1])/(2*pas);pentes.push(Math.atan(g)*180/Math.PI);}
+    o=resumeIlots(ilots(H,n,n,pas,pas,false,hmin+amp/2),FAB.detail);}
+  return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),...o,pente:pct(pentes,.99),jeu:+(state.aiguilles-reliefMaxCadran()).toFixed(2)};}
+window.__studio={scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
 document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');appliquerMatieres();if(mLunette)mLunette.material=[aluLunette,on?brutCreux:aluLunette];};
 document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
 for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
@@ -2540,7 +2654,17 @@ ${L('Fabrication',[...new Set([P.ib,P.il,P.ic].map(id=>TARIFS[id].proc.startsWit
 </body></html>`;
   const w=window.open(URL.createObjectURL(new Blob([html],{type:'text/html'})),'_blank');if(!w)alert('Autorise les fenêtres pour afficher le certificat.');}
 document.getElementById('btnCertif').onclick=certificatMontre;
-{const gp=document.getElementById('gravPerso');gp.oninput=()=>{state.gravurePerso=gp.value;majGravure();};}
+{const gp=document.getElementById('gravPerso');
+ /* LIMITE DE FABRICATION (12/10) : la ligne libre est embossee comme le reste du fond (0,30 mm). En capitales, sans
+    caractere que la police n'a pas, et jamais plus serree que 1,0 mm de hauteur de lettre (comme les autres lignes) :
+    trop longue, elle se reduisait jusqu'a 0,7 mm et des traits de 0,1 mm, illisibles et non imprimables. */
+ const mes=document.createElement('canvas').getContext('2d');mes.font='600 179px "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif';
+ const hauteur=t=>1.3*Math.min(1,19.8/(mes.measureText(t).width/100));   // 1,3 mm nominal, reduit pour tenir dans 19,8 mm
+ gp.oninput=()=>{let v=gp.value.toUpperCase().replace(/[^A-Z0-9ÀÂÄÇÉÈÊËÎÏÔÖÙÛÜŸŒÆ &'.,:\/·+\-]/g,'');let coupe=false;
+   while(v&&hauteur(v)<1.0){v=v.slice(0,-1);coupe=true;}
+   if(v!==gp.value){const c=gp.selectionStart;gp.value=v;try{gp.setSelectionRange(Math.min(c,v.length),Math.min(c,v.length));}catch(e){}}
+   const n=document.getElementById('gravPersoNote');if(n)n.textContent=coupe?'Ligne complète : au-delà, les lettres feraient moins de 1 mm et ne seraient plus lisibles une fois embossées.':'';
+   state.gravurePerso=v;majGravure();};}
 // GRAVURE REELLE (12/10) : le studio n'affiche qu'un decalque ; ce bouton fait graver les memes lignes, a la meme
 // place, dans le vrai fichier du fond (Blender, 0,30 mm) et donne le STL de fabrication. Studio local seulement.
 document.getElementById('btnGraver').onclick=async()=>{const n=document.getElementById('noteGraver'),b=document.getElementById('btnGraver'),P=window._placementGravure;
