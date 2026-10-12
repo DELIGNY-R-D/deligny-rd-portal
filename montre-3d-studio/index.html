@@ -836,18 +836,34 @@ function pointZone(i,N,j,M,decal){const ua=i/N,th=thetaArc(ua),sg=j/(M-1),P=prof
     garde=sm(MARGE_FINE,MARGE_FINE+.25,dInt)*sm(0,.06,dExt);}
   else{const dm=Math.min(sg,1-sg)*LZ;garde=sm(MARGE_FINE,MARGE_FINE+.25,dm);}
   const h=decal!==undefined?decal:(garde>0?FL[state.lunette.motif](ua,s,state.lunette.params)*garde:0);
-  dernierH=h;const r=r0+h*nr;return [r*Math.cos(th),y0+h*ny,r*Math.sin(th)];}
-let dernierH=0;const _extCol={i:-1,N:0,v:true};   // cote exterieur de la zone, une fois par colonne
+  dernierH=h;dernierN[0]=nr*Math.cos(th);dernierN[1]=ny;dernierN[2]=nr*Math.sin(th);const r=r0+h*nr;return [r*Math.cos(th),y0+h*ny,r*Math.sin(th)];}
+let dernierH=0;const dernierN=[0,1,0];   // normale du profil au dernier point (arrondi d'affichage)
+const _extCol={i:-1,N:0,v:true};   // cote exterieur de la zone, une fois par colonne
 // POLISSAGE (photo des ecailles, 08/10) : le polisseur n'atteint que les SOMMETS du relief ;
 // les creux restent bruts (gris, grenus), avec une limite nette. Un triangle est poli si sa
 // hauteur moyenne depasse SEUIL_POLI x le relief maxi de la piece.
 const SEUIL_POLI=.45;
 // Par categorie : EMBOSSAGE poli sur la surface d'origine, creux bruts assombris avec la profondeur ;
 // BAS-RELIEF mat = tout brut (sommets un peu plus clairs), poli = sommets polis ; ARETES VIVES = poli.
-function grilleSeparee(N,M,pos){const H=new Float32Array(N*M);const g=grille(N,M,(i,j)=>{const q=pos(i,j);H[i*M+j]=dernierH;return q;});
+function grilleSeparee(N,M,pos){const H=new Float32Array(N*M),NV=new Float32Array(N*M*3);const g=grille(N,M,(i,j)=>{const q=pos(i,j);H[i*M+j]=dernierH;NV.set(dernierN,(i*M+j)*3);return q;});
+  /* POLI SURFACE, ECRAN SEULEMENT (12/10, Baptiste) : le polissage casse l'arete des sommets -> on arrondit les
+     aretes CONVEXES (on ne fait que descendre les sommets, rayon ~0,08 mm). Le fichier de fabrication (peauLunette,
+     export STL) ne passe pas ici : il garde les aretes vives. */
+  if(Math.round(state.lunette.params.finition??(state.lunette.motif==='arete'?2:1))===1&&state.lunette.motif!=='lisse'){
+    const di=2*Math.PI*18/N,dj=LZ/Math.max(1,M-1),ki=Math.max(1,Math.round(.08/di)),kj=Math.max(1,Math.round(.08/dj));
+    let A=Float32Array.from(H),B=new Float32Array(N*M);
+    for(let pass=0;pass<2;pass++){
+      for(let i=0;i<N;i++)for(let j=0;j<M;j++){let t=0;for(let d=-ki;d<=ki;d++)t+=A[(((i+d)%N+N)%N)*M+j];B[i*M+j]=t/(2*ki+1);}
+      for(let i=0;i<N;i++)for(let j=0;j<M;j++){let t=0,c=0;for(let d=-kj;d<=kj;d++){const jj=j+d;if(jj<0||jj>=M)continue;t+=B[i*M+jj];c++;}A[i*M+j]=t/c;}}
+    const P=g.getAttribute('position').array;
+    for(let k=0;k<N*M;k++){const dh=Math.min(0,A[k]-H[k]);if(dh<0){P[k*3]+=dh*NV[k*3];P[k*3+1]+=dh*NV[k*3+1];P[k*3+2]+=dh*NV[k*3+2];}}
+    g.getAttribute('position').needsUpdate=true;}
+  return separer(g,H);}
+// zone decoree -> [triangles polis, triangles bruts] selon la finition (partage par la grille et le maillage parametrique)
+function separer(g,H){
   const m=state.lunette.motif,p=state.lunette.params;let hmax=0,hmin=0;for(const v of H){hmax=Math.max(hmax,v);hmin=Math.min(hmin,v);}
-  const C=new Float32Array(N*M*3);
-  for(let i=0;i<N*M;i++){let c=1;
+  const C=new Float32Array(H.length*3);
+  for(let i=0;i<H.length;i++){let c=1;
     if(m==='embossage')c=1-.62*Math.min(1,-H[i]/Math.max(.05,p.profondeur));
     else if(m==='image')c=.55+.45*(hmax>1e-4?H[i]/hmax:1);
     if(Math.round(p.finition??1)===2)c=1;
@@ -860,6 +876,113 @@ function grilleSeparee(N,M,pos){const H=new Float32Array(N*M);const g=grille(N,M
   for(let t=0;t<I.length;t+=3){const moy=(H[I[t]]+H[I[t+1]]+H[I[t+2]])/3;(poli(moy)?haut:bas).push(I[t],I[t+1],I[t+2]);}
   const mk=ix=>{const n=new THREE.BufferGeometry();n.setAttribute('position',g.getAttribute('position'));n.setAttribute('color',g.getAttribute('color'));n.setIndex(ix);return n;};
   return [mk(haut),mk(bas)];}
+// ── MAILLAGE PARAMETRIQUE DES RESEAUX (12/10, Baptiste : « la 3D la plus propre et la plus parfaite possible,
+// prioriser le parametrique »). Un reseau tourne (clous de Paris a 45°, pointes de diamant...) pose sur la grille
+// (u, s) coupait les mailles en biais : aretes en dents de scie. Ici les sommets SONT les noeuds du reseau
+// (coins, milieux, apex : pas/k, k pair) : chaque facette plane du motif est faite de triangles exacts, la
+// diagonale de chaque carre suit l'arete. Periodicite exacte (le raccord met un nombre entier de cellules sur le
+// tour : les noeuds sont identifies modulo ce vecteur, aucune couture). Les bords de la zone (marge plate) et le
+// pli face/biseau sont des DECOUPES exactes ; la marge plate est cousue aux colonnes des bandes voisines.
+function reseauParam(){const F=famEff();if(!F||state.lunette.motif!=='arete')return null;const p=F.p,k=F.k;
+  if(Math.round(p.jonction??1)!==1||celluleDroite())return null;
+  const md=FAMILLES[k].modes[Math.round(p.mode||0)],R=(RACCORD[k]||{})[md];if(!Array.isArray(R))return null;
+  const q=raccordExact(k,p);if(!q)return null;
+  const cible=APERCU?.2:.1,kk=2*Math.max(1,Math.ceil(q.pas*Math.max(R[0],R[1])/cible/2));
+  const sA=q.pas*R[0]/kk,sB=q.pas*R[1]/kk,a=(q.angle||0)*Math.PI/180,c=Math.cos(a),si=Math.sin(a);
+  const Tm=PERIM*c/sA,Tn=PERIM*si/sB;if(Math.abs(Tm-Math.round(Tm))>1e-3||Math.abs(Tn-Math.round(Tn))>1e-3)return null;
+  KC_PARAM=2*(state.lunette.params.relief||.6)/q.pas;   // chanfrein de bord : meme pente que les facettes du motif
+  return {sA,sB,c,si,Tm:Math.round(Tm),Tn:Math.round(Tn),piv:(p.pivot||0)/360};}
+let KC_PARAM=1;
+// BORD DE ZONE PARAMETRIQUE : au lieu d'un fondu (qui deforme les pyramides en surfaces gauches), le motif est
+// COUPE par un plan incline (chanfrein a la pente des facettes) qui part de la marge : h = min(motif, chanfrein).
+// Les deux sont plans par morceaux : l'intersection est une droite, decoupee exactement dans le maillage.
+const chanfrein=sg=>KC_PARAM*(Math.min(sg,1-sg)*LZ-MARGE_FINE);
+function hBrutUS(ua,sg){const th=thetaArc(ua);return FL[state.lunette.motif](fract(ua),sZone(sg,th),state.lunette.params);}
+// point de la zone a (ua, sg) quelconques (meme calcul que pointZone, hors motif d'origine)
+function pointUS(ua,sg,decal){const th=thetaArc(ua),P=profilZone(th);let [r0,y0,nr,ny]=surProfil(P,sg);const s=sZone(sg,th);PZ.x=r0*Math.cos(th);PZ.z=r0*Math.sin(th);
+  // pli face/biseau : le relief est pousse dans UNE direction par angle (bissectrice du pli), comme un outil qui frappe
+  // le motif : chaque cote est une application affine -> facettes planes des deux cotes, arete exacte sur le pli,
+  // aucune dechirure (une normale qui saute ou qui tourne froissait les pyramides a cheval)
+  if(P.length===3){const no=(q,w)=>{const dr=w[0]-q[0],dy=w[1]-q[1],L=Math.hypot(dr,dy);return [-dy/L,dr/L];},n1=no(P[0],P[1]),n2=no(P[1],P[2]);
+    nr=n1[0]+n2[0];ny=n1[1]+n2[1];const L=Math.hypot(nr,ny);nr/=L;ny/=L;}
+  const h=decal!==undefined?decal:Math.max(0,Math.min(hBrutUS(ua,sg),chanfrein(sg)));
+  dernierH=h;dernierN[0]=nr*Math.cos(th);dernierN[1]=ny;dernierN[2]=nr*Math.sin(th);const r=r0+h*nr;return [r*Math.cos(th),y0+h*ny,r*Math.sin(th)];}
+function plisZone(ua){const th=thetaArc(ua),P=profilZone(th);if(P.length<3)return null;
+  const l0=Math.hypot(P[1][0]-P[0][0],P[1][1]-P[0][1]),l1=Math.hypot(P[2][0]-P[1][0],P[2][1]-P[1][1]);return l0/(l0+l1);}
+// -> {U,S (param), I (triangles, sens de la grille), bas:[ids sg=0], haut:[ids sg=1]} ; N = colonnes des bandes voisines
+function maillageReseau(R,N){const {sA,sB,c,si,Tm,Tn,piv}=R,X0=piv*PERIM,ya=MARGE_FINE/LZ,yb=1-ya,mrg=2*Math.max(sA,sB);
+  const U=[],S=[],ids=new Map(),key=(m,n)=>m*4194304+n;
+  const XY=(m,n)=>{const A=m*sA,B=n*sB;return [c*A+si*B,-si*A+c*B];};      // inverse de tourner(X,Y,angle)
+  const canon=(m,n)=>{const t=Math.floor((XY(m,n)[0]-X0)/PERIM+1e-9);return [m-t*Tm,n-t*Tn];};
+  const noeud=(m,n)=>{const [cm,cn]=canon(m,n),kq=key(cm,cn);let v=ids.get(kq);if(v===undefined){const [X,Y]=XY(cm,cn);
+      if(Y<-mrg||Y>LZ+mrg)return -1;v=U.length;U.push(fract(X/PERIM-piv));S.push(Y/LZ);ids.set(kq,v);}return v;};
+  // noeuds du domaine fondamental X in [X0, X0+PERIM), Y in [-mrg, LZ+mrg]
+  const coins=[[X0,-mrg],[X0+PERIM,-mrg],[X0,LZ+mrg],[X0+PERIM,LZ+mrg]].map(([X,Y])=>c*X-si*Y);
+  const m0=Math.floor(Math.min(...coins)/sA)-1,m1=Math.ceil(Math.max(...coins)/sA)+1;
+  const bornes=(k_,cst,lo,hi)=>Math.abs(k_)<1e-12?(cst>=lo&&cst<=hi?[-Infinity,Infinity]:null):(k_>0?[(lo-cst)/k_,(hi-cst)/k_]:[(hi-cst)/k_,(lo-cst)/k_]);
+  const T=[];const H0=(u,sg)=>{pointUS(u,sg);return dernierH;};
+  for(let m=m0;m<=m1;m++){const A=m*sA,b1=bornes(si,c*A,X0,X0+PERIM),b2=bornes(c,-si*A,-mrg,LZ+mrg);if(!b1||!b2)continue;
+    const n0=Math.floor(Math.max(b1[0],b2[0])/sB),n1=Math.ceil(Math.min(b1[1],b2[1])/sB);
+    for(let n=n0;n<=n1;n++){const [cm,cn]=canon(m,n);if(cm!==m||cn!==n)continue;   // chaque carre une seule fois (couture exacte)
+      const q=[[m,n],[m+1,n],[m,n+1],[m+1,n+1]],v=q.map(([a,b])=>noeud(a,b));if(v.includes(-1))continue;
+      const w=q.map(([a,b])=>{const [x,y]=XY(a,b);return [x/PERIM-piv,y/LZ];});   // coordonnees non repliees
+      if(Math.max(...w.map(z=>z[1]))<ya||Math.min(...w.map(z=>z[1]))>yb)continue;
+      // diagonale qui suit l'arete : celle dont le milieu donne la hauteur vraie au centre du carre
+      const hc=H0((w[0][0]+w[3][0])/2,(w[0][1]+w[3][1])/2),h=v.map(i=>H0(U[i],S[i]));
+      const o=w.map((z,k)=>Math.round(z[0]-U[v[k]]));   // tour entier : arrondi (un noeud a 1e-15 de la couture vaut 0 ou 0,99999)
+      const tri=(a,b,d)=>{const ar=(w[b][0]-w[a][0])*(w[d][1]-w[a][1])-(w[d][0]-w[a][0])*(w[b][1]-w[a][1]);   // sens de la grille : aire < 0
+        T.push(ar<0?[[v[a],v[b],v[d]],[o[a],o[b],o[d]]]:[[v[a],v[d],v[b]],[o[a],o[d],o[b]]]);};
+      if(Math.abs(hc-(h[0]+h[3])/2)<=Math.abs(hc-(h[1]+h[2])/2)){tri(0,1,3);tri(0,3,2);}else{tri(0,1,2);tri(1,3,2);}}}
+  // decoupes exactes : f >= 0 garde ; garder=false -> on coupe sans jeter (pli)
+  let Tc=T;const decoupe=(f,exact,garder)=>{const F=new Map(),fv=i=>{let x=F.get(i);if(x===undefined){x=f(U[i],S[i]);if(Math.abs(x)<1e-9)x=0;F.set(i,x);}return x;},cache=new Map(),out=[];
+    const inter=(i,oi,j,oj)=>{const kq=i<j?i+'_'+j:j+'_'+i,ui=U[i]+oi,uj=U[j]+oj;let id=cache.get(kq);
+      if(id===undefined){const fi=fv(i),fj=fv(j);let t=fi/(fi-fj);
+        if(!exact)for(let it=0;it<4;it++){const u=ui+t*(uj-ui),sv=S[i]+t*(S[j]-S[i]),fx=f(fract(u),sv),d=(fj-fi)||1e-9;t=Math.min(1,Math.max(0,t-fx/d));}
+        id=U.length;U.push(fract(ui+t*(uj-ui)));S.push(S[i]+t*(S[j]-S[i]));F.set(id,0);cache.set(kq,id);}
+      return [id,Math.round((ui+uj)/2-U[id])];};
+    for(const [v,o] of Tc){const f3=v.map(fv);
+      if(f3.every(x=>x>=0)||(!garder&&f3.every(x=>x<=0))){out.push([v,o]);continue;}if(f3.every(x=>x<=0))continue;
+      const pos=[],neg=[];for(let k=0;k<3;k++){const k2=(k+1)%3,a=[v[k],o[k]],fa=f3[k],fb=f3[k2];
+        if(fa>=0)pos.push(a);if(fa<=0)neg.push(a);
+        if(fa*fb<0){const x=inter(v[k],o[k],v[k2],o[k2]);pos.push(x);neg.push(x);}}
+      for(const poly of garder?[pos]:[pos,neg])for(let k=1;k+1<poly.length;k++)out.push([[poly[0][0],poly[k][0],poly[k+1][0]],[poly[0][1],poly[k][1],poly[k+1][1]]]);}
+    Tc=out;};
+  decoupe((u,sg)=>sg-ya,true,true);decoupe((u,sg)=>yb-sg,true,true);
+  if((state.lunette.zone||'biseau')==='tout')decoupe((u,sg)=>sg-plisZone(u),false,false);
+  decoupe((u,sg)=>hBrutUS(u,sg)-chanfrein(sg),true,false);   // arete motif / chanfrein (lineaire par triangle : exacte)
+  for(const [v] of Tc)for(const i of v){if(Math.abs(S[i]-ya)<1e-9)S[i]=ya;if(Math.abs(S[i]-yb)<1e-9)S[i]=yb;}
+  // sens de la grille (aire < 0 en (u, s)) puis couture de la marge plate avec les colonnes i/N
+  const I=[];for(const [v] of Tc)if(v[0]!==v[1]&&v[1]!==v[2]&&v[0]!==v[2])I.push(v[0],v[1],v[2]);   // sens herite du triangle du reseau
+  const utilises=new Set(I);
+  const rang=sg=>{const r=[];for(let i=0;i<N;i++){r.push(U.length);U.push(i/N);S.push(sg);}return r;};
+  const bas=rang(0),haut=rang(1);
+  const zip=(row,ligne,dessus)=>{const L=[...utilises].filter(i=>S[i]===ligne).sort((a,b)=>U[a]-U[b]);const na=row.length,nb=L.length;let i=0,j=0;
+    const ua=k=>U[row[k%na]]+Math.floor(k/na),ub=k=>U[L[k%nb]]+Math.floor(k/nb);
+    const pousse=(a,b,d)=>{if(a!==b&&b!==d&&a!==d)dessus?I.push(a,d,b):I.push(a,b,d);};   // rang sous la ligne (bas) ou au-dessus (haut)
+    while(i<na||j<nb){if(j>=nb||(i<na&&ua(i+1)<=ub(j+1))){pousse(row[i%na],L[j%nb],row[(i+1)%na]);i++;}
+      else{pousse(row[i%na],L[j%nb],L[(j+1)%nb]);j++;}}};
+  zip(bas,ya,false);zip(haut,yb,true);
+  // compaction
+  const re=new Int32Array(U.length).fill(-1),U2=[],S2=[];for(const i of [...I,...bas,...haut])if(re[i]<0){re[i]=U2.length;U2.push(U[i]);S2.push(S[i]);}
+  return {U:U2,S:S2,I:I.map(i=>re[i]),bas:bas.map(i=>re[i]),haut:haut.map(i=>re[i])};}
+// zone decoree parametrique -> meme sortie que grilleSeparee (+ arrondi ecran du poli surface par voisinage)
+function separeeParam(R,N){const Z=maillageReseau(R,N),n=Z.U.length,P=new Float32Array(n*3),H=new Float32Array(n),NV=new Float32Array(n*3);
+  for(let k=0;k<n;k++){P.set(pointUS(Z.U[k],Z.S[k]),k*3);H[k]=dernierH;NV.set(dernierN,k*3);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setIndex(Z.I);
+  if(Math.round(state.lunette.params.finition??2)===1){const vo=Array.from({length:n},()=>new Set());
+    for(let t=0;t<Z.I.length;t+=3)for(let k=0;k<3;k++){const a=Z.I[t+k],b=Z.I[t+(k+1)%3];vo[a].add(b);vo[b].add(a);}
+    let A=Float32Array.from(H);for(let pass=0;pass<2;pass++){const B=new Float32Array(n);for(let k=0;k<n;k++){let s_=A[k];for(const j of vo[k])s_+=A[j];B[k]=s_/(vo[k].size+1);}A=B;}
+    for(let k=0;k<n;k++){const dh=Math.min(0,A[k]-H[k]);if(dh<0){P[k*3]+=dh*NV[k*3];P[k*3+1]+=dh*NV[k*3+1];P[k*3+2]+=dh*NV[k*3+2];}}}
+  return separer(g,H);}
+// coque fermee pour la fabrication : dessus parametrique + peau interieure (ancrage) + 2 parois
+function peauLunetteParam(R,N,M){const Z=maillageReseau(R,N),n=Z.U.length,P=[];
+  for(let k=0;k<n;k++)P.push(...pointUS(Z.U[k],Z.S[k]));
+  const I=[...Z.I],base=n,inn=(i,j)=>base+i*M+j;   // peau interieure : grille N x M, sens inverse
+  for(let i=0;i<N;i++)for(let j=0;j<M;j++)P.push(...pointZone(i,N,j,M,-ANCRAGE));
+  for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M-1;j++){const a=inn(i,j),b=inn(i2,j),c=inn(i,j+1),d=inn(i2,j+1);I.push(a,b,c,b,d,c);}
+    const t0=Z.bas[i],t1=Z.bas[i2],u0=inn(i,0),u1=inn(i2,0);I.push(u0,t0,u1,u1,t0,t1);
+    const h0=Z.haut[i],h1=Z.haut[i2],v0=inn(i,M-1),v1=inn(i2,M-1);I.push(h0,v0,h1,h1,v0,v1);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(new Float32Array(P),3));g.setIndex(I);return g;}
 function noteRaccord(){const el=document.getElementById('raccordNote');if(!el)return;const F=famEff();
   if(!F){el.textContent='';return;}const k=F.k,p=F.p;const j=Math.round(p.jonction??1),md=FAMILLES[k].modes[Math.round(p.mode||0)];
   if(j===0){el.textContent='Jonction en fondu sur 4 mm, placée au pivot.';return;}
@@ -871,7 +994,7 @@ function construireLunette(){
   const {N,M}=grilleMotif(), zone=state.lunette.zone||'biseau';noteRaccord();
   // fl / bas : contour MESURE de la tranche du boitier (si charge) -> lunette affleurante, meme reflet
   const top=th=>[tab(T_TOP,th),Y_HAUT], c4=th=>[tab(T_C4,th),Y_C4], fl=th=>[encoche(rayonTranche(th),th,Y_FL),Y_FL], bas=th=>[encoche(rayonTranche(th),th,Y_BAS),Y_BAS];
-  const [sommets,creux]=grilleSeparee(N,M,(i,j)=>pointZone(i,N,j,M));    // zone decoree (UV depliee)
+  const RP=reseauParam(),[sommets,creux]=RP?separeeParam(RP,N):grilleSeparee(N,M,(i,j)=>pointZone(i,N,j,M));    // zone decoree (UV depliee)
   const alesage=bandeArc(N,th=>[R_IN,Y_BAS],th=>[R_IN,Y_HAUT]);           // alesage du verre : interieur, BRUT
   // portee du verre : MEME finition que le dessus du decor qui la borde (bas-relief mat -> brut ; embossage,
   // aretes vives ou bas-relief poli -> poli), pour qu'elle se fonde dans la lunette
@@ -903,7 +1026,23 @@ function construireLunette(){
   const lisse=gg=>{gg.computeVertexNormals();const n=gg.toNonIndexed(),o=new THREE.BufferGeometry();o.setAttribute('position',n.getAttribute('position'));o.setAttribute('normal',n.getAttribute('normal'));return o;};
   const blanc=o=>{if(!o.getAttribute('color'))o.setAttribute('color',new THREE.BufferAttribute(new Float32Array(o.getAttribute('position').count*3).fill(1),3));return o;};
   const facette=gg=>{const n=gg.toNonIndexed(),o=new THREE.BufferGeometry();o.setAttribute('position',n.getAttribute('position'));if(n.getAttribute('color'))o.setAttribute('color',n.getAttribute('color'));o.computeVertexNormals();return o;};
-  const prep=gg=>gg===sommets||gg===creux?facette(gg):gg===tr1?aligneTranche(lisse(gg)):gg===tr2p?normaleBoitier(lisse(gg)):gg===tr2b?facette(gg):lisse(gg);
+  // poli surface (ecran) : sommets en normales LISSEES -> l'arete arrondie renvoie un reflet continu, pas des facettes
+  const poliSurf=Math.round(state.lunette.params.finition??(state.lunette.motif==='arete'?2:1))===1&&state.lunette.motif!=='lisse';
+  const lisseC=gg=>{gg.computeVertexNormals();const n=gg.toNonIndexed(),o=new THREE.BufferGeometry();o.setAttribute('position',n.getAttribute('position'));o.setAttribute('normal',n.getAttribute('normal'));if(n.getAttribute('color'))o.setAttribute('color',n.getAttribute('color'));return o;};
+  // maillage parametrique : normales a ANGLE DE CASSURE (lissees entre faces a moins de 15°, aretes du motif vives)
+  const autoLisse=gg=>{const P=gg.getAttribute('position').array,I=gg.index.array,nt=I.length/3,nv=P.length/3,FN=new Float32Array(nt*3);
+    for(let t=0;t<nt;t++){const a=I[3*t]*3,b=I[3*t+1]*3,c=I[3*t+2]*3,ux=P[b]-P[a],uy=P[b+1]-P[a+1],uz=P[b+2]-P[a+2],vx=P[c]-P[a],vy=P[c+1]-P[a+1],vz=P[c+2]-P[a+2];
+      FN[3*t]=uy*vz-uz*vy;FN[3*t+1]=uz*vx-ux*vz;FN[3*t+2]=ux*vy-uy*vx;}
+    const deb=new Int32Array(nv+1);for(const v of I)deb[v+1]++;for(let v=0;v<nv;v++)deb[v+1]+=deb[v];
+    const lst=new Int32Array(I.length),pos=deb.slice(0,nv);for(let k=0;k<I.length;k++)lst[pos[I[k]]++]=(k/3)|0;
+    const L=t=>Math.hypot(FN[3*t],FN[3*t+1],FN[3*t+2])||1,cs=Math.cos(15*Math.PI/180),O=new Float32Array(I.length*3),OP=new Float32Array(I.length*3);
+    for(let k=0;k<I.length;k++){const v=I[k],t=(k/3)|0,lt=L(t);let x=0,y=0,z=0;
+      for(let q=deb[v];q<deb[v+1];q++){const u=lst[q],lu=L(u);if((FN[3*t]*FN[3*u]+FN[3*t+1]*FN[3*u+1]+FN[3*t+2]*FN[3*u+2])/(lt*lu)>=cs){x+=FN[3*u];y+=FN[3*u+1];z+=FN[3*u+2];}}
+      const l=Math.hypot(x,y,z)||1;O[3*k]=x/l;O[3*k+1]=y/l;O[3*k+2]=z/l;OP[3*k]=P[3*v];OP[3*k+1]=P[3*v+1];OP[3*k+2]=P[3*v+2];}
+    const o=new THREE.BufferGeometry();o.setAttribute('position',new THREE.BufferAttribute(OP,3));o.setAttribute('normal',new THREE.BufferAttribute(O,3));
+    const C=gg.getAttribute('color');if(C){const CC=new Float32Array(I.length*3);for(let k=0;k<I.length;k++)CC.set(C.array.subarray(I[k]*3,I[k]*3+3),3*k);o.setAttribute('color',new THREE.BufferAttribute(CC,3));}
+    return o;};
+  const prep=gg=>RP&&(gg===sommets||gg===creux)?(gg===sommets&&poliSurf?lisseC(gg):autoLisse(gg)):gg===sommets&&poliSurf?lisseC(gg):gg===sommets||gg===creux?facette(gg):gg===tr1?aligneTranche(lisse(gg)):gg===tr2p?normaleBoitier(lisse(gg)):gg===tr2b?facette(gg):lisse(gg);
   const g=mergeGeometries([mergeGeometries(polis.map(gg=>blanc(prep(gg)))),mergeGeometries(bruts.map(gg=>blanc(prep(gg))))],true);
   if(volumeSigne(g)<0){retourner(g);const N=g.getAttribute('normal').array;                  // permuter AUSSI les normales, puis les inverser
     const Cc=g.getAttribute('color').array;for(let i=0;i<Cc.length;i+=9)for(let k=0;k<3;k++){const t=Cc[i+3+k];Cc[i+3+k]=Cc[i+6+k];Cc[i+6+k]=t;}
@@ -2181,6 +2320,7 @@ function grilleFermee(N,M,pos){const P=new Float32Array(N*M*3);for(let i=0;i<N;i
   const I=[];for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M;j++){const j2=(j+1)%M,a=i*M+j,b=i2*M+j,c=i*M+j2,d=i2*M+j2;diag(P,a,b,c,d,I);}}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setIndex(I);return g;}
 function peauLunette(){const {N,M}=grilleMotif();
+  const RP=reseauParam();if(RP)return orienter(pos(peauLunetteParam(RP,N,M)));
   const g=grilleFermee(N,2*M,(i,j)=>{const dedans=j>=M,jj=dedans?2*M-1-j:j;return pointZone(i,N,jj,M,dedans?-ANCRAGE:undefined);});
   return orienter(pos(g));}
 function peauCadran(){const {N,M}=resCadran(),R0=C_R0+.3,R1=11.6,YB=C_Y-ANCRAGE/2;
@@ -2279,7 +2419,7 @@ document.getElementById('msg').addEventListener('keydown',e=>{if(e.key==='Enter'
   const b=document.createElement('button');b.className='btn';b.textContent=t;b.onclick=()=>envoyer(t);document.getElementById('ex').appendChild(b);});
 bulle('lui','Décris la montre que tu veux : un motif pour la lunette, un motif pour le cadran. Je règle, le studio construit et vérifie les reliefs.');
 chargerBibliotheque(); // apres AI_BASE (declare plus haut dans le concierge)
-window.__studio={cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+window.__studio={reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
 document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');appliquerMatieres();if(mLunette)mLunette.material=[aluLunette,on?brutCreux:aluLunette];};
 document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
 for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
