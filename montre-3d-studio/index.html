@@ -85,6 +85,11 @@ body.sans-reglages #badge{display:none;}
 .prix td small{display:block;color:var(--dim2);font-size:10.5px;}
 .prix td.n{text-align:right;white-space:nowrap;}
 .prix tr.st td{font-weight:600;}
+.edition{margin:10px 0 4px;padding:9px 11px;border:1px solid rgba(var(--acc-rgb),.35);background:rgba(var(--acc-rgb),.07);border-radius:9px;font-size:12px;}
+.edition b{display:block;font-size:13px;margin-bottom:2px;}
+.edition span{color:var(--dim);}
+.edition .jauge{height:6px;border-radius:3px;background:rgba(var(--ink-rgb),.1);margin:5px 0 6px;overflow:hidden;}
+.edition .jauge i{display:block;height:100%;background:var(--acc);}
 .prix tr.tot td{font-weight:700;border-bottom:none;font-size:13px;}
 .vign .v.off{opacity:.32;cursor:not-allowed;filter:grayscale(.6);}
 .vign .v.sel{border-color:var(--acc);}
@@ -148,8 +153,16 @@ body.sans-reglages #badge{display:none;}
     <div id="regMat"></div>
   </section>
   <section>
+    <h2>Texte personnalisé du fond</h2>
+    <input class="champ" id="gravPerso" maxlength="30" placeholder="ex. POUR CLAIRE · 12.10.2026" autocomplete="off">
+    <div class="ligne" style="margin-top:8px"><button class="btn" id="btnGraver" type="button">Embosser le fond (fichier STL de fabrication)</button></div>
+    <div class="note" id="noteGraver"></div>
+    <div class="note">Une ligne libre embossée au fond, à la place de « IMAGINE BY YOU » (30 caractères maximum), comme le reste du texte du fond : lettres formées en creux à l'impression, pas gravées après coup. Le reste du texte suit automatiquement la configuration : matières (« 3D PRINTED GOLD 18 CT 750 » pour l'or), crédits consommés et année.</div>
+  </section>
+  <section>
     <h2>Prix et délai (estimation)</h2>
     <div id="prixTab"></div>
+    <div class="ligne" style="margin-top:8px"><button class="btn pri" id="btnCertif" type="button">Aperçu du certificat de la montre</button></div>
   </section>
   <section>
     <h2>Mes configurations</h2>
@@ -1236,7 +1249,7 @@ function assombrirCreux(g, profondeurMax, force){
 const brutGrave = brut.clone(); brutGrave.vertexColors = true;
 
 const loader=new STLLoader(); let pieces=0;
-for(const [f,mat,yoff] of [['media/carrure.stl',alu,0],['media/fond.stl',alu,0]]){
+for(const [f,mat,yoff] of [['media/carrure.stl',alu,0],['media/fond_vierge.stl',alu,0]]){
   loader.load(f,g=>{let m;
     if(f.includes('carrure')){VOL.carrure=Math.abs(volumeSigne(g));const [poli,reste]=separerPoli(g);setTimeout(()=>reconstruire('lunette'),0);/* la lunette reprend la normale de tranche mesuree */m=new THREE.Group();const b=new THREE.Mesh(reste,brut);b.userData.brutMat=brut;BRUTS.push(b);mCarPoli=new THREE.Mesh(poli,aluBoitier);m.add(mCarPoli,b);setTimeout(appliquerMatieres,0);}
     else{VOL.fond=Math.abs(volumeSigne(g));/* fond : entierement BRUT d'impression (face, lamages, gravure), sans personnalisation (10/10) */
@@ -1244,7 +1257,7 @@ for(const [f,mat,yoff] of [['media/carrure.stl',alu,0],['media/fond.stl',alu,0]]
          lettre et on ne lirait plus rien. 0,62 de force : le fond du sillon
          descend a 38 % de la clarte de la face, assez pour lire, pas assez
          pour faire un trait d'encre. */
-      const gl=assombrirCreux(uvBoite(toCreasedNormals(g,Math.PI/6)), .32, .9)   /* (12/10) fond des lettres plus sombre (demande de Baptiste) ; borne .32 et pas .30 : le fond des lettres est a 0,30000001 de la face, une borne a .30 l'excluait tout entier */;m=new THREE.Mesh(gl,brutGrave);m.userData.brutMat=brutGrave;BRUTS.push(m);setTimeout(appliquerMatieres,0);}
+      const gl=assombrirCreux(uvBoite(toCreasedNormals(g,Math.PI/6)), .32, .9)   /* (12/10) fond des lettres plus sombre (demande de Baptiste) ; borne .32 et pas .30 : le fond des lettres est a 0,30000001 de la face, une borne a .30 l'excluait tout entier */;m=new THREE.Mesh(gl,brutGrave);m.userData.brutMat=brutGrave;BRUTS.push(m);mFond=m;setTimeout(appliquerMatieres,0);setTimeout(majGravure,0);}
     m.userData.fixe=yoff;monture.add(m);
     if(++pieces===2)document.getElementById('charge').remove();},undefined,()=>{document.getElementById('charge').textContent='Boîtier introuvable (media/*.stl) : la lunette et le cadran restent modifiables.';});
 }
@@ -1654,13 +1667,29 @@ const TARIFS={
   laitonRose:{proc:'fonderie + placage or rose',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,plac:30,d:20,dpoli:0},
   rhodiumBlanc:{proc:'fonderie + rhodiage',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,plac:25,d:20,dpoli:0},
   rhodiumNoir:{proc:'fonderie + rhodiage noir',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,plac:28,d:20,dpoli:0},
-  argent:{proc:'fonderie',dens:10.4,fixe:35,cm3:4,g:1.1,min:60,poli:15,d:15,dpoli:0}};
+  argent:{proc:'fonderie',dens:10.4,fixe:35,cm3:4,g:1.1,min:60,poli:15,d:15,dpoli:0},
+  or18:{proc:'fonderie or 18 ct (750)',dens:15.5,fixe:60,cm3:6,g:95,min:150,poli:40,d:20,dpoli:3}};   // or 18 ct : ~95 EUR/g travaille, a suivre au cours de l'or
 // composants hors impression : ordre de grandeur pour une piece unique
 const COMPOSANTS=[['Mouvement quartz suisse',25],['Verre saphir',35],['Bracelet cuir de pomme + boucle laiton',60],['Couronne, tube, 8 vis laiton',15],['Assemblage et contrôle',40]];
-function prixPiece(id,vmm3,polir){const t=TARIFS[id]||TARIFS.alu,v=vmm3/1000;
-  let p=t.fixe+t.cm3*v*1.15+(t.g?v*t.dens*t.g:0);p=Math.max(p,t.min);
-  const pol=t.proc.startsWith('fonderie')?t.poli:(polir?t.poli*(polir>1?1.5:1):0);
-  return {prix:p+pol+(t.plac||0),delai:t.d+(polir&&t.dpoli?t.dpoli:0),masse:v*t.dens};}
+// PRIX DE VENTE (12/10) : DELIGNY R&D (SASU) est en FRANCHISE EN BASE de TVA (art. 293 B CGI) : elle ne facture pas
+// la TVA (prix TTC = prix HT) mais NE RECUPERE PAS celle de ses achats -> les achats comptent TTC (x1,2). Assemblage =
+// temps interne (pas de TVA). Paiement Mollie carte 1,8 % + 0,25 EUR. IS 15 % jusqu'a 42 500 EUR de benefice/an.
+// Plafond de la franchise ventes de biens : 85 000 EUR de CA par an. Reglages modifiables a l'ecran.
+const VENTE={base:1598,coef:2.2,coefMetal:1.25,sav:5,generaux:60,emballage:15,envoi:14};
+function prixPiece(id,vmm3,polir){const t=TARIFS[id]||TARIFS.alu,v=vmm3/1000,metal=t.g?v*t.dens*t.g:0;
+  let p=t.fixe+t.cm3*v*1.15+metal;p=Math.max(p,t.min);
+  const pol=!peutBrut(id)?t.poli:(polir?t.poli*(polir>1?1.5:1):0);   /* livre poli d'office (fonderie) ou polissage demande */
+  return {prix:p+pol+(t.plac||0),metal,delai:t.d+(polir&&t.dpoli?t.dpoli:0),masse:v*t.dens};}
+// cout de fabrication d'une configuration (pieces + composants achetes), metal precieux isole
+function coutConfig(ib,il,fl,ic){const L=[[ib,VOL.carrure,peutPoli(ib)?1:0],[ib,VOL.fond,peutBrut(ib)?0:1],[il,VOL.lunette,fl],[ic,VOL.cadran,0]];
+  let tot=0,metal=0;for(const [id,v,pol] of L){const r=prixPiece(id,v,pol);tot+=r.prix;metal+=r.metal;}
+  return {tot,metal,achatHT:tot+COMPOSANTS.filter(c=>!/Assemblage/.test(c[0])).reduce((a,c)=>a+c[1],0)};}
+// configuration la moins chere fabricable (le prix de base lui est attache)
+function configMin(){const ids=Object.keys(MATIERES);let b=null,l=null,c=null;
+  for(const i of ids){const r=coutConfig(i,'alu',0,'alu').tot;if(!b||r<b.r)b={i,r};}
+  for(const i of ids)for(const f of finitionsLunette(i)){const r=prixPiece(i,VOL.lunette,f).prix;if(!l||r<l.r)l={i,f,r};}
+  for(const i of ids.filter(peutBrut)){const r=prixPiece(i,VOL.cadran,0).prix;if(!c||r<c.r)c={i,r};}
+  return {ib:b.i,il:l.i,fl:l.f,ic:c.i,...coutConfig(b.i,l.i,l.f,c.i)};}
 let _prixT=0;function majPrix(){clearTimeout(_prixT);_prixT=setTimeout(()=>{const box=document.getElementById('prixTab');if(!box)return;
   const ib=state.matieres.boitier,il=state.matieres.lunette,ic=state.matieres.cadran;
   const fl=Math.round(state.lunette.params.finition??(MOTIFS_LUNETTE[state.lunette.motif]?.r.finition?.[2]??2));
@@ -1668,13 +1697,100 @@ let _prixT=0;function majPrix(){clearTimeout(_prixT);_prixT=setTimeout(()=>{cons
   const eur=x=>Math.round(x).toLocaleString('fr-FR')+' €';let tot=0,dmax=0;
   let h='<table class="prix"><tr><th>Pièce</th><th>Matière</th><th>Vol. / masse</th><th>Prix HT</th><th>Délai</th></tr>';
   for(const [nom,id,v,pol] of lignes){const r=prixPiece(id,v,pol);tot+=r.prix;dmax=Math.max(dmax,r.delai);
-    h+=`<tr><td>${nom}</td><td>${MATIERES[id].nom}<small>${TARIFS[id].proc}${pol&&!TARIFS[id].proc.startsWith('fonderie')&&TARIFS[id].poli?', polissage':''}</small></td><td>${v?(v/1000).toFixed(2)+' cm³':'…'}<small>${v?r.masse.toFixed(1)+' g':''}</small></td><td class="n">${eur(r.prix)}</td><td class="n">${r.delai} j</td></tr>`;}
+    h+=`<tr><td>${nom}</td><td>${MATIERES[id].nom}<small>${TARIFS[id].proc}${pol&&peutBrut(id)&&TARIFS[id].poli?', polissage':''}</small></td><td>${v?(v/1000).toFixed(2)+' cm³':'…'}<small>${v?r.masse.toFixed(1)+' g':''}</small></td><td class="n">${eur(r.prix)}</td><td class="n">${r.delai} j</td></tr>`;}
   const comp=COMPOSANTS.reduce((a,c)=>a+c[1],0);
   h+=`<tr class="st"><td colspan="3">Pièces imprimées / coulées</td><td class="n">${eur(tot)}</td><td class="n">${dmax} j</td></tr>`;
   h+=`<tr><td colspan="3" title="${COMPOSANTS.map(c=>c[0]+' : '+c[1]+' €').join(' · ')}">Composants et assemblage <small>${COMPOSANTS.map(c=>c[0]).join(', ')}</small></td><td class="n">${eur(comp)}</td><td class="n">+3 j</td></tr>`;
   h+=`<tr class="tot"><td colspan="3">Montre complète, pièce unique</td><td class="n">${eur(tot+comp)}</td><td class="n">~${dmax+3} j ouvrés</td></tr></table>`;
   h+='<div class="note">Estimation indicative hors TVA et livraison, à l\'unité : ordres de grandeur d\'un service d\'impression métal (frais de lancement, prix au cm³, minimum par pièce), à remplacer par un devis. Les volumes viennent des pièces réelles ; le décor fait varier la lunette et le cadran de quelques %.</div>';
-  box.innerHTML=h;},120);}
+  /* ── prix de vente ── */
+  const V=VENTE,achatHT=tot+COMPOSANTS.filter(c=>!/Assemblage/.test(c[0])).reduce((a,c)=>a+c[1],0),assemblage=(COMPOSANTS.find(c=>/Assemblage/.test(c[0]))||[0,0])[1];
+  /* PRIX (12/10, decision Baptiste) : 1 598 EUR pour la configuration fabricable la MOINS CHERE ; toute autre
+     configuration = base + surcout d'achat TTC x coefficient (2,2 par defaut ; metal precieux x1,25 seulement),
+     arrondi en ...8 EUR. La marge est le RESULTAT, affiche plus bas. */
+  const achatTTC=achatHT*1.2,mn={ib:'alu',il:'alu',fl:0,ic:'alu',...coutConfig('alu','alu',0,'alu')},cc=coutConfig(ib,il,fl,ic),dMetal=(cc.metal-mn.metal)*1.2,dAutre=(cc.achatHT-mn.achatHT)*1.2-dMetal;
+  const supplement=dAutre*V.coef+dMetal*V.coefMetal;   /* reference = tout aluminium (decision Baptiste) ; negatif si moins cher (laiton) */
+  let PV=V.base+supplement;PV=Math.abs(supplement)>=1?Math.round((PV+2)/10)*10-2:V.base;
+  const mollie=PV*.018+.25,sav=PV*V.sav/100,cout=achatTTC+assemblage+V.emballage+V.envoi+V.generaux+mollie+sav,avantIS=PV-cout,IS=Math.max(0,avantIS)*.15,net=avantIS-IS;
+  const L=(a,b,c='')=>`<tr${c?` class="${c}"`:''}><td colspan="3">${a}</td><td class="n" colspan="2">${b}</td></tr>`,pc=x=>(x/PV*100).toFixed(0)+' %';
+  h+='<div class="vign-titre" style="margin-top:12px">Prix de vente selon cette configuration</div><table class="prix">';
+  h+=L(`Prix de base <small>configuration de référence : boîtier ${MATIERES[mn.ib].nom.toLowerCase()}, lunette ${MATIERES[mn.il].nom.toLowerCase()} ${['mate','poli surface','poli intégral'][mn.fl]}, cadran ${MATIERES[mn.ic].nom.toLowerCase()}</small>`,eur(V.base));
+  h+=L(`Supplément matières et finitions <small>surcoût d'achat ${eur(dAutre)} × ${V.coef}${dMetal>0?` + métal précieux ${eur(dMetal)} × ${V.coefMetal}`:''}</small>`,Math.abs(supplement)>=1?(PV>=V.base?'+ ':'− ')+eur(Math.abs(PV-V.base)):'—');
+  h+=L('Prix de vente','<b>'+eur(PV)+'</b>','st');
+  h+=L(`Achat des pièces et composants <small>${eur(achatHT)} HT + TVA 20 % non récupérable (franchise en base)</small>`,eur(achatTTC));
+  h+=L('Assemblage et contrôle <small>temps interne</small>',eur(assemblage));
+  h+=L('Écrin et emballage',eur(V.emballage))+L('Envoi assuré avec signature (France)',eur(V.envoi));
+  h+=L(`Paiement en ligne <small>Mollie carte : 1,8 % + 0,25 €</small>`,eur(mollie));
+  h+=L(`Provision SAV et garantie 2 ans <small>${V.sav} % du prix : pile, retours, reprises</small>`,eur(sav));
+  h+=L('Frais généraux par montre <small>assurances, site, comptabilité, outillage</small>',eur(V.generaux));
+  h+=L('Coût complet',eur(cout),'st');
+  h+=L(`Bénéfice avant impôt <small>${pc(avantIS)} du prix</small>`,eur(avantIS));
+  h+=L('Impôt sur les sociétés <small>taux réduit 15 % (jusqu\'à 42 500 € de bénéfice par an)</small>','− '+eur(IS));
+  h+=L(`Bénéfice net <small>${pc(net)} du prix</small>`,eur(net),'st');
+  h+=L('Prix de vente <small>TVA non applicable, art. 293 B du CGI</small>',eur(PV),'tot');
+  h+='</table>';
+  /* CREDITS DE PRODUCTION (12/10, decision Baptiste) : pas de nombre fixe de montres par an, puisque le prix depend
+     de la commande. L'annee dispose de 1 000 credits = 85 000 EUR de chiffre d'affaires (seuil de la franchise en base) ;
+     chaque montre consomme credits = prix / 85 EUR. Plus elle est haut de gamme, plus elle consomme, moins il y a
+     d'exemplaires possibles dans l'annee. */
+  const CR_AN=1000,EUR_CR=85000/CR_AN,cr=Math.ceil(PV/EUR_CR),nMax=Math.floor(CR_AN/cr),pct=Math.min(100,cr/CR_AN*100);
+  h+=`<div class="edition"><b>${cr} crédits de production sur ${CR_AN} par an</b>
+    <div class="jauge"><i style="width:${pct.toFixed(1)}%"></i></div>
+    <span>1 000 crédits par an = 85 000 € de chiffre d'affaires (1 crédit = ${EUR_CR} €). Cette montre en consomme ${cr} : au plus ${nMax} exemplaire${nMax>1?'s':''} de cette configuration par an. Plus la montre est haut de gamme, moins d'exemplaires sont possibles.</span></div>`;
+  h+=`<div class="note">Franchise en base de TVA (art. 293 B du CGI). Estimation à affiner avec les devis réels et l'expert-comptable.</div>`;
+  /* reglages crees UNE fois, hors de la zone recalculee : le curseur reste saisi pendant qu'on le deplace */
+  let tab=box.querySelector('.prixCalc'),reg=box.querySelector('.reglagesVente');
+  if(!tab){box.innerHTML='<div class="prixCalc"></div><div class="reglagesVente"></div>';tab=box.querySelector('.prixCalc');reg=box.querySelector('.reglagesVente');
+    reg.innerHTML=[['base','Prix de base',990,2990,10,'€'],['coef','Coefficient options',1.2,3.5,.1,'×'],['sav','Provision SAV',2,12,1,'%'],['generaux','Frais généraux / montre',0,250,5,'€']].map(([k,lib,lo,hi,pas,u])=>
+      `<div class="reg"><label>${lib}</label><input type="range" data-k="${k}" data-u="${u}" min="${lo}" max="${hi}" step="${pas}" value="${VENTE[k]}"><output>${VENTE[k]} ${u}</output></div>`).join('');
+    reg.querySelectorAll('input').forEach(inp=>{inp.oninput=()=>{VENTE[inp.dataset.k]=+inp.value;inp.nextElementSibling.textContent=inp.value+' '+inp.dataset.u;majPrix();};});}
+  tab.innerHTML=h;window._prixCourant={PV,cr,CR_AN,EUR_CR,nMax,dmax:dmax+3,ib,il,ic,fl};majGravure();},120);}
+
+// ───────────── GRAVURE DU FOND AUTOMATIQUE (12/10) ─────────────
+// Le fond est charge VIERGE (media/fond_vierge.stl : zone de texte rebouchee a plat, outils/fond_vierge.py) et la
+// gravure est posee par le studio, recalculee a chaque changement : ligne MATIERE d'apres les pieces choisies
+// (« OR 18 CT 750 » pour l'or), CREDITS consommes et PARIS / annee. Rendu : decalque en creux (masque alpha + carte
+// de normales + fond de lettre assombri). Pour la FABRICATION, les memes lignes passent a outils/regrave_avenir.py
+// (gravure geometrique 0,30 mm). OR vendu en France : poinçon de maitre (losange, a deposer) + poinçon de titre
+// « tete d'aigle » du bureau de garantie, apposes apres fabrication : une reserve est laissee en bas de la gravure.
+let mFond=null,mGravure=null;state.gravurePerso='';
+// texte de la gravure (12/10, mise en page de Baptiste) : [texte, hauteur mm, graisse, espace AVANT en mm]
+const MAT_GRAVURE={alu:'ALUMINIUM',titane:'TITANIUM',inox:'STEEL 316L',bronze:'BRONZE',laiton:'BRASS',laitonOr:'GOLD PLATED BRASS',laitonRose:'ROSE GOLD PLATED BRASS',
+  rhodiumBlanc:'RHODIUM PLATED BRASS',rhodiumNoir:'BLACK RHODIUM PLATED BRASS',argent:'SILVER 925',or18:'GOLD 18 CT 750'};
+const ADRESSE_GRAVURE='231 RUE SAINT-HONORE 75001 PARIS',MOUVEMENT_REF='RONDA 763';   // calibre 6 3/4 x 8''' de la Montre T
+function lignesGravure(){const m=state.matieres,ids=[...new Set([m.boitier,m.lunette,m.cadran])],P=window._prixCourant,an=new Date().getFullYear();
+  const perso=(state.gravurePerso||'').trim();   /* la ligne libre du client REMPLACE « IMAGINE BY YOU » */
+  const L=[['DELIGNY WATCH',2.35,700,0],['QUARTZ',1.55,500,.8],
+    [perso||'IMAGINE BY YOU',1.3,perso?600:500,1.7],
+    [ADRESSE_GRAVURE,1.0,500,1.7],['ASSEMBLED IN FRANCE',1.0,500,.5],['DESIGNED IN PARIS',1.0,500,.5],['SWISS MOVEMENT / '+MOUVEMENT_REF,1.0,500,.5],
+    ['3D PRINTED '+ids.map(i=>MAT_GRAVURE[i]||i.toUpperCase()).join(' / '),1.0,500,1.7],[(P?'CR '+P.cr:'CR …')+' / '+an,1.0,500,.5]];
+  return {L,or:ids.includes('or18')};}
+function majGravure(){if(!mFond)return;const {L,or}=lignesGravure(),W=22,H=17.5,PX=2048,PY=Math.round(PX*H/W),k=PX/W;
+  const cle=JSON.stringify(L)+or;if(mGravure&&mGravure.userData.cle===cle){majTeinteGravure();return;}
+  const c=document.createElement('canvas');c.width=PX;c.height=PY;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,PX,PY);x.fillStyle='#fff';x.textAlign='center';x.textBaseline='alphabetic';
+  let tot=0;L.forEach(([t,h,w,g])=>tot+=h+g);if(or)tot+=3.0;   /* reserve poinçons : 1,2 d ecart + 1,6 de cadre + marge */
+  const ech=Math.min(1,(H-.6)/tot);   /* tout tient entre les vis : on resserre si besoin */
+  const items=[];let y=(H-tot*ech)/2;L.forEach(([t,h0,w,g])=>{const h=h0*ech;y+=g*ech+h;items.push({t,em:+(h*1.38).toFixed(3),gras:w>=700,z:+(y-H/2).toFixed(3)});x.font=`${w} ${Math.round(h*1.38*k)}px "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif`;
+    const mw=x.measureText(t).width,lim=(W-2.2)*k;if(mw>lim)x.font=`${w} ${Math.round(h*1.38*k*lim/mw)}px "Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif`;x.fillText(t,PX/2,y*k);});
+  if(or){/* reserve des poinçons (maitre + tete d'aigle), apposes par le bureau de garantie : cadre fin, vide */
+    y+=1.2*ech;const e=Math.round(.2*k),x0=Math.round(PX/2-2.6*k),y0=Math.round(y*k),w0=Math.round(5.2*k),h0=Math.round(1.6*k);
+    x.fillRect(x0,y0,w0,e);x.fillRect(x0,y0+h0-e,w0,e);x.fillRect(x0,y0,e,h0);x.fillRect(x0+w0-e,y0,e,h0);
+    items.cadre={x0:+(W/2-(x0+w0)/k).toFixed(3),z0:+(y0/k-H/2).toFixed(3),w:+(w0/k).toFixed(3),h:+(h0/k).toFixed(3),e:+(e/k).toFixed(3)};}
+  window._placementGravure=items;   /* meme mise en page pour la gravure reelle (Blender) */
+  const D=x.getImageData(0,0,PX,PY).data,h=(i,j)=>D[4*(Math.max(0,Math.min(PY-1,j))*PX+Math.max(0,Math.min(PX-1,i)))]/255;
+  const cn=document.createElement('canvas');cn.width=PX;cn.height=PY;const xn=cn.getContext('2d'),In=xn.createImageData(PX,PY);
+  for(let j=0;j<PY;j++)for(let i=0;i<PX;i++){const q=4*(j*PX+i),gx=-(h(i+1,j)-h(i-1,j))*2.5,gy=-(h(i,j+1)-h(i,j-1))*2.5,l=Math.hypot(gx,gy,1);
+    In.data[q]=128-127*gx/l;In.data[q+1]=128+127*gy/l;In.data[q+2]=255/l;In.data[q+3]=255;}
+  xn.putImageData(In,0,0);
+  const tex=cv=>{const t=new THREE.CanvasTexture(cv);t.anisotropy=8;return t;};
+  if(!mGravure){const g=new THREE.PlaneGeometry(W,H);g.rotateX(Math.PI/2);   /* plan y = cte, normale -y (dehors) */
+    const U=g.getAttribute('uv'),Pp=g.getAttribute('position');for(let i=0;i<Pp.count;i++){const px=Pp.getX(i),pz=Pp.getZ(i);U.setXY(i,(W/2-px)/W,(H/2-pz)/H);}   /* sens de lecture verifie de dos (sinon miroir) */
+    g.translate(0,-3.725,0);
+    mGravure=new THREE.Mesh(g,new THREE.MeshStandardMaterial({transparent:true,depthWrite:false,metalness:.45,roughness:.85,side:THREE.DoubleSide,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2}));
+    mFond.add(mGravure);}
+  const mt=mGravure.material;if(mt.alphaMap)mt.alphaMap.dispose();if(mt.normalMap)mt.normalMap.dispose();
+  mt.alphaMap=tex(c);mt.normalMap=tex(cn);mt.normalScale=new THREE.Vector2(1,1);mt.needsUpdate=true;mGravure.userData.cle=cle;majTeinteGravure();}
+function majTeinteGravure(){if(!mGravure)return;const b=MATIERES[state.matieres.boitier]||MATIERES.alu;mGravure.material.color.setHex(b.brut).multiplyScalar(.32);}
 // ───────────── MATIERES (12/10) ─────────────
 // poli : teinte et rugosite du poli miroir ; brut : teinte du brut d'impression / de fonderie ; cadran : teinte
 // du cadran (toujours brut, aretes cassees). Placages du laiton : la couche couvre toute la piece.
@@ -1688,7 +1804,8 @@ const MATIERES={
   laitonRose:{fin:['poli'],nom:'Plaqué or rose',sous:'laiton',poli:0xe0a084,rp:.06,brut:0x8e6250,cad:0x6e4b3e},
   rhodiumBlanc:{fin:['poli'],nom:'Rhodium blanc',sous:'laiton',poli:0xe6e8eb,rp:.05,brut:0x86888b,cad:0x6a6c70},
   rhodiumNoir:{fin:['poli'],nom:'Rhodium noir',sous:'laiton',poli:0x46474b,rp:.06,brut:0x2f3033,cad:0x26272a},
-  argent:{fin:['poli'],nom:'Argent massif',sous:'fonderie',poli:0xe7e4de,rp:.07,brut:0x928e86,cad:0x75726c}};
+  argent:{fin:['poli'],nom:'Argent massif',sous:'fonderie',poli:0xe7e4de,rp:.07,brut:0x928e86,cad:0x75726c},
+  or18:{fin:['brut','poli'],nom:'Or jaune 18 ct',sous:'fonderie cire perdue',poli:0xe4b95e,rp:.06,brut:0x9e7c40,cad:0x7f6432}};
 state.matieres={boitier:'alu',lunette:'alu',cadran:'titane'};
 // CONTRAINTES FOURNISSEUR (12/10, fiches DMLS/SLM + fonderie) : titane 6Al-4V livre BRUT seulement (aucune finition
 // proposee) ; alu et inox 316L : brut ou poli ; fonderie (bronze, laiton et placages, argent) : POLI (polissage /
@@ -2050,9 +2167,9 @@ const ecrireCfg=l=>{try{localStorage.setItem(CFG_CLE,JSON.stringify(l));}catch(e
 // configuration par defaut (chargee a l'ouverture) : par son nom ; « DESIGN ORIGINAL » si rien n'est choisi
 const lireDefaut=()=>{try{const v=localStorage.getItem(CFG_CLE+'-defaut');return v===null?'DESIGN ORIGINAL':v;}catch(e){return 'DESIGN ORIGINAL';}};
 const ecrireDefaut=n=>{try{localStorage.setItem(CFG_CLE+'-defaut',n);}catch(e){}};
-function instantane(){return JSON.parse(JSON.stringify({lunette:state.lunette,cadran:state.cadran,matieres:state.matieres,index:state.index??0,aiguilles:state.aiguilles??.8}));}
+function instantane(){return JSON.parse(JSON.stringify({lunette:state.lunette,cadran:state.cadran,matieres:state.matieres,gravurePerso:state.gravurePerso||'',index:state.index??0,aiguilles:state.aiguilles??.8}));}
 let _cfgJeton=0;   // une application plus recente annule celle en cours (bas-relief charge en asynchrone)
-async function appliquerCfg(c){const jeton=++_cfgJeton;state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',...(c.matieres||{})};if(!peutBrut(state.matieres.cadran))state.matieres.cadran='titane';appliquerMatieres();panneauMatieres();state.index=c.index;document.getElementById('indexC').value=String(c.index);
+async function appliquerCfg(c){const jeton=++_cfgJeton;state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',...(c.matieres||{})};if(!peutBrut(state.matieres.cadran))state.matieres.cadran='titane';state.gravurePerso=c.gravurePerso||'';{const gp=document.getElementById('gravPerso');if(gp)gp.value=state.gravurePerso;}majGravure();appliquerMatieres();panneauMatieres();state.index=c.index;document.getElementById('indexC').value=String(c.index);
   state.aiguilles=c.aiguilles;const ah2=document.getElementById('aigH');ah2.value=String(c.aiguilles);ah2.onchange();
   state.lunette.zone=c.lunette.zone||'biseau';document.getElementById('zoneL').value=state.lunette.zone;
   for(const piece of ['lunette','cadran']){const b=c[piece];
@@ -2092,10 +2209,78 @@ document.getElementById('cfgAlea').onclick=()=>{
   const mats=Object.keys(MATIERES),matieres={boitier:tirer(mats),lunette:tirer(mats),cadran:tirer(mats.filter(peutBrut))};
   if(lun.params.finition!=null)lun.params.finition=tirer(finitionsLunette(matieres.lunette));
   appliquerCfg({lunette:lun,cadran:cad,matieres,index:Math.floor(Math.random()*7),aiguilles:.8});};
+
+// ───────────── CERTIFICAT DE LA MONTRE (12/10, aperçu) ─────────────
+// Le certificat porte la configuration exacte ET les credits de production consommes (sur 1 000 par an = 85 000 EUR).
+// Apercu imprimable A4 genere ici ; numerotation definitive + signature Ed25519 : a brancher sur CARTOUCHE
+// (DESIGN:ART/ART generator/Certificat, meme cle Deligny R&D) au lieu d'un second outil de certificat.
+function certificatMontre(){const P=window._prixCourant;if(!P){alert('Calcul du prix en cours, réessaie dans une seconde.');return;}
+  let img='';try{const src=window.__capture(.95,undefined,undefined),im=new Image();im.src=src;   /* le rendu a un fond transparent : on le pose sur le papier */
+    const cv=document.createElement('canvas'),c2=renderer.domElement;cv.width=c2.width;cv.height=c2.height;const x=cv.getContext('2d');x.fillStyle='#ebe6da';x.fillRect(0,0,cv.width,cv.height);x.drawImage(c2,0,0);img=cv.toDataURL('image/jpeg',.9);}catch(e){}
+  const an=new Date().getFullYear(),date=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+  const lp=state.lunette.params,lm=MOTIFS_LUNETTE[state.lunette.motif],cm=MOTIFS_CADRAN[state.cadran.motif];
+  const decor=state.lunette.motif==='embossage'?(DESSINS[Math.round(lp.dessin||0)]||{}).nom:state.lunette.motif==='arete'?(FORMES[Math.round(lp.forme||0)]||[])[2]:'';
+  const fin=['mate (brute)','poli surface','poli intégral'][Math.round(lp.finition??1)]||'';
+  const idx=(document.querySelector('#indexC option:checked')||{}).textContent||'';
+  const empreinte=[...JSON.stringify({m:state.matieres,l:state.lunette,c:state.cadran,i:state.index})].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7).toString(16).toUpperCase().padStart(8,'0');
+  const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+  const L=(k,v)=>`<tr><th>${k}</th><td>${esc(v)}</td></tr>`,M=id=>MATIERES[id].nom+' · '+MATIERES[id].sous;
+  const pct=(P.cr/P.CR_AN*100).toFixed(1),pctFr=pct.replace('.',',');
+  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Certificat Montre T · DELIGNY R&amp;D</title><style>
+@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#e9e5da;font:11pt/1.45 Georgia,'Times New Roman',serif;color:#1d1a15}
+.f{width:210mm;min-height:297mm;margin:0 auto;background:#f8f4ea;padding:16mm 16mm 14mm;position:relative}
+h1{font:600 22pt/1 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.18em;margin:0}
+.sous{font:10pt 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#6b5f4c;margin-top:4px}
+.haut{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #1d1a15;padding-bottom:8px}
+.num{text-align:right;font:9.5pt 'Avenir Next',Avenir,Helvetica,sans-serif;color:#6b5f4c}.num b{display:block;font-size:13pt;color:#1d1a15;letter-spacing:.08em}
+.photo{margin:10px 0;height:88mm;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#fbf9f3,#e4dfd2);border-radius:4px;overflow:hidden}
+.photo img{max-height:100%;max-width:100%}
+table{width:100%;border-collapse:collapse;font-size:10pt}th{text-align:left;font:600 8.5pt 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#6b5f4c;width:38%;padding:4px 0;vertical-align:top}
+td{padding:4px 0;border-bottom:1px dotted #b9ad97}
+.bloc{margin-top:10px}.bloc h2{font:600 9pt 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.16em;text-transform:uppercase;margin:0 0 4px}
+.credit{margin-top:12px;border:1.5px solid #1d1a15;padding:9px 12px;display:flex;gap:14px;align-items:center}
+.credit .n{font:600 26pt/1 'Avenir Next',Avenir,Helvetica,sans-serif}.credit .n small{font-size:10pt;font-weight:400}
+.credit .j{height:5px;background:#d6cfbf;margin:5px 0}.credit .j i{display:block;height:100%;background:#1d1a15;width:${pct}%}
+.credit p{margin:0;font-size:9pt;color:#4a4034}
+.pied{position:absolute;left:16mm;right:16mm;bottom:12mm;display:flex;justify-content:space-between;font:8.5pt 'Avenir Next',Avenir,Helvetica,sans-serif;color:#6b5f4c;border-top:1px solid #b9ad97;padding-top:6px}
+.sig{height:16mm;border-bottom:1px solid #1d1a15;width:60mm}
+.apercu{position:absolute;top:8mm;right:16mm;font:700 8pt Helvetica,sans-serif;letter-spacing:.2em;color:#a33228;border:1px solid #a33228;padding:2px 6px;transform:rotate(3deg)}
+@media print{body{background:none}.f{margin:0}}
+</style></head><body><div class="f"><div class="apercu">APERÇU · NON SIGNÉ</div>
+<div class="haut"><div><h1>DELIGNY</h1><div class="sous">Certificat d'origine · Montre T</div></div><div class="num">N° provisoire<b>MT-${an}-${empreinte}</b>${date}</div></div>
+<div class="photo">${img?`<img src="${img}" alt="Montre T">`:''}</div>
+<div class="bloc"><h2>Configuration</h2><table>
+${L('Boîtier',M(P.ib)+(peutBrut(P.ib)&&peutPoli(P.ib)?' — dessus et tranche polis, flancs et fond bruts':peutBrut(P.ib)?' — entièrement brut':' — entièrement poli'))}
+${L('Lunette',M(P.il)+' — '+lm.nom+(decor?' « '+decor+' »':'')+(lm.r.finition?', finition '+fin:''))}
+${L('Cadran',M(P.ic)+' — '+cm.nom+', brut, arêtes cassées')}
+${L('Index',idx.replace(/^Index : /,''))}
+${L('Fond','Embossé '+lignesGravure().L.map(l=>l[0]).join(' · ')+(lignesGravure().or?' · poinçon de maître et poinçon de titre (tête d\'aigle, 750) apposés par le bureau de garantie':''))}
+${L('Mouvement','Quartz suisse')}${L('Bracelet','Cuir de pomme, boucle déployante laiton')}
+${L('Fabrication',[...new Set([P.ib,P.il,P.ic].map(id=>TARIFS[id].proc.startsWith('DMLS')?'impression métal DMLS':'fonderie à cire perdue'))].join(' et ').replace(/^./,c=>c.toUpperCase())+', assemblée en France · délai estimé ~'+P.dmax+' jours ouvrés')}
+</table></div>
+<div class="credit"><div class="n">${P.cr}<small> / ${P.CR_AN}</small></div><div style="flex:1"><b>Crédits de production ${an}</b><div class="j"><i></i></div>
+<p>Chaque année, DELIGNY R&amp;D ne fabrique que 1 000 crédits de montres (1 crédit = ${P.EUR_CR} €). Cette pièce en a consommé ${P.cr}, soit ${pctFr} % de la production de l'année. Plus une montre est précieuse, plus elle est rare.</p></div></div>
+<div class="pied"><div>DELIGNY R&amp;D · SASU · SIREN 107 503 807<br>deligny-rd.fr</div><div style="text-align:right">Signature<div class="sig"></div></div></div>
+</div><img src="https://atlas-studio.pro/deligny/api/px?page=montre-3d-studio" alt="" width="1" height="1" loading="eager">
+</body></html>`;
+  const w=window.open(URL.createObjectURL(new Blob([html],{type:'text/html'})),'_blank');if(!w)alert('Autorise les fenêtres pour afficher le certificat.');}
+document.getElementById('btnCertif').onclick=certificatMontre;
+{const gp=document.getElementById('gravPerso');gp.oninput=()=>{state.gravurePerso=gp.value;majGravure();};}
+// GRAVURE REELLE (12/10) : le studio n'affiche qu'un decalque ; ce bouton fait graver les memes lignes, a la meme
+// place, dans le vrai fichier du fond (Blender, 0,30 mm) et donne le STL de fabrication. Studio local seulement.
+document.getElementById('btnGraver').onclick=async()=>{const n=document.getElementById('noteGraver'),b=document.getElementById('btnGraver'),P=window._placementGravure;
+  if(!AI_BASE&&!/127\.0\.0\.1|localhost/.test(location.host)){n.textContent='L\'embossage du fichier de fabrication se fait dans le studio local (moteur 3D Blender).';return;}
+  if(!P){n.textContent='Texte en cours de calcul, réessaie dans une seconde.';return;}
+  b.disabled=true;n.textContent='Embossage du texte dans le fichier 3D du fond (environ 1 min)…';
+  try{const r=await (await fetch(AI_BASE+'/api/montre/graver',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({lignes:P,cadre:P.cadre||null})})).json();
+    if(!r.ok)throw new Error(r.note||'refus');
+    const blob=new Blob([Uint8Array.from(atob(r.stl_b64),c=>c.charCodeAt(0))],{type:'model/stl'}),a=document.createElement('a');
+    a.href=URL.createObjectURL(blob);a.download='fond_embosse_'+r.id+'.stl';a.textContent='Télécharger fond_embosse_'+r.id+'.stl';
+    n.textContent=`Fond embossé : ${r.lignes.length} lignes en creux de 0,30 mm, ${r.aretes_ouvertes===0?'maillage fermé (prêt à imprimer)':r.aretes_ouvertes+' arêtes ouvertes à reprendre'}, ${(r.ms/1000).toFixed(0)} s. `;n.appendChild(a);}
+  catch(e){n.textContent='Échec de l\'embossage : '+(e.message||e);}finally{b.disabled=false;}};
 listerCfg();
 if(!location.hash.includes('appliquer=')&&!location.hash.includes('ia=')){const c=lireCfg().find(x=>x.nom===lireDefaut());if(c)setTimeout(()=>appliquerCfg(c.etat),0);}
 initEncyclopedie();   // apres ORN : le catalogue decrit aussi les volumes 3D
 </script>
-<img src="https://atlas-studio.pro/deligny/api/px?page=montre-3d-studio" alt="" width="1" height="1" loading="eager">
 </body>
 </html>
