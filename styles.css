@@ -10,6 +10,15 @@
   --accent: #7c5cbf;
   --accent-2: #5b3fa0;
   --purple: #6d4bc0;
+  /* NOIR DES FORMES PLEINES (12/10/2026, demande de Baptiste). Tout ce qui
+   * etait un aplat violet arrondi passe au noir : boutons principaux,
+   * pastilles d'etat, onglet actif, pastille d'intitule. Le violet RESTE sur
+   * le texte, les liens, les bordures et les degrades de titre : c'est la
+   * couleur de la marque, ce sont les PAVES qui alourdissaient la page.
+   * --noir-2 n'est pas decoratif : sans lui, un bouton noir ne montrerait
+   * aucune reaction au survol. */
+  --noir: #15131a;
+  --noir-2: #2e2936;
   --purple-2: #4a3a95;
   --gold: #3a6ea5;
   --green: #2e7d46;
@@ -271,7 +280,7 @@ main {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: var(--noir);
 }
 
 .section-head .eyebrow {
@@ -376,14 +385,16 @@ h3 {
 }
 
 .btn-primary {
-  border-color: var(--accent);
-  background: var(--accent);
+  /* Le contour suit le fond : un lisere violet autour d'un aplat noir serait
+     precisement le cadre arrondi violet qu'on vient de retirer (12/10). */
+  border-color: var(--noir);
+  background: var(--noir);
   color: #fff;
 }
 
 .btn-primary:hover {
-  background: var(--accent-2);
-  border-color: var(--accent-2);
+  background: var(--noir-2);
+  border-color: var(--noir-2);
 }
 
 .btn-ghost {
@@ -421,7 +432,7 @@ h3 {
   height: 32px;
   place-items: center;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
+  background: linear-gradient(135deg, var(--noir-2), var(--noir));
   color: #fff;
   font-size: 18px;
   line-height: 1;
@@ -746,7 +757,7 @@ h3 {
 
 #atlas-view-bureau:checked ~ .atlas-switch label[for="atlas-view-bureau"],
 #atlas-view-normale:checked ~ .atlas-switch label[for="atlas-view-normale"] {
-  background: var(--accent);
+  background: var(--noir);
   color: #fff;
 }
 
@@ -833,7 +844,7 @@ h3 {
 }
 
 .app-card-primary .app-icon {
-  background: linear-gradient(135deg, var(--accent), var(--purple));
+  background: linear-gradient(135deg, var(--noir-2), var(--noir));
   color: #fff;
 }
 
@@ -973,7 +984,7 @@ img.app-banner {
 
 .tag-live {
   color: #fff;
-  background: var(--accent);
+  background: var(--noir);
 }
 
 .tag-free {
@@ -989,7 +1000,7 @@ img.app-banner {
 .tag-private,
 .tag-wait {
   color: #fff;
-  background: var(--purple);
+  background: var(--noir);
 }
 
 .split {
@@ -1571,7 +1582,7 @@ img.app-banner {
 .cp-choix:hover { border-color: rgba(124, 92, 191, 0.4); color: var(--ink); }
 
 .cp-choix.on {
-  background: var(--accent);
+  background: var(--noir);
   border-color: var(--accent);
   color: #fff;
 }
