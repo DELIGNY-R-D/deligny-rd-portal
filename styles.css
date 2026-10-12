@@ -683,6 +683,26 @@ h3 {
   }
 }
 
+/* Attente d'une demonstration chargee a l'approche (12/10). Elle occupe la
+   hauteur EXACTE du cadre final : sans cela la page sauterait au moment ou la
+   demonstration prend sa place, juste sous les yeux du visiteur. */
+.demo-attente {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 640px;
+  margin: 0;
+  color: #8d93a1;
+  font-size: 13px;
+  text-align: center;
+}
+
+@media (max-width: 640px) {
+  .demo-attente {
+    height: 480px;
+  }
+}
+
 /* Atlas : UN bloc, deux affichages du meme produit (23/08). Selecteur en CSS
    pur (radios cachees + labels), aucun script : la radio cochee montre son
    cadre et colore son onglet. Le cadre masque (display:none + loading=lazy)

@@ -3727,8 +3727,24 @@ function drawPreview(hq){
   const spanXY = Math.max(1, Math.max(bb.maxX-bb.minX, bb.maxY-bb.minY));
   const midZ = (bb.minZ+bb.maxZ)/2;
   const totalH = Math.max(1, (bb.maxZ-bb.minZ) + gap*Math.max(0,parts.length-1));
-  const scale = Math.min((w-70)/(spanXY*1.15), (h-70)/totalH) * 0.94 * view.zoom;
-  const cx=w/2, cy=h*0.52;
+  /* CADRAGE ALIGNE SUR LE RENDU STUDIO (12/10/2026), mesure et non estime.
+   * Les deux vues se lisent cote a cote : une piece qui n'a ni la meme taille
+   * ni la meme assise dans ses deux cadres se lit comme deux objets.
+   * Silhouettes relevees au pixel sur la page servie, par propagation depuis le
+   * coeur de la lampe (le simple seuil de luminosite n'attrapait que le coeur
+   * lumineux du rendu, pas son contour) :
+   *     apercu  : hauteur 68,1 % du cadre, sommet a 19,8 %, pied a 87,7 %
+   *     studio  : hauteur 56,7 %,          sommet a 29,8 %, pied a 86,5 %
+   * Le pied et l'axe etaient deja en place ; c'est l'echelle qui etait 20 %
+   * trop grande. 0,94 -> 0,783 (facteur 0,8326) et le centre descend de 0,52 a
+   * 0,567 pour que le pied retombe au meme endroit apres la reduction.
+   * LIMITE ASSUMEE : cet apercu AJUSTE la piece a son cadre, alors que le rendu
+   * studio a une camera FIXE. L'accord est donc exact pour une silhouette
+   * ordinaire et derive pour une forme extreme, tres haute ou tres plate. Le
+   * corriger vraiment demanderait de donner a l'apercu la camera du studio,
+   * au prix d'un debordement sur les pieces hautes. */
+  const scale = Math.min((w-70)/(spanXY*1.15), (h-70)/totalH) * 0.783 * view.zoom;
+  const cx=w/2, cy=h*0.567;
   const L = {x:0.35, y:0.62, z:-0.70};                 // lumière en repère vue (z<0 = vers la caméra)
   const cols = state.bodies.map((_,i)=>hexToRgb(bodyColor(i)));
 
