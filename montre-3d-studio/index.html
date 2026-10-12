@@ -57,9 +57,9 @@ select{width:100%;padding:7px 9px;border-radius:9px;border:1px solid var(--sep);
 #basculeReglages:hover{background:#fff;}
 
 /* ── PARCOURS EN ETAPES (12/10) ── */
-.etapes{position:sticky;top:0;z-index:6;display:flex;gap:3px;overflow-x:auto;margin:0 -18px 10px;padding:10px 14px 8px;background:var(--card);border-bottom:1px solid var(--sep);scrollbar-width:none;}
+.etapes{position:sticky;top:0;z-index:6;display:flex;flex-wrap:wrap;gap:4px;margin:0 -18px 10px;padding:10px 14px 8px;background:var(--card);border-bottom:1px solid var(--sep);scrollbar-width:none;}
 .etapes::-webkit-scrollbar{display:none}
-.etapes button{flex:1 1 auto;border:1px solid var(--sep);background:var(--bg1);border-radius:999px;padding:6px 5px;font:600 11.5px var(--font);white-space:nowrap;min-width:0;color:var(--dim);cursor:pointer;}
+.etapes button{flex:1 1 auto;border:1px solid var(--sep);background:var(--bg1);border-radius:999px;padding:5px 9px;font:600 11.5px var(--font);white-space:nowrap;flex:0 0 auto;color:var(--dim);cursor:pointer;}
 .etapes button b{display:inline-block;width:15px;height:15px;line-height:15px;border-radius:50%;background:rgba(var(--ink-rgb),.08);font-size:9.5px;text-align:center;margin-right:3px;}
 .etapes button.on{background:var(--acc);color:#fff;border-color:var(--acc);}
 .etapes button.on b{background:rgba(255,255,255,.22);}
@@ -95,6 +95,13 @@ body.sans-reglages #badge{display:none;}
 .vign{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:4px 0 10px;}
 .vign .v{cursor:pointer;border:2px solid transparent;border-radius:8px;overflow:hidden;background:var(--bg1);text-align:center;}
 .vign .v:hover{border-color:rgba(var(--acc-rgb),.45);}
+.presets{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:4px 0 10px;}
+.preset{text-align:left;border:1.5px solid var(--sep);background:var(--bg1);border-radius:10px;padding:8px 10px;cursor:pointer;font:12px var(--font);color:var(--txt);}
+.preset.on{border-color:var(--acc);}.preset b{display:block;font-size:12.5px;margin:3px 0 1px;}.preset small{color:var(--dim2);font-size:10.5px;}
+.preset span{display:flex;gap:3px;}.preset span i{width:12px;height:12px;border-radius:50%;border:1px solid rgba(0,0,0,.15);display:inline-block;}
+.prixClient .pv{font:700 30px/1 var(--font);margin:4px 0 2px;}.prixClient .sous{font-size:11px;color:var(--dim2);margin-bottom:8px;}
+.prixClient ul{margin:6px 0 8px;padding-left:18px;font-size:12.5px;line-height:1.5;}.prixClient .jauge{height:6px;border-radius:3px;background:rgba(var(--ink-rgb),.1);overflow:hidden;margin:2px 0 10px;}
+.prixClient .jauge i{display:block;height:100%;background:var(--acc);}
 .prix{width:100%;border-collapse:collapse;font-size:12px;margin-top:4px;}
 .prix th{text-align:left;font-weight:600;color:var(--dim2);font-size:10.5px;text-transform:uppercase;letter-spacing:.05em;padding:4px 4px;border-bottom:1px solid var(--sep);}
 .prix td{padding:5px 4px;border-bottom:1px solid var(--sep);vertical-align:top;}
@@ -152,6 +159,7 @@ body.sans-reglages #badge{display:none;}
     <details class="fins liste"><summary>Liste complète des motifs (bas-relief IA, familles)</summary><select id="selL"></select></details>
     <div id="regL"></div>
     <div class="note" id="raccordNote"></div>
+    <div id="matLunette"></div>
   </section>
   <section>
     <h2>Cadran</h2>
@@ -168,11 +176,19 @@ body.sans-reglages #badge{display:none;}
     <select id="aigH"><option value="0.8">Aiguilles : standard (0,8 mm au-dessus du cadran)</option><option value="1.2">Aiguilles : hautes (1,2 mm)</option><option value="1.6">Aiguilles : très hautes (1,6 mm, maxi sous le verre)</option></select>
     <details class="fins liste"><summary>Liste complète des motifs (bas-relief IA, familles)</summary><select id="selC"></select></details>
     <div id="regC"></div>
+    <div id="matCadran"></div>
   </section>
   <section>
-    <h2>Matières</h2>
-    <div class="note" style="margin-top:0">Chaque pièce a sa matière, indépendamment : impression métal DMLS/SLM (aluminium, titane, inox) ou fonderie (bronze, laiton et ses placages, argent). Les zones polies et brutes suivent la finition de chaque pièce.</div>
-    <div id="regMat"></div>
+    <h2>Composition</h2>
+    <div class="vign-titre">Configurations prêtes</div>
+    <div id="compoPresets" class="presets"></div>
+    <div class="vign-titre">Base : une seule matière pour toute la montre</div>
+    <div id="compoBase" class="vign sph"></div>
+    <div class="note">Ensuite, chaque pièce s'affine dans son étape : cadran, lunette, boîtier. Ce qui n'est pas fabricable est grisé.</div>
+  </section>
+  <section>
+    <h2>Boîtier</h2>
+    <div id="matBoitier"></div>
   </section>
   <section>
     <h2>Texte personnalisé du fond</h2>
@@ -322,13 +338,24 @@ const DESSINS=[
   // MOTIF D'ORIGINE RELEVE (V4, « Montre T 2 V2.stl ») : carte de hauteur vue de dessus, profil de lunette
   // retire par moyenne glissante le long du tour -> clair = case haute (reste polie), sombre = case creusee
   {nom:"motif d'origine (relevé V4)",carte:'media/motif_origine.png',f:(u,s,p)=>{const c=CARTE_ORIGINE;if(!c)return 1;const L=44;
-    return echantillon(c,(PZ.x/L+.5)*(c.w-1),(PZ.z/L+.5)*(c.h-1));}},
+    /* (12/10) la carte relevee s'arrete avant le bord de la lunette (a 9 h : 18,5 mm pour un bord a ~19,6) -> fin
+       liseré sans motif. On cale la carte, angle par angle, sur la zone decoree : son bord interieur de donnees sur
+       le bord interieur de la zone, son bord exterieur sur le bord exterieur. Le motif va jusqu'au bord. */
+    const th=Math.atan2(PZ.z,PZ.x),r=Math.hypot(PZ.x,PZ.z),B=c.bornes;let rm=r;
+    if(B){const k=((Math.round((th+Math.PI)/(2*Math.PI)*B.K)%B.K)+B.K)%B.K,ri=B.ri[k],re=B.re[k],P=profilZone(th),zi=P[0][0],ze=P[P.length-1][0];
+      if(re>ri&&ze>ri&&r>ri)rm=ri+(r-ri)*(re-ri)/(ze-ri);}   /* pivot au bord INTERIEUR des donnees : l'interieur du motif est inchange, seul l'exterieur s'etire jusqu'au bord */
+    return echantillon(c,(rm*Math.cos(th)/L+.5)*(c.w-1),(rm*Math.sin(th)/L+.5)*(c.h-1));}},
   {nom:"damier d'origine (circulaire)",f:(u,s,p)=>{const phi=Math.atan2(Math.abs(PZ.z),Math.abs(PZ.x)),r=Math.hypot(PZ.x,PZ.z);
     const a=phi/(Math.PI/2)*Math.max(1,Math.round(p.n/4)),b=r/(2.7/Math.max(1,p.rangs));
     return .5+.5*Math.tanh(3*Math.cos(Math.PI*(a+b))*Math.cos(Math.PI*(a-b)));}},
 ];
 let CARTE_ORIGINE=null;
-lireImage('media/motif_origine.png').then(c=>{CARTE_ORIGINE=c;for(const k of [..._vign.keys()])if(k.startsWith('L|')||k.startsWith('S|'))_vign.delete(k);try{panneau('lunette');}catch(e){}if(state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)].carte)reconstruire('lunette');}).catch(()=>{});
+lireImage('media/motif_origine.png').then(c=>{
+  /* bornes radiales des donnees de la carte, par angle (premier et dernier pixel non nul le long du rayon) */
+  {const K=720,L=44,ri=new Float32Array(K),re=new Float32Array(K);for(let k=0;k<K;k++){const th=k/K*2*Math.PI-Math.PI;let a=0,b=0;
+    for(let r=10;r<=24;r+=.05){const v=echantillon(c,(r*Math.cos(th)/L+.5)*(c.w-1),(r*Math.sin(th)/L+.5)*(c.h-1));if(v>.04){if(!a)a=r;b=r;}}ri[k]=a;re[k]=b;}
+   c.bornes={K,ri,re};}
+  CARTE_ORIGINE=c;for(const k of [..._vign.keys()])if(k.startsWith('L|')||k.startsWith('S|'))_vign.delete(k);try{panneau('lunette');}catch(e){}if(state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)].carte)reconstruire('lunette');}).catch(()=>{});
 const FORMES=[['reseau','pyramides carrées','clous de Paris'],['reseau','pyramides tronquées','clous tronqués'],['reseau','pyramides inversées','pointes de diamant creuses'],
   ['reseau','pyramides triangulaires','pyramides triangulaires'],['reseau','cônes','cônes'],['reseau','cubes','cubes'],['reseau','losanges','losanges'],
   ['reseau','dents de scie','dents de scie'],['reseau','créneaux','créneaux'],['reseau','gradins','gradins'],['stries','moletage diamant','moletage diamant'],
@@ -802,10 +829,15 @@ const MARGE_FINE=.5;   // mm laisses intacts sur les bords fins de la zone decor
 function pointZone(i,N,j,M,decal){const ua=i/N,th=thetaArc(ua),sg=j/(M-1),P=profilZone(th),[r0,y0,nr,ny]=surProfil(P,sg),s=sZone(sg,th);PZ.x=r0*Math.cos(th);PZ.z=r0*Math.sin(th);
   // MARGES NON MODIFIABLES : 0,5 mm intacts sur chaque bord de la zone decoree (portee du verre, arete de la
   // lunette : parties fines), puis le motif s'installe sur 0,25 mm
-  const dm=Math.min(sg,1-sg)*LZ,garde=sm(MARGE_FINE,MARGE_FINE+.25,dm);
+  // (12/10, Baptiste) MOTIF D'ORIGINE : comme sur la V4, le dessin va jusqu'au bord EXTERIEUR (pas de fin liseré) ;
+  // le bord garde un seul sommet a hauteur 0 (paroi verticale, pas de fente avec la tranche). Bord interieur inchange.
+  const carte=state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)]?.carte;
+  let garde;if(carte){if(_extCol.i!==i||_extCol.N!==N){_extCol.i=i;_extCol.N=N;_extCol.v=surProfil(P,1)[0]>surProfil(P,0)[0];}const ext1=_extCol.v,dExt=(ext1?1-sg:sg)*LZ,dInt=(ext1?sg:1-sg)*LZ;
+    garde=sm(MARGE_FINE,MARGE_FINE+.25,dInt)*sm(0,.06,dExt);}
+  else{const dm=Math.min(sg,1-sg)*LZ;garde=sm(MARGE_FINE,MARGE_FINE+.25,dm);}
   const h=decal!==undefined?decal:(garde>0?FL[state.lunette.motif](ua,s,state.lunette.params)*garde:0);
   dernierH=h;const r=r0+h*nr;return [r*Math.cos(th),y0+h*ny,r*Math.sin(th)];}
-let dernierH=0;
+let dernierH=0;const _extCol={i:-1,N:0,v:true};   // cote exterieur de la zone, une fois par colonne
 // POLISSAGE (photo des ecailles, 08/10) : le polisseur n'atteint que les SOMMETS du relief ;
 // les creux restent bruts (gris, grenus), avec une limite nette. Un triangle est poli si sa
 // hauteur moyenne depasse SEUIL_POLI x le relief maxi de la piece.
@@ -1807,6 +1839,15 @@ let _prixT=0;function majPrix(){clearTimeout(_prixT);_prixT=setTimeout(()=>{cons
     reg.innerHTML=[['base','Prix de base',990,2990,10,'€'],['coef','Coefficient options',1.2,3.5,.1,'×'],['sav','Provision SAV',2,12,1,'%'],['generaux','Frais généraux / montre',0,250,5,'€']].map(([k,lib,lo,hi,pas,u])=>
       `<div class="reg"><label>${lib}</label><input type="range" data-k="${k}" data-u="${u}" min="${lo}" max="${hi}" step="${pas}" value="${VENTE[k]}"><output>${VENTE[k]} ${u}</output></div>`).join('');
     reg.querySelectorAll('input').forEach(inp=>{inp.oninput=()=>{VENTE[inp.dataset.k]=+inp.value;inp.nextElementSibling.textContent=inp.value+' '+inp.dataset.u;majPrix();};});}
+  /* VUE CLIENT (12/10) : prix, delai, edition et ce qui est inclus ; le detail des couts, marges et impots n'est
+     montre qu'a l'atelier (studio local) */
+  const ATELIER=/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
+  const client=`<div class="prixClient"><div class="pv">${eur(PV)}</div><div class="sous">TVA non applicable, art. 293 B du CGI</div>
+    <ul><li>Pièce unique fabriquée à la commande, livrée en ~${dmax+3} jours ouvrés</li><li>Édition : ${cr} crédits sur ${CR_AN} en ${new Date().getFullYear()} (au plus ${nMax} exemplaire${nMax>1?'s':''} de cette configuration par an)</li></ul>
+    <div class="jauge"><i style="width:${pct.toFixed(1)}%"></i></div>
+    <div class="vign-titre">Inclus</div><ul class="inclus"><li>Boîtier, lunette, cadran et fond dans les matières choisies</li><li>Mouvement quartz suisse ${MOUVEMENT_REF}, verre saphir</li><li>Bracelet cuir de pomme, boucle déployante laiton</li><li>Texte du fond embossé, ligne personnelle comprise</li><li>Certificat d'origine, écrin, livraison assurée en France</li></ul></div>`;
+  reg.style.display=ATELIER?'':'none';
+  h=client+(ATELIER?'<details class="fins atelier"><summary>Détail atelier : coûts, marge, impôts (visible seulement dans le studio local)</summary>'+h+'</details>':'');
   tab.innerHTML=h;window._prixCourant={PV,cr,CR_AN,EUR_CR,nMax,dmax:dmax+3,ib,il,ic,fl};majGravure();if(window.majResume)window.majResume();},120);}
 
 // ───────────── GRAVURE DU FOND AUTOMATIQUE (12/10) ─────────────
@@ -1907,14 +1948,14 @@ function vignetteMatiere(id,piece){const m=MATIERES[id],S=120,c=document.createE
       r=B[0]*f+255*sp;g=B[1]*f+255*sp;b=B[2]*f+255*sp;}
     const bord=Math.min(1,(1-Math.sqrt(r2))*S*.5);im.data[k]=Math.min(255,r);im.data[k+1]=Math.min(255,g);im.data[k+2]=Math.min(255,b);im.data[k+3]=255*bord;}
   x.putImageData(im,0,0);return c.toDataURL();}
-function panneauMatieres(){const box=document.getElementById('regMat');if(!box)return;box.innerHTML='';
-  for(const [piece,lib] of [['boitier','Boîtier'],['lunette','Lunette'],['cadran','Cadran']]){
+function panneauMatieres(){const BOX={boitier:'matBoitier',lunette:'matLunette',cadran:'matCadran'};
+  for(const [piece,lib] of [['boitier','Matière du boîtier'],['lunette','Matière de la lunette'],['cadran','Matière du cadran']]){const box=document.getElementById(BOX[piece]);if(!box)continue;box.innerHTML='';
     const t=document.createElement('div');t.className='vign-titre';t.textContent=lib;const g=document.createElement('div');g.className='vign sph';box.append(t,g);
     for(const [id,m] of Object.entries(MATIERES)){tuile(g,m.nom,'M|'+id+'|'+(piece==='cadran'?'c':'p'),()=>vignetteMatiere(id,piece),state.matieres[piece]===id,
       ()=>{state.matieres[piece]=id;if(piece==='boitier'||piece==='lunette'){state.tranches[piece]=peutPoli(id);if(piece==='lunette')reconstruire('lunette');}appliquerMatieres();panneauMatieres();if(piece==='lunette'){for(const k of [..._vign.keys()])if(k.startsWith('S|'))_vign.delete(k);bornerFinition();panneau('lunette');reconstruire('lunette');}});
       g.lastChild.title=m.nom+' · '+m.sous+' · '+(m.fin.length>1?'brut ou poli':m.fin[0]==='brut'?'brut seulement':'poli seulement');
       }
-    if(piece==='lunette'){/* tranches polies : boitier / lunette, associes ou dissocies */
+    if(piece==='boitier'){/* tranches polies : boitier / lunette, associes ou dissocies */
       const t3=document.createElement('div');t3.className='vign-titre';t3.textContent='Tranche polie';box.appendChild(t3);
       const blk=document.createElement('div');blk.className='tranches';
       const ligne=(p,lib)=>{const fixe=!peutBrut(state.matieres[p]),on=tranchePolie(p);
@@ -1934,7 +1975,8 @@ function panneauMatieres(){const box=document.getElementById('regMat');if(!box)r
     const id=state.matieres[piece],n=document.createElement('div');n.className='note';n.style.margin='-4px 0 8px';
     n.textContent=piece==='boitier'?(!peutBrut(id)?'Fonderie : boîtier entièrement poli.':tranchePolie('boitier')?'Tranche polie, flancs et fond bruts.':'Boîtier entièrement brut.')
       :piece==='lunette'?(peutBrut(id)&&peutPoli(id)?'Finitions mat, poli surface ou poli intégral.':peutBrut(id)?'Titane : lunette brute (mat) seulement.':'Fonderie : poli surface ou poli intégral.')
-      :(peutBrut(id)&&peutPoli(id)?'Brut (arêtes cassées) ou poli intégral.':peutBrut(id)?'Titane : cadran brut seulement.':'Fonderie : cadran poli intégral.');box.appendChild(n);}}
+      :(peutBrut(id)&&peutPoli(id)?'Brut (arêtes cassées) ou poli intégral.':peutBrut(id)?'Titane : cadran brut seulement.':'Fonderie : cadran poli intégral.');box.appendChild(n);}
+  try{panneauComposition();}catch(e){}   /* au demarrage, la composition n'est pas encore declaree : elle se dessine a sa definition */}
 function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, box=document.getElementById(REG[piece]);
   document.getElementById(SEL[piece]).value=valeurSelect(piece); box.innerHTML='';galerieApercus(piece,box);
   /* SIMPLICITE (12/10) : les choix visuels (billes, vignettes, finition) restent a l'ecran ; les curseurs numeriques
@@ -2372,17 +2414,46 @@ document.getElementById('btnGraver').onclick=async()=>{const n=document.getEleme
     n.textContent=`Fond embossé : ${r.lignes.length} lignes en creux de 0,30 mm, ${r.aretes_ouvertes===0?'maillage fermé (prêt à imprimer)':r.aretes_ouvertes+' arêtes ouvertes à reprendre'}, ${(r.ms/1000).toFixed(0)} s. `;n.appendChild(a);}
   catch(e){n.textContent='Échec de l\'embossage : '+(e.message||e);}finally{b.disabled=false;}};
 
+
+// ───────────── COMPOSITION (12/10) : configurations pretes + base une-matiere ─────────────
+// Presets « matiere » : ne touchent qu'aux matieres et finitions (le dessin reste le sien) ; configurations
+// enregistrees (dont DESIGN ORIGINAL) : reprennent tout.
+const PRESETS=[
+  {nom:'Aluminium brut',m:{boitier:'alu',lunette:'alu',cadran:'alu'},fl:0,fc:0,tr:false},
+  {nom:'Aluminium poli',m:{boitier:'alu',lunette:'alu',cadran:'alu'},fl:2,fc:1,tr:true},
+  {nom:'Titane mat',m:{boitier:'titane',lunette:'titane',cadran:'titane'},fl:0,fc:0,tr:false},
+  {nom:'Alu et titane',m:{boitier:'alu',lunette:'alu',cadran:'titane'},fl:1,fc:0,tr:true},
+  {nom:'Or jaune 18 ct',m:{boitier:'or18',lunette:'or18',cadran:'or18'},fl:2,fc:1,tr:true},
+  {nom:'Laiton plaqué or',m:{boitier:'laitonOr',lunette:'laitonOr',cadran:'titane'},fl:1,fc:0,tr:true},
+  {nom:'Argent massif',m:{boitier:'argent',lunette:'argent',cadran:'titane'},fl:2,fc:0,tr:true}];
+function appliquerComposition(m,fl,fc,tr){state.matieres={...m};state.tranches={boitier:tr,lunette:tr,liees:true};state.cadranFin=fc;
+  if(state.lunette.params&&MOTIFS_LUNETTE[state.lunette.motif]?.r.finition)state.lunette.params.finition=fl;
+  bornerFinCadran();bornerFinition();for(const k of [..._vign.keys()])if(k.startsWith('S|'))_vign.delete(k);
+  appliquerMatieres();panneauMatieres();panneau('lunette');reconstruire('lunette');reconstruire('cadran');}
+function panneauComposition(){const P=document.getElementById('compoPresets'),B=document.getElementById('compoBase');if(!P||!B)return;
+  P.innerHTML='';const pastille=id=>`<i style="background:#${(MATIERES[id]||MATIERES.alu).poli.toString(16).padStart(6,'0')}"></i>`;
+  const meme=a=>JSON.stringify(a.m)===JSON.stringify(state.matieres);
+  for(const c of lireCfg()){const b=document.createElement('button');b.type='button';b.className='preset';b.innerHTML=`<b>${c.nom.replace(/[<&]/g,'')}</b><small>configuration complète</small>`;
+    b.onclick=()=>appliquerCfg(c.etat);P.appendChild(b);}
+  for(const pr of PRESETS){const b=document.createElement('button');b.type='button';b.className='preset'+(meme(pr)?' on':'');
+    b.innerHTML=`<span>${pastille(pr.m.boitier)}${pastille(pr.m.lunette)}${pastille(pr.m.cadran)}</span><b>${pr.nom}</b><small>matières et finitions</small>`;
+    b.onclick=()=>appliquerComposition(pr.m,pr.fl,pr.fc,pr.tr);P.appendChild(b);}
+  B.innerHTML='';const tous=Object.values(state.matieres);
+  for(const [id,m] of Object.entries(MATIERES)){tuile(B,m.nom,'M|'+id+'|p',()=>vignetteMatiere(id,'boitier'),tous.every(x=>x===id),
+    ()=>appliquerComposition({boitier:id,lunette:id,cadran:id},peutBrut(id)&&peutPoli(id)?1:peutBrut(id)?0:2,peutBrut(id)?0:1,peutPoli(id)));B.lastChild.title='Toute la montre en '+m.nom+' · '+m.sous;}}
+panneauComposition();
 // ───────────── PARCOURS EN ETAPES (12/10) ─────────────
 // Le panneau montre UNE etape a la fois ; la camera se tourne vers la piece concernee ; un resume fixe (prix,
 // credits, delai) et « Suivant » guident jusqu'au certificat. Les sections existantes sont simplement rangees.
 (function(){const aside=document.querySelector('aside');if(!aside)return;
   const secs=[...aside.querySelectorAll(':scope>section')],par=t=>secs.find(s=>(s.querySelector('h2')||{}).textContent?.trim().startsWith(t));
   const ETAPES=[
-    {id:'lunette',lib:'Lunette',vue:'trois',aide:'Choisis la catégorie, le dessin et la finition de la lunette. Les billes montrent le rendu réel.',secs:[par('Lunette')]},
-    {id:'cadran',lib:'Cadran',vue:'face',aide:'Choisis le motif du cadran, les index et la hauteur des aiguilles.',secs:[par('Cadran')]},
-    {id:'matieres',lib:'Matières',vue:'trois',aide:'Une matière par pièce : boîtier, lunette, cadran. Ce qui n\'est pas fabricable est grisé.',secs:[par('Matières')]},
+    {id:'compo',lib:'Composition',vue:'trois',aide:'Pars d\'une configuration prête ou d\'une base (tout alu, tout or…), puis affine pièce par pièce.',secs:[par('Composition')]},
+    {id:'cadran',lib:'Cadran',vue:'face',aide:'Motif du cadran, index, aiguilles, puis matière et finition du cadran.',secs:[par('Cadran')]},
+    {id:'lunette',lib:'Lunette',vue:'trois',aide:'Catégorie, dessin et finition de la lunette, puis sa matière.',secs:[par('Lunette')]},
+    {id:'boitier',lib:'Boîtier',vue:'profil',aide:'Matière du boîtier et tranches polies (boîtier et lunette, associées ou non).',secs:[par('Boîtier')]},
     {id:'fond',lib:'Fond',vue:'dos',aide:'Le texte du fond suit la configuration ; ajoute ta ligne personnelle.',secs:[par('Texte personnalisé')]},
-    {id:'prix',lib:'Prix',vue:'trois',aide:'Détail du prix, crédits de production et certificat de la montre.',secs:[par('Prix et délai')]},
+    {id:'prix',lib:'Prix',vue:'trois',aide:'Prix, délai et certificat de ta montre.',secs:[par('Prix et délai')]},
     {id:'plus',lib:'Plus',vue:null,aide:'Idées (concierge, encyclopédie, aléatoire), configurations enregistrées, vues et fabrication.',secs:[par('Concierge'),par('Mes configurations'),par('Encyclopédie'),par('Vue'),par('Fabrication')]}];
   const nav=document.createElement('nav');nav.className='etapes';aside.prepend(nav);
   const aide=document.createElement('p');aide.className='etape-titre';nav.after(aide);
@@ -2393,10 +2464,10 @@ document.getElementById('btnGraver').onclick=async()=>{const n=document.getEleme
   let cur=0;function aller(i,cam){cur=i;ETAPES.forEach((e,j)=>{e.btn.classList.toggle('on',j===i);for(const s of e.secs)if(s)s.style.display=j===i?'':'none';});
     aide.textContent=ETAPES[i].aide;aside.scrollTop=0;
     const sv=document.getElementById('resSuiv');sv.textContent=i<ETAPES.length-2?'Suivant : '+ETAPES[i+1].lib+' →':i===ETAPES.length-2?'Voir le certificat':'Revenir au début';
-    if(cam&&ETAPES[i].vue)vueDe(ETAPES[i].vue);try{localStorage.setItem('montre-etape',String(i));}catch(e){}}
+    if(cam&&ETAPES[i].vue)vueDe(ETAPES[i].vue);try{localStorage.setItem('montre-etape2',String(i));}catch(e){}}
   document.getElementById('resSuiv').onclick=()=>{if(cur<ETAPES.length-2)aller(cur+1,true);else if(cur===ETAPES.length-2)certificatMontre();else aller(0,true);};
   document.getElementById('resAlea').onclick=()=>document.getElementById('cfgAlea').click();
-  let i0=0;try{i0=Math.min(ETAPES.length-1,+(localStorage.getItem('montre-etape')||0));}catch(e){}aller(i0,false);
+  let i0=0;try{i0=Math.min(ETAPES.length-1,+(localStorage.getItem('montre-etape2')||0));}catch(e){}aller(i0,false);
   window.majResume=()=>{const P=window._prixCourant;if(!P)return;const eur=x=>Math.round(x).toLocaleString('fr-FR')+' €';
     document.getElementById('resPx').firstChild.textContent=eur(P.PV);document.getElementById('resCr').textContent=`${P.cr} crédits · ~${P.dmax} jours`;};
   window.majResume();})();
