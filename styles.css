@@ -37,9 +37,10 @@
   box-sizing: border-box;
 }
 
-html {
-  scroll-behavior: smooth;
-}
+/* AUCUN GLISSEMENT AU CLIC (13/10/2026). `scroll-behavior: smooth` faisait
+   defiler la page jusqu'a l'ancre : on voyait le site CHERCHER l'endroit. Un
+   chargement annonce puis la destination, c'est net ; un glissement, non.
+   Voir chargement-simule.js, qui annonce et saute. */
 
 html {
   /* Pas de defilement lateral : le halo du hero (160vw sur mobile) creait une
@@ -2242,4 +2243,23 @@ img.app-banner {
 /* Sur telephone, deux images cote a cote deviennent illisibles : on empile. */
 @media (max-width: 640px) {
   .int-paire { grid-template-columns: 1fr; }
+}
+
+/* Chargement simule : la banderole de progression et son voile. Les styles
+   vivent ICI et non en attribut : la CSP du portail interdit tout <style>
+   inline, et un style pose en JS sur l'element serait du style-src-attr. */
+.cs-barre {
+  position: fixed; top: 0; left: 0; height: 3px; width: 0;
+  background: var(--accent); z-index: 9999; opacity: 0;
+  pointer-events: none;
+  transition: width .36s cubic-bezier(.25,.8,.3,1), opacity .15s linear;
+}
+.cs-barre.cs-actif { opacity: 1; width: 100%; }
+.cs-voile {
+  position: fixed; inset: 0; background: var(--paper); z-index: 9998;
+  opacity: 0; pointer-events: none; transition: opacity .14s linear;
+}
+.cs-voile.cs-actif { opacity: .42; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) {
+  .cs-barre, .cs-voile { transition: none; }
 }
