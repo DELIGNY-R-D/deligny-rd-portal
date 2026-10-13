@@ -20,3 +20,10 @@
 @media (max-width: 700px) { .mt-galerie--k1 figure { flex-basis: calc((100% - 12px) / 2); } }
 .mt-liens { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: -0.5rem auto 2.5rem; padding: 0 16px; }
 .mt-liens--gauche { justify-content: flex-start; margin: 1rem 0 0; padding: 0; }
+/* (13/10) mis en avant : personnalisation et bracelet, juste sous l'image d'ouverture */
+.mt-avant { display: grid; grid-template-columns: 1.6fr 1fr; gap: 16px; max-width: 980px; margin: 2.5rem auto 3rem; padding: 0 16px; }
+.mt-carte { background: rgba(255,255,255,.55); border: 1px solid rgba(0,0,0,.08); border-radius: 18px; padding: 26px 28px; box-shadow: 0 10px 30px rgba(0,0,0,.06); }
+.mt-carte h2 { margin: .2em 0 .5em; font-size: 1.6rem; line-height: 1.15; }
+.mt-carte p { line-height: 1.6; }
+.mt-carte--principale { background: linear-gradient(135deg, rgba(44,74,56,.10), rgba(255,255,255,.6)); border-color: rgba(44,74,56,.25); }
+@media (max-width: 760px) { .mt-avant { grid-template-columns: 1fr; } .mt-carte { padding: 20px; } }
