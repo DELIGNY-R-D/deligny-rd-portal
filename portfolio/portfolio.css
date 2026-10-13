@@ -191,8 +191,7 @@ main {
 
   .pf-card figcaption {
     gap: 3px 7px;
-    padding-top: 9px;
-    margin-top: 9px;
+    padding: 10px 10px 12px;
   }
 }
 
@@ -205,6 +204,13 @@ main {
 
 .pf-card figure {
   margin: 0;
+  /* 13/10/2026 : le cadre et le fond passent de l'image a la FIGURE, pour que
+     l'image et sa legende forment une seule planche blanche. Avant, un filet
+     noir separait la photo du texte et la legende flottait sur le papier. */
+  background: var(--panel);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  transition: border-color 0.35s ease;
 }
 
 /* 15/09 : cadre CARRE, rempli par une image DEJA carree. Les couvertures
@@ -222,8 +228,7 @@ main {
   object-fit: cover;
   object-position: 50% 50%;
   background: var(--soft);
-  border: 1px solid var(--line);
-  transition: filter 0.35s ease, border-color 0.35s ease;
+  transition: filter 0.35s ease;
 }
 
 .pf-card figcaption {
@@ -231,9 +236,7 @@ main {
   grid-template-columns: auto 1fr;
   align-items: baseline;
   gap: 4px 10px;
-  padding: 11px 1px 0;
-  border-top: 1px solid var(--ink);
-  margin-top: 11px;
+  padding: 12px 13px 14px;
 }
 
 /* Le numero de planche, tire du compteur : jamais saisi a la main, donc
@@ -270,6 +273,10 @@ main {
 .pf-card:hover img,
 .pf-card:focus-visible img {
   filter: brightness(1.04) saturate(1.05);
+}
+
+.pf-card:hover figure,
+.pf-card:focus-visible figure {
   border-color: rgba(21, 19, 26, 0.3);
 }
 
