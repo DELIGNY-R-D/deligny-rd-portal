@@ -1637,7 +1637,7 @@ function reliefMaxCadran(){const p=state.cadran.params;return state.cadran.motif
 const vue=document.getElementById('vue');
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
 renderer.setPixelRatio(Math.min(2,devicePixelRatio)); renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=.8;   // scene 20 % moins lumineuse (08/10)
-vue.prepend(renderer.domElement);
+vue.prepend(renderer.domElement);renderer.domElement.style.opacity='0';renderer.domElement.style.transition='opacity .35s';   // montree seulement en HD (verifierPret)
 const scene=new THREE.Scene();
 const envAtelier=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),.04).texture;scene.environment=envAtelier;
 // HDRI de studio (Poly Haven « studio small 08 », CC0, media/) : de vraies boites a lumiere
@@ -1707,6 +1707,49 @@ const brut=(()=>{const N=512,h=new Float32Array(N*N),R=rng(8420);
   const tex=c=>{const t=new THREE.CanvasTexture(c);t.wrapS=t.wrapT=THREE.RepeatWrapping;t.anisotropy=8;return t;};
   return new THREE.MeshStandardMaterial({color:0x6b6862,metalness:.35,roughness:.9,envMapIntensity:.85,normalMap:tex(cn),normalScale:new THREE.Vector2(.9,.9),roughnessMap:tex(cr)});})();
 // UV en projection boite : chaque triangle prend le plan de sa normale dominante (1 tuile = 2,5 mm)
+
+/* (13/10, Baptiste : « exporte la version HD et conserve-la par defaut, plus besoin de recalcul ») CACHE HD PAR DEFAUT.
+   Les pieces HD de la configuration par defaut (lunette W1 ~700 000 triangles, cadran ~485 000) sont enregistrees une
+   fois, deja calculees, dans media/defaut_hd.bin.gz (~5 Mo) : sommets dedoublonnes, positions au micron (16 bits sur la
+   boite), normales sur 8 bits, teinte, axe de projection des UV ; indices en ecarts ; gzip. Au chargement, si l'etat
+   GEOMETRIQUE est exactement celui du fichier (cle), la piece est lue telle quelle, sans calcul ; sinon calcul normal. */
+const HD_SANS=new Set(['matieres','origine','gravurePerso']);
+const cleGeo=()=>JSON.stringify(state,(k,v)=>HD_SANS.has(k)?undefined:v);
+const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='1';   // a incrementer a chaque nouvel export du fichier
+function encoderHD(g){const P=g.getAttribute('position').array,N=g.getAttribute('normal').array,C=g.getAttribute('color')?.array,n=P.length/3;
+  const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];for(let i=0;i<n;i++)for(let a=0;a<3;a++){const v=P[3*i+a];if(v<mn[a])mn[a]=v;if(v>mx[a])mx[a]=v;}
+  const ax=new Uint8Array(n);for(let t=0;t<n;t+=3){const o=3*t,ux=P[o+3]-P[o],uy=P[o+4]-P[o+1],uz=P[o+5]-P[o+2],vx=P[o+6]-P[o],vy=P[o+7]-P[o+1],vz=P[o+8]-P[o+2];
+    const nx=Math.abs(uy*vz-uz*vy),ny=Math.abs(uz*vx-ux*vz),nz=Math.abs(ux*vy-uy*vx),a=ny>=nx&&ny>=nz?1:nx>=nz?0:2;ax[t]=ax[t+1]=ax[t+2]=a;}
+  const cles=new Map(),V=[],I=new Uint32Array(n);
+  for(let i=0;i<n;i++){const q0=Math.round((P[3*i]-mn[0])/((mx[0]-mn[0])||1)*65535),q1=Math.round((P[3*i+1]-mn[1])/((mx[1]-mn[1])||1)*65535),q2=Math.round((P[3*i+2]-mn[2])/((mx[2]-mn[2])||1)*65535);
+    const n0=Math.round(N[3*i]*127),n1=Math.round(N[3*i+1]*127),n2=Math.round(N[3*i+2]*127),c=C?Math.round(C[3*i]*255):255;
+    const k=q0+','+q1+','+q2+','+n0+','+n1+','+n2+','+c+','+ax[i];let v=cles.get(k);if(v===undefined){v=cles.size;cles.set(k,v);V.push(q0,q1,q2,n0,n1,n2,c,ax[i]);}I[i]=v;}
+  const nv=cles.size,buf=new Uint8Array(nv*11+n*4),dv=new DataView(buf.buffer);let p=0;
+  for(let v=0;v<nv;v++){const o=8*v;dv.setUint16(p,V[o],true);dv.setUint16(p+2,V[o+1],true);dv.setUint16(p+4,V[o+2],true);dv.setInt8(p+6,V[o+3]);dv.setInt8(p+7,V[o+4]);dv.setInt8(p+8,V[o+5]);dv.setUint8(p+9,V[o+6]);dv.setUint8(p+10,V[o+7]);p+=11;}
+  let prev=0;for(let i=0;i<n;i++){dv.setInt32(p,I[i]-prev,true);prev=I[i];p+=4;}
+  return {meta:{n,nv,mn,mx,couleur:!!C,groupes:g.groups.map(q=>[q.start,q.count,q.materialIndex])},buf};}
+function decoderHD(m,buf,off){const {n,nv,mn,mx}=m,dv=new DataView(buf.buffer,buf.byteOffset+off),P=new Float32Array(nv*3),N=new Float32Array(nv*3),C=m.couleur?new Float32Array(nv*3):null,U=new Float32Array(nv*2);let p=0;
+  const s=[0,1,2].map(a=>(mx[a]-mn[a])/65535);
+  for(let v=0;v<nv;v++){const x=mn[0]+dv.getUint16(p,true)*s[0],y=mn[1]+dv.getUint16(p+2,true)*s[1],z=mn[2]+dv.getUint16(p+4,true)*s[2];P[3*v]=x;P[3*v+1]=y;P[3*v+2]=z;
+    let a=dv.getInt8(p+6),b=dv.getInt8(p+7),c=dv.getInt8(p+8);const l=Math.hypot(a,b,c)||1;N[3*v]=a/l;N[3*v+1]=b/l;N[3*v+2]=c/l;
+    if(C){const t=dv.getUint8(p+9)/255;C[3*v]=C[3*v+1]=C[3*v+2]=t;}const ax=dv.getUint8(p+10);   // memes UV que uvBoite (tuile 2,5)
+    if(ax===1){U[2*v]=x/2.5;U[2*v+1]=z/2.5;}else if(ax===0){U[2*v]=z/2.5;U[2*v+1]=y/2.5;}else{U[2*v]=x/2.5;U[2*v+1]=y/2.5;}p+=11;}
+  const I=new Uint32Array(n);let prev=0;for(let i=0;i<n;i++){prev+=dv.getInt32(p,true);I[i]=prev;p+=4;}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));
+  if(C)g.setAttribute('color',new THREE.BufferAttribute(C,3));g.setAttribute('uv',new THREE.BufferAttribute(U,2));g.setIndex(new THREE.BufferAttribute(I,1));
+  for(const [st,ct,mi] of m.groupes)g.addGroup(st,ct,mi);return {g,taille:p};}
+// piece HD enregistree, si l'etat geometrique est celui du fichier (une nouvelle geometrie a chaque fois : l'ancienne est liberee a l'echange)
+function geoDefaut(piece){const q=HD_DEFAUT.pieces[piece];if(!q||HD_DEFAUT.cle!==cleGeo())return null;
+  const g=new THREE.BufferGeometry();for(const k of Object.keys(q.attributes))g.setAttribute(k,q.attributes[k]);g.setIndex(q.index);for(const gr of q.groups)g.addGroup(gr.start,gr.count,gr.materialIndex);return g;}
+async function chargerDefautHD(){try{const r=await fetch('media/defaut_hd.bin.gz?v='+DEFAUT_HD_V);if(!r.ok)return;
+    const raw=new Uint8Array(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+    const lh=new DataView(raw.buffer).getUint32(0,true),tete=JSON.parse(new TextDecoder().decode(raw.subarray(4,4+lh)));let off=4+lh;
+    for(const [nom,m] of Object.entries(tete.pieces)){const {g,taille}=decoderHD(m,raw,off);off+=taille;HD_DEFAUT.pieces[nom]=g;}
+    HD_DEFAUT.cle=tete.cle;}catch(e){console.info('cache HD par defaut indisponible : calcul',e);}}
+// atelier : ecrit le fichier depuis l'etat par defaut courant (pieces HD affichees)
+async function exporterDefautHD(){const pieces={},bufs=[];for(const [nom,m] of [['lunette',mLunette],['cadran',mCadran]]){const e=encoderHD(m.geometry);pieces[nom]=e.meta;bufs.push(e.buf);}
+  const tete=new TextEncoder().encode(JSON.stringify({cle:cleGeo(),pieces})),lh=new Uint8Array(4);new DataView(lh.buffer).setUint32(0,tete.length,true);
+  return new Uint8Array(await new Response(new Blob([lh,tete,...bufs]).stream().pipeThrough(new CompressionStream('gzip'))).arrayBuffer());}
 function uvBoite(g,tuile=2.5){const P=g.getAttribute('position').array,U=new Float32Array(P.length/3*2);
   for(let t=0;t<P.length;t+=9){const ax=P[t+3]-P[t],ay=P[t+4]-P[t+1],az=P[t+5]-P[t+2],bx=P[t+6]-P[t],by=P[t+7]-P[t+1],bz=P[t+8]-P[t+2];
     const nx=Math.abs(ay*bz-az*by),ny=Math.abs(az*bx-ax*bz),nz=Math.abs(ax*by-ay*bx);
@@ -1979,9 +2022,9 @@ for(const [f,mat,yoff] of [['media/carrure.stl',alu,0],['media/fond_vierge.stl',
          pour faire un trait d'encre. */
       const gl=assombrirCreux(uvBoite(toCreasedNormals(g,Math.PI/6)), .32, .9)   /* (12/10) fond des lettres plus sombre (demande de Baptiste) ; borne .32 et pas .30 : le fond des lettres est a 0,30000001 de la face, une borne a .30 l'excluait tout entier */;m=new THREE.Mesh(gl,brutGrave);m.userData.brutMat=brutGrave;BRUTS.push(m);mFond=m;setTimeout(appliquerMatieres,0);setTimeout(majGravure,0);}
     m.userData.fixe=yoff;monture.add(m);
-    if(++pieces===2){const ch=document.getElementById('charge');if(ch)ch.remove();}},undefined,()=>{const ch=document.getElementById('charge');
+    if(++pieces===2){window._piecesOK=true;verifierPret();}},undefined,()=>{const ch=document.getElementById('charge');
     if(++essai<5){if(ch)ch.textContent='Chargement du boîtier… (nouvel essai '+essai+'/4)';setTimeout(charger,1500*essai);return;}
-    if(ch)ch.textContent='Boîtier introuvable (media/*.stl) : recharge la page ; la lunette et le cadran restent modifiables.';});
+    if(ch)ch.textContent='Boîtier introuvable (media/*.stl) : recharge la page ; la lunette et le cadran restent modifiables.';renderer.domElement.style.opacity='1';});
   charger();}
 
 // VIS LATERALES : 4 vis sans tete M2 en laiton, six pans creux (cle 0,9), bout pointeau, qui
@@ -2269,9 +2312,9 @@ function planifierFab(piece,notes){if(notes&&notes.length)noteFab(piece,notes.jo
     else if(!(notes&&notes.length))noteFab(piece,null);},700);}
 const _fabGarde={};
 function reconstruireLunette(){ bornerFinition(); const nf=bornerFab('lunette'); majPrix(); if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
-  mLunette=new THREE.Mesh(construireLunette(),[aluLunette,brutActif?brutCreux:aluLunette]); groupeLunette.add(mLunette); badge(); planifierFab('lunette',nf); }
+  mLunette=new THREE.Mesh(geoDefaut('lunette')||construireLunette(),[aluLunette,brutActif?brutCreux:aluLunette]); groupeLunette.add(mLunette); badge(); planifierFab('lunette',nf); }
 function reconstruireCadran(){ const nf=bornerFab('cadran'); if(mCadran){groupeCadran.remove(mCadran);mCadran.geometry.dispose();}
-  mCadran=new THREE.Mesh(construireCadran(),state.cadranFin?aluCadran:titane); groupeCadran.add(mCadran); badge(); planifierFab('cadran',nf); }
+  mCadran=new THREE.Mesh(geoDefaut('cadran')||construireCadran(),state.cadranFin?aluCadran:titane); groupeCadran.add(mCadran); badge(); planifierFab('cadran',nf); }
 // (10/10) Le bandeau ne RELEVE plus en permanence les reglages par-dessus la
 // montre : ces trois chiffres sont deja lisibles dans le panneau, et les
 // reafficher sur la piece masquait ce qu'on est venu regarder.
@@ -2288,11 +2331,17 @@ function badge(){const pc=reliefMaxCadran(), jeu=state.aiguilles-pc, b=document.
 // apercu (grille divisee par 2 a 3, toujours calee sur les cellules), puis la HD des
 // qu'on lache le reglage. Les exports et la fabrication sont TOUJOURS en HD.
 let APERCU=false; const tache={},tacheHD={},coutHD={lunette:0,cadran:0};
-const MOBILE=matchMedia('(pointer:coarse)').matches;   // iPhone : resolution « apercu » permanente
-function planifier(q,f){cancelAnimationFrame(tache[q]);clearTimeout(tacheHD[q]);
-  tache[q]=requestAnimationFrame(()=>{const hd=()=>{const t=performance.now();f();coutHD[q]=performance.now()-t;};
-    if(MOBILE){APERCU=true;try{f();}finally{APERCU=false;}return;}
-    if(coutHD[q]>350){APERCU=true;try{f();}finally{APERCU=false;}tacheHD[q]=setTimeout(hd,450);}else hd();});}
+const MOBILE=matchMedia('(pointer:coarse)').matches;   // iPhone (plus d'apercu basse resolution depuis le 13/10 : HD partout)
+/* (13/10, Baptiste : « ne pas afficher quand c'est en mauvaise qualite, afficher que quand c'est charge en HD ») :
+   plus d'apercu basse resolution, ni sur ordinateur ni sur iPhone. Un calcul lourd attend la fin du reglage (300 ms
+   sans changement) ; pendant ce temps la piece HD precedente reste affichee, puis est remplacee d'un coup. Au
+   chargement, la montre reste cachee sous « Chargement… » jusqu'a ce que la lunette et le cadran soient en HD. */
+const enCours={};let studioPret=false;window._piecesOK=false;
+function verifierPret(){if(studioPret||!window._piecesOK||Object.values(enCours).some(Boolean))return;
+  setTimeout(()=>{if(studioPret||Object.values(enCours).some(Boolean))return;studioPret=true;renderer.domElement.style.opacity='1';const ch=document.getElementById('charge');if(ch)ch.remove();},120);}
+function planifier(q,f){clearTimeout(tache[q]);clearTimeout(tacheHD[q]);enCours[q]=true;   // minuteur (et non requestAnimationFrame : bloque tant que l'onglet est cache)
+  const hd=()=>{const t=performance.now();try{f();}finally{coutHD[q]=performance.now()-t;enCours[q]=false;verifierPret();}};
+  if(studioPret&&coutHD[q]>350)tacheHD[q]=setTimeout(hd,300);else tache[q]=setTimeout(hd,0);}
 
 // ───────────────────────────── vues ─────────────────────────────
 function vueDe(n){const d=Math.max(75, 100*(innerWidth<820?1.4:1))*CAM_K;
@@ -2857,7 +2906,7 @@ remplirSelect(document.getElementById('selL'),MOTIFS_LUNETTE,'lunette'); remplir
 // hauteur des aiguilles : on monte tout l'ensemble (heures, minutes, secondes, axe)
 const ah=document.getElementById('aigH');ah.value='0.8';ah.disabled=true;ah.closest('.reg,div')&&(ah.style.display='none');ah.onchange=()=>{state.aiguilles=AIG_FIXE;aig.position.y=0;badge();};   // (13/10) aiguilles fixes
 const zl=document.getElementById('zoneL');zl.value=state.lunette.zone;zl.onchange=()=>{state.lunette.zone=zl.value;reconstruire('lunette');};
-panneau('lunette'); panneau('cadran'); appliquerMatieres(); panneauMatieres(); coutHD.lunette=coutHD.cadran=1e3; reconstruire('lunette'); reconstruire('cadran');   // demarrage : apercu immediat, HD juste apres
+panneau('lunette'); panneau('cadran'); appliquerMatieres(); panneauMatieres(); enCours.init=true;chargerDefautHD().finally(()=>{reconstruire('lunette'); reconstruire('cadran');enCours.init=false;});   // demarrage : apercu immediat, HD juste apres
 
 // ───────────────────────────── encyclopedie (550 entrees -> recettes) ─────────────────────────────
 const TYPES_ENC={parametrique:['paramétrique',''],motif:['motif',''],ia:['bas-relief IA','ia'],ornement:['volume 3D','orn'],finition:['finition','fin']};
@@ -3157,7 +3206,7 @@ function diagCadran(pas=.04){const r1=C_R1-.25,n=Math.round(2*r1/pas),H=new Floa
   if(amp>.03){for(let x=1;x<n-1;x++)for(let y=1;y<n-1;y+=2){const g=Math.hypot(H[(x+1)*n+y]-H[(x-1)*n+y],H[x*n+y+1]-H[x*n+y-1])/(2*pas);pentes.push(Math.atan(g)*180/Math.PI);}
     o=resumeIlots(ilots(H,n,n,pas,pas,false,hmin+amp/2),FAB.detail);}
   return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),...o,pente:pct(pentes,.99),jeu:+(state.aiguilles-reliefMaxCadran()).toFixed(2)};}
-window.__studio={appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+window.__studio={exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
 document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');appliquerMatieres();if(mLunette)mLunette.material=[aluLunette,on?brutCreux:aluLunette];};
 document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
 for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
