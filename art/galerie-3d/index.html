@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr"><head><meta charset="utf-8">
+<html lang="fr" class="publique"><head><meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self' https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Galerie 3D — Deligny R&amp;D</title>
@@ -79,6 +79,30 @@
   .capture main, .capture .scene-zone, .carte main, .carte .scene-zone { display:block !important; height:100% !important; }
   .capture #scene, .carte #scene { position:fixed !important; inset:0; width:100% !important; height:100% !important; min-height:0 !important; }
   .carte #scene { cursor:grab; }
+  /* Colonne de gauche : en version publique (html.publique), la marque et les
+     onglets en tête de colonne, au-dessus des œuvres ; plus de cartel
+     d'informations sur la scène (boutons de vue et espace propriétaire passent
+     dans la colonne). L'atelier garde sa mise en page. */
+  .colonne { display:contents; }
+  .marque-col, .col-outils { display:none; }
+  html.publique header { display:none; }
+  html.publique .colonne { display:flex; flex-direction:column; min-height:0; border-right:1px solid var(--line); overflow:auto; }
+  html.publique .colonne .liste { border-right:0; overflow:visible; }
+  html.publique .marque-col { display:grid; gap:12px; padding:20px 16px 14px; border-bottom:1px solid var(--line); }
+  html.publique .marque { color:var(--ink); text-decoration:none; font-size:16px; font-weight:800; letter-spacing:.28em; }
+  html.publique .marque small { display:block; font-size:9.5px; font-weight:400; letter-spacing:.3em; color:var(--dim); margin-top:5px; }
+  html.publique .onglets-col { display:flex; flex-wrap:wrap; gap:6px; margin-left:0; justify-content:flex-start; }
+  html.publique .onglets-col a { color:var(--dim); text-decoration:none; font-size:10px; letter-spacing:.14em; text-transform:uppercase;
+                                 padding:5px 8px; border:1px solid var(--line); }
+  html.publique .onglets-col a[aria-current="page"] { color:var(--accent); border-color:var(--accent); }
+  html.publique .col-outils { display:grid; gap:12px; padding:14px 16px 20px; border-top:1px solid var(--line); margin-top:auto; }
+  html.publique .col-outils .boutons { display:flex; flex-wrap:wrap; gap:6px; }
+  html.publique .cartel { display:none !important; }
+  html.carte .colonne, html.capture .colonne, html.embed .colonne, html.immersif .colonne { display:none !important; }
+  @media (max-width:860px){
+    html.publique .colonne { display:block; border-right:0; overflow:visible; }
+    html.publique .col-outils { border-top:0; padding:10px 16px 20px; }
+  }
   /* Œil : masque tous les panneaux, le tableau seul en plein cadre. */
   #oeil { position:fixed; right:18px; bottom:18px; z-index:15; width:46px; height:46px; border-radius:50%;
           display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--ink);
@@ -122,7 +146,14 @@
   <nav aria-label="Sections"><a href="../">Répertoire</a><a href="./" aria-current="page">Galerie 3D</a><a href="../achat-vente/">Achat / Vente</a></nav>
 </header>
 <main>
-  <div class="liste" id="liste" aria-label="Œuvres"></div>
+  <aside class="colonne">
+    <div class="marque-col">
+      <a class="marque" href="../">DELIGNY R&amp;D<small>GALERIE 3D</small></a>
+      <nav class="onglets-col" aria-label="Sections"><a href="../">Répertoire</a><a href="./" aria-current="page">Galerie 3D</a><a href="../achat-vente/">Achat / Vente</a></nav>
+    </div>
+    <div class="liste" id="liste" aria-label="Œuvres"></div>
+    <div class="col-outils" id="colOutils"></div>
+  </aside>
   <div class="scene-zone">
     <canvas id="scene" aria-label="Le tableau en 3D : glisser pour tourner, molette ou pincer pour zoomer"></canvas>
     <figure class="photo" id="photo"><img id="photoImg" alt="photographie de l'œuvre"><span>Photographie</span></figure>
@@ -151,6 +182,6 @@
 </button>
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
-<script src="galerie.js?v=2f9faa13"></script>
+<script src="galerie.js?v=5cfd9f27"></script>
 
 </body></html>

@@ -1,5 +1,11 @@
 (function () {
   if (new URLSearchParams(location.search).has("embed")) document.documentElement.classList.add("embed");
+  // Version publique : les boutons de vue, le lien du certificat et l'espace
+  // propriétaire quittent le cartel (masqué) pour la colonne de gauche.
+  if (document.documentElement.classList.contains("publique")) {
+    const outils = document.getElementById("colOutils");
+    [".cartel .boutons", "#cVerif", "#cProprio"].forEach(sel => { const e = document.querySelector(sel); if (e) outils.appendChild(e); });
+  }
   if (new URLSearchParams(location.search).has("capture")) document.documentElement.classList.add("capture");
   if (new URLSearchParams(location.search).get("fond") === "transparent") document.documentElement.classList.add("transparent");
   // Mode carte (?carte=1) : la 3D vivante dans une carte du répertoire. On glisse
