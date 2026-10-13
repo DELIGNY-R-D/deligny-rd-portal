@@ -2563,7 +2563,8 @@ let _prixT=0;function majPrix(){clearTimeout(_prixT);_prixT=setTimeout(()=>{cons
      montre qu'a l'atelier (studio local) */
   const ATELIER=/^(127\.0\.0\.1|localhost)$/.test(location.hostname);
   const nc=nonCommandable();
-  const client=nc?`<div class="prixClient"><div class="pv" style="font-size:18px">Pas encore commandable</div><div class="sous" style="font-size:12.5px;color:var(--ink)">${nc}</div></div>`:`<div class="prixClient"><div class="pv">${eur(PV)}</div><div class="sous">TVA non applicable, art. 293 B du CGI</div>
+  const bientot=commandesOuvertes()?'':`<div class="sous" style="font-size:12.5px;color:var(--ink);font-weight:600">Commandes ouvertes le ${DATE_OUVERTURE_TXT}</div>`;
+  const client=nc?`<div class="prixClient"><div class="pv" style="font-size:18px">Pas encore commandable</div><div class="sous" style="font-size:12.5px;color:var(--ink)">${nc}</div></div>`:`<div class="prixClient"><div class="pv">${eur(PV)}</div>${bientot}<div class="sous">TVA non applicable, art. 293 B du CGI</div>
     <ul><li>Pièces imprimées en ${ORIGINES[state.origine].nom}, assemblée et contrôlée en France</li><li>Pièce unique fabriquée à la commande, livrée en ~${dmax+3} jours ouvrés</li><li>Édition : ${cr} crédits sur ${CR_AN} en ${new Date().getFullYear()} (au plus ${nMax} exemplaire${nMax>1?'s':''} de cette configuration par an)</li></ul>
     <div class="jauge"><i style="width:${pct.toFixed(1)}%"></i></div>
     <div class="vign-titre">Inclus</div><ul class="inclus"><li>Boîtier, lunette, cadran et fond dans les matières choisies</li><li>Mouvement quartz suisse ${MOUVEMENT_REF}, verre saphir</li><li>Bracelet cuir de pomme, boucle déployante laiton</li><li>Texte du fond embossé, ligne personnelle comprise</li><li>Certificat d'origine, écrin, livraison assurée en France</li></ul></div>`;
@@ -3230,6 +3231,11 @@ document.getElementById('cfgAlea').onclick=()=>{
 /* (13/10, Baptiste : « rend tout commandable finalement ») : plus aucune finition bloquee ; la fonction reste pour
    un futur essai a bloquer (renvoyer un motif). */
 const ESSAIS_BLOQUES=false;
+/* (13/10, Baptiste : « rend la disponibilite des commandes dans 1 mois ») : ouverture a DATE FIXE (pas « dans un mois »
+   glissant). Avant : prix et configuration visibles, commande annoncee pour cette date. */
+const OUVERTURE_COMMANDES=new Date('2026-11-13T00:00:00+01:00');
+const commandesOuvertes=()=>Date.now()>=OUVERTURE_COMMANDES.getTime();
+const DATE_OUVERTURE_TXT='13 novembre 2026';
 function nonCommandable(){if(!ESSAIS_BLOQUES)return null;const L=state.lunette;
   const f=Math.round(L.params.finition??(L.motif==='arete'?2:1));
   if(L.motif==='image'&&f===1)return 'Bas-relief partiellement poli : finition en essai sur pièce réelle, pas encore commandable.';
@@ -3367,7 +3373,7 @@ panneauComposition();
   document.getElementById('resSuiv').onclick=()=>{if(cur<ETAPES.length-2)aller(cur+1,true);else if(cur===ETAPES.length-2)certificatMontre();else aller(0,true);};
   let i0=0;try{i0=Math.min(ETAPES.length-1,+(localStorage.getItem('montre-etape2')||0));}catch(e){}aller(i0,false);
   window.majResume=()=>{const P=window._prixCourant;if(!P)return;const eur=x=>Math.round(x).toLocaleString('fr-FR')+' €';
-    const nc=nonCommandable();document.getElementById('resPx').firstChild.textContent=nc?'Essai':eur(P.PV);document.getElementById('resCr').textContent=nc?'pas encore commandable':`${P.cr} crédits · ~${P.dmax} jours`;};
+    const nc=nonCommandable();document.getElementById('resPx').firstChild.textContent=nc?'Essai':eur(P.PV);document.getElementById('resCr').textContent=nc?'pas encore commandable':!commandesOuvertes()?`commandes le ${DATE_OUVERTURE_TXT}`:`${P.cr} crédits · ~${P.dmax} jours`;};
   window.majResume();})();
 listerCfg();
 if(!location.hash.includes('appliquer=')&&!location.hash.includes('ia=')){const c=lireCfg().find(x=>x.nom===lireDefaut());if(c)setTimeout(()=>appliquerCfg(c.etat),0);}
