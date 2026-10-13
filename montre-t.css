@@ -9,3 +9,7 @@
 @media (max-width: 700px) { .mt-galerie { grid-template-columns: 1fr; } }
 .mt-galerie--2 { grid-template-columns: repeat(2, 1fr); max-width: 860px; }
 .mt-legende { text-align: center; margin: -1rem auto 2rem; font-size: .92rem; }
+.mt-galerie--k1 { grid-template-columns: repeat(3, 1fr); }
+.mt-galerie--k1 figure { margin: 0; }
+.mt-galerie--k1 figcaption { margin-top: .4rem; font-size: .85rem; opacity: .75; text-align: center; }
+@media (max-width: 700px) { .mt-galerie--k1 { grid-template-columns: 1fr 1fr; } }
