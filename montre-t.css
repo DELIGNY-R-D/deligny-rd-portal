@@ -13,3 +13,10 @@
 .mt-galerie--k1 figure { margin: 0; }
 .mt-galerie--k1 figcaption { margin-top: .4rem; font-size: .85rem; opacity: .75; text-align: center; }
 @media (max-width: 700px) { .mt-galerie--k1 { grid-template-columns: 1fr 1fr; } }
+/* (13/10) galeries : toutes les photos a la meme taille (3:4 recadre), alignees ; derniere rangee centree */
+.mt-galerie img, .mt-galerie--k1 figure img { aspect-ratio: 3 / 4; object-fit: cover; }
+.mt-galerie--k1 { display: flex; flex-wrap: wrap; justify-content: center; }
+.mt-galerie--k1 figure { flex: 0 0 calc((100% - 24px) / 3); }
+@media (max-width: 700px) { .mt-galerie--k1 figure { flex-basis: calc((100% - 12px) / 2); } }
+.mt-liens { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: -0.5rem auto 2.5rem; padding: 0 16px; }
+.mt-liens--gauche { justify-content: flex-start; margin: 1rem 0 0; padding: 0; }
