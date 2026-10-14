@@ -2270,3 +2270,25 @@ img.app-banner {
 .demo-affiche img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover}
 .demo-affiche-bouton{position:absolute;left:16px;right:16px;bottom:16px;display:flex;align-items:center;justify-content:center;min-height:52px;
   border-radius:999px;background:#1f3d2f;color:#fff;font-weight:600;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
+
+/* BANDEAU D'ACCUEIL ALIGNE A GAUCHE (14/10/2026). Centre, un titre qui tient
+   sur quatre lignes de telephone fait repartir l'oeil d'un point different a
+   chaque ligne. A gauche, toutes les lignes partent du meme bord.
+   Le paragraphe est justifie POUR AVOIR DEUX BORDS DROITS, avec cesure : sur
+   une colonne etroite, justifier sans cesure ouvre des rivieres blanches entre
+   les mots et se lit plus mal que du texte centre. La page declare lang="fr",
+   la cesure suit donc les regles francaises.
+   Porte sur #desk et non sur .hero : cinq autres pages ont un bandeau, et
+   .lead sert sur sept pages, dont les fiches du portfolio. */
+#desk {
+  align-items: flex-start;
+  text-align: left;
+}
+
+#desk .lead {
+  margin: 0;
+  text-align: justify;
+  text-wrap: pretty;
+  hyphens: auto;
+  -webkit-hyphens: auto;
+}
