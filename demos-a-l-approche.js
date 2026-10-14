@@ -36,7 +36,31 @@
 
   for (var i = 0; i < emplacements.length; i++) preparer(emplacements[i]);
 
+  // TELEPHONE (14/10, Baptiste : « prend tout l'ecran de l'iPhone pour apercu et modification ») : un studio coince
+  // dans un cadre de page n'est pas utilisable au doigt (deux defilements imbriques, montre minuscule). Sur ecran
+  // etroit et tactile, un emplacement marque data-demo-affiche montre une affiche qui ouvre le studio EN PLEIN ECRAN ;
+  // rien n'est charge tant que le visiteur ne le demande pas.
+  var telephone = window.matchMedia && matchMedia('(max-width: 820px) and (pointer: coarse)').matches;
+
+  function affiche(hote) {
+    var a = document.createElement('a');
+    a.className = 'demo-affiche';
+    a.href = hote.getAttribute('data-demo-src');
+    var im = document.createElement('img');
+    im.src = hote.getAttribute('data-demo-affiche');
+    im.alt = hote.getAttribute('data-demo-titre') || '';
+    im.loading = 'lazy';
+    var b = document.createElement('span');
+    b.className = 'demo-affiche-bouton';
+    b.textContent = hote.getAttribute('data-demo-affiche-texte') || 'Ouvrir en plein écran';
+    a.appendChild(im);
+    a.appendChild(b);
+    hote.textContent = '';
+    hote.appendChild(a);
+  }
+
   function preparer(hote) {
+    if (telephone && hote.getAttribute('data-demo-affiche')) { affiche(hote); return; }
     var charge = false;
 
     // Etat d'attente discret : il occupe la hauteur finale du cadre, pour que
