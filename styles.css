@@ -2292,3 +2292,17 @@ img.app-banner {
   hyphens: auto;
   -webkit-hyphens: auto;
 }
+
+/* EN-TETE DE SECTION SUR TELEPHONE (14/10/2026). `.section-head` aligne
+   l'etiquette et le titre sur UNE LIGNE, avec `justify-content: space-between`.
+   A 375 px, les deux se partagent la largeur : l'etiquette tient a gauche et le
+   titre se retrouve pousse dans une colonne de 220 px, casse en trois lignes et
+   decale. La faiblesse existait deja ; un titre plus long l'a rendue visible.
+   Sur un ecran etroit, les deux s'empilent. */
+@media (max-width: 560px) {
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+}
