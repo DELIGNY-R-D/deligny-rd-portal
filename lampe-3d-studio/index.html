@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-YiOx0nPZM4ry0nfcq6byr2Yqew3hT0uFO3NuWsYZGZ4='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-xR3y1LJG5XdB45NmgoD5yUoHvD2J8uvUH84u0vs3TTM='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -6403,12 +6403,24 @@ async function detectAI(){
   majSourceRendu('canvas');
 }
 
+/* UNE SEULE DEFINITION DE « ATELIER » (14/10/2026). La regle est deja ecrite
+ * plus bas en commentaire : « on ne parle du moteur que la ou son absence est
+ * VRAIMENT une anomalie : a l'atelier ». Elle n'etait appliquee qu'a UNE des
+ * trois phrases, et les deux autres annonçaient une panne a un visiteur dont
+ * tout fonctionnait. Une regle partagee se lit au meme endroit, sinon elle
+ * derive d'un appel a l'autre. */
+const estAtelier = () => ['127.0.0.1', 'localhost', ''].includes(location.hostname)
+                         || location.hostname.endsWith('.local');
+
 function renderBlenderBlock(){
   const box=$('blenderBlock'); if(!box) return;
   // Un moteur distant joignable suffit : le rendu photo n'a pas besoin des
   // fonctions IA, et la passerelle ne relaie que lui.
   if(MOTEUR.distant && MOTEUR.ok){ /* on tombe dans la branche active */ }
   else if(AI.mixed || AI.ok === false){
+    // Hors atelier, le visiteur a deja l'apercu exact dans son navigateur :
+    // lui annoncer un moteur absent, c'est lui decrire une panne qui n'existe pas.
+    if(!estAtelier()){ box.innerHTML = ''; return; }
     box.innerHTML = `<div class="disc-small"><b>Rendu photo Blender — moteur local requis.</b><br>
       Ce rendu calcule une vraie photo de TA géométrie, sans aucune IA : mêmes triangles que le STL,
       matériau PLA, éclairage trois points, ombre portée. Il tourne sur ta machine via le moteur
@@ -6513,6 +6525,7 @@ function renderBlenderBlock(){
 function renderAIBlock(){
   renderBlenderBlock();
   const box=$('aiBlock'); if(!box) return;
+  if(!estAtelier()){ box.innerHTML = ''; return; }
   if(AI.ok===null){ box.innerHTML='<div class="hint">Recherche du moteur AI local…</div>'; return; }
   if(AI.mixed){
     box.innerHTML = `<div class="disc-small"><b>Rendu AI — indisponible depuis le site public.</b><br>
@@ -8599,8 +8612,7 @@ function majSourceRendu(src){
      * jamais eu a exister, ça se lit comme une panne alors que tout va bien.
      * Un visiteur n'a pas a connaitre notre tuyauterie. On ne parle du moteur
      * que la ou son absence est VRAIMENT une anomalie : a l'atelier. */
-    const atelier = ['127.0.0.1','localhost',''].includes(location.hostname)
-                    || location.hostname.endsWith('.local');
+    const atelier = estAtelier();
     if(n) n.textContent = (AI.ok === true)
       ? "Point de vue fixe, comme une photo. Se refait à chaque modification."
       : (atelier
