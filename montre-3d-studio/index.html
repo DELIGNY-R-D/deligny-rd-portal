@@ -226,6 +226,11 @@ body.sans-reglages #badge{display:none;}
   <section>
     <h2>Boîtier</h2>
     <div id="matBoitier"></div><div id="matFond"></div>
+    <div hidden id="blocFlancs"><!-- (14/10) en cours : la peau doit epouser la vraie surface de carrure.stl avant d'etre proposee -->
+    <div class="vign-titre">Gravure des flancs (entre les cornes, 3 h et 9 h)</div>
+    <select id="flancsFrise"><option value="">Flancs lisses</option></select>
+    <div class="reg"><label>relief des flancs</label><input type="range" id="flancsRelief" min=".15" max=".35" step=".01" value=".25"><output id="flancsReliefV">0,25</output></div>
+    <div class="note">Le motif ressort de la carrure, poli, sur le fond brut, cadré d'un filet poli ; une réserve lisse entoure la couronne.</div></div>
   </section>
   <section>
     <h2>Texte personnalisé du fond</h2>
@@ -389,7 +394,21 @@ const DESSINS=[
   {nom:"damier W1 (Fibonacci)",monde:1,f:(u,s,p)=>w1HMonde(p)<0?0:1},
   {nom:"pavés bombés (Pattern watch)",monde:1,f:(u,s,p)=>w1HMonde(p)<-.5*(p.profondeur||.35)?0:1},
   {nom:"chiffres et texte",monde:1,texte:1,f:(u,s,p)=>texteSD(p)<0?0:1},
-  {nom:"mon dessin",perso:1,f:(u,s,p)=>persoChamp(u,s,p)}
+  {nom:"mon dessin",perso:1,f:(u,s,p)=>persoChamp(u,s,p)},
+  {nom:"arabesques aux coins",vue:1,f:(u,s,p)=>ornementSD(p)<0?0:1},
+  {nom:"gravure : rinceaux d'acanthe",frise:"rinceaux",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : laurier en épi",frise:"laurier",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : rinceaux fleuris (lotus)",frise:"fleurs",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : fleurs de lys en cartouche",frise:"lys",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : entrelacs et losanges",frise:"entrelacs",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : cordage et ancres",frise:"cordage",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : cartes à jouer et volutes",frise:"cartes",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : vagues japonaises et fleurs",frise:"vagues",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : rosaces gothiques",frise:"gothique",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : têtes de mort et volutes",frise:"cranes",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : arabesque orientale",frise:"ronces",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : tribal polynésien (koru)",frise:"tribal",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"gravure : croix pattées et perles",frise:"croix",f:(u,s,p)=>friseSD(u,s,p)>0?1:0}
 ];
 let CARTE_ORIGINE=null;
 /* ── CHIFFRES ET TEXTE EMBOSSES (14/10) ── trace en vue de dessus (44 mm, 40 px/mm) le long du biseau, lettres en
@@ -430,6 +449,159 @@ function texteSD(p){const H=Math.max(1.4,p.hauteur||1.6),t=Math.round(p.texte||0
   const a=fx-i,b=fy-j,S=Z.SD,n=Z.n;return (S[j*n+i]*(1-a)+S[j*n+i+1]*a)*(1-b)+(S[(j+1)*n+i]*(1-a)+S[(j+1)*n+i+1]*a)*b;}
 /* ── MON DESSIN (14/10) : tuile dessinee par le client (blanc = surface polie, trace = creux brut), repetee « nombre »
    fois sur le tour ; contour exact par la meme distance au contour que les autres dessins. */
+/* ── ARABESQUES AUX COINS (14/10, Baptiste : dessin calligraphique, « symetrique des deux cotes, a chaque coin ; coin
+   en haut a gauche pour celui-ci ») : le trace releve (media/ornement_coin.png) est pose en vue de dessus dans le coin
+   haut-gauche (entre 9 h et 12 h), puis reporte en miroir dans les trois autres coins. Champ signe exact (EDT), trait
+   elargi de 0,1 mm de chaque cote pour rester imprimable (>= 0,35 mm), creux au profil lisse. */
+/* ── FRISES DE GRAVURE CHAMPLEVEE (14/10, Baptiste : planche de 19 montres gravees a la main, « etudie chaque, cartographie
+   les motifs qui nous manquent et rajoute-les ») ─────────────────────────────────────────────────────────────────────────
+   Toutes les montres de la planche suivent le meme principe, la gravure champlevee : le MOTIF reste a fleur et poli,
+   le FOND est creuse et noirci (brut). On le reproduit tel quel : chaque frise est une tuile dessinee en vecteurs
+   (Canvas 2D, unites en mm, x le long du tour, y en travers de la zone, y = 0 cote verre), repetee un nombre ENTIER de
+   fois sur le tour (aucune couture). Le trace devient un champ signe exact (EDT, 40 px/mm) : > 0 sur le motif (reste),
+   < 0 dans le fond (creuse au profil lisse, profondeur « profondeur mm »). Traits >= 0,35 mm et jours >= 0,3 mm a la
+   largeur de zone minimale : imprimable en DMLS. Les hachures fines des graveurs (ombrages a 0,05 mm) ne sont PAS
+   reproduites : elles ne s'impriment pas. */
+const FRISES={};
+// outils de trace (ctx en mm)
+const FR={
+  trait:(x,w)=>{x.lineWidth=w;x.lineCap='round';x.lineJoin='round';x.strokeStyle='#fff';x.fillStyle='#fff';},
+  spirale:(x,cx,cy,r,tours,sens,a0)=>{x.beginPath();const n=60*tours;for(let i=0;i<=n;i++){const t=i/n,a=a0+sens*t*tours*2*Math.PI,rr=r*(1-.82*t);const X=cx+rr*Math.cos(a),Y=cy+rr*Math.sin(a);i?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();},
+  feuille:(x,px,py,ang,L,l)=>{x.save();x.translate(px,py);x.rotate(ang);x.beginPath();x.moveTo(0,0);x.quadraticCurveTo(L*.5,-l,L,0);x.quadraticCurveTo(L*.5,l,0,0);x.fill();x.restore();},
+  cercle:(x,cx,cy,r,plein)=>{x.beginPath();x.arc(cx,cy,r,0,2*Math.PI);plein?x.fill():x.stroke();},
+  poly:(x,P,plein)=>{x.beginPath();P.forEach(([a,b],i)=>i?x.lineTo(a,b):x.moveTo(a,b));x.closePath();plein?x.fill():x.stroke();},
+};
+// chaque frise : {nom, long:(H)=>longueur de tuile en mm, dessin:(x,L,H)=>void} ; H = largeur de zone en mm
+FRISES.rinceaux={nom:'rinceaux d\'acanthe',long:H=>2.2*H,dessin(x,L,H){const m=H/2,a=H*.28;FR.trait(x,.42);
+  x.beginPath();for(let i=0;i<=80;i++){const t=i/80,X=t*L,Y=m+a*Math.sin(2*Math.PI*t);i?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();     // tige ondulante
+  for(const [t,s] of [[.25,1],[.75,-1]]){const X=t*L,Y=m+a*Math.sin(2*Math.PI*t)*.6;FR.trait(x,.38);FR.spirale(x,X+s*.1*L,Y+s*.22*H,.2*H,1.1,s,s>0?Math.PI:0);
+    FR.feuille(x,X-.05*L,m+s*a*.2,s>0?-2.2:2.2,.36*H,.12*H);FR.feuille(x,X+.12*L,m+s*a*.15,s>0?-.6:.6,.34*H,.11*H);}}};
+FRISES.laurier={nom:'laurier en épi',long:H=>.9*H,dessin(x,L,H){const m=H/2;FR.trait(x,.36);x.beginPath();x.moveTo(0,m);x.lineTo(L,m);x.stroke();
+  FR.feuille(x,.05*L,m-.04*H,-.55,.62*H,.13*H);FR.feuille(x,.05*L,m+.04*H,.55,.62*H,.13*H);}};
+FRISES.fleurs={nom:'rinceaux fleuris (lotus)',long:H=>3*H,dessin(x,L,H){const m=H/2,c=L/2;FR.trait(x,.4);
+  for(const s of [-1,1]){x.beginPath();x.moveTo(c+s*.08*L,m+.1*H);x.bezierCurveTo(c+s*.2*L,m+.42*H,c+s*.34*L,m-.4*H,c+s*.5*L,m);x.stroke();FR.spirale(x,c+s*.36*L,m+.2*H,.17*H,1.1,s,s>0?Math.PI:0);
+    FR.feuille(x,c+s*.22*L,m-.05*H,s>0?-.9:Math.PI+.9,.33*H,.1*H);}
+  for(const a of [-.9,-.45,0,.45,.9])FR.feuille(x,c,m+.33*H,-Math.PI/2+a,.62*H,.15*H);FR.cercle(x,c,m+.2*H,.12*H,1);}};          // lotus central
+FRISES.lys={nom:'fleurs de lys en cartouche',long:H=>1.7*H,dessin(x,L,H){const m=H/2,c=L*.32,w=.62*H,h=.82*H;FR.trait(x,.36);
+  x.beginPath();x.moveTo(c-w/2,m-h/2);x.lineTo(c+w/2,m-h/2);x.lineTo(c+w/2,m+h*.15);x.quadraticCurveTo(c+w/2,m+h*.4,c,m+h/2);x.quadraticCurveTo(c-w/2,m+h*.4,c-w/2,m+h*.15);x.closePath();x.stroke();   // cartouche (blason)
+  FR.feuille(x,c,m+.3*H,-Math.PI/2,.5*H,.09*H);for(const s of [-1,1]){FR.trait(x,.34);FR.spirale(x,c+s*.12*H,m-.08*H,.1*H,.75,s,s>0?Math.PI*.9:Math.PI*.1);}
+  x.fillRect(c-.17*H,m+.08*H,.34*H,.07*H);const r=c+L*.5,ry=m;for(let k=0;k<6;k++)FR.feuille(x,r,ry,k*Math.PI/3,.3*H,.08*H);FR.cercle(x,r,ry,.06*H,1);}};   // lys + etoile
+FRISES.entrelacs={nom:'entrelacs et losanges',long:H=>1.6*H,dessin(x,L,H){const m=H/2;FR.trait(x,.36);x.beginPath();x.ellipse(L*.3,m,.3*L,.3*H,0,0,2*Math.PI);x.stroke();
+  x.beginPath();x.ellipse(L*.3,m,.14*L,.14*H,0,0,2*Math.PI);x.stroke();FR.poly(x,[[L*.8,m-.2*H],[L*.92,m],[L*.8,m+.2*H],[L*.68,m]],1);x.beginPath();x.moveTo(0,m);x.lineTo(L,m);x.stroke();}};
+FRISES.cordage={nom:'cordage et ancres',long:H=>3*H,dessin(x,L,H){const m=H/2;FR.trait(x,.42);
+  for(const s of [-1,1]){x.beginPath();for(let i=0;i<=80;i++){const t=i/80,X=t*L*.62,Y=m+s*.18*H*Math.sin(4*Math.PI*t);i?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();}   // cordage tresse
+  const c=L*.81;FR.trait(x,.36);FR.cercle(x,c,m,.38*H,0);FR.trait(x,.34);x.beginPath();x.moveTo(c,m-.26*H);x.lineTo(c,m+.24*H);x.moveTo(c-.12*H,m-.14*H);x.lineTo(c+.12*H,m-.14*H);x.stroke();
+  x.beginPath();x.arc(c,m+.04*H,.2*H,.15*Math.PI,.85*Math.PI);x.stroke();FR.cercle(x,c,m-.29*H,.05*H,0);}};
+FRISES.cartes={nom:'cartes à jouer et volutes',long:H=>4*H,dessin(x,L,H){const m=H/2,u=.26*H;FR.trait(x,.36);
+  const pos=[.125,.375,.625,.875].map(t=>t*L),fig=[
+    (c)=>{for(const [dx,dy] of [[0,-.45],[-.42,.15],[.42,.15]])FR.cercle(x,c+dx*u,m+dy*u,.36*u,1);x.fillRect(c-.08*u,m,.16*u,.8*u);},                                      // trefle
+    (c)=>{x.beginPath();x.moveTo(c,m+.8*u);x.bezierCurveTo(c-1.1*u,m-.1*u,c-.5*u,m-1*u,c,m-.35*u);x.bezierCurveTo(c+.5*u,m-1*u,c+1.1*u,m-.1*u,c,m+.8*u);x.fill();},       // coeur
+    (c)=>{x.beginPath();x.moveTo(c,m-.85*u);x.bezierCurveTo(c+1.1*u,m+.05*u,c+.5*u,m+.75*u,c,m+.3*u);x.bezierCurveTo(c-.5*u,m+.75*u,c-1.1*u,m+.05*u,c,m-.85*u);x.fill();x.fillRect(c-.08*u,m+.2*u,.16*u,.65*u);},   // pique
+    (c)=>FR.poly(x,[[c,m-.9*u],[c+.6*u,m],[c,m+.9*u],[c-.6*u,m]],1)];                                                                                                 // carreau
+  pos.forEach((c,i)=>{fig[i](c);FR.trait(x,.34);FR.spirale(x,c+.5*L/4,m+(i%2?-.12:.12)*H,.16*H,1,i%2?1:-1,0);});}};
+FRISES.vagues={nom:'vagues japonaises et fleurs',long:H=>2*H,dessin(x,L,H){const m=H*.62;FR.trait(x,.38);
+  for(let k=0;k<3;k++){x.beginPath();x.arc(L*(.25+k*.0),m+.12*H,(.36-k*.11)*H,Math.PI,2*Math.PI);x.stroke();}x.beginPath();x.arc(L*.75,m+.12*H,.36*H,Math.PI,2*Math.PI);x.stroke();
+  FR.spirale(x,L*.75,m-.1*H,.13*H,.9,1,Math.PI);const c=L*.5,cy=H*.24;for(let k=0;k<5;k++)FR.feuille(x,c,cy,k*2*Math.PI/5-Math.PI/2,.2*H,.08*H);FR.cercle(x,c,cy,.04*H,1);}};
+FRISES.gothique={nom:'rosaces gothiques',long:H=>1.5*H,dessin(x,L,H){const m=H/2;FR.trait(x,.36);
+  x.beginPath();x.moveTo(0,H*.92);x.quadraticCurveTo(L*.5,H*.05,L,H*.92);x.stroke();FR.cercle(x,L*.5,m+.12*H,.24*H,0);
+  for(let k=0;k<6;k++){const a=k*Math.PI/3;FR.cercle(x,L*.5+.12*H*Math.cos(a),m+.12*H+.12*H*Math.sin(a),.07*H,0);}
+  for(const s of [0,1]){x.beginPath();x.arc(s*L,0,.3*H,0,Math.PI);x.stroke();}}};
+FRISES.cranes={nom:'têtes de mort et volutes',long:H=>2.4*H,dessin(x,L,H){const m=H/2,c=L*.3,r=.27*H;FR.trait(x,.38);
+  FR.cercle(x,c,m-.06*H,r,1);x.fillRect(c-.6*r,m+.1*H,1.2*r,.3*r);x.globalCompositeOperation='destination-out';
+  FR.cercle(x,c-.38*r,m-.08*H,.24*r,1);FR.cercle(x,c+.38*r,m-.08*H,.24*r,1);FR.poly(x,[[c,m+.02*H],[c-.1*r,m+.12*H],[c+.1*r,m+.12*H]],1);x.globalCompositeOperation='source-over';
+  FR.trait(x,.36);for(const s of [-1,1]){x.beginPath();x.moveTo(c-1.5*r,m+s*.4*H*.0+s*.32*H);x.lineTo(c+1.5*r,m-s*.32*H);x.stroke();}
+  FR.spirale(x,L*.72,m,.22*H,1.2,1,0);FR.feuille(x,L*.6,m+.1*H,.4,.3*H,.09*H);}};
+FRISES.ronces={nom:'arabesque orientale',long:H=>1.8*H,dessin(x,L,H){const m=H/2;FR.trait(x,.38);
+  x.beginPath();for(let i=0;i<=60;i++){const t=i/60,X=t*L,Y=m+.25*H*Math.sin(2*Math.PI*t)+.08*H*Math.sin(6*Math.PI*t);i?x.lineTo(X,Y):x.moveTo(X,Y);}x.stroke();
+  for(const t of [.15,.45,.65,.95]){const X=t*L,Y=m+.25*H*Math.sin(2*Math.PI*t);FR.feuille(x,X,Y,(t<.5?-1:1)*1.2,.24*H,.07*H);}
+  FR.trait(x,.34);FR.spirale(x,L*.32,m+.28*H,.12*H,.9,1,0);FR.spirale(x,L*.82,m-.28*H,.12*H,.9,-1,Math.PI);}};
+FRISES.tribal={nom:'tribal polynésien (koru)',long:H=>1.4*H,dessin(x,L,H){const m=H/2;FR.trait(x,.42);
+  FR.spirale(x,L*.3,m-.05*H,.32*H,1.3,1,Math.PI*.5);x.beginPath();x.moveTo(L*.3,m+.27*H);x.quadraticCurveTo(L*.75,m+.35*H,L*.9,m-.3*H);x.stroke();
+  FR.trait(x,.36);for(let k=0;k<3;k++){x.beginPath();x.arc(L*.82,m+.3*H,(.08+.08*k)*H,Math.PI,1.5*Math.PI);x.stroke();}}};
+FRISES.croix={nom:'croix pattées et perles',long:H=>1.5*H,dessin(x,L,H){const m=H/2,c=L*.35,r=.36*H;FR.trait(x,.36);
+  for(let k=0;k<4;k++){x.save();x.translate(c,m);x.rotate(k*Math.PI/2);FR.poly(x,[[0,0],[.75*r,-.38*r],[.75*r,.38*r]],1);x.restore();}
+  FR.cercle(x,c,m,.42*r,1);for(const dy of [-.3,0,.3])FR.cercle(x,L*.82,m+dy*H,.08*H,1);}};
+// champ signe d'une frise sur la lunette (coordonnees u le long du tour, s en travers), periodique
+let _FRS=null;
+function friseSD(u,s,p){const F=FRISES[DESSINS[Math.round(p.dessin||0)].frise];if(!F)return 9;const H=LZ,n=Math.max(4,Math.round(PERIM/F.long(H))),Lt=PERIM/n,K=40,cle=[F.nom,H.toFixed(3),n].join();
+  if(!_FRS||_FRS.cle!==cle){const W=Math.ceil(Lt*K),Hp=Math.ceil(H*K),c=document.createElement('canvas');c.width=3*W;c.height=Hp;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,3*W,Hp);
+    for(let k=0;k<3;k++){x.save();x.scale(W/Lt,Hp/H);x.translate(k*Lt,0);F.dessin(x,Lt,H);x.restore();}   // trois tuiles : la distance est exacte a travers les raccords
+    const D=x.getImageData(0,0,3*W,Hp).data,n2=3*W*Hp,B=new Uint8Array(n2),Bi=new Uint8Array(n2);for(let i=0;i<n2;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
+    const Do=edt2(B,3*W,Hp),Di=edt2(Bi,3*W,Hp),SD=new Float32Array(W*Hp);
+    for(let j=0;j<Hp;j++)for(let i=0;i<W;i++){const q=j*3*W+W+i;SD[j*W+i]=(B[q]?(Di[q]-.5):-(Do[q]-.5))/K;}   // > 0 sur le motif (reste poli), < 0 dans le fond (creuse)
+    _FRS={cle,W,Hp,SD,n};}
+  const Z=_FRS,fx=fract(u*Z.n)*Z.W,fy=Math.max(0,Math.min(1,s))*(Z.Hp-1),i=Math.floor(fx)%Z.W,i2=(i+1)%Z.W,j=Math.min(Z.Hp-2,Math.floor(fy)),a=fx-Math.floor(fx),b=fy-j,S=Z.SD,W=Z.W;
+  return (S[j*W+i]*(1-a)+S[j*W+i2]*a)*(1-b)+(S[(j+1)*W+i]*(1-a)+S[(j+1)*W+i2]*a)*b;}
+
+
+/* ── FLANCS GRAVES DE LA CARRURE (14/10, Baptiste : « etape suivante » de la cartographie des gravures) ──────────────────
+   Profil releve sur carrure.stl par lancer de rayons (identique sur tout le tour) : bande VERTICALE sur le contour T_OUT de
+   y 0,8 a 2,75, puis flanc a 45° jusqu'a y -1,9. Deux panneaux, comme les montres gravees de la planche (« entre les
+   cornes ») : 9 h (entre les deux vis de bracelet, +-17,8°) et 3 h (meme etendue, reserve lisse de 3,2 mm autour de la
+   couronne). Dans chaque panneau, la frise choisie (memes 13 gravures que la lunette) RESSORT de 0,25 mm, polie, sur le
+   fond brut de la carrure, cadree par un filet poli de 0,3 mm. Peau posee 0,02 mm au-dessus de la carrure ; pour la
+   fabrication, flancsSTL() rend un solide ferme ancre 0,3 mm dans la carrure (union). */
+const FLANC={yb:.84,yc:.84,yt:2.72,pente:1.02,dth:.31};   // (14/10) panneau limite a la bande VERTICALE visible (1,9 mm) : le pan a 45° dessous regarde le poignet
+function profilFlanc(t){const Ls=(FLANC.yc-FLANC.yb)*Math.hypot(1,FLANC.pente),Lv=FLANC.yt-FLANC.yc,d=t*(Ls+Lv);
+  if(d<Ls){const f=d/Ls,l=Math.hypot(1,FLANC.pente);return {off:-(1-f)*(FLANC.yc-FLANC.yb)*FLANC.pente,y:FLANC.yb+f*(FLANC.yc-FLANC.yb),nr:1/l,ny:-FLANC.pente/l,L:Ls+Lv};}
+  return {off:0,y:FLANC.yc+(d-Ls),nr:1,ny:0,L:Ls+Lv};}
+function pointFlanc(th,t,h){const T=tab(T_OUT,th)+.03,[nx,nz]=normaleContour(th),q=profilFlanc(t),r0x=T*Math.cos(th),r0z=T*Math.sin(th);
+  return [r0x+nx*(q.off+h*q.nr),q.y+h*q.ny,r0z+nz*(q.off+h*q.nr)];}
+const PANNEAUX=[{id:'9h',th0:Math.PI-FLANC.dth,th1:Math.PI+FLANC.dth,couronne:false},{id:'3h',th0:-FLANC.dth,th1:FLANC.dth,couronne:true}];
+function arcOut(th0,th1){const n=64;let L=0,px=null;for(let i=0;i<=n;i++){const th=th0+(th1-th0)*i/n,r=tab(T_OUT,th),p=[r*Math.cos(th),r*Math.sin(th)];if(px)L+=Math.hypot(p[0]-px[0],p[1]-px[1]);px=p;}return L;}
+// champ signe du panneau en mm : > 0 sur le relief (frise + filet), < 0 sur le fond
+function champPanneau(Pn,x,y,Lp,H){const F=FRISES[state.flancs.frise];const e=.12,w=.3,inX=x>e+w&&x<Lp-e-w,inY=y>e+w&&y<H-e-w;
+  const dRect=Math.min(x-e,Lp-e-x,y-e,H-e-y),filet=w/2-Math.abs(dRect-w/2);       // filet : bande de 0,3 mm a 0,35 mm du bord
+  let v=filet;if(F&&inX&&inY)v=Math.max(v,friseLocale(F,x-(e+w),y-(e+w),Lp-2*(e+w),H-2*(e+w)));
+  if(Pn.couronne){const q=profilFlanc(y/H),dz=x-Lp/2,dc=Math.hypot(dz,q.y-.9);if(dc<3.2+w)v=dc<3.2?-1:Math.max(-1,w/2-Math.abs(dc-3.2-w/2));}   // reserve de la couronne, cerclee d'un filet
+  return v;}
+// frise posee sur une bande droite (L x H mm) : nombre entier de tuiles, meme moteur que la lunette
+const _FRL={};
+function friseLocale(F,x,y,L,H){const n=Math.max(1,Math.round(L/F.long(H))),Lt=L/n,K=40,cle=[F.nom,H.toFixed(3),Lt.toFixed(3)].join();
+  let Z=_FRL[cle];if(!Z){const W=Math.ceil(Lt*K),Hp=Math.ceil(H*K),c=document.createElement('canvas');c.width=3*W;c.height=Hp;const cx=c.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,3*W,Hp);
+    for(let k=0;k<3;k++){cx.save();cx.scale(W/Lt,Hp/H);cx.translate(k*Lt,0);F.dessin(cx,Lt,H);cx.restore();}
+    const D=cx.getImageData(0,0,3*W,Hp).data,n2=3*W*Hp,B=new Uint8Array(n2),Bi=new Uint8Array(n2);for(let i=0;i<n2;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
+    const Do=edt2(B,3*W,Hp),Di=edt2(Bi,3*W,Hp),SD=new Float32Array(W*Hp);for(let j=0;j<Hp;j++)for(let i=0;i<W;i++){const q=j*3*W+W+i;SD[j*W+i]=(B[q]?(Di[q]-.5):-(Do[q]-.5))/K;}
+    Z=_FRL[cle]={W,Hp,SD,Lt};}
+  const fx=((x/Z.Lt)%1+1)%1*Z.W,fy=Math.max(0,Math.min(1,y/H))*(Z.Hp-1),i=Math.floor(fx)%Z.W,i2=(i+1)%Z.W,j=Math.min(Z.Hp-2,Math.floor(fy)),a=fx-Math.floor(fx),b=fy-j,S=Z.SD,W=Z.W;
+  return (S[j*W+i]*(1-a)+S[j*W+i2]*a)*(1-b)+(S[(j+1)*W+i]*(1-a)+S[(j+1)*W+i2]*a)*b;}
+function hFlanc(v){return (state.flancs.relief||.25)*sm(-.07,.07,v);}        // relief arrondi de 0,1 mm (mur a ~70°)
+// maillage d'un panneau : grille (le long du contour) x (en travers du profil) ; ferme=true -> solide ferme (fabrication)
+function maillagePanneau(Pn,ferme){const Lp=arcOut(Pn.th0,Pn.th1),H=profilFlanc(0).L,pas=.02,NI=Math.ceil(Lp/pas)+1,NJ=Math.ceil(H/pas)+1,P=[],Hv=[];
+  const thDeX=x=>Pn.th0+(Pn.th1-Pn.th0)*x/Lp;   // abscisse ~ lineaire en angle sur +-18° (ecart < 1 %)
+  for(let i=0;i<NI;i++)for(let j=0;j<NJ;j++){const x=Lp*i/(NI-1),y=H*j/(NJ-1),h=(i===0||j===0||i===NI-1||j===NJ-1)?0:hFlanc(champPanneau(Pn,x,y,Lp,H));Hv.push(h);P.push(...pointFlanc(thDeX(x),y/H,h+.02));}
+  const I=[],id=(i,j)=>i*NJ+j;for(let i=0;i<NI-1;i++)for(let j=0;j<NJ-1;j++){const a=id(i,j),b=id(i+1,j),c=id(i,j+1),d=id(i+1,j+1);I.push(a,b,c,b,d,c);}
+  if(ferme){const base=P.length/3;for(let i=0;i<NI;i++)for(let j=0;j<NJ;j++)P.push(...pointFlanc(thDeX(Lp*i/(NI-1)),j/(NJ-1),-.3));   // dessous : 0,3 mm dans la carrure
+    for(let i=0;i<NI-1;i++)for(let j=0;j<NJ-1;j++){const a=base+id(i,j),b=base+id(i+1,j),c=base+id(i,j+1),d=base+id(i+1,j+1);I.push(a,c,b,b,c,d);}
+    const bord=(seq)=>{for(let k=0;k<seq.length-1;k++){const p=seq[k],q=seq[k+1];I.push(p,base+p,q,q,base+p,base+q);}};
+    const S1=[],S2=[],S3=[],S4=[];for(let j=0;j<NJ;j++){S1.push(id(0,NJ-1-j));S2.push(id(NI-1,j));}for(let i=0;i<NI;i++){S3.push(id(i,0));S4.push(id(NI-1-i,NJ-1));}
+    bord(S1);bord(S2);bord(S3);bord(S4);}
+  return {P,I,Hv,NI,NJ};}
+let mFlancs=null;
+function reconstruireFlancs(){if(mFlancs){monture.remove(mFlancs);mFlancs.traverse(o=>o.geometry&&o.geometry.dispose());mFlancs=null;}
+  if(!state.flancs||!state.flancs.frise)return;mFlancs=new THREE.Group();
+  for(const Pn of PANNEAUX){const M=maillagePanneau(Pn,false),lim=.5*(state.flancs.relief||.25),haut=[],bas=[];
+    for(let t=0;t<M.I.length;t+=3){const m=(M.Hv[M.I[t]]+M.Hv[M.I[t+1]]+M.Hv[M.I[t+2]])/3;(m>lim?haut:bas).push(M.I[t],M.I[t+1],M.I[t+2]);}
+    const pos=new THREE.Float32BufferAttribute(M.P,3);
+    for(const [ix,mat] of [[haut,aluBoitier],[bas,brut]]){const g=new THREE.BufferGeometry();g.setAttribute('position',pos);g.setIndex(ix);g.computeVertexNormals();mFlancs.add(new THREE.Mesh(g,mat));}}
+  monture.add(mFlancs);}
+// solide ferme des deux panneaux (fabrication : union avec carrure.stl)
+function flancsSTL(){const P=[],I=[];for(const Pn of PANNEAUX){const M=maillagePanneau(Pn,true),o=P.length/3;P.push(...M.P);for(const v of M.I)I.push(v+o);}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setIndex(I);return orienter(pos(g));}
+
+let _ORN=null,ORN_IM=null;lireImage('media/ornement_coin.png').then(c=>{ORN_IM=c;_ORN=null;try{if(state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)]?.vue)reconstruire('lunette');}catch(e){}});
+function ornementSD(p){if(!ORN_IM)return 9;const Hmm=6.2,cle=Hmm+ORN_IM.w;
+  if(!_ORN||_ORN.cle!==cle){const L=44,K=40,n=L*K,c=document.createElement('canvas');c.width=c.height=n;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,n,n);
+    const src=document.createElement('canvas');src.width=ORN_IM.w;src.height=ORN_IM.h;const sx=src.getContext('2d'),id=sx.createImageData(ORN_IM.w,ORN_IM.h);
+    for(let i=0;i<ORN_IM.v.length;i++){const v=ORN_IM.v[i]*255;id.data[4*i]=id.data[4*i+1]=id.data[4*i+2]=v;id.data[4*i+3]=255;}sx.putImageData(id,0,0);
+    const th=-3*Math.PI/4,rm=(R_FACE0+tab(T_C4,th))/2,ax=rm*Math.cos(th),az=rm*Math.sin(th),hh=Hmm,ww=hh*ORN_IM.w/ORN_IM.h;   // ancre : milieu de la zone dans le coin haut-gauche
+    x.globalCompositeOperation='lighten';
+    for(const [mx,mz] of [[1,1],[-1,1],[1,-1],[-1,-1]]){x.save();x.translate(n/2,n/2);x.scale(mx*K,mz*K);x.drawImage(src,ax-ww/2,az-hh/2,ww,hh);x.restore();}
+    const D=x.getImageData(0,0,n,n).data,B=new Uint8Array(n*n),Bi=new Uint8Array(n*n);for(let i=0;i<n*n;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
+    const Do=edt2(B,n,n),Di=edt2(Bi,n,n),SD=new Float32Array(n*n);for(let i=0;i<n*n;i++)SD[i]=(B[i]?-(Di[i]-.5):(Do[i]-.5))/K-.14;   // -0,14 : trait elargi (trait le plus fin >= 0,35 mm)
+    _ORN={cle,n,L,SD};}
+  const Z=_ORN,fx=(PZ.x/Z.L+.5)*Z.n,fy=(PZ.z/Z.L+.5)*Z.n,i=Math.floor(fx),j=Math.floor(fy);if(i<0||j<0||i>=Z.n-1||j>=Z.n-1)return 9;
+  const a=fx-i,b=fy-j,S=Z.SD,n=Z.n;return (S[j*n+i]*(1-a)+S[j*n+i+1]*a)*(1-b)+(S[(j+1)*n+i]*(1-a)+S[(j+1)*n+i+1]*a)*b;}
 let PERSO=null;
 function chargerPerso(url){if(PERSO&&PERSO.url===url)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;
   const x=c.getContext('2d');x.drawImage(im,0,0);const d=x.getImageData(0,0,c.width,c.height).data,A=new Float32Array(c.width*c.height);for(let i=0;i<A.length;i++)A[i]=d[4*i]/255;
@@ -475,7 +647,7 @@ const FORMES=[['reseau','pyramides carrées','clous de Paris'],['reseau','pyrami
   ['reseau','tapisserie','tapisserie'],['reseau','dômes','dômes'],['reseau','Kagome','Kagome'],['reseau','perles','perles'],['reseau',"nid d'abeille","nid d'abeille"],
   ['facettes','martelage','martelage'],['facettes','bosses','bosses'],
   ['texture','pierre','pierre'],['texture','volcanique','roche volcanique'],['texture','craquelures','craquelures'],['texture','cratères','cratères'],
-  ['texture','érosion','érosion'],['texture','dunes','dunes'],['texture','peau de requin','peau de requin'],
+  ['texture','érosion','érosion'],['texture','dunes','dunes'],['texture','peau de requin','peau de requin'],['texture','météorite','météorite (Widmanstätten)'],
   ['generatif','gyroïde','gyroïde'],['generatif','Schwarz P','Schwarz P']];
 for(const k of Object.keys(MOTIFS_LUNETTE))delete MOTIFS_LUNETTE[k];
 const RT={tranche:[0,1,0,1,'tranche']},RC={contour:[0,3,0,.05,'contour du verre plat mm']};   // (14/10) RC : bossage et bas-reliefs seulement (l'embossage reste a fleur)
@@ -670,6 +842,15 @@ function famille(nom,X,Y,P,p){const F=FAMILLES[nom];if(!F)return 0;const m=F.mod
     case 'cratères':{const w=worley(X,Y,e*2.2,g);if(w.id>.5)return .55;const q=w.d1/.4;return q>1.25?.55:q>1?.55+.45*(1.25-q)*4:.15+.6*q*q;}
     case 'érosion':return Math.pow(1-Math.abs(fbm(X/e,Y/e,g,5)-.5)*2,2.2);
     case 'dunes':{const n=fbm(X/(e*6),Y/(e*6),g,2);return tri((B+n*e*5)/e*(.6));}
+    /* (14/10, Baptiste : « texture meteorite ») FIGURE DE WIDMANSTATTEN des meteorites de fer : lamelles de kamacite
+       paralleles selon quatre directions (octaedre : 0, 60, 120° et une 4e oblique), de largeurs et longueurs variees,
+       qui se croisent et s'interrompent ; entre elles, la plessite au grain fin. Lamelles >= 0,35 mm (imprimable). */
+    case 'météorite':{let v=.32+.12*fbm(X/(e*.35),Y/(e*.35),g,3);const D=[0,60,120,33];
+      for(let k=0;k<4;k++){const a=(D[k]+(hash2(k,7,g)-.5)*8)*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a),c=A*ca+B*sa,l=-A*sa+B*ca;
+        const S=e*(1.7+1.1*hash2(k,3,g)),i=Math.floor(c/S),f=(c-i*S),w=.35+.55*hash2(i,k*13+1,g)*Math.min(1,e),Lseg=e*(2.5+5*hash2(i,k+9,g)),sg=Math.floor(l/Lseg);
+        if(hash2(i*7+sg,k+31,g)<(k===3?.7:.35))continue;const d=Math.abs(f-S/2)/(w/2);if(d>=1.25)continue;
+        const h=.62+.38*hash2(i,k+5,g),bord=d>.82&&d<1.1?.08:0;v=Math.max(v,h*(1-sm(.85,1.2,d))+bord);}
+      return Math.min(1,v);}
     case 'peau de requin':{const q=e*.6,ro=Math.floor(B/q),a=fract(A/q+(ro&1)*.5)-.5,b=fract(B/q)-.5;return Math.max(0,1-2*Math.hypot(a*1.3,b))*(.6+.4*tri(a*3));}
   }}
   if(nom==='stries')switch(m){
@@ -1247,6 +1428,8 @@ function vecMaillage0(interieur){const L=state.lunette,p=L.params,md=FORMES[Math
 FL.embossage=(u,s,p)=>{let d;
   {const nm=DESSINS[Math.round(p.dessin||0)].nom;if(nm===W1_DESSIN||nm===W1_PAVES){const h=w1HMonde(p);dernierD=h<0?-1:1;return h;}}
   if(DESSINS[Math.round(p.dessin||0)].texte){d=texteSD(p);dernierD=d;return d>=.06?0:-profilLisse(-d,p);}
+  if(DESSINS[Math.round(p.dessin||0)].vue){d=ornementSD(p);dernierD=d;return d>=.06?0:-profilLisse(-d,p);}
+  if(DESSINS[Math.round(p.dessin||0)].frise){d=friseSD(u,s,p);dernierD=d;return d>=.06?0:-profilLisse(-d,p);}   // gravure champlevee
   {const D_=DESSINS[Math.round(p.dessin||0)];if(D_.ia||D_.monde){const seuil=1-p.proportion,e=.03,du=e/PERIM,ds=e/Math.max(.5,LZ),f=champDessin(u,s,p)-seuil;   // l'image IA vue de dessus se lit en position monde : estimation locale
     const gx=(champDessin(u+du,s,p)-champDessin(u-du,s,p))/(2*e),gy=(champDessin(u,Math.min(1,s+ds),p)-champDessin(u,Math.max(0,s-ds),p))/(2*e),g=Math.hypot(gx,gy);d=g>1e-6?f/g:(f>=0?9:-9);}
   else d=distanceContour(u,s,p);}
@@ -1345,7 +1528,8 @@ function grilleMotif(){const p=state.lunette.params;LZ=largeurZone();_raccords=n
     KF_PLI=Math.min(rg-1,Math.max(1,Math.round(rg*a/72)));PLI_T0=KF_PLI/rg;}}
   if(w1Actif())return {N:w1Plan(p).N,M:72};                                 // dessin W1 vectoriel : colonnes au pas du dessin
   const fam=!!famEff(),cel=fam?celluleDroite():null,droit=!!cel;
-  if(state.lunette.motif==='embossage'&&(DESSINS[Math.round(p.dessin||0)].ia||DESSINS[Math.round(p.dessin||0)].carte))return APERCU?{N:1440,M:60}:{N:3600,M:120};   // contours d'une image : grille fine uniforme
+  if(state.lunette.motif==='embossage'&&(DESSINS[Math.round(p.dessin||0)].ia||DESSINS[Math.round(p.dessin||0)].carte))return APERCU?{N:1440,M:60}:{N:3600,M:120};
+  if(state.lunette.motif==='embossage'&&(DESSINS[Math.round(p.dessin||0)].vue||DESSINS[Math.round(p.dessin||0)].texte||DESSINS[Math.round(p.dessin||0)].frise))return {N:4800,M:160};   // (14/10) traces fins (arabesques, chiffres) : grille ~0,026 mm   // contours d'une image : grille fine uniforme
   if(state.lunette.motif==='image'&&BASRELIEF.lunette&&BASRELIEF.lunette.dessus)return APERCU?{N:1440,M:60}:{N:3600,M:130};   // ~0,035 mm le long du tour
   const n=fam?(droit?Math.round(PERIM/cel):0):Math.round(p.n||0),rg=rangsLunette();
   if(fam&&!droit){const pasMin=Math.max(.15,p.pas||1),a=APERCU?3:1;return {N:Math.round(Math.min(4800,Math.max(2160,Math.round(PERIM/pasMin*10)))/a),M:Math.round(Math.min(181,Math.max(72,Math.round(LZ/pasMin*10)))/(APERCU?2:1))};}
@@ -1940,7 +2124,7 @@ const brut=(()=>{const N=512,h=new Float32Array(N*N),R=rng(8420);
    fois, deja calculees, dans media/defaut_hd.bin.gz (~5 Mo) : sommets dedoublonnes, positions au micron (16 bits sur la
    boite), normales sur 8 bits, teinte, axe de projection des UV ; indices en ecarts ; gzip. Au chargement, si l'etat
    GEOMETRIQUE est exactement celui du fichier (cle), la piece est lue telle quelle, sans calcul ; sinon calcul normal. */
-const HD_SANS=new Set(['matieres','origine','gravurePerso']);
+const HD_SANS=new Set(['matieres','origine','gravurePerso','flancs']);
 const cleGeo=()=>DEFAUT_HD_V+'|'+JSON.stringify(state,(k,v)=>HD_SANS.has(k)?undefined:v);   // la version fait partie de la cle : un fichier d'une version anterieure n'est jamais relu
 const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='9';   // a incrementer a chaque nouvel export du fichier
 function encoderHD(g){const P=g.getAttribute('position').array,N=g.getAttribute('normal').array,C=g.getAttribute('color')?.array,n=P.length/3;
@@ -2264,6 +2448,13 @@ function assombrirCreux(g, profondeurMax, force){
  * de couleurs de sommet. L'activer sur le materiau partage peindrait la carrure
  * en noir, faute d'attribut `color`. */
 const brutGrave = brut.clone(); brutGrave.vertexColors = true;
+// (14/10) masque des lettres du fond (canvas du texte, meme cadrage que le decalque 28 x 29 mm) : le fond est perce dessous
+const TROUS_FOND={value:null};
+brutGrave.onBeforeCompile=sh=>{sh.uniforms.trous=TROUS_FOND;
+  sh.vertexShader=sh.vertexShader.replace('#include <common>','#include <common>\nvarying vec3 vPosF;').replace('#include <begin_vertex>','#include <begin_vertex>\nvPosF=position;');
+  sh.fragmentShader=sh.fragmentShader.replace('#include <common>','#include <common>\nvarying vec3 vPosF;uniform sampler2D trous;')
+    .replace('void main() {','void main() {\n  if(vPosF.y<-3.70&&vPosF.y>-3.76){vec2 uvT=vec2((14.0-vPosF.x)/28.0,(14.5-vPosF.z)/29.0);if(uvT.x>0.0&&uvT.x<1.0&&uvT.y>0.0&&uvT.y<1.0&&texture2D(trous,uvT).r>0.5)discard;}');};
+brutGrave.customProgramCacheKey=()=>'fond-troue';
 
 const loader=new STLLoader(); let pieces=0;
 /* (12/10) chargement ROBUSTE : jusqu'a 5 essais espaces (serveur qui redemarre, reseau lent) au lieu d'un echec definitif */
@@ -2917,7 +3108,6 @@ const _mesF=document.createElement('canvas').getContext('2d');
 function largeurEm(t,w=600){_mesF.font=`${w} 100px ${POLICE_FOND}`;return _mesF.measureText(t).width/100;}   // largeur en em
 function lignesGravure(){const m=state.matieres,ids=[...new Set([m.boitier,m.lunette,m.cadran,fondMat()])],P=window._prixCourant,an=new Date().getFullYear();
   const perso=(state.gravurePerso||'').trim();   /* la ligne libre du client REMPLACE « IMAGINE BY YOU » */
-  const [ad1,ad2]=ADRESSE_GRAVURE.split(/ (?=\d{5})/);
   // materiaux : regroupes tant que la ligne tient au milieu du fond (24 mm) en capitales de 1,45 mm
   const mats=ids.map(i=>MAT_GRAVURE[i]||i.toUpperCase()),lm=[];for(const t of mats){const q=lm.length?lm[lm.length-1]+' / '+t:null;
     if(q&&largeurEm(q)*1.45/CAP_EM<=24)lm[lm.length-1]=q;else lm.push(t);}
@@ -2925,7 +3115,7 @@ function lignesGravure(){const m=state.matieres,ids=[...new Set([m.boitier,m.lun
   // de fabrication (trait 0,126 em, soit 0,25 mm a 1,4 mm de capitale)
   const L=[['DELIGNY WATCH',2.1,600,0,CAP_MINI],['QUARTZ',1.45,600,.5,CAP_MINI],
     [perso||'IMAGINE BY YOU',1.6,600,.9,CAP_MINI],
-    [ad1,1.45,600,.9,CAP_MINI],...(ad2?[[ad2,1.45,600,.45,CAP_MINI]]:[]),['ASSEMBLED IN FRANCE',1.45,600,.45,CAP_MINI],['DESIGNED IN PARIS',1.45,600,.45,CAP_MINI],
+    /* (14/10, Baptiste : « enleve l'adresse dans le fond ») */['ASSEMBLED IN FRANCE',1.45,600,.9,CAP_MINI],['DESIGNED IN PARIS',1.45,600,.45,CAP_MINI],
     ['SWISS MOVEMENT',1.45,600,.45,CAP_MINI],[MOUVEMENT_REF,1.45,600,.45,CAP_MINI],
     ['3D PRINTED',1.45,600,.9,CAP_MINI],...lm.map(t=>[t,1.45,600,.45,CAP_MINI]),[(P?'CR '+P.cr:'CR …')+' / '+an,1.45,600,.9,CAP_MINI]];
   return {L,or:ids.includes('or18')};}
@@ -2990,7 +3180,11 @@ function majGravure(){if(!mFond)return;const {L,or}=lignesGravure(),W=28,H=29,PX
      simplifies a 0,004 mm) puis EXTRUDE de 0,25 mm comme sur la piece imprimee ; dessus lape (poli), sur le fond brut. */
   if(mLettres){mFond.remove(mLettres);mLettres.geometry.dispose();mLettres=null;}
   const geoL=lettresEnRelief(cT,PX,PY,k,W,H,.25);
-  if(geoL){mLettres=new THREE.Mesh(geoL,mGravure.material.clone());mLettres.material.alphaMap=null;mLettres.material.normalMap=null;mLettres.material.transparent=false;mLettres.material.depthWrite=true;mLettres.material.side=THREE.FrontSide;mLettres.material.polygonOffset=false;mFond.add(mLettres);}
+  /* (14/10, Baptiste : « la typo du fond doit etre embossee, la elle ressort ») LETTRES EN CREUX. Le fond est perce a
+     l'ecran a l'endroit des lettres (le shader du fond ecarte ses pixels sous le masque du texte) et la poche est dessinee
+     par l'interieur (faces arriere du prisme des lettres : parois et fond de lettre), fond de lettre brut. */
+  TROUS_FOND.value=new THREE.CanvasTexture(cT);TROUS_FOND.value.needsUpdate=true;
+  if(geoL){mLettres=new THREE.Mesh(geoL,brutGrave.clone());mLettres.material.vertexColors=false;mLettres.material.side=THREE.BackSide;mLettres.material.onBeforeCompile=()=>{};mFond.add(mLettres);}
   majTeinteGravure();}
 let mLettres=null;
 // contours d'un texte blanc sur noir (marching squares au sous-pixel, segments orientes : sortie -> entree), simplifies
@@ -3025,7 +3219,7 @@ function lettresEnRelief(cv,PX,PY,k,W,H,ep){const D=cv.getContext('2d').getImage
   for(const t of trous){let best=null;for(const f of formes)if(Math.abs(f.b.A)>Math.abs(t.A)&&dedans(t.P[0],f.b.P)&&(!best||Math.abs(f.b.A)<Math.abs(best.b.A)))best=f;
     if(best)best.s.holes.push(new THREE.Path(t.P.map(p=>new THREE.Vector2(p[0],p[1]))));}
   const g=new THREE.ExtrudeGeometry(formes.map(f=>f.s),{depth:ep+.01,bevelEnabled:false,curveSegments:1});
-  g.rotateX(Math.PI/2);g.translate(0,-3.725+.01,0);g.computeVertexNormals();return g;}
+  g.rotateX(Math.PI/2);g.translate(0,-3.725+ep,0);g.computeVertexNormals();return g;}   // (14/10) poche : de la face (-3,725, +0,01 mm dehors) a 0,25 mm DANS le metal
 function majTeinteGravure(){if(!mGravure)return;const f=MATIERES[fondMat()]||MATIERES.titane,m=mGravure.material;   /* (13/10) lettres en relief : leur dessus est lape (poli) sur le fond brut */
   m.color.setHex(f.poli);m.metalness=1;m.roughness=Math.max(.08,f.rp);m.envMapIntensity=1.2;m.needsUpdate=true;}
 // ───────────── MATIERES (12/10) ─────────────
@@ -3056,6 +3250,7 @@ state.cadranFin=0;
 // finition est mate (titane : polissage manuel de la tranche, facture a part). Boitier et lunette ASSOCIES par
 // defaut (un clic regle les deux) ou DISSOCIES. Fonderie : toujours poli (pas de brut).
 state.tranches={boitier:true,lunette:true,liees:true};
+state.flancs={frise:'',relief:.25};   // (14/10) flancs graves de la carrure : aucune par defaut
 function tranchePolie(p){const id=state.matieres[p];return !peutBrut(id)||!!state.tranches[p];}
 function bornerFinCadran(){const id=state.matieres.cadran;if(state.cadranFin&&!peutPoli(id))state.cadranFin=0;if(!state.cadranFin&&!peutBrut(id))state.cadranFin=1;}
 // CONTRAINTES FOURNISSEUR (12/10, fiches DMLS/SLM + fonderie) : titane 6Al-4V livre BRUT seulement (aucune finition
@@ -3486,7 +3681,7 @@ function diagCadran(pas=.04){const r1=C_R1-.25,n=Math.round(2*r1/pas),H=new Floa
   if(amp>.03){for(let x=1;x<n-1;x++)for(let y=1;y<n-1;y+=2){const g=Math.hypot(H[(x+1)*n+y]-H[(x-1)*n+y],H[x*n+y+1]-H[x*n+y-1])/(2*pas);pentes.push(Math.atan(g)*180/Math.PI);}
     o=resumeIlots(ilots(H,n,n,pas,pas,false,hmin+amp/2),FAB.detail);}
   return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),...o,pente:pct(pentes,.99),jeu:+(state.aiguilles-reliefMaxCadran()).toFixed(2)};}
-window.__studio={texteSD,crantageSTL,ouvrirDessin,pointZone,hZ:()=>dernierH,exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+window.__studio={reconstruireFlancs,flancsSTL,PANNEAUX,texteSD,crantageSTL,ouvrirDessin,pointZone,hZ:()=>dernierH,exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
 document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');appliquerMatieres();if(mLunette)mLunette.material=[aluLunette,on?brutCreux:aluLunette];};
 document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
 for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
@@ -3512,6 +3707,7 @@ const ecrireDefaut=n=>{try{localStorage.setItem(CFG_CLE+'-defaut',n);}catch(e){}
 function instantane(){return JSON.parse(JSON.stringify({origine:state.origine,lunette:state.lunette,cadran:state.cadran,matieres:state.matieres,cadranFin:state.cadranFin||0,tranches:state.tranches,gravurePerso:state.gravurePerso||'',index:state.index??0,aiguilles:state.aiguilles??.8}));}
 let _cfgJeton=0;   // une application plus recente annule celle en cours (bas-relief charge en asynchrone)
 async function appliquerCfg(c){const jeton=++_cfgJeton;state.origine=c.origine==='europe'?'europe':'chine';state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'titane',...(c.matieres||{})};state.cadranFin=c.cadranFin||0;bornerFinCadran();state.tranches=c.tranches?{...c.tranches}:{boitier:peutPoli(state.matieres.boitier),lunette:peutPoli(state.matieres.lunette),liees:true};state.gravurePerso=c.gravurePerso||'';{const gp=document.getElementById('gravPerso');if(gp)gp.value=state.gravurePerso;}majGravure();appliquerMatieres();panneauMatieres();state.index=c.index;document.getElementById('indexC').value=String(c.index);
+  state.flancs={frise:'',relief:.25,...(c.flancs||{})};try{reconstruireFlancs();window.majFlancsUI&&window.majFlancsUI();}catch(e){}
   state.aiguilles=AIG_FIXE;aig.position.y=0;   // (13/10) aiguilles fixes, quelle que soit la config enregistree
   state.lunette.zone=c.lunette.zone||'biseau';document.getElementById('zoneL').value=state.lunette.zone;
   for(const piece of ['lunette','cadran']){const b=c[piece];
@@ -3645,7 +3841,7 @@ document.getElementById('btnGraver').onclick=async()=>{const n=document.getEleme
     if(!r.ok)throw new Error(r.note||'refus');
     const blob=new Blob([Uint8Array.from(atob(r.stl_b64),c=>c.charCodeAt(0))],{type:'model/stl'}),a=document.createElement('a');
     a.href=URL.createObjectURL(blob);a.download='fond_embosse_'+r.id+'.stl';a.textContent='Télécharger fond_embosse_'+r.id+'.stl';
-    n.textContent=`Fond embossé : ${r.lignes.length} lignes en relief de 0,25 mm, ${r.aretes_ouvertes===0?'maillage fermé (prêt à imprimer)':r.aretes_ouvertes+' arêtes ouvertes à reprendre'}, ${(r.ms/1000).toFixed(0)} s. `;n.appendChild(a);}
+    n.textContent=`Fond embossé : ${r.lignes.length} lignes en creux de 0,25 mm, ${r.aretes_ouvertes===0?'maillage fermé (prêt à imprimer)':r.aretes_ouvertes+' arêtes ouvertes à reprendre'}, ${(r.ms/1000).toFixed(0)} s. `;n.appendChild(a);}
   catch(e){n.textContent='Échec de l\'embossage : '+(e.message||e);}finally{b.disabled=false;}};
 
 
@@ -3708,6 +3904,10 @@ panneauComposition();
   window.majResume();})();
 listerCfg();
 if(!location.hash.includes('appliquer=')&&!location.hash.includes('ia=')){const c=lireCfg().find(x=>x.nom===lireDefaut());if(c)setTimeout(()=>appliquerCfg(c.etat),0);}
+{const se=document.getElementById('flancsFrise'),rg=document.getElementById('flancsRelief'),out=document.getElementById('flancsReliefV');
+  for(const [k,F] of Object.entries(FRISES)){const o=document.createElement('option');o.value=k;o.textContent='Gravure : '+F.nom;se.appendChild(o);}
+  const maj=()=>{se.value=state.flancs.frise||'';rg.value=state.flancs.relief||.25;out.textContent=(+rg.value).toFixed(2).replace('.',',');};maj();window.majFlancsUI=maj;
+  let t=0;se.onchange=()=>{state.flancs.frise=se.value;reconstruireFlancs();};rg.oninput=()=>{state.flancs.relief=+rg.value;out.textContent=(+rg.value).toFixed(2).replace('.',',');clearTimeout(t);t=setTimeout(reconstruireFlancs,250);};}
 initEncyclopedie();   // apres ORN : le catalogue decrit aussi les volumes 3D
 </script>
 </body>
