@@ -315,7 +315,7 @@ const MOTIFS_CADRAN = {
   image:      {nom:'Bas-relief IA', r:{relief:[.05,1.2,.35,.01,'relief mm'], cadrage:[.6,1.3,1,.01,'cadrage'], detail:[0,1,.5,.05,'détail'], contraste:[.5,2.5,1.2,.05,'contraste'], inverser:[0,1,0,1,'inverser']}},
   bulles:     {nom:'Bulles et cratères', r:{nombre:[4,60,24,1,'nombre'], taille:[.8,5,2.6,.05,'taille maxi mm'], cratere:[0,1,1,1,'cratères'], graine:[1,999,5,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
   terrasses:  {nom:'Terrasses (strates)', r:{couches:[3,14,8,1,'couches'], collines:[1,6,3,1,'collines'], taille:[2,8,4.5,.1,'taille mm'], diguette:[0,1,1,1,'diguettes'], graine:[1,999,21,1,'variante'], relief:[.1,1.2,.4,.01,'relief mm']}},
-  etoiles:    {nom:'Ciel étoilé', r:{nombre:[3,60,18,1,'étoiles'], taille:[.4,2,.9,.05,'taille mm'], graine:[1,999,11,1,'variante'], relief:[.1,1.2,.3,.01,'relief mm']}},
+  /* (14/10, Baptiste : « enleve etoile ») motif « Ciel etoile » retire du catalogue */
 };
 // Familles parametriques et catalogue : encyclopedie.json (meme source que le concierge).
 const ENC=await fetch('encyclopedie.json',{cache:'no-store'}).then(r=>r.json()).catch(()=>null);
@@ -323,6 +323,7 @@ const FAMILLES=ENC?ENC.familles:{};
 for(const [k,F] of Object.entries(FAMILLES)){const r={mode:[0,F.modes.length-1,0,1,'mode'],...F.r};
   MOTIFS_CADRAN[k]={nom:F.nom,famille:1,r:{...r,relief:[r.relief[0],Math.min(r.relief[1],ENC.relief_max_cadran||1.2),r.relief[2],r.relief[3],r.relief[4]]}};}
 const estFamille=m=>!!FAMILLES[m];
+const NOM_MODE={radial:'rayonnant (rais)',rosette:'rosace','vieux panier':'panier',croisé:'lignes croisées',entrelacé:'entrelacs','pas variable':'à densité progressive'},nomMode=m=>NOM_MODE[m]||m;
 // ───────────── LUNETTE : TROIS CATEGORIES SEULEMENT (decision du 08/10) ─────────────
 // 1. EMBOSSAGE : le dessus reste la surface d'origine, POLIE ; le dessin est creuse, BRUT, de plus
 //    en plus sombre avec la profondeur ; la paroi du creux a un angle et 1 a 4 facettes.
@@ -365,9 +366,77 @@ const DESSINS=[
   {nom:"damier d'origine (circulaire)",monde:1,f:(u,s,p)=>{const phi=Math.atan2(Math.abs(PZ.z),Math.abs(PZ.x)),r=Math.hypot(PZ.x,PZ.z);
     const a=phi/(Math.PI/2)*Math.max(1,Math.round(p.n/4)),b=r/(2.7/Math.max(1,p.rangs));
     return .5+.5*Math.tanh(3*Math.cos(Math.PI*(a+b))*Math.cos(Math.PI*(a-b)));}},
-  {nom:"damier W1 (Fibonacci)",monde:1,f:(u,s,p)=>w1HMonde(p)<0?0:1}
+  {nom:"damier W1 (Fibonacci)",monde:1,f:(u,s,p)=>w1HMonde(p)<0?0:1},
+  {nom:"pavés bombés (Pattern watch)",monde:1,f:(u,s,p)=>w1HMonde(p)<-.5*(p.profondeur||.35)?0:1},
+  {nom:"chiffres et texte",monde:1,texte:1,f:(u,s,p)=>texteSD(p)<0?0:1},
+  {nom:"mon dessin",perso:1,f:(u,s,p)=>persoChamp(u,s,p)}
 ];
 let CARTE_ORIGINE=null;
+/* ── CHIFFRES ET TEXTE EMBOSSES (14/10) ── trace en vue de dessus (44 mm, 40 px/mm) le long du biseau, lettres en
+   creux (brutes) sur la lunette polie ; champ signe exact par transformee de distance (Felzenszwalb), en mm. Les glyphes
+   sont pre-etires en travers de la pente du biseau (projection). Graisse 800, hauteur >= 1,4 mm : traits >= 0,3 mm. */
+let _TXT=null;
+function edt1(f,n,d,v,z){let k=0;v[0]=0;z[0]=-1e20;z[1]=1e20;for(let q=1;q<n;q++){let s;while((s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]))<=z[k])k--;k++;v[k]=q;z[k]=s;z[k+1]=1e20;}
+  k=0;for(let q=0;q<n;q++){while(z[k+1]<q)k++;d[q]=(q-v[k])*(q-v[k])+f[v[k]];}}
+function edt2(B,W,H){const INF=1e20,D=new Float64Array(W*H),f=new Float64Array(Math.max(W,H)),d=new Float64Array(Math.max(W,H)),v=new Int32Array(Math.max(W,H)),z=new Float64Array(Math.max(W,H)+1);
+  for(let i=0;i<W*H;i++)D[i]=B[i]?0:INF;
+  for(let x=0;x<W;x++){for(let y=0;y<H;y++)f[y]=D[y*W+x];edt1(f,H,d,v,z);for(let y=0;y<H;y++)D[y*W+x]=d[y];}
+  for(let y=0;y<H;y++){for(let x=0;x<W;x++)f[x]=D[y*W+x];edt1(f,W,d,v,z);for(let x=0;x<W;x++)D[y*W+x]=Math.sqrt(d[x]);}return D;}
+function etiquettesTexte(p){const t=Math.round(p.texte||0),lib=(state.lunette.texteLibre||'DELIGNY').trim()||'DELIGNY';
+  if(t===0)return {pos:Array.from({length:12},(_,h)=>[h?String(h):'12',h/12])};
+  if(t===1)return {pos:['XII','I','II','III','IV','V','VI','VII','VIII','IX','X','XI'].map((x,h)=>[x,h/12])};
+  if(t===2)return {pos:Array.from({length:12},(_,h)=>[String(h*5).padStart(2,'0'),h/12])};
+  if(t===3){const m=lib.replace(/\s+/g,'').slice(0,3);return {pos:Array.from({length:8},(_,h)=>[m,h/8])};}
+  return {suite:lib};}
+function texteSD(p){const H=Math.max(1.4,p.hauteur||1.6),t=Math.round(p.texte||0),cle=[H,t,state.lunette.texteLibre].join('|');
+  if(!_TXT||_TXT.cle!==cle){const L=44,K=40,n=L*K,c=document.createElement('canvas');c.width=c.height=n;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,n,n);x.fillStyle='#fff';
+    const P=(X,Z)=>[(X/L+.5)*n,(Z/L+.5)*n],a2th=a=>a*2*Math.PI-Math.PI/2;   // 0 = 12 h (-Z), sens horaire vu de dessus (3 h = +X)
+    const pose=(txt,a,ang)=>{const th=a2th(a),rt=tab(T_TOP,th),rc=tab(T_C4,th),rm=(rt+rc)/2,lb=Math.hypot(rc-rt,Y_HAUT-Y_C4),k=(rc-rt)/lb,[px,py]=P(rm*Math.cos(th),rm*Math.sin(th));
+      x.save();x.translate(px,py);x.rotate((ang??th)+Math.PI/2);x.scale(1,k);x.font=`800 ${Math.round(H/.708*K)}px ${POLICE_FOND}`;x.textAlign='center';x.textBaseline='middle';x.fillText(txt,0,0);x.restore();};
+    const E=etiquettesTexte(p);
+    if(E.pos)for(const [txt,a] of E.pos)pose(txt,a);
+    else{x.font=`800 ${Math.round(H/.708*K)}px ${POLICE_FOND}`;const sep='  ·  ',unit=E.suite+sep,adv=ch=>x.measureText(ch).width/K;   // texte repete, lettre a lettre le long du biseau
+      const NA=2048,S=new Float64Array(NA+1);let px0=null;for(let i=0;i<=NA;i++){const th=a2th(i/NA),rm=(tab(T_TOP,th)+tab(T_C4,th))/2,q=[rm*Math.cos(th),rm*Math.sin(th)];S[i]=i?S[i-1]+Math.hypot(q[0]-px0[0],q[1]-px0[1]):0;px0=q;}
+      const tot=S[NA],lu=[...unit].reduce((s2,ch)=>s2+adv(ch),0),nrep=Math.max(1,Math.floor(tot/lu)),k=tot/(nrep*lu);let s0=0;
+      const aDe=sv=>{let lo=0,hi=NA;while(hi-lo>1){const m=(lo+hi)>>1;if(S[m]<=sv)lo=m;else hi=m;}return (lo+(sv-S[lo])/((S[hi]-S[lo])||1))/NA;};
+      for(let r=0;r<nrep;r++)for(const ch of unit){const w=adv(ch)*k,a=aDe(s0+w/2);if(ch.trim())pose(ch,a);s0+=w;}}
+    const D=x.getImageData(0,0,n,n).data,B=new Uint8Array(n*n),Bi=new Uint8Array(n*n);for(let i=0;i<n*n;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
+    const Dout=edt2(B,n,n),Din=edt2(Bi,n,n),SD=new Float32Array(n*n);for(let i=0;i<n*n;i++)SD[i]=(B[i]?-(Din[i]-.5):(Dout[i]-.5))/K;   // > 0 hors des lettres (dessus poli)
+    // trait le plus fin (diametre inscrit) par lettre : controle d'imprimabilite
+    let fin=99;{const vu=new Uint8Array(n*n),st=new Int32Array(n*n);for(let i0=0;i0<n*n;i0++){if(!B[i0]||vu[i0])continue;let top=0,mx=0;st[top++]=i0;vu[i0]=1;
+      while(top){const i=st[--top];if(-SD[i]>mx)mx=-SD[i];for(const j of [i-1,i+1,i-n,i+n])if(j>=0&&j<n*n&&B[j]&&!vu[j]){vu[j]=1;st[top++]=j;}}if(2*mx<fin)fin=2*mx;}}
+    _TXT={cle,n,K,L,SD,fin};}
+  const Z=_TXT,fx=(PZ.x/Z.L+.5)*Z.n,fy=(PZ.z/Z.L+.5)*Z.n,i=Math.floor(fx),j=Math.floor(fy);if(i<0||j<0||i>=Z.n-1||j>=Z.n-1)return 9;
+  const a=fx-i,b=fy-j,S=Z.SD,n=Z.n;return (S[j*n+i]*(1-a)+S[j*n+i+1]*a)*(1-b)+(S[(j+1)*n+i]*(1-a)+S[(j+1)*n+i+1]*a)*b;}
+/* ── MON DESSIN (14/10) : tuile dessinee par le client (blanc = surface polie, trace = creux brut), repetee « nombre »
+   fois sur le tour ; contour exact par la meme distance au contour que les autres dessins. */
+let PERSO=null;
+function chargerPerso(url){if(PERSO&&PERSO.url===url)return;const im=new Image();im.onload=()=>{const c=document.createElement('canvas');c.width=im.width;c.height=im.height;
+  const x=c.getContext('2d');x.drawImage(im,0,0);const d=x.getImageData(0,0,c.width,c.height).data,A=new Float32Array(c.width*c.height);for(let i=0;i<A.length;i++)A[i]=d[4*i]/255;
+  PERSO={url,w:c.width,h:c.height,A};_CDIST=null;reconstruire('lunette');};im.src=url;}
+function persoChamp(u,s,p){if(!PERSO)return 1;const n=Math.max(1,Math.round(p.n||16)),x=fract(u*n)*(PERSO.w-1),y=Math.max(0,Math.min(1,s))*(PERSO.h-1),i=Math.floor(x),j=Math.min(PERSO.h-2,Math.floor(y)),a=x-i,b=y-j,W=PERSO.w,A=PERSO.A,i2=(i+1)%W;
+  return (A[j*W+i]*(1-a)+A[j*W+i2]*a)*(1-b)+(A[(j+1)*W+i]*(1-a)+A[(j+1)*W+i2]*a)*b;}
+function ouvrirDessin(){const p=state.lunette.params,n=Math.max(1,Math.round(p.n||16)),tw=PERIM/n,th=LZ,W=900,Hc=Math.round(W*th/tw),K=W/tw;
+  const fond=document.createElement('div');fond.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999;display:flex;align-items:center;justify-content:center;padding:16px';
+  fond.innerHTML=`<div style="background:var(--bg,#fff);color:var(--ink,#111);border-radius:12px;padding:14px;max-width:960px;width:100%;font:13px/1.4 var(--font,sans-serif)">
+    <b>Mon motif</b> : une tuile de ${tw.toFixed(1).replace('.',',')} × ${th.toFixed(1).replace('.',',')} mm, répétée ${n} fois sur le tour (réglage « nombre »). Le tracé devient le creux brut, le blanc reste poli.
+    <div style="margin:8px 0;overflow:auto"><canvas style="width:100%;border:1px solid #888;touch-action:none;cursor:crosshair;background:#fff"></canvas></div>
+    <div class="ligne" style="gap:8px;flex-wrap:wrap;align-items:center">trait <input type="range" min=".35" max="1.6" step=".05" value=".6"> <output>0,60 mm</output>
+      <label><input type="checkbox" class="sym"> symétrie</label><button class="btn" data-a="gomme">Gomme</button><button class="btn" data-a="vider">Effacer tout</button>
+      <span style="flex:1"></span><button class="btn" data-a="annuler">Annuler</button><button class="btn pri" data-a="ok">Appliquer</button></div>
+    <div class="note">Trait de 0,35 mm minimum : en dessous, le creux ne s'imprime pas.</div></div>`;
+  document.body.appendChild(fond);const cv=fond.querySelector('canvas');cv.width=W;cv.height=Hc;const x=cv.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,W,Hc);
+  if(PERSO){const t=document.createElement('canvas');t.width=PERSO.w;t.height=PERSO.h;const tx=t.getContext('2d'),im=tx.createImageData(PERSO.w,PERSO.h);for(let i=0;i<PERSO.A.length;i++){const v=PERSO.A[i]*255;im.data[4*i]=im.data[4*i+1]=im.data[4*i+2]=v;im.data[4*i+3]=255;}tx.putImageData(im,0,0);x.drawImage(t,0,0,W,Hc);}
+  const rg=fond.querySelector('input[type=range]'),out=fond.querySelector('output'),sym=fond.querySelector('.sym');let gomme=false,bas=false,last=null;
+  rg.oninput=()=>out.textContent=(+rg.value).toFixed(2).replace('.',',')+' mm';
+  const pt=e=>{const r=cv.getBoundingClientRect();return [(e.clientX-r.left)*W/r.width,(e.clientY-r.top)*Hc/r.height];};
+  const trait=(a,b)=>{for(const m of sym.checked?[1,-1]:[1]){x.strokeStyle=gomme?'#fff':'#000';x.lineWidth=+rg.value*K;x.lineCap=x.lineJoin='round';x.beginPath();
+    const X=v=>m>0?v:W-v;x.moveTo(X(a[0]),a[1]);x.lineTo(X(b[0]),b[1]);x.stroke();}};
+  cv.onpointerdown=e=>{bas=true;last=pt(e);trait(last,last);cv.setPointerCapture(e.pointerId);};cv.onpointermove=e=>{if(!bas)return;const q=pt(e);trait(last,q);last=q;};cv.onpointerup=()=>{bas=false;};
+  fond.querySelectorAll('button').forEach(b=>b.onclick=()=>{const a=b.dataset.a;if(a==='gomme'){gomme=!gomme;b.classList.toggle('pri',gomme);}
+    else if(a==='vider'){x.fillStyle='#fff';x.fillRect(0,0,W,Hc);}else if(a==='annuler')fond.remove();
+    else if(a==='ok'){const t=document.createElement('canvas');t.width=600;t.height=Math.round(600*Hc/W);t.getContext('2d').drawImage(cv,0,0,t.width,t.height);
+      state.lunette.perso=t.toDataURL('image/png');state.lunette.params.persoV=(state.lunette.params.persoV||0)+1;fond.remove();PERSO=null;chargerPerso(state.lunette.perso);}});}
 lireImage('media/motif_origine.png').then(c=>{
   /* bornes radiales des donnees de la carte, par angle (premier et dernier pixel non nul le long du rayon) */
   {const K=720,L=44,ri=new Float32Array(K),re=new Float32Array(K);for(let k=0;k<K;k++){const th=k/K*2*Math.PI-Math.PI;let a=0,b=0;
@@ -377,25 +446,42 @@ lireImage('media/motif_origine.png').then(c=>{
 const FORMES=[['reseau','pyramides carrées','clous de Paris'],['reseau','pyramides tronquées','clous tronqués'],['reseau','pyramides inversées','pointes de diamant creuses'],
   ['reseau','pyramides triangulaires','pyramides triangulaires'],['reseau','cônes','cônes'],['reseau','cubes','cubes'],['reseau','losanges','losanges'],
   ['reseau','dents de scie','dents de scie'],['reseau','créneaux','créneaux'],['reseau','gradins','gradins'],['stries','moletage diamant','moletage diamant'],
-  ['stries','moletage croisé','moletage croisé'],['facettes','low-poly','facettes low-poly'],['facettes','voronoï cristallin','facettes cristallines'],['facettes','cristal','cristaux']];
+  ['stries','moletage croisé','moletage croisé'],['facettes','low-poly','facettes low-poly'],['facettes','voronoï cristallin','facettes cristallines'],['facettes','cristal','cristaux'],
+  /* (14/10, Baptiste) familles du cadran ouvertes a la lunette, et classiques de la haute horlogerie */
+  ['classiques','godrons','lunette cannelée (godrons)'],['reseau','pyramides carrées','pointes de diamant',{angle:45,tronque:0,relief:.55}],['classiques','corde','corde (torsade)'],
+  ['classiques','panier tressé','panier tressé'],['classiques','briques','briques'],
+  ['guillochage','soleil',"Guilloché soleil"],['guillochage','rayonnant',"Guilloché rayonnant"],['guillochage','circulaire',"Guilloché circulaire"],['guillochage','concentrique',"Guilloché concentrique"],['guillochage','spiralé',"Guilloché spiralé"],['guillochage','hélicoïdal',"Guilloché hélicoïdal"],['guillochage','ondulé',"Guilloché ondulé"],['guillochage','vagues',"Guilloché vagues"],['guillochage','flinqué',"Guilloché flinqué"],['guillochage',"grain d'orge","Guilloché grain d'orge"],['guillochage','clous de Paris',"Guilloché clous de Paris"],['guillochage','vieux panier',"Guilloché panier"],['guillochage','damier',"Guilloché damier"],['guillochage','losanges',"Guilloché losanges"],['guillochage','chevrons',"Guilloché chevrons"],['guillochage',"nid d'abeille","Guilloché nid d'abeille"],['guillochage','écailles de poisson',"Guilloché écailles de poisson"],['guillochage','moiré',"Guilloché moiré"],['guillochage','rosette',"Guilloché rosace"],['guillochage','œil-de-perdrix',"Guilloché œil-de-perdrix"],['guillochage','tapisserie',"Guilloché tapisserie"],['guillochage','croisé',"Guilloché lignes croisées"],['guillochage','zigzag',"Guilloché zigzag"],['guillochage','entrelacé',"Guilloché entrelacs"],['guillochage','guirlande',"Guilloché guirlande"],['guillochage','vagues concentriques',"Guilloché vagues concentriques"],['guillochage','spirales entrelacées',"Guilloché spirales entrelacées"],['guillochage','radial décentré',"Guilloché radial décentré"],['guillochage','géométrique répétitif',"Guilloché géométrique répétitif"],['guillochage','pas variable',"Guilloché à densité progressive"],['guillochage','rectiligne',"Guilloché rectiligne"],['guillochage','flammé',"Guilloché flammé"],
+  ['stries','côtes de Genève','côtes de Genève'],['stries','perlage','perlage'],['stries','cannelures','cannelures'],
+  ['reseau','tapisserie','tapisserie'],['reseau','dômes','dômes'],['reseau','Kagome','Kagome'],['reseau','perles','perles'],['reseau',"nid d'abeille","nid d'abeille"],
+  ['facettes','martelage','martelage'],['facettes','bosses','bosses'],
+  ['texture','pierre','pierre'],['texture','volcanique','roche volcanique'],['texture','craquelures','craquelures'],['texture','cratères','cratères'],
+  ['texture','érosion','érosion'],['texture','dunes','dunes'],['texture','peau de requin','peau de requin'],
+  ['generatif','gyroïde','gyroïde'],['generatif','Schwarz P','Schwarz P']];
 for(const k of Object.keys(MOTIFS_LUNETTE))delete MOTIFS_LUNETTE[k];
+const RT={tranche:[0,1,0,1,'tranche']},RC={contour:[0,3,0,.05,'contour du verre plat mm']};   // (14/10) RC : bossage et bas-reliefs seulement (l'embossage reste a fleur)
+// largeur plate cote verre (mm) : la marge fine, ou le contour plat choisi s'il est plus large
+const margeInt=()=>{const L=state.lunette;return ['arete','relief','image'].includes(L.motif)?Math.max(MARGE_FINE,+(L.params.contour||0)):MARGE_FINE;};   // (14/10) tranche de la lunette : lisse ou crantee facon monnaie
 const RJ=ENC&&ENC.r_lunette||{jonction:[0,2,1,1,'jonctions'],pivot:[0,360,0,1,'pivot °']};
 Object.assign(MOTIFS_LUNETTE,{
-  lisse:{nom:'Lisse',r:{finition:[0,2,2,1,'finition']}},
+  lisse:{nom:'Lisse',r:{finition:[0,2,2,1,'finition'],...RT}},
   embossage:{nom:'Embossage',r:{dessin:[0,DESSINS.length-1,0,1,'dessin'],n:[12,160,64,1,'nombre'],rangs:[1,5,3,1,'rangs'],proportion:[.15,.85,.5,.01,'proportion'],
-    profondeur:[.1,1.2,.45,.01,'profondeur mm'],angle:[15,90,50,1,'angle °'],facettes:[1,4,2,1,'facettes'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré'],...RJ}},
+    profondeur:[.1,1.2,.45,.01,'profondeur mm'],angle:[15,90,50,1,'angle °'],facettes:[1,4,2,1,'facettes'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré'],
+    texte:[0,4,0,1,'chiffres / texte'],hauteur:[1.4,2.4,1.6,.05,'hauteur des chiffres mm'],...RT,...RJ}},
   image:{nom:'Bas-relief',r:{relief:[.1,1.5,.6,.01,'relief mm'],echelle:[.4,2.5,1.8,.05,'échelle'],detail:[0,1,.3,.05,'détail'],contraste:[.5,2.5,1,.05,'contraste'],
-    inverser:[0,1,0,1,'inverser'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré']}},
+    inverser:[0,1,0,1,'inverser'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré'],...RC,...RT}},
+  relief:{nom:'Bas-relief paramétrique',r:{paysage:[0,5,0,1,'sujet'],echelle:[.6,2.5,1.2,.05,'échelle'],relief:[.1,.8,.35,.01,'relief mm'],
+    graine:[1,999,7,1,'variante'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré'],...RC,...RT}},
   arete:{nom:'3D arêtes vives',r:{forme:[0,FORMES.length-1,0,1,'forme'],pas:[.8,6,1.2,.05,'pas mm'],angle:[0,90,45,1,'angle °'],tronque:[0,.9,.5,.05,'troncature'],
-    relief:[.05,1.2,.35,.01,'relief mm'],finition:[0,2,2,1,'finition'],lisere:[0,1,0,1,'liseré'],...RJ}},
+    relief:[.05,1.2,.35,.01,'relief mm'],finition:[0,2,2,1,'finition'],lisere:[0,1,0,1,'liseré'],...RC,...RT,...RJ}},
 });
-const LISTES={lisere:['sans liseré','liseré poli autour de la face'],jonction:['fondu','raccord exact','vue de dessus (sans jonction)'],finition:['mat (brut)','poli surface (sommets polis, creux bruts)','poli intégral'],
+const LISTES={tranche:['tranche lisse','tranche crantée (monnaie)'],texte:['heures (chiffres arabes)','heures (chiffres romains)','minutes (00 à 55)','monogramme répété','texte libre répété'],
+  paysage:['vagues','houle','topographie','ondes concentriques','dunes','feuillage'],lisere:['sans liseré','liseré poli autour de la face'],jonction:['fondu','raccord exact','vue de dessus (sans jonction)'],finition:['mat (brut)','poli surface (sommets polis, creux bruts)','poli intégral'],
   dessin:DESSINS.map(d=>d.nom),forme:FORMES.map(f=>f[2])};
 const CASES = new Set(['soleil','concentriques','diguette','inverser','ventouses','cratere']);
 const defauts = M => Object.fromEntries(Object.entries(M.r).map(([k,v])=>[k,v[2]]));
 // Etat de depart du projet Montre T (07/10) : lunette ecailles de dragon, cadran terrasses.
 const state = {
-  lunette:{motif:'embossage', zone:'tout', params:{dessin:16,n:88,rangs:3,proportion:.5,profondeur:.35,angle:60,facettes:1,finition:1,jonction:1,pivot:0}},   // (13/10) damier W1 vectoriel : face en damier, biseau en frise de Fibonacci
+  lunette:{motif:'embossage', zone:'tout', params:{dessin:17,n:88,rangs:3,proportion:.5,profondeur:.35,angle:60,facettes:1,finition:1,jonction:1,pivot:0}},   // (13/10) damier W1 vectoriel : face en damier, biseau en frise de Fibonacci
   cadran:{motif:'terrasses', params:{couches:9,collines:4,taille:5,diguette:1,graine:21,relief:.4}},
 };
 
@@ -468,6 +554,7 @@ const _phyllo={};function phyllo(pas){const n=Math.max(20,Math.round(150/pas)),k
   const R0=.62*11.4*Math.sqrt(1/n)*1.6,c=Math.max(R0,.3),g=new Map();for(let i=1;i<n;i++){const rr=11.4*Math.sqrt(i/n),a=i*2.399963,x=rr*Math.cos(a),y=rr*Math.sin(a),key=Math.floor((y+12)/c)*64+Math.floor((x+12)/c);
     if(!g.has(key))g.set(key,[]);g.get(key).push([x,y]);}return (_phyllo[k]={R0,c,g});}
 function mandel(X,Y){let a=0,b=0,k=0;for(;k<80&&a*a+b*b<16;k++){const t=a*a-b*b+X;b=2*a*b+Y;a=t;}if(k>=80)return 1;const l=k+1-Math.log2(Math.log(Math.sqrt(a*a+b*b)));return Math.min(1,Math.sqrt(l/80)*1.4);}
+const v0=p=>Math.max(0,Math.min(1,p.variation??.5));
 function famille(nom,X,Y,P,p){const F=FAMILLES[nom];if(!F)return 0;const m=F.modes[Math.round(p.mode||0)]||F.modes[0],pas=Math.max(.15,p.pas||1),dial=P.dial,r=P.r,t=P.t,g=Math.round(p.graine||1),v=p.variation??.5;
   const [A,B]=tourner(X,Y,p.angle||0);
   if(nom==='guillochage')switch(m){
@@ -489,6 +576,38 @@ function famille(nom,X,Y,P,p){const F=FAMILLES[nom];if(!F)return 0;const m=F.mod
     case 'pas variable':{const q=dial?r:Y;return tri(q/pas*(1+v*q/(dial?8:4)));}
     case 'entrelacé':{const a=tri((B+pas*.8*Math.sin(2*Math.PI*A/(pas*6)))/pas),b=tri((B-pas*.8*Math.sin(2*Math.PI*A/(pas*6)))/pas);return Math.max(a,b*.8);}
   }
+  /* (14/10, Baptiste) CATALOGUE COMPLET DES GUILLOCHES, cadran et lunette : sillons en V (tri) suivant un champ de phase.
+     Polaires (soleil, circulaire, spirales...) autour du centre de la montre ; lineaires dans le repere du motif. Sur la
+     lunette ils sont poses en vue de dessus : aucune couture. Pas >= 0,6 mm (cadran) / 0,8 mm (lunette) : cretes >= 0,3 mm. */
+  if(nom==='guillochage'){const R=dial?r:Math.hypot(X,Y),T=dial?t:Math.atan2(Y,X),lun=R>14,Rref=lun?PERIM/(2*Math.PI):9;   // nombre de rais FIXE sur toute la piece (sinon il saute avec le rayon : damier parasite)
+    const nRay=f=>Math.max(8,Math.round(2*Math.PI*Rref/(pas*f)));
+    // rais qui convergent vers le centre : ils s'effacent (dessus plat) avant que leur ecart passe sous le pas (imprimabilite)
+    const centre=(n,h)=>{const R0=n*pas/(2*Math.PI);return 1-(1-h)*sm(R0,R0+1.2,R);};
+    switch(m){
+    case 'soleil':{const n=nRay(1.6);return centre(n,Math.pow(tri(T*n/(2*Math.PI)),.7));}
+    case 'rayonnant':{const n=2*Math.round(nRay(2)/2),k=Math.floor(fract(T*n/(4*Math.PI)+.25)*2);return centre(n,.35+.65*tri(T*n/(2*Math.PI))*(k?1:.7));}
+    case 'circulaire':return tri(R/pas);
+    case 'hélicoïdal':{const n=Math.max(1,Math.round(nRay(4)/8));return centre(n*2,tri(R/(1.4*pas)+T*n/(2*Math.PI)));}
+    case 'vagues':return tri((B+pas*(1+2*v)*Math.sin(2*Math.PI*A/(pas*5)))/pas);
+    case 'flinqué':return .55+.45*tri(B/pas);
+    case 'clous de Paris':{const [a,b]=tourner(X,Y,(p.angle||0)+45);return Math.min(tri(a/pas),tri(b/pas));}
+    case 'damier':{const q=pas*4,c=(Math.floor(A/q)+Math.floor(B/q))&1;return c?tri((A+B)/pas):tri((A-B)/pas);}
+    case 'losanges':{const [a]=tourner(X,Y,(p.angle||0)+60),[b]=tourner(X,Y,(p.angle||0)-60);return Math.min(tri(a/pas),tri(b/pas));}
+    case 'chevrons':{const L=3*pas;return tri((B+Math.abs(fract(A/L)-.5)*L*(.8+v))/pas);}
+    case "nid d'abeille":{const [dx,dy]=hexProche(A/(4*pas),B/(4*pas)),hd=Math.max(Math.abs(dx),Math.abs(dx)*.5+Math.abs(dy)*.8660254);return tri(hd*4);}
+    case 'écailles de poisson':{const S=4*pas,row=Math.floor(B/(S*.5));let best=null;
+      for(let k=row+1;k>=row-2;k--){const off=(k&1)?.5:0,cx=(Math.round(A/S-off)+off)*S,cy=k*S*.5,d=Math.hypot(A-cx,B-cy);if(B>=cy&&d<S*.62){best=d;break;}}
+      return best===null?.5:tri(best/pas);}
+    case 'œil-de-perdrix':{const S=3*pas,row=Math.floor(B/S),off=(row&1)?.5:0,cx=(Math.floor(A/S-off)+.5+off)*S,cy=(row+.5)*S;return tri(Math.hypot(A-cx,B-cy)/pas);}
+    case 'tapisserie':return Math.min(1,1.5*Math.min(tri(A/pas),tri(B/pas)));
+    case 'zigzag':return tri((B+tri(A/(4*pas))*pas*(.6+.8*v))/(1.3*pas));
+    case 'guirlande':{const L=4*pas;return tri((B-pas*(1.2+v)*Math.abs(Math.sin(Math.PI*A/L)))/pas);}
+    case 'vagues concentriques':return tri((R+pas*(.3+.5*v)*Math.sin(T*Math.max(6,Math.round(2*Math.PI*Rref/(pas*6))))/1)/pas);
+    case 'spirales entrelacées':{const n=Math.max(2,Math.round(nRay(6)/8));return centre(n*3,.3+.7*Math.min(tri(R/(1.6*pas)+T*n/(2*Math.PI)),tri(R/(1.6*pas)-T*n/(2*Math.PI))));}
+    case 'radial décentré':{const cx=(lun?2:3)*(.3+v),T2=Math.atan2(Y,X-cx),n=nRay(2.2),R2=Math.hypot(Y,X-cx),R0=n*pas/(2*Math.PI);return 1-(1-tri(T2*n/(2*Math.PI)))*sm(R0,R0+1.2,R2);}
+    case 'géométrique répétitif':{const S=6*pas,ia=Math.floor(A/S),ib=Math.floor(B/S),fa=(fract(A/S)-.5)*S,fb=(fract(B/S)-.5)*S;
+      return ((ia+ib)&1)?tri(Math.hypot(fa,fb)/pas):tri(Math.max(Math.abs(fa),Math.abs(fb))/pas);}
+    }}
   if(nom==='reseau'){const a1=A/pas,b1=B/pas,a=fract(a1)-.5,b=fract(b1)-.5,mx=Math.max(Math.abs(a),Math.abs(b)),rr=Math.hypot(a,b),tr=p.tronque??.5,e=.03,
       dl=x=>{const q=fract(x);return Math.min(q,1-q);};
     switch(m){
@@ -551,6 +670,20 @@ function famille(nom,X,Y,P,p){const F=FAMILLES[nom];if(!F)return 0;const m=F.mod
     case 'pointillé':{const a=fract(A/pas)-.5,b=fract(B/pas)-.5;return Math.sqrt(Math.max(0,1-12*(a*a+b*b)));}
     case 'nervures':return dial?Math.pow(tri(t*Math.round(2*Math.PI*5/pas)/(2*Math.PI)),3):Math.pow(tri(A/pas),3);
   }
+  /* (14/10) CLASSIQUES DE LA HAUTE HORLOGERIE : reliefs continus (pas d'arete en escalier), periodiques sur le tour.
+     Sur la lunette, le motif est pose en coordonnees (le long du tour, en travers) ; sur le cadran, en (angle, rayon). */
+  if(nom==='classiques'){const lun=dial&&r>14,R0=lun?PERIM/(2*Math.PI):0,al=dial?t*(lun?R0:Math.max(r,1)):A,ac=dial?(lun?r-R0:r):B;
+    const nAl=L=>dial?Math.max(4,Math.round(2*Math.PI*(lun?R0:Math.max(r,1))/L)):0,ph=L=>dial?t*nAl(L)/(2*Math.PI):al/L;   // nombre ENTIER de cellules sur le tour
+    const cyl=v=>Math.sqrt(Math.max(0,1-v*v));
+    switch(m){
+    case 'godrons':{const v=2*fract(ph(pas))-1;return Math.pow(.5+.5*Math.cos(Math.PI*v),.8);}   // cannelures radiales arrondies (profil lisse : pas d'escalier)
+    case 'pointes de diamant':{const a=ph(pas),b=ac/(pas*1.6),u=a+b,w=a-b;return Math.max(0,1-2*Math.max(Math.abs(fract(u)-.5),Math.abs(fract(w)-.5))*1.0);}
+    case 'corde':{const v=2*fract(ph(pas)+ac/pas*(.55+.4*v0(p)))-1;return .5+.5*Math.cos(Math.PI*v);}
+    case 'panier tressé':{const C=3*pas,ia=Math.floor(ph(C)),ib=Math.floor(ac/C),fa=fract(ph(C)),fb=fract(ac/C),hor=((ia+ib)&1)===0;
+      const q=hor?fract(fb*3):fract(fa*3),e=Math.min(fa,1-fa,fb,1-fb)*C;return (.45+.55*(.5+.5*Math.cos(Math.PI*(2*q-1))))*sm(0,.3,e);}
+    case 'briques':{const H=pas,Lb=2*pas,row=Math.floor(ac/H),xa=ph(Lb)+(row&1)*.5,fx=(fract(xa)-.5)*Lb,fy=(fract(ac/H)-.5)*H,g2=.09,rc=.12;
+      const qx=Math.abs(fx)-(Lb/2-g2-rc),qy=Math.abs(fy)-(H/2-g2-rc),sd=Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0)-rc;return sm(0,.3,-sd);}
+    }return 0;}
   if(nom==='generatif'){const k=2*Math.PI/pas,z=g*.37;switch(m){
     case 'gyroïde':return .5+.5*Math.max(-1,Math.min(1,(Math.sin(k*X)*Math.cos(k*Y)+Math.sin(k*Y)*Math.cos(z)+Math.sin(z)*Math.cos(k*X))/1.5));
     case 'Schwarz P':return .5+.5*Math.max(-1,Math.min(1,(Math.cos(k*X)+Math.cos(k*Y)+Math.cos(z))/2.2));
@@ -722,7 +855,10 @@ const SANS_POLAIRE=new Set(['phyllotaxie','Mandelbrot']);
 // raccord exact impossible (bruit, Voronoi, interferences...) : ces motifs n'ont pas de
 // direction privilegiee, on les pose a plat (vue de dessus), sans jonction. Seul Mandelbrot
 // (une tuile, pas un motif continu) garde le fondu.
-function motifLunette(k,u,s,p){const ua=fract(u+(p.pivot||0)/360),Y=s*LZ,md=FAMILLES[k].modes[Math.round(p.mode||0)];
+/* (14/10) guilloches sur la lunette : creux et cretes des sillons en V ARRONDIS (profil lisse C1). Sur la grille de la
+   lunette, un V coupe en biais faisait des dents ; le cadran (grille dans le repere du motif) garde le V vif. */
+function motifLunette(k,u,s,p){const v=motifLunette0(k,u,s,p);if(k!=='guillochage')return v;const c=Math.max(0,Math.min(1,v));return .5-.5*Math.cos(Math.PI*c);}
+function motifLunette0(k,u,s,p){const ua=fract(u+(p.pivot||0)/360),Y=s*LZ,md=FAMILLES[k].modes[Math.round(p.mode||0)];
   let j=Math.round(p.jonction??1);if(j===1&&!raccordExact(k,p))j=md==='Mandelbrot'?0:2;
   if(j===2){const R=PERIM/(2*Math.PI)+Y,t=2*Math.PI*u+(p.pivot||0)*Math.PI/180;
     return famille(k,R*Math.cos(t),R*Math.sin(t),{dial:!SANS_POLAIRE.has(md),r:R,t},p);}
@@ -748,6 +884,11 @@ function champDessin(u,s,p){const d=DESSINS[Math.round(p.dessin||0)];
     const reps=Math.max(1,Math.round(PERIM/((c.format||4)*LZ*1.8)));return valeurCarte(c,fract(u*reps)*(c.w-1),s*(c.h-1),{detail:.3,contraste:1,inverser:0});}
   if(d.fam)return DERIVE?Math.max(0,Math.min(1,motifLunette(DERIVE.k,u,s,DERIVE.p))):0;
   return Math.max(0,Math.min(1,d.f(u,s,p)));}
+/* (14/10, Baptiste : « embossages en qualite exacte ») PROFIL LISSE (C1). Le creux etait une suite de plans (arete vive
+   au bord, au pied et entre facettes) : sur une grille, une arete qui ne tombe pas sur une rangee fait un escalier. Ici
+   le profil est filtre sur +-0,05 mm (arete arrondie de 0,1 mm, plus fine que ce que l'impression rend) : la surface est
+   lisse partout, la grille la suit sans escalier ni facette, et le contour reste exact (distance au contour exacte). */
+function profilLisse(t,p){const r=.05;let a=0;for(const [o,w] of [[-1,1],[-.5,4],[0,6],[.5,4],[1,1]])a+=w*(t+o*r<=0?0:profilCreux(t+o*r,p));return a/16;}
 function profilCreux(t,p){const D=p.profondeur,n=Math.max(1,Math.round(p.facettes||1)),a0=Math.max(15,Math.min(90,p.angle))*Math.PI/180;
   let x=0,y=0;for(let k=0;k<n;k++){const a=a0*(1-k/(2*n)),dy=D/n,dx=a>=Math.PI/2-1e-3?0:dy/Math.tan(a);
     if(t<=x+dx)return y+(dx>0?(t-x)*Math.tan(a):dy);x+=dx;y+=dy;}return D;}
@@ -793,15 +934,15 @@ function distanceContour(u,s,p){const C=champDistance(p),x=(u-Math.floor(u))*C.N
    - FACE : damier de cases ~0,75 mm, le long du pli, qui s'etage vers le verre la ou la face s'elargit (coins).
    - BISEAU : frise du rectangle d'or de Fibonacci (carres 5, 3, 2, 1, 1 en spirale), en damier, repetee en
      alternance miroir / inverse. Plus petit carre : 0,5 mm (> 0,3 mm imprimable). */
-const W1_DESSIN="damier W1 (Fibonacci)";
+const W1_DESSIN="damier W1 (Fibonacci)",W1_PAVES="pavés bombés (Pattern watch)";
 /* (13/10) DESSOUS DES COQUES EXACTES : la surface decoree descendue TOUT DROIT (-y) de « anc ». Decalee le long de la
    normale locale elle se repliait au pli la ou la face est plus etroite que le decalage (0,4 mm de face a 6 h et 12 h) ;
    decalee le long de la bissectrice elle sortait de la matiere cote verre (+120 mm3 a la soudure). Une translation
    verticale ne se replie jamais et reste sous la surface, dans la matiere de la lunette. */
 function dessousZone(i,N,sg,anc=ANCRAGE){const q=pointZone(i,N,sg,2,0,true);return [q[0],q[1]-anc,q[2]];}
-function w1Actif(){const L=state.lunette;return L.motif==='embossage'&&DESSINS[Math.round(L.params.dessin||0)]?.nom===W1_DESSIN&&(L.zone||'biseau')==='tout';}
+function w1Actif(){const L=state.lunette,nom=DESSINS[Math.round(L.params.dessin||0)]?.nom;return L.motif==='embossage'&&(nom===W1_DESSIN||nom===W1_PAVES)&&(L.zone||'biseau')==='tout';}
 let _W1=null;
-function w1Plan(p){const D=Math.max(.05,p.profondeur||.35),ang=Math.max(15,Math.min(90,p.angle||60)),cle=[D,ang].join();
+function w1Plan(p){const D=Math.max(.05,p.profondeur||.35),ang=Math.max(15,Math.min(90,p.angle||60)),paves=DESSINS[Math.round(p.dessin||0)]?.nom===W1_PAVES,cle=[D,ang,paves].join();
   if(_W1&&_W1.cle===cle)return _W1;
   const KS=10,KX=16,KY=15,B0=5;                       // unite Fibonacci, case de face (X, Y), bande plate au pli (en pas g)
   const nR=Math.max(3,2*Math.round((PERIM/2/(.05*80)-1)/2)+1),Nd=80*nR,N=2*Nd,g=PERIM/N;     // nR impair : les deux plis du miroir tombent sur le meme rectangle
@@ -824,13 +965,41 @@ function w1Plan(p){const D=Math.max(.05,p.profondeur||.35),ang=Math.max(15,Math.
     for(let x=0;x<Nd;x++){const R=Math.floor(x/(8*KS)),inv=R&1;let lx=x%(8*KS);if(inv)lx=8*KS-1-lx;
       for(let r=B0;r<B0+H5;r++){const v=FIB(Math.floor(lx/KS),Math.floor((r-B0)/KS))^inv;if(v)S[x*RS+r]=1;}}}
   const W=Math.max(1,Math.round(D/Math.tan(ang*Math.PI/180)/g));
-  _W1={cle,N,Nd,g,RF,RS,lf,lb,F,S,W,D,xi};return _W1;}
+  _W1={cle,N,Nd,g,RF,RS,lf,lb,F,S,W,D,xi,paves};
+  if(paves){/* pas des paves : un nombre entier par demi-tour (miroir exact a 6 h / 12 h) */const H=Nd*g,pas=(p0,q)=>H/Math.max(2,Math.round(H/p0));
+    _W1.PV=[{px:pas(.84),py:.68,gp:.12,rho:.2,rc:.2,bombe:.04,L:lf},{px:pas(1.2),py:.94,gp:.12,rho:.24,rc:.28,bombe:.06,L:lb}];}   // sillon a mi-profondeur >= 0,32 mm (FAB.detail 0,3)
+  return _W1;}
+/* (13/10, Baptiste, photo de la Pattern watch : « comme ca ») PAVES BOMBES. Paves aux angles arrondis en quinconce, plus
+   petits sur la face que sur le cote, dessus polis, sillons bruts. Le relief est une fonction LISSE (C1) de la distance
+   signee au pave le plus proche : -D au fond du sillon, epaule en S (smoothstep) sur rho, dessus a 0. Sans aucune arete
+   vive, il n'y a ni escalier ni mini-facette, quelle que soit la grille ; sillon >= 0,26 mm au fond (imprimable). Un pave
+   qui ne tient pas dans la largeur locale (marge 0,5 mm au bord) est plein : la surface reste lisse jusqu'au bord. */
+function w1Paves(Z,x,y,dom){const P=Z.PV[dom],g=Z.g,N=Z.N,Nd=Z.Nd,B0=5*g,Y=y*g;
+  const w=((x-N/4)%N+N)%N,Xd=(w<=Nd?w:N-w)*g;
+  const larg=Xc=>{const c=((Xc/g+N/4)%N+N)%N,i=Math.floor(c),f=c-i;return P.L[i%N]*(1-f)+P.L[(i+1)%N]*f;};
+  // bandes plates (pli, et marge de 0,5 mm le long du bord) : distance signee positive DANS la bande
+  const cBord=(larg(Xd)-.5)-Y,cPli=Y-B0;let d=Math.max(-cBord,-cPli);
+  const ax=P.px/2-P.gp/2,ay=P.py/2-P.gp/2,k0=Math.floor((Y-B0)/P.py);
+  for(let k=k0-1;k<=k0+1;k++){if(k<0)continue;const o=k&1?P.px/2:0,cy=B0+(k+.5)*P.py,i0=Math.floor((Xd-o)/P.px);
+    for(let i=i0-1;i<=i0+1;i++){const cx=(i+.5)*P.px+o,dx=Math.abs(Xd-cx),dy=Math.abs(Y-cy);
+      // (imprimabilite) seuls les paves ENTIERS sont poses, a un sillon des bandes : un pave rogne par une bande laissait
+      // un eclat de moins de 0,3 mm ; la place restante s'ajoute a la bande plate
+      // un pave rogne par une bande (sillon le long de la bande) n'est garde que s'il lui reste >= 0,35 mm de dessus
+      const lim=Math.min(larg(cx-ax),larg(cx),larg(cx+ax))-.5-P.gp,y0=Math.max(cy-ay,B0+P.gp),y1=Math.min(cy+ay,lim);
+      if(y1-y0-P.rho<.35)continue;
+      const qx=dx-ax+P.rc,qy=dy-ay+P.rc,sdf=Math.hypot(Math.max(qx,0),Math.max(qy,0))+Math.min(Math.max(qx,qy),0)-P.rc;
+      const sk=.08,smin=(a,b)=>{const m=Math.min(a,b);return m-sk*Math.log(Math.exp((m-a)/sk)+Math.exp((m-b)/sk));};   // minimum LISSE : pas d'arete au raccord
+      const dp=smin(smin(-sdf,cBord-P.gp),cPli-P.gp);if(dp>d)d=dp;}}
+  // epaule en S puis dessus legerement bombe (le reflet s'arrondit comme sur la Pattern watch)
+  // les bandes (pli, marge de bord) sont EXACTEMENT a la surface d'origine : le relief s'y efface en douceur (C1), sans
+  // marche avec le sommet de bord (une face plus etroite que la marge, a 6 h et 12 h, reste plate)
+  return (-Z.D*(1-sm(0,P.rho,d))-P.bombe*(1-sm(P.rho,P.rho+.3,d)))*sm(0,.12,cBord)*sm(0,.12,cPli);}
 // creux en (colonne a, rangee b) du domaine dom (0 face, 1 biseau)
 function w1HMonde(p){const Z=w1Plan(p),th=(Math.atan2(PZ.z,PZ.x)+2*Math.PI)%(2*Math.PI),r=Math.hypot(PZ.x,PZ.z),x=uArc(th/(2*Math.PI))*Z.N,rt=tab(T_TOP,th),rc=tab(T_C4,th);
   if(r<=rt)return w1H(Z,x,(rt-r)/Z.g,0);const lb=Math.hypot(rc-rt,Y_HAUT-Y_C4);return w1H(Z,x,(r-rt)/Math.max(1e-6,rc-rt)*lb/Z.g,1);}
 function w1Creux(Z,a,b,dom){if(b<0)return 0;const R=dom?Z.RS:Z.RF;if(b>=R)return 0;const x=Z.xi(((a%Z.N)+Z.N)%Z.N);return (dom?Z.S:Z.F)[x*R+b];}
 // profondeur exacte au point (x colonnes, y rangees) : -D * min(1, distance de Tchebychev au bord du creux / W)
-function w1H(Z,x,y,dom){const ax=Math.floor(x),ay=Math.floor(y);
+function w1H(Z,x,y,dom){if(Z.paves)return w1Paves(Z,x,y,dom);const ax=Math.floor(x),ay=Math.floor(y);
   if(!w1Creux(Z,ax,ay,dom)&&!(x===ax&&w1Creux(Z,ax-1,ay,dom))&&!(y===ay&&w1Creux(Z,ax,ay-1,dom))&&!(x===ax&&y===ay&&w1Creux(Z,ax-1,ay-1,dom)))return 0;
   const W=Z.W;let d=W;
   for(let a=ax-W-1;a<=ax+W+1;a++){const dx=Math.max(0,a-x,x-(a+1));if(dx>=d)continue;
@@ -843,21 +1012,24 @@ function w1Maillage(interieur){const Z=w1Plan(state.lunette.params),{N,g,RF,RS}=
   // 1. relief exact de chaque noeud ; une rangee n'est gardee que si elle porte du relief (ou borde du relief) sur au
   //    moins une colonne : le profil est regle (face plane, biseau droit), une rangee plate partout n'apporte rien
   const hF=new Float32Array(N*(RF+1)),hS=new Float32Array(N*(RS+1)),gF=new Uint8Array(RF+1),gS=new Uint8Array(RS+1);
-  for(let c=0;c<N;c++){const kb=Math.ceil(Z.lf[c]/g),ke=Math.ceil(Z.lb[c]/g);
+  if(!Z.paves)for(let c=0;c<N;c++){const kb=Math.ceil(Z.lf[c]/g),ke=Math.ceil(Z.lb[c]/g);
     for(let r=1;r<RF;r++)if(r<kb){const h=w1H(Z,c,r,0);hF[c*(RF+1)+r]=h;if(h<0){gF[r-1]=gF[r]=gF[r+1]=1;}}
     for(let r=1;r<RS;r++)if(r<ke){const h=w1H(Z,c,r,1);hS[c*(RS+1)+r]=h;if(h<0){gS[r-1]=gS[r]=gS[r+1]=1;}}}
   // chaine : [bord verre] face r = RF-1..1 [pli] biseau r = 1..RS-1 [bord exterieur] (+ dessous si coque)
-  const CH=[[0,RF]];for(let r=RF-1;r>=1;r--)if(gF[r])CH.push([0,r]);CH.push([-1,0]);for(let r=1;r<RS;r++)if(gS[r])CH.push([1,r]);CH.push([1,RS]);
+  const CH=[[0,RF]];for(let r=RF-1;r>=1;r--)if(gF[r]||Z.paves)CH.push([0,r]);CH.push([-1,0]);for(let r=1;r<RS;r++)if(gS[r]||Z.paves)CH.push([1,r]);CH.push([1,RS]);
   const KO=CH.length,K=KO+(MI?MI+1:0),idx=new Int32Array(N*K),P=[],H=[];
   const pose=(c,sg,h)=>{const q=pointZone(c,N,sg,2,h,true);P.push(q[0],q[1],q[2]);H.push(h);return P.length/3-1;};
   for(let c=0;c<N;c++){const L=Z.lf[c]+Z.lb[c],kb=Math.ceil(Z.lf[c]/g),ke=Math.ceil(Z.lb[c]/g),bordV=pose(c,0,0),bordE=pose(c,1,0);let k=0;
-    for(const [d,r] of CH)idx[c*K+k++]=d<0?pose(c,Z.lf[c]/L,0):d===0?(r>=kb?bordV:pose(c,(Z.lf[c]-r*g)/L,hF[c*(RF+1)+r])):(r>=ke?bordE:pose(c,(Z.lf[c]+r*g)/L,hS[c*(RS+1)+r]));
+    if(Z.paves){   /* paves (surface lisse) : rangees REPARTIES sur la largeur de chaque colonne, pas de repli en dents de scie */
+      for(const [d,r] of CH){if(d<0){idx[c*K+k++]=pose(c,Z.lf[c]/L,0);continue;}
+        const Lc=d?Z.lb[c]:Z.lf[c],R=d?RS:RF,Y=r*Lc/R;idx[c*K+k++]=r>=R?(d?bordE:bordV):pose(c,d?(Z.lf[c]+Y)/L:(Z.lf[c]-Y)/L,w1Paves(Z,c,Y/g,d));}}
+    else for(const [d,r] of CH)idx[c*K+k++]=d<0?pose(c,Z.lf[c]/L,0):d===0?(r>=kb?bordV:pose(c,(Z.lf[c]-r*g)/L,hF[c*(RF+1)+r])):(r>=ke?bordE:pose(c,(Z.lf[c]+r*g)/L,hS[c*(RS+1)+r]));
     if(MI){const sp=Z.lf[c]/L,h2=MI/2,dess=sg=>{const q=dessousZone(c,N,sg,Math.max(ANCRAGE,Z.D/Math.cos(Math.atan2(Y_HAUT-Y_C4,1.5))+.15));P.push(q[0],q[1],q[2]);H.push(-ANCRAGE);return P.length/3-1;};for(let m=h2;m>=0;m--)idx[c*K+k++]=dess(sp+(1-sp)*m/h2);for(let m=h2-1;m>=0;m--)idx[c*K+k++]=dess(sp*m/h2);}   // dessous (coque) : biseau puis face, pli compris
   }
   const Pf=new Float32Array(P),I=[];
   for(let c=0;c<N;c++){const c2=(c+1)%N;for(let k=0;k<K-(MI?0:1);k++){const k2=(k+1)%K,a=idx[c*K+k],b=idx[c2*K+k],cc=idx[c*K+k2],d=idx[c2*K+k2];
     // diagonale de l'onglet : celle dont le milieu vaut le relief exact au centre de la maille
-    let choix=0;if(k2<KO&&k2>0){const A=CH[k],B=CH[k2];
+    let choix=0;if(!Z.paves&&k2<KO&&k2>0){const A=CH[k],B=CH[k2];
       if(A[0]===B[0]&&A[0]>=0&&Math.abs(A[1]-B[1])===1){const hc=w1H(Z,c+.5,Math.min(A[1],B[1])+.5,A[0]);
         const e1=Math.abs((H[b]+H[cc])/2-hc),e2=Math.abs((H[a]+H[d])/2-hc);if(Math.abs(e1-e2)>1e-9)choix=e1<e2?1:2;}}
     const T=(x,y,z)=>{if(x!==y&&y!==z&&x!==z)I.push(x,y,z);};
@@ -883,7 +1055,7 @@ let VEC_PAS_ARETE=.2,VEC_PAS_ANNEAU=.45;   // fleche < 0,01 mm sur la lunette (r
 function vecMaillage(interieur){const _a=VEC_PAS_ARETE,_n=VEC_PAS_ANNEAU;if(APERCU&&!interieur){VEC_PAS_ARETE=.4;VEC_PAS_ANNEAU=.9;}try{return vecMaillage0(interieur);}finally{VEC_PAS_ARETE=_a;VEC_PAS_ANNEAU=_n;}}
 function vecMaillage0(interieur){const L=state.lunette,p=L.params,md=FORMES[Math.round(p.forme||0)][1],pas=Math.max(.15,p.pas||1.2),g=7,rel=p.relief||.35;
   LZ=largeurZone();const R0=PERIM/(2*Math.PI),phi=(p.pivot||0)*Math.PI/180,N=grilleMotif().N,fin=Math.round(p.finition??2);
-  const mIn=(MARGE_FINE+.1)/LZ,mOut=1-(MARGE_FINE+.1)/LZ,lis=lisereActif();
+  const mIn=(margeInt()+.1)/LZ,mOut=1-(MARGE_FINE+.1)/LZ,lis=lisereActif();
   const prof=th=>{const P=profilZone(th);if(P.length<3)return null;const l0=Math.hypot(P[1][0]-P[0][0],P[1][1]-P[0][1]),l1=Math.hypot(P[2][0]-P[1][0],P[2][1]-P[1][1]);return {sf:l0/(l0+l1),Lp:l0+l1};};
   const pliU=u=>prof(thetaArc(u));                              // pli et longueur du profil a l'abscisse u
   // ---- sites (meme tirage que worley) ----
@@ -1053,11 +1225,30 @@ function vecMaillage0(interieur){const L=state.lunette,p=L.params,md=FORMES[Math
   return {geo,H:Float32Array.from(H),poli:mk(haut),brut:mk(bas)};}
 
 FL.embossage=(u,s,p)=>{let d;
-  if(DESSINS[Math.round(p.dessin||0)].nom===W1_DESSIN){const h=w1HMonde(p);dernierD=h<0?-1:1;return h;}
+  {const nm=DESSINS[Math.round(p.dessin||0)].nom;if(nm===W1_DESSIN||nm===W1_PAVES){const h=w1HMonde(p);dernierD=h<0?-1:1;return h;}}
+  if(DESSINS[Math.round(p.dessin||0)].texte){d=texteSD(p);dernierD=d;return d>=.06?0:-profilLisse(-d,p);}
   {const D_=DESSINS[Math.round(p.dessin||0)];if(D_.ia||D_.monde){const seuil=1-p.proportion,e=.03,du=e/PERIM,ds=e/Math.max(.5,LZ),f=champDessin(u,s,p)-seuil;   // l'image IA vue de dessus se lit en position monde : estimation locale
     const gx=(champDessin(u+du,s,p)-champDessin(u-du,s,p))/(2*e),gy=(champDessin(u,Math.min(1,s+ds),p)-champDessin(u,Math.max(0,s-ds),p))/(2*e),g=Math.hypot(gx,gy);d=g>1e-6?f/g:(f>=0?9:-9);}
-  else d=distanceContour(u,s,p);}                                           // distance signee exacte (mm), > 0 sur le dessus
+  else d=distanceContour(u,s,p);}
+  if(!DESSINS[Math.round(p.dessin||0)].ia&&!DESSINS[Math.round(p.dessin||0)].monde){dernierD=d;return d>=.06?0:-profilLisse(-d,p);}                                           // distance signee exacte (mm), > 0 sur le dessus
   dernierD=d;return d>=0?0:-profilCreux(-d,p);};
+/* (14/10) BAS-RELIEFS PARAMETRIQUES DE LA LUNETTE : surfaces continues generees (pas d'image), posees en coordonnees
+   (le long du tour, en travers), periodiques : un nombre entier de motifs fait le tour. */
+FL.relief=(u,s,p)=>{const E=Math.max(.3,p.echelle||1.2),al=fract(u)*PERIM,ac=s*LZ,g=Math.round(p.graine||7),k=Math.round(p.paysage||0);
+  const n=L=>Math.max(3,Math.round(PERIM/L)),cy=(L)=>2*Math.PI*fract(u)*n(L);       // phase entiere le long du tour
+  const R0=PERIM/(2*Math.PI),X=(R0+ac)*Math.cos(2*Math.PI*u),Y=(R0+ac)*Math.sin(2*Math.PI*u);   // plan sans couture (bruit)
+  let v=0;
+  if(k===0){const L=3*E;v=.5+.5*Math.sin(cy(L)+2.2*Math.sin(2*Math.PI*ac/(1.7*E)));}                                   // vagues
+  else if(k===1){v=(Math.sin(cy(4*E)+ac/E)+.5*Math.sin(cy(2.6*E)-1.1*ac/E+1.3))/3+.5;}   // houle (creux >= 0,3 mm)
+  else if(k===2){const f=fbm(X/(3.5*E),Y/(3.5*E),g,3),K=5,q=f*K,i=Math.floor(q);v=(i+sm(.6,1,q-i))/K;}                      // topographie en terrasses
+  else if(k===3){let a=0;const nc=Math.max(3,Math.round(PERIM/(9*E)));for(let c=0;c<nc;c++){const cu=(c+.5)/nc,dx=(fract(u-cu+.5)-.5)*PERIM,dy=ac-LZ*(.3+.4*hash2(c,1,g)),d=Math.hypot(dx,dy);
+      a+=Math.cos(2*Math.PI*d/(1.1*E))*Math.exp(-d/(4*E));}v=.5+.35*a;}                                                // ondes concentriques
+  else if(k===4){const L=2.2*E,w=fract(cy(L)/(2*Math.PI)+.35*fbm(X/(5*E),Y/(5*E),g,2)),a=w<.72?w/.72:(1-w)/.28;v=sm(0,1,a);}  // dunes
+  else{const L=4*E,vine=LZ*(.5+.22*Math.sin(cy(L))),dV=Math.abs(ac-vine),tige=Math.max(0,1-dV/(.18*E));let fe=0;          // feuillage
+    for(const sg of [0,1]){const q=fract(cy(L)/(2*Math.PI)+sg*.5),dx=(q-.5)*(PERIM/n(L)),side=sg?1:-1,cx=0,cyy=vine+side*.9*E,ex=dx/(1.25*E),ey=(ac-cyy)/(.55*E);
+      const r2=ex*ex+ey*ey;if(r2<1){const nerv=Math.abs(ey)<.12?.75+.25*Math.abs(ey)/.12:1;fe=Math.max(fe,Math.sqrt(1-r2)*nerv);}}
+    v=Math.max(tige*.7,fe);}
+  return (p.relief||.35)*Math.max(0,Math.min(1,v));};
 for(const k of Object.keys(FAMILLES)){
   FL[k]=(u,s,p)=>p.relief*Math.max(0,Math.min(1,motifLunette(k,u,s,p)));
   FC[k]=(x,z,r,t,p)=>{const Y=-z;return p.relief*Math.max(0,Math.min(1,famille(k,x,Y,{dial:true,r,t:Math.atan2(Y,x)},p)));};}
@@ -1067,7 +1258,9 @@ const T_OUT=[18.45,18.55,18.73,19.04,19.45,19.95,20.5,21.03,21.47,21.74,21.81,21
 const T_C4 =[18.30,18.40,18.59,18.90,19.31,19.81,20.36,20.89,21.33,21.60,21.63,21.49,21.22,20.90,20.57,20.29,20.06,19.92,19.87];
 const T_TOP=[15.94,16.00,16.17,16.44,16.82,17.29,17.83,18.38,18.71,18.66,18.29,17.86,17.42,17.01,16.66,16.37,16.16,16.03,15.99];
 function tab(T,th){let d=(th*180/Math.PI%360+360)%360; if(d>180)d=360-d; if(d>90)d=180-d;
-  const i=Math.min(17,Math.floor(d/5)),f=(d-5*i)/5; const p0=T[Math.max(0,i-1)],p1=T[i],p2=T[i+1],p3=T[Math.min(18,i+2)];
+  /* (13/10, Baptiste : « aspect exterieur sans defaut ») extremites en MIROIR (le releve est symetrique a 0° et 90°) :
+     bornees, elles cassaient la tangente du contour a 3, 6, 9 et 12 h -> arete visible dans les reflets */
+  const i=Math.min(17,Math.floor(d/5)),f=(d-5*i)/5; const p0=T[i>0?i-1:1],p1=T[i],p2=T[i+1],p3=T[i+2<=18?i+2:36-(i+2)];
   return p1+.5*f*(p2-p0+f*(2*p0-5*p1+4*p2-p3+f*(3*(p1-p2)+p3-p0)));} // Catmull-Rom
 const Y_BAS=2.78, Y_HAUT=6.465, Y_C4=4.0, Y_FL=3.85, R_IN=15.0;
 
@@ -1166,7 +1359,8 @@ function pointZone(i,N,j,M,decal,brut){const ua=i/N,th=thetaArc(ua),P=profilZone
   const carte=state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)]?.carte;
   let garde;if(carte){if(_extCol.i!==i||_extCol.N!==N){_extCol.i=i;_extCol.N=N;_extCol.v=surProfil(P,1)[0]>surProfil(P,0)[0];}const ext1=_extCol.v,dExt=(ext1?1-sg:sg)*LZ,dInt=(ext1?sg:1-sg)*LZ;
     garde=sm(MARGE_FINE,MARGE_FINE+.25,dInt)*sm(0,.06,dExt);}
-  else{const dm=Math.min(sg,1-sg)*LZ;garde=sm(MARGE_FINE,MARGE_FINE+.25,dm);}
+  else{const dm=Math.min(sg,1-sg)*LZ,mi=margeInt();garde=sm(MARGE_FINE,MARGE_FINE+.25,dm);
+    if(mi>MARGE_FINE){let Lp=0;for(let q=1;q<P.length;q++)Lp+=Math.hypot(P[q][0]-P[q-1][0],P[q][1]-P[q-1][1]);garde*=sm(mi,mi+.25,sg*Lp);}}   // contour du verre plat (mm reels)
   // LISERE (13/10) : bande plate et polie de part et d'autre du pli, quand le motif n'est pas lie a la jonction
   dernierL=NaN;if(sf>0&&lisereActif()){dernierL=Math.abs(sg-sf)*Lp-LISERE;if(dernierL<0)garde=0;}
   dernierD=NaN;const h=decal!==undefined?decal:(garde>0?FL[state.lunette.motif](ua,s,state.lunette.params)*garde:0);
@@ -1191,7 +1385,7 @@ function lignesMotif(H,D){const m=state.lunette.motif,p=state.lunette.params;
   if(m==='embossage'){const D0=p.profondeur,nf=Math.max(1,Math.round(p.facettes||1)),a0=Math.max(15,Math.min(90,p.angle))*Math.PI/180,niv=[0];let x=0;
     for(let k=0;k<nf;k++){const a=a0*(1-k/(2*nf)),dy=D0/nf;x+=a>=Math.PI/2-1e-3?0:dy/Math.tan(a);if(x+niv[niv.length-1]>1e-4)niv.push(-x);}   // bord, pieds des facettes
     return {F:D,niv};}
-  if(m==='image'&&Math.round(p.finition??1)===1){let hm=0;for(const v of H)if(v>hm)hm=v;if(hm>1e-4)return {F:H,niv:[SEUIL_POLI*hm]};}   // limite de polissage
+  if((m==='image'||m==='relief')&&Math.round(p.finition??1)===1){let hm=0;for(const v of H)if(v>hm)hm=v;if(hm>1e-4)return {F:H,niv:[SEUIL_POLI*hm]};}   // limite de polissage
   return null;}
 // (13/10) essai ecarte : sur les cones des facettes cristallines, la detection des aretes par pentes froissait la
 // surface (faux positifs sur les generatrices courbes). Desactive ; le maillage exact de ces motifs est vectoriel.
@@ -1243,7 +1437,7 @@ function diagLigne(P,a,b,c,d,I,dessus){if(dessus){const A=dessus(a),B=dessus(b),
   diag(P,a,b,c,d,I);}
 function dessusZone(H){const m=state.lunette.motif,p=state.lunette.params;
   if(m==='embossage')return v=>H[v]>-2e-4;
-  if(m==='image'&&Math.round(p.finition??1)===1){let hm=0;for(const v of H)if(v>hm)hm=v;const L=SEUIL_POLI*hm-1e-6;return v=>H[v]>=L;}
+  if((m==='image'||m==='relief')&&Math.round(p.finition??1)===1){let hm=0;for(const v of H)if(v>hm)hm=v;const L=SEUIL_POLI*hm-1e-6;return v=>H[v]>=L;}
   return null;}
 function indexGrille(N,M,P,H,LI){const I=[],d0=H?dessusZone(H):null,ds=LI&&lisereActif()?(d0?v=>d0(v)||LI[v]<=1e-6:v=>LI[v]<=1e-6):d0;for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M-1;j++){const a=i*M+j,b=i2*M+j;diagLigne(P,a,b,a+1,b+1,I,ds);}}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setIndex(I);return g;}
@@ -1287,7 +1481,7 @@ function separer(g,H,LI){
   const emb=m==='embossage'&&fin===1;
   // lisere : bande polie (sauf finition mate), ses 3 sommets dans la bande ou sur son bord
   const lis=LI&&fin!==0?t=>LI[I[t]]<=1e-6&&LI[I[t+1]]<=1e-6&&LI[I[t+2]]<=1e-6:()=>false;
-  for(let t=0;t<I.length;t+=3){const a=H[I[t]],b=H[I[t+1]],c=H[I[t+2]];(lis(t)||(emb?Math.min(a,b,c)>-2e-4:poli((a+b+c)/3)))?haut.push(I[t],I[t+1],I[t+2]):bas.push(I[t],I[t+1],I[t+2]);}
+  for(let t=0;t<I.length;t+=3){const a=H[I[t]],b=H[I[t+1]],c=H[I[t+2]];(lis(t)||(emb?Math.min(a,b,c)>(w1Actif()&&_W1&&_W1.paves?-.85*(p.profondeur||.35):-2e-4):poli((a+b+c)/3)))?haut.push(I[t],I[t+1],I[t+2]):bas.push(I[t],I[t+1],I[t+2]);}
   const mk=ix=>{const n=new THREE.BufferGeometry();n.setAttribute('position',g.getAttribute('position'));n.setAttribute('color',g.getAttribute('color'));n.setIndex(ix);return n;};
   return [mk(haut),mk(bas)];}
 // ── MAILLAGE PARAMETRIQUE DES RESEAUX (12/10, Baptiste : « la 3D la plus propre et la plus parfaite possible,
@@ -1298,6 +1492,7 @@ function separer(g,H,LI){
 // tour : les noeuds sont identifies modulo ce vecteur, aucune couture). Les bords de la zone (marge plate) et le
 // pli face/biseau sont des DECOUPES exactes ; la marge plate est cousue aux colonnes des bandes voisines.
 function reseauParam(){const F=famEff();if(!F||state.lunette.motif!=='arete')return null;const p=F.p,k=F.k;
+  if(!['reseau','stries'].includes(k))return null;   // (14/10) facettes planes seulement : les guillochages (reliefs continus) passent sur la grille fine, 10 fois plus vite
   if(Math.round(p.jonction??1)!==1||celluleDroite())return null;
   const md=FAMILLES[k].modes[Math.round(p.mode||0)],R=(RACCORD[k]||{})[md];if(!Array.isArray(R))return null;
   const q=raccordExact(k,p);if(!q)return null;
@@ -1310,7 +1505,7 @@ let KC_PARAM=1;
 // BORD DE ZONE PARAMETRIQUE : au lieu d'un fondu (qui deforme les pyramides en surfaces gauches), le motif est
 // COUPE par un plan incline (chanfrein a la pente des facettes) qui part de la marge : h = min(motif, chanfrein).
 // Les deux sont plans par morceaux : l'intersection est une droite, decoupee exactement dans le maillage.
-const chanfrein=sg=>KC_PARAM*(Math.min(sg,1-sg)*LZ-MARGE_FINE);
+const chanfrein=sg=>KC_PARAM*Math.min(sg*LZ-margeInt(),(1-sg)*LZ-MARGE_FINE);
 function hBrutUS(ua,sg){const th=thetaArc(ua);return FL[state.lunette.motif](fract(ua),sZone(sg,th),state.lunette.params);}
 // point de la zone a (ua, sg) quelconques (meme calcul que pointZone, hors motif d'origine)
 function pointUS(ua,sg,decal){const th=thetaArc(ua),P=profilZone(th);let [r0,y0,nr,ny]=surProfil(P,sg);const s=sZone(sg,th);PZ.x=r0*Math.cos(th);PZ.z=r0*Math.sin(th);
@@ -1324,7 +1519,7 @@ function pointUS(ua,sg,decal){const th=thetaArc(ua),P=profilZone(th);let [r0,y0,
 function plisZone(ua){const th=thetaArc(ua),P=profilZone(th);if(P.length<3)return null;
   const l0=Math.hypot(P[1][0]-P[0][0],P[1][1]-P[0][1]),l1=Math.hypot(P[2][0]-P[1][0],P[2][1]-P[1][1]);return l0/(l0+l1);}
 // -> {U,S (param), I (triangles, sens de la grille), bas:[ids sg=0], haut:[ids sg=1]} ; N = colonnes des bandes voisines
-function maillageReseau(R,N){const {sA,sB,c,si,Tm,Tn,piv}=R,X0=piv*PERIM,ya=MARGE_FINE/LZ,yb=1-ya,mrg=2*Math.max(sA,sB);
+function maillageReseau(R,N){const {sA,sB,c,si,Tm,Tn,piv}=R,X0=piv*PERIM,ya=MARGE_FINE/LZ,yb=1-MARGE_FINE/LZ,   /* contour plat : aplati par chanfrein() dans le reseau lui-meme (coupe exacte sur le pli) */mrg=2*Math.max(sA,sB);
   const U=[],S=[],ids=new Map(),key=(m,n)=>m*4194304+n;
   const XY=(m,n)=>{const A=m*sA,B=n*sB;return [c*A+si*B,-si*A+c*B];};      // inverse de tourner(X,Y,angle)
   const canon=(m,n)=>{const t=Math.floor((XY(m,n)[0]-X0)/PERIM+1e-9);return [m-t*Tm,n-t*Tn];};
@@ -1408,7 +1603,7 @@ function construireLunette(){
   const {N,M}=grilleMotif(), zone=state.lunette.zone||'biseau';noteRaccord();
   // fl / bas : contour MESURE de la tranche du boitier (si charge) -> lunette affleurante, meme reflet
   const top=th=>[tab(T_TOP,th),Y_HAUT], c4=th=>[tab(T_C4,th),Y_C4], fl=th=>[encoche(rayonTranche(th),th,Y_FL),Y_FL], bas=th=>[encoche(rayonTranche(th),th,Y_BAS),Y_BAS];
-  const RP=reseauParam(),[sommets,creux]=RP?separeeParam(RP,N):w1Actif()?(()=>{const Z=w1Maillage(false);return separer(Z.geo,Z.H);})():vecActif()?(()=>{const V=vecMaillage(false);return [V.poli,V.brut];})():grilleSeparee(N,M);    // zone decoree (UV depliee)
+  const RP=reseauParam(),[sommets,creux]=RP?separeeParam(RP,N):w1Actif()?(()=>{const Z=w1Maillage(false);if(_W1.paves){Z.geo.computeVertexNormals();const n=Z.geo.getAttribute('normal'),r=separer(Z.geo,Z.H);for(const q of r)q.setAttribute('normal',n);return r;}return separer(Z.geo,Z.H);})():vecActif()?(()=>{const V=vecMaillage(false);return [V.poli,V.brut];})():grilleSeparee(N,M);    // zone decoree (UV depliee)
   const alesage=bandeArc(N,th=>[R_IN,Y_BAS],th=>[R_IN,Y_HAUT]);           // alesage du verre : interieur, BRUT
   // portee du verre : MEME finition que le dessus du decor qui la borde (bas-relief mat -> brut ; embossage,
   // aretes vives ou bas-relief poli -> poli), pour qu'elle se fonde dans la lunette
@@ -1418,20 +1613,30 @@ function construireLunette(){
     sommets];
   if(zone==='face') polis.push(bandeArc(N,top,c4));                       // biseau lisse
   // tranche verticale : grille de 14 rangees pour porter l'encoche ronde de la couronne
-  const tr1=bandeArc(N,c4,fl),tr2=grille(N,20,(i,j)=>{const th=thetaArc(i/N),y=Y_FL+(Y_BAS-Y_FL)*j/19;
-    /* ENCOCHE SANS ESCALIER (12/10) : les sommets a moins d'une maille du cercle de l'encoche sont ramenes EXACTEMENT
-       sur le cercle (cote tranche s'ils sont dehors, cote fond plan s'ils sont dedans) : le bord suit l'arc, la
-       paroi est verticale, plus de marches de la grille */
-    const r0=rayonTranche(th),x0=r0*Math.cos(th),z0=r0*Math.sin(th);
-    if(x0>ENC_X-.5){const rho=Math.hypot(y-ENC_Y,z0),d=ENC_R-rho,snap=.75*Math.max((Y_FL-Y_BAS)/19,2*Math.PI*r0/N);
-      if(Math.abs(d)<snap&&rho>1e-6){const f=ENC_R/rho,y2=ENC_Y+(y-ENC_Y)*f,z2=z0*f;let t2=th;for(let k=0;k<4;k++)t2=Math.asin(Math.max(-1,Math.min(1,z2/rayonTranche(t2))));
-        return d>0?[ENC_X,y2,z2]:[rayonTranche(t2)*Math.cos(t2),y2,z2];}}
-    const r=encoche(r0,th,y);return [r*Math.cos(th),y,r*Math.sin(th)];});
-  // l'interieur de l'encoche de couronne est BRUT : on separe ses triangles (en retrait du contour)
-  const [tr2p,tr2b]=(()=>{const P=tr2.getAttribute('position').array,I=tr2.index.array,a=[],b=[];
-    for(let t=0;t<I.length;t+=3){let x=0,z=0;for(let k=0;k<3;k++){x+=P[I[t+k]*3]/3;z+=P[I[t+k]*3+2]/3;}
-      (Math.hypot(x,z)<tab(T_OUT,Math.atan2(z,x))-.05?b:a).push(I[t],I[t+1],I[t+2]);}
-    const mk=ix=>{const g=new THREE.BufferGeometry();g.setAttribute('position',tr2.getAttribute('position'));g.setIndex(ix);return g;};return [mk(a),mk(b)];})();
+  /* (13/10, Baptiste : « aspect exterieur sans defaut ») ENCOCHE DE COURONNE EXACTE. Le bord poli / brut se decidait
+     triangle par triangle sur la grille de la tranche (dents de 0,05 mm au bord de l'encoche, visibles de pres). Ici
+     la tranche est une grille (angle, hauteur) ; un sommet dans le cercle de l'encoche est au fond (x = ENC_X), dehors
+     il est sur la tranche ; chaque triangle a cheval est COUPE exactement sur le cercle (point de passage par
+     dichotomie, pose sur la tranche, commun aux deux triangles voisins) : bord poli = l'arc lui-meme. */
+  const NJ=20,yJ=j=>Y_FL+(Y_BAS-Y_FL)*j/(NJ-1);
+  const surTranche=(fi,y)=>{const th=thetaArc(fi/N),r0=rayonTranche(th);return [r0*Math.cos(th),y,r0*Math.sin(th)];};
+  const champEnc=(fi,y)=>{const th=thetaArc(fi/N),r0=rayonTranche(th),x0=r0*Math.cos(th);if(x0<=ENC_X)return -1;return ENC_R-Math.hypot(y-ENC_Y,r0*Math.sin(th));};
+  const CR=crantage();   // (14/10) tranche crantee facon monnaie : rainures en V, hors du logement de couronne
+  const tr1=bandeArc(N,c4,fl),tr2=grille(N,NJ,(i,j)=>{const y=yJ(j),p=surTranche(i,y),th=thetaArc(i/N);if(champEnc(i,y)>0)return [ENC_X,y,ENC_X*Math.tan(th)];
+    if(CR){const dk=CR.prof(th);if(dk>0){const f=(rayonTranche(th)-dk)/rayonTranche(th);return [p[0]*f,y,p[2]*f];}}return p;});   // fond : meme point que encoche() (couture avec le dessous)
+  const [tr2p,tr2b]=(()=>{const P0=tr2.getAttribute('position').array,I=tr2.index.array,PX=Array.from(P0),poli=[],brut=[],cache=new Map();
+    const par=v=>[(v/NJ)|0,yJ(v%NJ)],sg=v=>{const [fi,y]=par(v),f=champEnc(fi,y);return f>1e-9?1:f<-1e-9?-1:0;};
+    const coupe=(a,b)=>{const k=a<b?a+'_'+b:b+'_'+a;let r=cache.get(k);if(r!==undefined)return r;
+      const [p,q]=a<b?[a,b]:[b,a];let [fa,ya]=par(p),[fb,yb]=par(q);if(fb-fa>N/2)fb-=N;if(fa-fb>N/2)fa-=N;
+      const f0=champEnc(fa,ya)>0;let lo=0,hi=1;for(let it=0;it<40;it++){const t=(lo+hi)/2;if((champEnc(fa+(fb-fa)*t,ya+(yb-ya)*t)>0)===f0)lo=t;else hi=t;}
+      const t=(lo+hi)/2,fi=fa+(fb-fa)*t,pt=surTranche(fi,ya+(yb-ya)*t);r=PX.length/3;PX.push(pt[0],pt[1],pt[2]);cache.set(k,r);return r;};
+    const decoupe=(poly,garder)=>{const out=[];for(let i=0;i<poly.length;i++){const A=poly[i],B=poly[(i+1)%poly.length],sa=A.s,sb=B.s;
+        if(sa===0||(sa>0)===garder)out.push(A);if(sa&&sb&&sa!==sb)out.push({v:coupe(A.v,B.v),s:0});}return out;};
+    const fan=(Q,L)=>{for(let i=1;i<Q.length-1;i++)if(Q[0].v!==Q[i].v&&Q[i].v!==Q[i+1].v&&Q[0].v!==Q[i+1].v)L.push(Q[0].v,Q[i].v,Q[i+1].v);};
+    for(let t=0;t<I.length;t+=3){const T=[0,1,2].map(k=>({v:I[t+k],s:sg(I[t+k])}));
+      if(T.every(q=>q.s<=0)){fan(T,poli);continue;}if(T.every(q=>q.s>=0)){fan(T,brut);continue;}
+      fan(decoupe(T,false),poli);fan(decoupe(T,true),brut);}
+    const pos=new THREE.BufferAttribute(new Float32Array(PX),3),mk=ix=>{const g=new THREE.BufferGeometry();g.setAttribute('position',pos);g.setIndex(ix);return g;};return [mk(poli),mk(brut)];})();
   const trP=tranchePolie('lunette');if(trP)polis.push(tr1,tr2p);  // tranche polie (option, 12/10)
   const bruts=[creux, bandeArc(N,bas,th=>[R_IN,Y_BAS]), alesage, tr2b, ...(mat?[portee]:[]), ...(trP?[]:[tr1,tr2p])];         // creux du motif + dessous + alesage
   // deux groupes : 0 poli, 1 brut (le materiau 1 devient poli si « Alu brut » est coupe)
@@ -1458,9 +1663,11 @@ function construireLunette(){
     return o;};
   // (13/10) zone decoree hors reseau parametrique : plus de normales par facette (grille visible) mais un angle de
   // cassure par motif : les surfaces courbes sont lissees, les vraies aretes (bord du creux, facettes voulues) restent vives
-  const CASSE={embossage:10,image:35,arete:15};   // (avec poliSurf : sommets ET creux en normales lissees)
+  const CASSE={embossage:40,image:35,arete:30,relief:40};   // (14/10) embossage en profil lisse : 40°   // (avec poliSurf : sommets ET creux en normales lissees)
   const EXACT=w1Actif()||vecActif(),casse=EXACT?(poliSurf?40:22):0;   // maillages exacts : jamais de normales moyennees a travers une marche
-  const prep=gg=>EXACT&&(gg===sommets||gg===creux)?autoLisse(gg,casse):RP&&(gg===sommets||gg===creux)?(poliSurf?lisseC(gg):autoLisse(gg)):(gg===sommets||gg===creux)&&poliSurf?lisseC(gg):gg===sommets||gg===creux?autoLisse(gg,CASSE[state.lunette.motif]??15):gg===tr1?aligneTranche(lisse(gg)):gg===tr2p?normaleBoitier(lisse(gg)):gg===tr2b?facette(gg):lisse(gg);
+  const PAVES=w1Actif()&&_W1&&_W1.paves;   // paves bombes : surface C1 partout -> normales lisses (aucune arete a garder)
+  const garderN=gg=>{const n=gg.toNonIndexed(),o=new THREE.BufferGeometry();for(const k of ['position','normal','color'])if(n.getAttribute(k))o.setAttribute(k,n.getAttribute(k));return o;};   // normales de la surface ENTIERE (pas de couture poli / brut)
+  const prep=gg=>PAVES&&(gg===sommets||gg===creux)?garderN(gg):EXACT&&(gg===sommets||gg===creux)?autoLisse(gg,casse):RP&&(gg===sommets||gg===creux)?(poliSurf?lisseC(gg):autoLisse(gg)):(gg===sommets||gg===creux)&&poliSurf?lisseC(gg):gg===sommets||gg===creux?autoLisse(gg,CASSE[state.lunette.motif]??15):gg===tr1?aligneTranche(lisse(gg)):gg===tr2p?normaleBoitier(lisse(gg)):gg===tr2b?facette(gg):lisse(gg);
   const g=mergeGeometries([mergeGeometries(polis.map(gg=>blanc(prep(gg)))),mergeGeometries(bruts.map(gg=>blanc(prep(gg))))],true);
   if(volumeSigne(g)<0){retourner(g);const N=g.getAttribute('normal').array;                  // permuter AUSSI les normales, puis les inverser
     const Cc=g.getAttribute('color').array;for(let i=0;i<Cc.length;i+=9)for(let k=0;k<3;k++){const t=Cc[i+3+k];Cc[i+3+k]=Cc[i+6+k];Cc[i+6+k]=t;}
@@ -1714,8 +1921,8 @@ const brut=(()=>{const N=512,h=new Float32Array(N*N),R=rng(8420);
    boite), normales sur 8 bits, teinte, axe de projection des UV ; indices en ecarts ; gzip. Au chargement, si l'etat
    GEOMETRIQUE est exactement celui du fichier (cle), la piece est lue telle quelle, sans calcul ; sinon calcul normal. */
 const HD_SANS=new Set(['matieres','origine','gravurePerso']);
-const cleGeo=()=>JSON.stringify(state,(k,v)=>HD_SANS.has(k)?undefined:v);
-const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='1';   // a incrementer a chaque nouvel export du fichier
+const cleGeo=()=>DEFAUT_HD_V+'|'+JSON.stringify(state,(k,v)=>HD_SANS.has(k)?undefined:v);   // la version fait partie de la cle : un fichier d'une version anterieure n'est jamais relu
+const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='8';   // a incrementer a chaque nouvel export du fichier
 function encoderHD(g){const P=g.getAttribute('position').array,N=g.getAttribute('normal').array,C=g.getAttribute('color')?.array,n=P.length/3;
   const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];for(let i=0;i<n;i++)for(let a=0;a<3;a++){const v=P[3*i+a];if(v<mn[a])mn[a]=v;if(v>mx[a])mx[a]=v;}
   const ax=new Uint8Array(n);for(let t=0;t<n;t+=3){const o=3*t,ux=P[o+3]-P[o],uy=P[o+4]-P[o+1],uz=P[o+5]-P[o+2],vx=P[o+6]-P[o],vy=P[o+7]-P[o+1],vz=P[o+8]-P[o+2];
@@ -1826,8 +2033,26 @@ function parSecteur(T,dim,c,th){const K=T.length/dim,u=((th+Math.PI)/(2*Math.PI)
 const ENC_Y=.9,ENC_R=2.6,ENC_X=16.5;   // logement de couronne RECOUPE dans carrure.stl (08/10) : cylindre net D5,2 coaxial au tube, meme cercle pour la lunette
 const dansEncoche=(x,y,z)=>x>0&&(y-ENC_Y)**2+z*z<ENC_R*ENC_R;
 // paroi de l'encoche lissee sur ~0,15 mm le long du cercle (sinon elle suit la grille en escalier)
-function encoche(r,th,y){const x=r*Math.cos(th),z=r*Math.sin(th);if(x<=ENC_X)return r;const d=ENC_R-Math.hypot(y-ENC_Y,z),t=sm(-.012,.012,d);   /* arete vive, sans conge */
+function encoche(r,th,y){const x=r*Math.cos(th),z=r*Math.sin(th);if(x<=ENC_X)return r;const d=ENC_R-Math.hypot(y-ENC_Y,z),t=d>0?1:0;   /* arete vive, sans conge (marche franche : meme regle que la tranche exacte) */
   return t>0?r*(1-t)+(ENC_X/Math.cos(th))*t:r;}
+/* tranche crantee : nG rainures en V regulieres (pas 0,6 mm, profondeur 0,12 mm, angle d'ouverture 90°), le long du
+   contour exterieur ; supprimees a +-14° de 3 h (logement de couronne). Meme profil pour l'apercu et pour l'outil de
+   fabrication (crantageSTL, retire de la piece reelle par difference booleenne). */
+function crantage(){if(Math.round(state.lunette.params.tranche||0)!==1)return null;const PER=ARC_OUT.tot,nG=Math.round(PER/.6),dk=.12,w=2*dk;
+  return {nG,dk,w,prof:th=>{if(Math.abs(Math.atan2(Math.sin(th),Math.cos(th)))<14*Math.PI/180)return 0;const s=uArcOut(th)*PER,q=(fract(s/PER*nG)-.5)*PER/nG;return Math.max(0,dk*(1-Math.abs(q)/(w/2)));}};}
+const ARC_OUT=(()=>{const K=2048,L=new Float64Array(K+1);let px=null,pz=null;for(let k=0;k<=K;k++){const th=2*Math.PI*k/K,r=tab(T_OUT,th),x=r*Math.cos(th),z=r*Math.sin(th);L[k]=k?L[k-1]+Math.hypot(x-px,z-pz):0;px=x;pz=z;}return {K,L,tot:L[K]};})();
+function uArcOut(th){const f=((th/(2*Math.PI))%1+1)%1*ARC_OUT.K,k=Math.floor(f),t=f-k;return (ARC_OUT.L[k]+(ARC_OUT.L[Math.min(ARC_OUT.K,k+1)]-ARC_OUT.L[k])*t)/ARC_OUT.tot;}
+function crantageSTL(){const CR=crantage();if(!CR)return null;const P=[],y0=Y_BAS-.3,y1=Y_FL-.02;   // prismes triangulaires (un par rainure)
+  const thDe=s=>{let lo=0,hi=ARC_OUT.K;const c=s*ARC_OUT.tot;while(hi-lo>1){const m=(lo+hi)>>1;if(ARC_OUT.L[m]<=c)lo=m;else hi=m;}return 2*Math.PI*(lo+(c-ARC_OUT.L[lo])/((ARC_OUT.L[hi]-ARC_OUT.L[lo])||1))/ARC_OUT.K;};
+  const pt=(s,dr,y)=>{const th=thDe(((s%1)+1)%1),r=tab(T_OUT,th)+dr;return [r*Math.cos(th),y,r*Math.sin(th)];};
+  for(let g=0;g<CR.nG;g++){const sc=(g+.5)/CR.nG,thc=thDe(sc);if(Math.abs(Math.atan2(Math.sin(thc),Math.cos(thc)))<14*Math.PI/180)continue;
+    const ds=(CR.w/2)*(1+.3/CR.dk)/ARC_OUT.tot,A=s=>[pt(sc-ds,.3,s),pt(sc+ds,.3,s),pt(sc,-CR.dk,s)],a=A(y0),b=A(y1);
+    const T=(p,q,r)=>P.push(...p,...q,...r);T(a[0],a[2],a[1]);T(b[0],b[1],b[2]);
+    for(let k=0;k<3;k++){const k2=(k+1)%3;T(a[k],a[k2],b[k2]);T(a[k],b[k2],b[k]);}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));return orienterSolides(g);}
+// chaque prisme ferme est oriente vers l'exterieur (volume signe positif) : on retourne ceux qui ne le sont pas
+function orienterSolides(g){const P=g.getAttribute('position').array;for(let o=0;o<P.length;o+=72){let v=0;for(let t=o;t<o+72;t+=9){const ax=P[t],ay=P[t+1],az=P[t+2],bx=P[t+3],by=P[t+4],bz=P[t+5],cx=P[t+6],cy=P[t+7],cz=P[t+8];v+=ax*(by*cz-bz*cy)-ay*(bx*cz-bz*cx)+az*(bx*cy-by*cx);}
+    if(v<0)for(let t=o;t<o+72;t+=9)for(let k=0;k<3;k++){const x=P[t+3+k];P[t+3+k]=P[t+6+k];P[t+6+k]=x;}}return g;}
 function rayonTranche(th){return tab(T_OUT,th);}   // contour propre de la lunette ; la tranche du boitier y est a 0,12 mm pres (mesure 08/10)
 // tranche verticale de la lunette = la tranche du boitier prolongee : normale 3D identique
 function normaleBoitier(g){if(!TRANCHE_N)return g;const P=g.getAttribute('position').array,N=g.getAttribute('normal').array;
@@ -2036,9 +2261,12 @@ const laitonCouronne=new THREE.MeshStandardMaterial({color:0xd4ac5c,metalness:1,
 // plan a x 16,5 (z +-2,4, y -1,23..2,63) : couronne D4,5 cannelee (IMG_8435) (24 cannelures), face bombee, tube D2,3
 // dans le trou ; depasse la tranche (x 18,4) de 0,8 mm.
 const couronne=new THREE.Group();
-(function(){const NA=360,prof=[[0,0],[0,1.95],[.08,2.25],[.3,2.25],[2.2,2.25],[2.38,2.08],[2.52,1.65],[2.6,.95],[2.63,0]],K=prof.length,pos=[];
+(function(){const NA=360,prof=[[0,0],[0,1.95],[.08,2.25],[.13,2.25],[.19,2.25],[.25,2.25],[.3,2.25],[2.2,2.25],[2.25,2.23],[2.3,2.18],[2.34,2.13],[2.38,2.08],[2.52,1.65],[2.6,.95],[2.63,0]],K=prof.length,pos=[];
+  /* (13/10) les cannelures NAISSENT et MEURENT en douceur (profondeur en rampe sur 0,2 mm a chaque bout) : la rangee
+     lisse collee a la rangee cannelee faisait des dents au bord de la couronne */
+  const amp=t=>t<=.08||t>=2.38?0:t<.3?.13*sm(.08,.3,t):t<=2.2?.13:.13*(1-sm(2.2,2.38,t));
   for(let i=0;i<=NA;i++){const a=2*Math.PI*i/NA,fl=.5+.5*Math.cos(24*a);   // cannelures arrondies (plus de dents de scie)
-    for(const [t,r] of prof){const cannele=t>=.3&&t<=2.2?r-.13*(1-fl):r;pos.push(t,cannele*Math.cos(a),cannele*Math.sin(a));}}
+    for(const [t,r] of prof){const cannele=r-amp(t)*(1-fl);pos.push(t,cannele*Math.cos(a),cannele*Math.sin(a));}}
   const I=[];for(let i=0;i<NA;i++)for(let k=0;k<K-1;k++){const a=i*K+k,b=(i+1)*K+k;I.push(a,b,a+1,b,b+1,a+1);}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(pos,3));g.setIndex(I);
   const ng=toCreasedNormals(g,Math.PI/5);const m=new THREE.Mesh(ng,laitonCouronne);m.position.set(16.55,.9,0);couronne.add(m);
@@ -2249,7 +2477,7 @@ const AIG_FIXE=.8;   // aiguilles Ronda 763 standard : 0,8 mm au-dessus du cadra
 function indexMini(){const s=styleIndex();return [0,1,2].includes(s)?.1:s===3?.18:0;}
 // hauteur disponible pour les index rapportes : du sommet du decor jusqu'a 0,15 mm sous les aiguilles
 const hauteurIndex=()=>Math.max(.1,AIG_FIXE-FAB.jeu-reliefMaxCadran());
-const FAB_FIXES=new Set(['lisere','dessin','forme','mode','finition','jonction','graine','inverser','soleil','concentriques','diguette','cratere','pivot','angle','branches','zone']);
+const FAB_FIXES=new Set(['tranche','texte','paysage','persoV','lisere','dessin','forme','mode','finition','jonction','graine','inverser','soleil','concentriques','diguette','cratere','pivot','angle','branches','zone']);
 // profondeur maxi de l'embossage : le creux suit la normale vers l'interieur ; il doit rester FAB.ep jusqu'a
 // l'alesage du verre (R_IN) et jusqu'au dessous de la lunette (Y_BAS), partout ou le motif peut creuser
 function profMaxEmbossage(){LZ=largeurZone();let d=9;
@@ -2270,7 +2498,14 @@ function bornerFab(piece){const s=state[piece],p=s.params,m=s.motif,notes=[];
   return notes;}
 // mesure (apres construction, au repos) : null si fabricable, sinon les raisons
 function controleFab(piece){const s=state[piece],R=[];
-  if(piece==='lunette'){if(!['embossage','image'].includes(s.motif))return R;
+  if(piece==='lunette'&&w1Actif()){/* (13/10) dessins W1 VECTORIELS : cotes connues exactement, controlees sur le dessin lui-meme
+       (la grille du diagnostic suppose une zone de largeur constante, relevee a 45°, et deforme les cellules ailleurs) */
+    const Z=w1Plan(s.params);if(Z.paves)for(const P of Z.PV){const sillon=P.gp+P.rho,dessus=Math.min(.35,Math.min(P.px,P.py)-P.gp-P.rho);   /* .35 : reste mini d'un pave rogne (w1Paves) */
+        if(sillon<FAB.detail)R.push(`sillons trop fins (${sillon.toFixed(2).replace('.',',')} mm)`);if(dessus<FAB.detail)R.push(`pavés trop petits (${dessus.toFixed(2).replace('.',',')} mm)`);}
+    else if(Z.g*10<FAB.detail)R.push('cases trop fines');
+    return R;}
+  if(piece==='lunette'&&s.motif==='embossage'&&DESSINS[Math.round(s.params.dessin||0)]?.texte){texteSD(s.params);if(_TXT.fin<FAB.detail)R.push(`traits des chiffres trop fins (${_TXT.fin.toFixed(2).replace('.',',')} mm)`);return R;}
+  if(piece==='lunette'){if(!['embossage','image','relief'].includes(s.motif))return R;
     if(s.motif==='image'&&!BASRELIEF.lunette)return R;
     const d=diagLunette(1440);if(d.ep!=null&&d.ep<FAB.ep-.03)R.push(`matière sous le creux ${d.ep.toFixed(2).replace('.',',')} mm`);
     if(d.hmax-d.hmin>FAB.grain)for(const [c,lib] of [['crete','reliefs'],['creux','creux']]){const o=d[c];if(o&&o.fins>FAB.fins)R.push(`${lib} trop fins (${String(o.fins).replace('.',',')} % sous ${String(FAB.detail).replace('.',',')} mm)`);}}
@@ -2278,7 +2513,7 @@ function controleFab(piece){const s=state[piece],R=[];
     const d=diagCadran(.06);if(d.hmax-d.hmin>FAB.grain)for(const [c,lib] of [['crete','reliefs'],['creux','creux']]){const o=d[c];if(o&&o.fins>FAB.fins)R.push(`${lib} trop fins (${String(o.fins).replace('.',',')} % sous ${String(FAB.detail).replace('.',',')} mm)`);}}
   return R;}
 // remedes : dans quel sens un reglage GROSSIT le dessin
-const FAB_REMEDES={pas:1,echelle:1,detail:-1,contraste:-1,taille:1,longueur:1,rayon:1,n:-1,rangs:-1,anneaux:-1,petales:-1,niveaux:-1,couches:-1,nombre:-1,collines:-1,pics:-1};
+const FAB_REMEDES={hauteur:1,echelle:1,pas:1,echelle:1,detail:-1,contraste:-1,taille:1,longueur:1,rayon:1,n:-1,rangs:-1,anneaux:-1,petales:-1,niveaux:-1,couches:-1,nombre:-1,collines:-1,pics:-1};
 const FAB_VALIDE={lunette:null,cadran:null};
 function rendreFabricable(piece){const s=state[piece],M=(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[s.motif];if(!M)return null;
   const raisons=controleFab(piece);if(!raisons.length){FAB_VALIDE[piece]={motif:s.motif,params:{...s.params}};return null;}
@@ -2307,6 +2542,8 @@ function noteFab(piece,txt){const e=document.getElementById('fabNote');if(!e)ret
 const _fabT={};
 function planifierFab(piece,notes){if(notes&&notes.length)noteFab(piece,notes.join(' ; '));
   clearTimeout(_fabT[piece]);_fabT[piece]=setTimeout(()=>{let msg=null;try{msg=rendreFabricable(piece);}catch(e){console.warn('controle fab',e);}
+    /* (13/10) une seule correction par changement : si la piece corrigee echoue encore, on s'arrete (sinon boucle sans fin) */
+    if(msg&&_fabGarde[piece]){delete _fabGarde[piece];console.warn('controle fab : correction sans effet, arret',msg);return;}
     if(msg){noteFab(piece,msg);_fabGarde[piece]=true;try{panneau(piece);}catch(e){}reconstruire(piece);}
     else if(_fabGarde[piece])delete _fabGarde[piece];   // reconstruction issue de la correction : la note reste affichee
     else if(!(notes&&notes.length))noteFab(piece,null);},700);}
@@ -2487,17 +2724,19 @@ function galerieApercus(piece,box){_fileVign=_fileVign.filter(j=>j.img.isConnect
   const bloc=(titre,sph)=>{const t=document.createElement('div');t.className='vign-titre';t.textContent=titre;const g=document.createElement('div');g.className='vign'+(sph?' sph':'');box.append(t,g);return g;};
   const st=state[piece],p=st.params;
   if(piece==='lunette'){
-    const g=bloc('Catégorie',1);const cat=[['lisse','Lisse',{}],['embossage','Embossage',st.motif==='embossage'?p:{}],['arete','Arêtes vives',st.motif==='arete'?p:{}]];
+    const g=bloc('Catégorie',1);const cat=[['lisse','Lisse',{}],['embossage','Embossage',st.motif==='embossage'?p:{}],['arete','Arêtes vives',st.motif==='arete'?p:{}],['relief','Bas-relief',st.motif==='relief'?p:{}]];
     for(const [m,lib,pp] of cat)tuile(g,lib,'S|'+m+'|'+JSON.stringify(pp)+'|'+st.zone,()=>vignetteSphere(m,pp),st.motif===m,()=>{poser('lunette',m,pp);});
     if(st.motif==='embossage'){const g2=bloc('Dessin',1);DESSINS.forEach((d,k)=>{if(d.ia&&!BASRELIEF.lunette)return;const pp={...p,dessin:k};
       tuile(g2,d.nom,'S|emb|'+k+'|'+[p.n,p.rangs,p.proportion,p.profondeur,p.angle,p.facettes,p.finition,st.zone].join(','),()=>vignetteSphere('embossage',pp),Math.round(p.dessin)===k,()=>{state.lunette.params.dessin=k;panneau('lunette');reconstruire('lunette');});});}
+    if(st.motif==='relief'){const g2=bloc('Sujet',1);LISTES.paysage.forEach((nm,k)=>{const pp={...p,paysage:k};
+      tuile(g2,nm,'S|rel|'+k+'|'+[p.echelle,p.relief,p.graine,p.finition,st.zone].join(','),()=>vignetteSphere('relief',pp),Math.round(p.paysage||0)===k,()=>{state.lunette.params.paysage=k;panneau('lunette');reconstruire('lunette');});});}
     if(st.motif==='arete'){const g2=bloc('Forme',1);FORMES.forEach((f,k)=>{const pp={...p,forme:k};
-      tuile(g2,f[2],'S|ar|'+k+'|'+[p.pas,p.angle,p.tronque,p.relief,p.finition,st.zone].join(','),()=>vignetteSphere('arete',pp),Math.round(p.forme)===k,()=>{state.lunette.params.forme=k;panneau('lunette');reconstruire('lunette');});});}
+      tuile(g2,f[2],'S|ar|'+k+'|'+[p.pas,p.angle,p.tronque,p.relief,p.finition,st.zone].join(','),()=>vignetteSphere('arete',pp),Math.round(p.forme)===k,()=>{state.lunette.params.forme=k;if(f[3])Object.assign(state.lunette.params,f[3]);panneau('lunette');reconstruire('lunette');});});}
   }else{
     const g=bloc('Motif du cadran');for(const [m,M] of Object.entries(MOTIFS_CADRAN)){if(m==='image')continue;const pp=st.motif===m?p:{};
       tuile(g,M.nom,'C|'+m+'|'+JSON.stringify(pp),()=>vignetteCadran(m,pp),st.motif===m,()=>{poser(piece,m,pp);});}
     if(estFamille(st.motif)){const g2=bloc('Mode');FAMILLES[st.motif].modes.forEach((md,k)=>{const pp={...p,mode:k};
-      tuile(g2,md,'C|'+st.motif+'|'+JSON.stringify(pp),()=>vignetteCadran(st.motif,pp),Math.round(p.mode)===k,()=>{state[piece].params.mode=k;panneau(piece);reconstruire(piece);});});}}
+      tuile(g2,nomMode(md),'C|'+st.motif+'|'+JSON.stringify(pp),()=>vignetteCadran(st.motif,pp),Math.round(p.mode)===k,()=>{state[piece].params.mode=k;panneau(piece);reconstruire(piece);});});}}
 }
 // ───────────── PRIX ET DELAI (12/10, ESTIMATION) ─────────────
 // Volumes : carrure et fond mesures sur leurs STL a la lecture ; lunette et cadran sur les pieces reelles
@@ -2854,6 +3093,7 @@ function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, 
   const fins=document.createElement('details');fins.className='fins';fins.open=!!(window._finsOuverts||{})[piece];
   fins.innerHTML='<summary>Réglages fins (profondeur, angle, nombre…)</summary>';fins.ontoggle=()=>{(window._finsOuverts=window._finsOuverts||{})[piece]=fins.open;};
   for(const [k,[lo,hi,def,pas,lib]] of Object.entries(M[state[piece].motif].r)){
+    if(piece==='lunette'&&state.lunette.motif==='embossage'&&['texte','hauteur'].includes(k)&&!DESSINS[Math.round(state.lunette.params.dessin||0)]?.texte)continue;
     const d=document.createElement('div'); const val=state[piece].params[k]??def;
     if(CASES.has(k)){d.className='reg case';d.innerHTML=`<label>${lib}</label><input type="checkbox" ${val?'checked':''}>`;
       d.querySelector('input').onchange=e=>{state[piece].params[k]=e.target.checked?1:0;reconstruire(piece);};}
@@ -2867,7 +3107,7 @@ function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, 
       LISTES[k].forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
       se.value=String(Math.round(val));d.innerHTML=`<label>${lib}</label>`;d.appendChild(se);se.onchange=()=>{state[piece].params[k]=+se.value;reconstruire(piece);};}
     else if(k==='mode'&&estFamille(state[piece].motif)){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
-      FAMILLES[state[piece].motif].modes.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
+      FAMILLES[state[piece].motif].modes.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=nomMode(m);se.appendChild(o);});
       se.value=String(Math.round(val));d.innerHTML='<label>mode</label>';d.appendChild(se);se.onchange=()=>{state[piece].params.mode=+se.value;reconstruire(piece);};}
     else{d.className='reg';d.innerHTML=`<label>${lib}</label><input type="range" min="${lo}" max="${hi}" step="${pas}" value="${val}"><output>${(+val).toFixed(pas<1?2:0)}</output>`;
       const inp=d.querySelector('input'),out=d.querySelector('output');
@@ -2875,6 +3115,11 @@ function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, 
       inp.onchange=()=>panneau(piece);}   // au relachement : apercus mis a jour avec le nouveau reglage
     (k==='finition'&&piece==='lunette'?box:fins).appendChild(d);}
   if(fins.children.length>1)box.appendChild(fins);
+  if(piece==='lunette'&&state.lunette.motif==='embossage'){const D_=DESSINS[Math.round(state.lunette.params.dessin||0)];
+    if(D_?.texte){const d=document.createElement('div');d.className='ligne';d.innerHTML='<input type="text" maxlength="40" placeholder="monogramme ou texte (A-Z, 0-9)" style="flex:1">';
+      const inp=d.querySelector('input');inp.value=state.lunette.texteLibre||'DELIGNY';inp.oninput=()=>{state.lunette.texteLibre=inp.value.toUpperCase().replace(/[^A-Z0-9 .·&-]/g,'');_TXT=null;reconstruire('lunette');};box.appendChild(d);}
+    if(D_?.perso){const d=document.createElement('div');d.className='ligne';d.innerHTML='<button class="btn pri" type="button">Dessiner mon motif</button>';
+      d.querySelector('button').onclick=ouvrirDessin;box.appendChild(d);}}
   if(state[piece].motif==='image'){const d=document.createElement('div');d.className='br';const c=BASRELIEF[piece];
     d.innerHTML=`<textarea maxlength="160" placeholder="sujet du bas-relief : une pieuvre et des vagues, des fleurs baroques…"></textarea><div class="ligne"><button class="btn pri">Générer le relief (IA)</button></div><div class="note">${c?'Relief : '+c.sujet:'Pas encore de relief : décris un sujet.'}</div>${c?`<img alt="image source" src="${c.apercu}">`:''}`;
     d.querySelector('textarea').value=(c&&c.sujet)||state[piece].sujet||'';
@@ -3034,7 +3279,7 @@ const EXTRAVAGANCE={
   'Bouillonnement':{orn:[{type:'grappe',params:{densite:.85,taille:2.6,pointes:10,hauteur_pointes:4,zone:2,graine:17}}],fusion:.35,
     cadran:{motif:'bulles',params:{nombre:26,taille:3.2,cratere:1,relief:.9,graine:5}}},
   'Cosmique':{orn:[{type:'coque',params:{epaisseur:2.2,trous:30,ondulation:.7,zone:2,graine:21}},{type:'etoile',params:{n:3,taille:8,branches:4,hauteur:3,rangee:.5,zone:2,graine:9}},{type:'bille',params:{n:7,taille:4,variation:.6,rangee:.5,dispersion:.9,zone:2,graine:3}}],fusion:.6,
-    cadran:{motif:'etoiles',params:{nombre:9,taille:1.8,relief:.9,graine:11}}},
+    cadran:{motif:'bulles',params:{nombre:26,taille:2.2,cratere:1,relief:.6,graine:9}}},
   'Kraken ajouré':{orn:[{type:'coque',params:{epaisseur:2.6,trous:22,ondulation:1,zone:2,graine:33}},{type:'tentacule',params:{n:3,epaisseur:2.4,longueur:.3,ondulations:2,ventouses:1,graine:13}}],fusion:.7,
     cadran:{motif:'vagues',params:{longueur:2.2,ondulation:1.4,concentriques:0,relief:.8}}},
 };
@@ -3089,9 +3334,10 @@ function afficherReelles(v){vueReelle=v&&!!(REELLES.lunette||REELLES.cadran);
   const b=document.getElementById('fabVue');b.disabled=!(REELLES.lunette||REELLES.cadran);b.textContent=vueReelle?'Voir l\'aperçu':'Voir les pièces réelles';}
 async function produire(){const et=document.getElementById('fabEtat'),go=document.getElementById('fabGo');go.disabled=true;const lignes=[];
   for(const piece of ['lunette','cadran']){
-    et.textContent=`Fabrication de ${piece==='lunette'?'la lunette réelle':'du cadran réel'}… (${lignes.join(' · ')||'environ 30 s par pièce'})`;
+    et.textContent=`Fabrication de ${piece==='lunette'?'la lunette réelle':'du cadran réel'}… (${lignes.join(' · ')||'de 30 s à 10 min par pièce selon le décor'})`;
     try{const corps={piece,peau_b64:b64stl(piece==='lunette'?peauLunette():peauCadran())};
       if(piece==='lunette'&&mOrn)corps.ornements_b64=b64stl(pos(mOrn.geometry));
+      if(piece==='lunette'){const cr=crantageSTL();if(cr)corps.creux_b64=b64stl(cr);}   // (14/10) tranche crantee : retiree de la piece reelle
       const r=await (await fetch(AI_BASE+'/api/montre/fabriquer',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(corps)})).json();
       if(!r.ok)throw new Error(r.note||'refus');
       const g=new STLLoader().parse(Uint8Array.from(atob(r.stl_b64),c=>c.charCodeAt(0)).buffer);g.computeVertexNormals();
@@ -3131,7 +3377,7 @@ function appliquer(d){const faits=[],refus=[...(d.rejets||[])];
   return {faits,refus};}
 // Repli hors ligne : meme dictionnaire que montre_concierge.local (sans IA, et il le dit).
 const MOTS=[[['terrasse','rizi','strat','couche','vue de haut'],'cadran','terrasses'],[['montagn','alpes','sommet','massif'],'cadran','montagnes'],[['topograph','courbes de niveau','carte'],'cadran','topographie'],
-  [['etoile','étoile','ciel','nuit','constellation','cosmos'],'cadran','etoiles'],[['guilloch','rosace','spirograph'],'cadran','guilloche'],
+[['guilloch','rosace','spirograph'],'cadran','guilloche'],
   [['soleil','sunburst','rayonn'],'cadran','soleil'],[['perle','pointill','points'],'lunette','perles'],[['damier','echiquier','échiquier','carreau'],'lunette','damier'],
   [['dragon','reptile'],'lunette','dragon'],[['ecaille','écaille','poisson','serpent'],'lunette','ecailles'],[['torsad','spiral','vrill','tresse'],'lunette','torsade'],
   [['clou','pyramide','diamant','pointe'],'lunette','clous'],[['cannel','nervur','strie','rayons','crant'],'lunette','rayons'],
@@ -3206,7 +3452,7 @@ function diagCadran(pas=.04){const r1=C_R1-.25,n=Math.round(2*r1/pas),H=new Floa
   if(amp>.03){for(let x=1;x<n-1;x++)for(let y=1;y<n-1;y+=2){const g=Math.hypot(H[(x+1)*n+y]-H[(x-1)*n+y],H[x*n+y+1]-H[x*n+y-1])/(2*pas);pentes.push(Math.atan(g)*180/Math.PI);}
     o=resumeIlots(ilots(H,n,n,pas,pas,false,hmin+amp/2),FAB.detail);}
   return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),...o,pente:pct(pentes,.99),jeu:+(state.aiguilles-reliefMaxCadran()).toFixed(2)};}
-window.__studio={exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+window.__studio={texteSD,crantageSTL,ouvrirDessin,pointZone,hZ:()=>dernierH,exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
 document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');appliquerMatieres();if(mLunette)mLunette.material=[aluLunette,on?brutCreux:aluLunette];};
 document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
 for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
@@ -3237,6 +3483,8 @@ async function appliquerCfg(c){const jeton=++_cfgJeton;state.origine=c.origine==
   for(const piece of ['lunette','cadran']){const b=c[piece];
     if(b.motif==='image'&&b.ia){await appliquerIA(piece,b.ia,()=>jeton===_cfgJeton);if(jeton!==_cfgJeton)return;state[piece].params={...state[piece].params,...b.params};}
     else state[piece]={...b,params:{...b.params}};
+    if(!(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[state[piece].motif])state[piece]={...state[piece],motif:'lisse',params:{}};   // motif retire du catalogue (ex. ciel etoile)
+    if(piece==='lunette'&&state.lunette.perso)chargerPerso(state.lunette.perso);
     document.getElementById(SEL[piece]).value=valeurSelect(piece);panneau(piece);reconstruire(piece);}}
 function listerCfg(){const L=document.getElementById('cfgListe');L.innerHTML='';const l=lireCfg();
   if(!l.length){L.innerHTML='<div class="note">Aucune configuration enregistrée.</div>';return;}
