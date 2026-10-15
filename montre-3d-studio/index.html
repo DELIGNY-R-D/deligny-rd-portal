@@ -2877,7 +2877,31 @@ if(matchMedia('(max-width:820px)').matches){const vue=document.getElementById('v
  try{if(localStorage.getItem('montre-sans-reglages')==='1')poser(true);}catch(e){}} vueDe('trois');
 /* outil de verification (pane masque = rAF gele) : reconstruit et rend sans attendre une image */
 window.__capture=(q=.9,P,T,fov)=>{if(P){cam.up.set(0,1,0);cam.position.set(...P);ctl.target.set(...T);}if(fov){cam.fov=fov;cam.updateProjectionMatrix();}APERCU=false;reconstruireLunette();reconstruireCadran();ctl.update();renderer.render(scene,cam);return renderer.domElement.toDataURL('image/jpeg',q);};
-let _tic=0;(function boucle(){ctl.update();if((_tic++&15)===0)ombres();renderer.render(scene,cam);requestAnimationFrame(boucle);})();
+/* (15/10, Baptiste : « optimise la rapidite et la fluidite ») RENDU A LA DEMANDE. Avant : 1,7 M de triangles et la carte
+   d'ombre 2048 recalcules a CHAQUE image, meme immobile (8 i/s mesurees). Maintenant :
+   - on ne dessine que si quelque chose change : geste sur la vue (OrbitControls, inertie comprise), evenement d'interface
+     (une image tout de suite, puis a 150, 600 [ombres comprises] et 1500 ms : glisser un curseur ne
+     recalcule plus la carte d'ombre a chaque cran), objet ajoute/retire de la scene (reconstructions
+     differees), texture chargee ; plus une image de securite par seconde ;
+   - la carte d'ombre n'est recalculee que si la SCENE change : la lumiere rasante est fixe, tourner la montre ne la change pas ;
+   - pendant le geste, si l'image depasse 22 ms, la definition descend par paliers (x1,25 puis x1 ; mesure : 98 ms ->
+     41 puis 30 ms par image) et revient pleine 250 ms apres l'arret ; immobile, la montre est toujours en pleine definition. */
+renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
+let _sale=true,_ombreSale=true,_bouge=0,_derniere=0,_secu=0;const DPR_PLEIN=renderer.getPixelRatio(),PALIERS=[DPR_PLEIN,1.25,1].filter((v,i,a)=>!i||v<a[0]);let _pal=0,_lent=0;
+const marquerScene=()=>{_sale=true;_ombreSale=true;};window.__rafraichir=marquerScene;
+{const add0=THREE.Object3D.prototype.add,rem0=THREE.Object3D.prototype.remove;
+ THREE.Object3D.prototype.add=function(...o){marquerScene();return add0.apply(this,o);};THREE.Object3D.prototype.remove=function(...o){marquerScene();return rem0.apply(this,o);};
+ const ld=THREE.DefaultLoadingManager,o0=ld.onLoad;ld.onLoad=(...a)=>{marquerScene();if(o0)o0(...a);};}
+ctl.addEventListener('change',()=>{_sale=true;_bouge=performance.now();});addEventListener('resize',()=>{_sale=true;});if(window.ResizeObserver)new ResizeObserver(()=>{_sale=true;}).observe(renderer.domElement);
+for(const e of ['pointerdown','keydown','input','change','click','wheel','touchstart'])addEventListener(e,ev=>{const t=performance.now();if(ev.target===renderer.domElement){_bouge=t;_sale=true;return;}_sale=true;setTimeout(()=>{_sale=true;},150);setTimeout(marquerScene,600);setTimeout(()=>{_sale=true;},1500);},{capture:true,passive:true});
+(function boucle(t){requestAnimationFrame(boucle);const bouge=ctl.update();if(bouge)_sale=true;
+  if(t-_secu>1000){_secu=t;_sale=true;_ombreSale=true;}
+  if(_pal&&t-_bouge>250){_pal=0;_lent=0;renderer.setPixelRatio(DPR_PLEIN);_sale=true;}
+  if(!_sale)return;_sale=false;
+  if(_ombreSale){ombres();renderer.shadowMap.needsUpdate=true;_ombreSale=false;}
+  const dt=t-_derniere;_derniere=t;
+  if(t-_bouge<100&&dt>22&&dt<250){if(++_lent>=3&&_pal<PALIERS.length-1){_pal++;_lent=0;renderer.setPixelRatio(PALIERS[_pal]);}}else _lent=0;
+  renderer.render(scene,cam);})(0);
 
 // ───────────────────────────── panneau ─────────────────────────────
 // ── Bibliotheque : chaque bas-relief genere devient un motif (« IA : sujet ») ──
