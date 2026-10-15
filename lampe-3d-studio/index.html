@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OEXXGuXoZn9acp2beO4A1Z+dOYhXF13JBHtp9SVKEkY='; style-src-attr 'unsafe-inline'; script-src 'sha256-xR3y1LJG5XdB45NmgoD5yUoHvD2J8uvUH84u0vs3TTM='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-pC9FT/ZQdc8G0gCshrHX5pwQlkcaVHacaV47NfyTLI4='; style-src-attr 'unsafe-inline'; script-src 'sha256-IwX3IRzorSGZTbj4G7lKXpYMEmWhS35Dgk8p6F7v00o='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -269,6 +269,37 @@ table.pts tr.bad td{color:var(--red);}
 .etape{display:flex;flex-direction:column;gap:18px;}
 .etape-pied{display:flex;gap:8px;justify-content:space-between;align-items:center;margin-top:2px;}
 @media(max-width:560px){.stepper{grid-template-columns:repeat(2,1fr);}}
+/* ── TÉLÉPHONE : les deux images toujours visibles, les réglages en slider ──
+ * Demande Baptiste du 15/10 : « une fois le profil dessiné, slider en bas pour
+ * voir les autres modifications possibles, on doit voir en permanence ces deux
+ * images en haut ». Sur iPhone, descendre vers les réglages faisait sortir la
+ * lampe de l'écran : on modifiait sans voir ce qu'on modifiait.
+ * La carte des vues devient COLLANTE en haut, la barre d'étapes devient un
+ * SLIDER horizontal en bas, à portée de pouce. La coupe 2D n'apparaît que
+ * pendant l'étape Forme, celle où on la dessine : ailleurs elle volerait la
+ * place des deux images qu'on veut justement garder sous les yeux. */
+@media(max-width:700px){
+  /* Barre collante des deux vues. Elle est REMPLIE PAR DEPLACEMENT des deux
+   * colonnes existantes (voir disposerTelephone) : dupliquer les canvas aurait
+   * demande de tout redessiner deux fois, et les gestes de rotation auraient
+   * cesse de fonctionner sur la copie. */
+  #barreVues{position:sticky;top:0;z-index:40;display:grid;grid-template-columns:1fr 1fr;
+             gap:8px;background:var(--bg);padding:6px 0 8px;margin-bottom:6px;
+             box-shadow:0 12px 20px -18px rgba(0,0,0,.65);}
+  #barreVues .canvas-col{min-width:0;}
+  #barreVues .lbl{font-size:9.5px;line-height:1.25;margin-bottom:4px;}
+  #barreVues .lbl small{display:none;}      /* la place va a l'image */
+  #barreVues canvas,#barreVues .rendu-box img{width:100%;height:auto;max-height:26vh;object-fit:contain;}
+  .viewer{position:static;}
+  .stepper{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:50;margin:0;
+           display:flex;grid-template-columns:none;gap:8px;overflow-x:auto;
+           scroll-snap-type:x proximity;-webkit-overflow-scrolling:touch;
+           padding:8px 12px calc(8px + env(safe-area-inset-bottom));
+           background:var(--bg);border-top:1px solid var(--sep);}
+  .stepper button{flex:0 0 auto;min-width:44%;scroll-snap-align:center;}
+  /* sans cette marge, la dernière carte se cache derrière le slider */
+  .controls{padding-bottom:88px;}
+}
 
 #hud{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px;}
 #hud div{background:var(--card2);border:1px solid var(--sep);border-radius:10px;padding:9px 10px;}
@@ -9220,7 +9251,46 @@ function organiserEnEtapes(){
   masquerCartesAtelier();
   majEtapesVisibles();
   allerEtape(0);
+  disposerTelephone();   // téléphone : les deux vues montent en tête de page
 }
+/* ── TELEPHONE : les deux vues au-dessus de tout, en permanence ─────────────
+ * Demande du 15/10. Sur iPhone, une fois le profil dessine, descendre vers les
+ * reglages faisait sortir la lampe de l'ecran : on modifiait a l'aveugle.
+ * Les deux colonnes « coque reelle » et « rendu studio » sont DEPLACEES dans
+ * une barre collante en tete de page, et remises a leur place des que l'ecran
+ * redevient large. On deplace, on ne duplique pas : les canvas gardent leur
+ * contenu, leurs ecouteurs et leurs gestes. */
+let _vuesDeplacees = false;
+function disposerTelephone(){
+  const app = document.querySelector('.app');
+  const grille = document.querySelector('.vgrid3');
+  if(!app || !grille) return;
+  const petit = window.matchMedia('(max-width:700px)').matches;
+  let barre = document.getElementById('barreVues');
+  if(petit && !_vuesDeplacees){
+    barre = document.createElement('div');
+    barre.id = 'barreVues';
+    app.insertBefore(barre, app.firstChild);
+    const cols = grille.querySelectorAll(':scope > .canvas-col');
+    // 2e = coque reelle, 3e = rendu studio ; la 1re est la coupe que l'on dessine
+    [cols[1], cols[2]].forEach(c => c && barre.appendChild(c));
+    _vuesDeplacees = true;
+    window.dispatchEvent(new Event('resize'));   // les canvas se remesurent
+  } else if(!petit && _vuesDeplacees){
+    if(barre){
+      [...barre.children].forEach(c => grille.appendChild(c));
+      barre.remove();
+    }
+    _vuesDeplacees = false;
+    window.dispatchEvent(new Event('resize'));
+  }
+}
+let _minuteurDispo = null;
+window.addEventListener('resize', ()=>{
+  clearTimeout(_minuteurDispo);
+  _minuteurDispo = setTimeout(disposerTelephone, 150);
+});
+
 function allerEtape(i, pas){
   /* `pas` = sens de deplacement : une etape vide est traversee dans CE sens,
    * sinon un clic sur « suivant » renverrait en arriere. */
@@ -9232,7 +9302,14 @@ function allerEtape(i, pas){
   if(vide(j)) for(let k = 0; k < ETAPES.length; k++) if(!vide(k)){ j = k; break; }
   etapeActive = j;
   sections.forEach((s,k)=>{ s.hidden = (k !== etapeActive); });
-  document.querySelectorAll('.stepper button').forEach((b,k)=>b.classList.toggle('on', k===etapeActive));
+  /* Lu par la feuille de style du téléphone : la coupe 2D ne s'affiche que
+   * pendant l'étape Forme, les deux images restent visibles le reste du temps. */
+  document.body.dataset.etape = String(etapeActive);
+  document.querySelectorAll('.stepper button').forEach((b,k)=>{
+    b.classList.toggle('on', k===etapeActive);
+    // sur téléphone le stepper est un slider : on amène la puce active sous le pouce
+    if(k===etapeActive && b.scrollIntoView) b.scrollIntoView({block:'nearest', inline:'center', behavior:'smooth'});
+  });
   // l'aperçu reste en place : on ne remonte que la colonne des réglages
   const col=document.querySelector('.controls');
   if(col && col.getBoundingClientRect().top < 0) col.scrollIntoView({block:'start', behavior:'smooth'});
