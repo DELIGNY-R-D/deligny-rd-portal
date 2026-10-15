@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-pC9FT/ZQdc8G0gCshrHX5pwQlkcaVHacaV47NfyTLI4='; style-src-attr 'unsafe-inline'; script-src 'sha256-IwX3IRzorSGZTbj4G7lKXpYMEmWhS35Dgk8p6F7v00o='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-IwX3IRzorSGZTbj4G7lKXpYMEmWhS35Dgk8p6F7v00o='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -101,7 +101,9 @@ canvas{display:block;background:var(--canvas-fond);border-radius:12px;border:1px
    ecoutes sur window, le pointeur sort donc souvent du canevas et le
    curseur de selection de texte reapparaitrait sans elle. */
 :root{--cur-rot:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='28' height='28' viewBox='0 0 28 28'%3E%3Cpath d='M14 6.5A7.5 7.5 0 1 1 6.5 14' fill='none' stroke='%23000' stroke-opacity='.55' stroke-width='4.5' stroke-linecap='round'/%3E%3Cpath d='M13 3.2 18.5 6.5 13 9.8Z' fill='%23000' fill-opacity='.55' stroke='%23000' stroke-opacity='.55' stroke-width='2.5' stroke-linejoin='round'/%3E%3Cpath d='M14 6.5A7.5 7.5 0 1 1 6.5 14' fill='none' stroke='%23fff' stroke-width='2' stroke-linecap='round'/%3E%3Cpath d='M13 3.2 18.5 6.5 13 9.8Z' fill='%23fff'/%3E%3C/svg%3E") 14 14;}
-#previewCanvas{cursor:var(--cur-rot), grab;}
+#previewCanvas{cursor:var(--cur-rot), grab;aspect-ratio:4/5;width:100%;height:auto;
+  border-radius:14px;border:1px solid var(--sep);background:var(--canvas-fond);
+  box-shadow:0 1px 2px rgba(0,0,0,.05), 0 8px 22px -18px rgba(0,0,0,.45);}
 body.tourne, body.tourne *{cursor:var(--cur-rot), grabbing !important;}
 .canvas-row{display:flex;gap:14px;flex-wrap:wrap;}
 .canvas-col{flex:1;min-width:240px;}
@@ -164,7 +166,15 @@ table.pts tr.bad td{color:var(--red);}
 /* 10/09 : cadre CARRE. Le 480/440 restait un paysage discret ; les deux vues
    sont maintenant des carrés, et le canevas de la coque passe lui aussi en
    480x480 pour garder exactement la meme boite. */
-.rendu-box{position:relative;width:100%;aspect-ratio:1/1;}
+/* ── PORTRAIT 4/5 (15/10/2026, demande Baptiste) ───────────────────────────
+ * Le moteur calcule 520x650, donc du PORTRAIT, et le cadre etait CARRE : il
+ * fallait recadrer en « cover » et l'image perdait le haut et le bas. Le cadre
+ * epouse desormais le format rendu, le recadrage disparait, et une lampe,
+ * objet debout, occupe enfin toute sa boite. La coque 3D passe au meme format
+ * pour que les deux vues restent jumelles. */
+.rendu-box{position:relative;width:100%;aspect-ratio:4/5;border-radius:14px;overflow:hidden;
+  background:var(--canvas-fond);border:1px solid var(--sep);
+  box-shadow:0 1px 2px rgba(0,0,0,.05), 0 8px 22px -18px rgba(0,0,0,.45);}
 /* Cartouche d'attente : il occupe la place du rendu tant que Blender n'a pas
  * fini. L'apercu du navigateur ne s'affiche PLUS ici, ni pendant l'attente. */
 /* ── Panier ─────────────────────────────────────────────────────────── */
@@ -189,13 +199,10 @@ table.pts tr.bad td{color:var(--red);}
   font-size:12.5px;letter-spacing:.04em;}
 #renduAttente[hidden]{display:none;}
 .rendu-box canvas,.rendu-box img{position:absolute;inset:0;width:100%;height:100%;
-  /* cover : l'image remplit le cadre et se recadre au centre, sur la lampe,
-     au lieu de flotter entre deux bandes grises. */
-  /* `bottom` et non `center` : l image du rendu est en portrait, le recadrage
-     carre retirait donc autant en haut qu en bas et coupait le pied de la
-     lampe. En calant sur le bas, la base reste entiere et c est le ciel de la
-     serre qui part. */
-  object-fit:cover;object-position:center bottom;border-radius:12px;background:var(--canvas-fond);border:1px solid var(--sep);}
+  /* « contain » et non « cover » : le cadre ayant le format exact du rendu,
+     il n'y a plus rien a recadrer, donc plus rien a perdre. Le recadrage par
+     le bas n'existe que pour les anciennes images, au format carre. */
+  object-fit:contain;object-position:center;border-radius:13px;}
 /* Les deux vues de TRAVAIL côte à côte, le rendu sous elles sur toute la
  * largeur. Trois colonnes de front tiendraient sur le papier, mais la colonne
  * visuelle ne fait que ~730 px : la coupe cotée y devient illisible. Les trois
@@ -289,7 +296,8 @@ table.pts tr.bad td{color:var(--red);}
   #barreVues .canvas-col{min-width:0;}
   #barreVues .lbl{font-size:9.5px;line-height:1.25;margin-bottom:4px;}
   #barreVues .lbl small{display:none;}      /* la place va a l'image */
-  #barreVues canvas,#barreVues .rendu-box img{width:100%;height:auto;max-height:26vh;object-fit:contain;}
+  #barreVues canvas,#barreVues .rendu-box img{width:100%;height:auto;max-height:34vh;object-fit:contain;}
+  #barreVues .rendu-box{max-height:34vh;}
   .viewer{position:static;}
   .stepper{position:fixed;left:0;right:0;bottom:0;top:auto;z-index:50;margin:0;
            display:flex;grid-template-columns:none;gap:8px;overflow-x:auto;
@@ -434,7 +442,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
             <div class="lbl">Coque réelle — mêmes triangles que le STL
               <small>Coque creuse d'épaisseur paroi, ouverte en haut et en bas. Glisse pour tourner.</small>
             </div>
-            <canvas id="previewCanvas" width="480" height="480"></canvas>
+            <canvas id="previewCanvas" width="480" height="600"></canvas>
           </div>
           <div class="canvas-col" id="colRendu">
             <div class="lbl">Rendu studio <span id="vueRenduSrc" style="text-transform:none;letter-spacing:0;font-weight:400"></span>
