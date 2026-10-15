@@ -792,7 +792,13 @@ h3 {
    Pas 100 : il reste de quoi voir qu'une page continue dessous, sinon rien
    n'indique qu'il faut faire defiler. */
 @media (max-width: 700px) {
-  .atlas-embed iframe, .nano-embed iframe {
+  /* L'ATTENTE SUIT LE CADRE, SINON LA PAGE SAUTE. `.demo-attente` occupe la
+     place du cadre tant que la demonstration n'est pas chargee : si les deux
+     hauteurs different, la page se decale sous les yeux du visiteur au moment
+     du chargement. Le 15/10, relever le cadre a 94 dvh sans toucher a
+     l'attente laissait celle-ci a 480 px, soit 59 % du viewport : le cadre
+     mesure etait donc celui de l'attente, pas celui qu'on croyait regler. */
+  .atlas-embed iframe, .nano-embed iframe, .demo-attente {
     height: 94vh;
     height: 94dvh;
     min-height: 520px;
