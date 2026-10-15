@@ -237,7 +237,7 @@ body.sans-reglages #badge{display:none;}
     <input class="champ" id="gravPerso" maxlength="30" placeholder="ex. POUR CLAIRE · 12.10.2026" autocomplete="off"><div class="note" id="gravPersoNote"></div>
     <div class="ligne" style="margin-top:8px"><button class="btn" id="btnGraver" type="button">Embosser le fond (fichier STL de fabrication)</button></div>
     <div class="note" id="noteGraver"></div>
-    <div class="note">Une ligne libre embossée au fond, à la place de « IMAGINE BY YOU » (30 caractères maximum), comme le reste du texte du fond : lettres formées en creux à l'impression, pas gravées après coup. Le reste du texte suit automatiquement la configuration : matières (« 3D PRINTED GOLD 18 CT 750 » pour l'or), crédits consommés et année.</div>
+    <div class="note">Une ligne libre facultative, embossée sous la marque (30 caractères maximum), comme le reste du texte du fond : lettres en creux, formées à l'impression. Le reste du texte suit la configuration : mouvement, assemblage, matières (« GOLD 18 CT 750 » pour l'or), crédits consommés et année.</div>
   </section>
   <section>
     <h2>Prix et délai (estimation)</h2>
@@ -1861,7 +1861,7 @@ function construireLunette(){
   const champEnc=(fi,y)=>{const th=thetaArc(fi/N),r0=rayonTranche(th),x0=r0*Math.cos(th);if(x0<=ENC_X)return -1;return ENC_R-Math.hypot(y-ENC_Y,r0*Math.sin(th));};
   const CR=crantage();   // (14/10) tranche crantee facon monnaie : rainures en V, hors du logement de couronne
   const tr1=bandeArc(N,c4,fl),tr2=grille(N,NJ,(i,j)=>{const y=yJ(j),p=surTranche(i,y),th=thetaArc(i/N);if(champEnc(i,y)>0)return [ENC_X,y,ENC_X*Math.tan(th)];
-    if(CR){const dk=CR.prof(th);if(dk>0){const f=(rayonTranche(th)-dk)/rayonTranche(th);return [p[0]*f,y,p[2]*f];}}return p;});   // fond : meme point que encoche() (couture avec le dessous)
+    if(CR&&y>=CRAN_Y0-1e-6){const dk=CR.prof(th);if(dk>0){const f=(rayonTranche(th)-dk)/rayonTranche(th);return [p[0]*f,y,p[2]*f];}}return p;});   // fond : meme point que encoche() (couture avec le dessous)
   const [tr2p,tr2b]=(()=>{const P0=tr2.getAttribute('position').array,I=tr2.index.array,PX=Array.from(P0),poli=[],brut=[],cache=new Map();
     const par=v=>[(v/NJ)|0,yJ(v%NJ)],sg=v=>{const [fi,y]=par(v),f=champEnc(fi,y);return f>1e-9?1:f<-1e-9?-1:0;};
     const coupe=(a,b)=>{const k=a<b?a+'_'+b:b+'_'+a;let r=cache.get(k);if(r!==undefined)return r;
@@ -2280,7 +2280,11 @@ function crantage(){if(Math.round(state.lunette.params.tranche||0)!==1)return nu
   return {nG,dk,w,prof:th=>{if(Math.abs(Math.atan2(Math.sin(th),Math.cos(th)))<14*Math.PI/180)return 0;const s=uArcOut(th)*PER,q=(fract(s/PER*nG)-.5)*PER/nG;return Math.max(0,dk*(1-Math.abs(q)/(w/2)));}};}
 const ARC_OUT=(()=>{const K=2048,L=new Float64Array(K+1);let px=null,pz=null;for(let k=0;k<=K;k++){const th=2*Math.PI*k/K,r=tab(T_OUT,th),x=r*Math.cos(th),z=r*Math.sin(th);L[k]=k?L[k-1]+Math.hypot(x-px,z-pz):0;px=x;pz=z;}return {K,L,tot:L[K]};})();
 function uArcOut(th){const f=((th/(2*Math.PI))%1+1)%1*ARC_OUT.K,k=Math.floor(f),t=f-k;return (ARC_OUT.L[k]+(ARC_OUT.L[Math.min(ARC_OUT.K,k+1)]-ARC_OUT.L[k])*t)/ARC_OUT.tot;}
-function crantageSTL(){const CR=crantage();if(!CR)return null;const P=[],y0=Y_BAS-.3,y1=Y_FL-.02;   // prismes triangulaires (un par rainure)
+/* (15/10, Baptiste : « un defaut a la jonction lunette / boitier ») les rainures s'arretent a CRAN_Y0, 0,22 mm au-dessus
+   du bas de la lunette (une rangee exacte de la grille d'apercu) : elles mordaient la jonction et laissaient voir des dents
+   triangulaires du dessus du boitier. L'anneau plein du bas donne une ligne de jonction continue. */
+const CRAN_Y0=Y_BAS+4*(Y_FL-Y_BAS)/19;
+function crantageSTL(){const CR=crantage();if(!CR)return null;const P=[],y0=CRAN_Y0,y1=Y_FL-.02;   // prismes triangulaires (un par rainure)
   const thDe=s=>{let lo=0,hi=ARC_OUT.K;const c=s*ARC_OUT.tot;while(hi-lo>1){const m=(lo+hi)>>1;if(ARC_OUT.L[m]<=c)lo=m;else hi=m;}return 2*Math.PI*(lo+(c-ARC_OUT.L[lo])/((ARC_OUT.L[hi]-ARC_OUT.L[lo])||1))/ARC_OUT.K;};
   const pt=(s,dr,y)=>{const th=thDe(((s%1)+1)%1),r=tab(T_OUT,th)+dr;return [r*Math.cos(th),y,r*Math.sin(th)];};
   for(let g=0;g<CR.nG;g++){const sc=(g+.5)/CR.nG,thc=thDe(sc);if(Math.abs(Math.atan2(Math.sin(thc),Math.cos(thc)))<14*Math.PI/180)continue;
@@ -2367,6 +2371,15 @@ const monture=new THREE.Group(); scene.add(monture);
 let mLunette=null, mCadran=null;
 const groupeLunette=new THREE.Group(), groupeCadran=new THREE.Group(); monture.add(groupeLunette,groupeCadran);
 const JEU_LUNETTE=.01;groupeLunette.position.y=JEU_LUNETTE;   // 0,01 mm : la ligne de separation lunette / boitier se lit
+/* (15/10, Baptiste : « une belle ligne sans defaut ») FILET DE JONCTION. Dans le jeu de 0,01 mm on voyait le dessus BRUT du
+   boitier : grain irregulier, ligne dentelee. Un anneau sombre et mat de 0,4 mm, pose dans le jeu sous le contour exact de la
+   lunette (1440 segments, logement de couronne compris), donne un filet net et regulier, comme le joint d'une vraie montre. */
+let mJoint=null;
+function filetJonction(){if(mJoint){monture.remove(mJoint);mJoint.geometry.dispose();}const K=1440,P=[],I=[];
+  for(let k=0;k<=K;k++){const th=2*Math.PI*k/K,ro=encoche(rayonTranche(th),th,Y_BAS)-.002,ri=ro-.4;P.push(ri*Math.cos(th),Y_BAS+.004,ri*Math.sin(th),ro*Math.cos(th),Y_BAS+.004,ro*Math.sin(th));
+    if(k<K){const a=2*k;I.push(a,a+2,a+1,a+1,a+2,a+3);}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.Float32BufferAttribute(P,3));g.setIndex(I);g.computeVertexNormals();
+  mJoint=new THREE.Mesh(g,new THREE.MeshStandardMaterial({color:0x0c0c0d,roughness:.7,metalness:0,side:THREE.DoubleSide}));monture.add(mJoint);}
 
 // verre
 const verre=new THREE.Mesh(new THREE.CylinderGeometry(15,15,1.2,128),
@@ -2803,7 +2816,7 @@ function planifierFab(piece,notes){if(notes&&notes.length)noteFab(piece,notes.jo
     else if(_fabGarde[piece])delete _fabGarde[piece];   // reconstruction issue de la correction : la note reste affichee
     else if(!(notes&&notes.length))noteFab(piece,null);},700);}
 const _fabGarde={};
-function reconstruireLunette(){ bornerFinition(); const nf=bornerFab('lunette'); majPrix(); if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
+function reconstruireLunette(){ filetJonction(); bornerFinition(); const nf=bornerFab('lunette'); majPrix(); if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
   mLunette=new THREE.Mesh(geoDefaut('lunette')||construireLunette(),[aluLunette,brutActif?brutCreux:aluLunette]); groupeLunette.add(mLunette); badge(); planifierFab('lunette',nf); }
 function reconstruireCadran(){ const nf=bornerFab('cadran'); if(mCadran){groupeCadran.remove(mCadran);mCadran.geometry.dispose();}
   mCadran=new THREE.Mesh(geoDefaut('cadran')||construireCadran(),state.cadranFin?aluCadran:titane); groupeCadran.add(mCadran); badge(); planifierFab('cadran',nf); }
@@ -3158,26 +3171,28 @@ const POLICE_FOND='"Avenir Next", Avenir, "Helvetica Neue", Arial, sans-serif',C
 const _mesF=document.createElement('canvas').getContext('2d');
 function largeurEm(t,w=600){_mesF.font=`${w} 100px ${POLICE_FOND}`;return _mesF.measureText(t).width/100;}   // largeur en em
 function lignesGravure(){const m=state.matieres,ids=[...new Set([m.boitier,m.lunette,m.cadran,fondMat()])],P=window._prixCourant,an=new Date().getFullYear();
-  const perso=(state.gravurePerso||'').trim();   /* la ligne libre du client REMPLACE « IMAGINE BY YOU » */
+  const perso=(state.gravurePerso||'').trim();   /* ligne libre du client (facultative) */
   // materiaux : regroupes tant que la ligne tient au milieu du fond (24 mm) en capitales de 1,45 mm
   const mats=ids.map(i=>MAT_GRAVURE[i]||i.toUpperCase()),lm=[];for(const t of mats){const q=lm.length?lm[lm.length-1]+' / '+t:null;
     if(q&&largeurEm(q)*1.45/CAP_EM<=24)lm[lm.length-1]=q;else lm.push(t);}
   // (13/10, Baptiste) lettres EN RELIEF (embossees, plus creusees) et moins grasses : graisse 600 a l'ecran = Avenir Heavy
   // de fabrication (trait 0,126 em, soit 0,25 mm a 1,4 mm de capitale)
-  const L=[['DELIGNY WATCH',2.1,600,0,CAP_MINI],['QUARTZ',1.45,600,.5,CAP_MINI],
-    [perso||'IMAGINE BY YOU',1.6,600,.9,CAP_MINI],
-    /* (14/10, Baptiste : « enleve l'adresse dans le fond ») */['ASSEMBLED IN FRANCE',1.45,600,.9,CAP_MINI],['DESIGNED IN PARIS',1.45,600,.45,CAP_MINI],
-    ['SWISS MOVEMENT',1.45,600,.45,CAP_MINI],[MOUVEMENT_REF,1.45,600,.45,CAP_MINI],
-    ['3D PRINTED',1.45,600,.9,CAP_MINI],...lm.map(t=>[t,1.45,600,.45,CAP_MINI]),[(P?'CR '+P.cr:'CR …')+' / '+an,1.45,600,.9,CAP_MINI]];
+  /* (15/10, Baptiste : « ameliore le fond ; enleve IMAGINE BY YOU, DESIGNED IN PARIS, RONDA 763 et 3D PRINTED ») fond
+     epure en trois blocs aeres : la marque, l'origine (mouvement et assemblage), la piece (matieres et credits). La ligne
+     personnelle du client, s'il en ecrit une, s'insere sous la marque. Moins de lignes : lettres plus grandes. */
+  const L=[['DELIGNY WATCH',2.2,600,0,CAP_MINI],
+    ...(perso?[[perso,1.6,600,1.3,CAP_MINI]]:[]),
+    ['SWISS QUARTZ',1.5,600,1.6,CAP_MINI],['ASSEMBLED IN FRANCE',1.5,600,.6,CAP_MINI],
+    ...lm.map((t,k)=>[t,1.5,600,k?.6:1.6,CAP_MINI]),[(P?'CR '+P.cr:'CR …')+' / '+an,1.5,600,.6,CAP_MINI]];
   return {L,or:ids.some(i=>ORS.includes(i))};}
 // face plate du fond : demi-largeur libre (entre les vis, hors arrondis) mesuree sur media/fond_vierge.stl, z = -14,5..14,5 par 0,25
 const FOND_DEMI=[0.0, 2.8, 9.4, 10.0, 10.4, 10.8, 11.1, 11.4, 11.6, 11.9, 9.2, 8.6, 8.5, 8.3, 8.3, 8.3, 8.3, 8.4, 8.6, 9.1, 13.1, 13.1, 13.2, 13.2, 13.3, 13.3, 13.4, 13.4, 13.4, 13.5, 13.5, 13.5, 13.5, 13.6, 13.6, 13.6, 13.6, 13.6, 13.6, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.6, 13.6, 13.6, 13.6, 13.6, 13.6, 13.5, 13.5, 13.5, 13.5, 13.4, 13.4, 13.4, 13.3, 13.3, 13.2, 13.2, 13.1, 13.1, 8.8, 8.6, 8.4, 8.3, 8.3, 8.3, 8.4, 8.5, 8.8, 9.2, 11.8, 11.6, 11.3, 11.1, 10.7, 10.4, 9.8, 9.4, 0.0, 0.0];
 const demiFond=z=>{const f=(z+14.5)/.25,g=i=>FOND_DEMI[Math.max(0,Math.min(FOND_DEMI.length-1,i))]||0;return Math.min(g(Math.floor(f)),g(Math.ceil(f)));};   // prudent : le plus etroit des deux releves voisins
-function largeurFond(a,b){let m=99;for(let z=a;z<=b+1e-6;z+=.125)m=Math.min(m,demiFond(z),demiFond(-z));return Math.max(0,2*(m-.55));}   // 0,55 mm de garde au bord et aux logements de vis
+function largeurFond(a,b){let m=99;for(let z=a;z<=b+1e-6;z+=.125)m=Math.min(m,demiFond(z),demiFond(-z));return Math.min(24.5,Math.max(0,2*(m-.55)));}   // (15/10) 24,5 mm au plus : le texte garde une marge large sur la face   // 0,55 mm de garde au bord et aux logements de vis
 // placement : de haut en bas, chaque ligne prend la largeur libre a sa hauteur (bande centrale ~24 mm, rangees de vis
 // ~15 mm, haut et bas ~18 mm) ; tout se resserre ensemble si besoin, jamais sous CAP_MINI
 function placerGravure(L,or){const Y0=-13.4,Y1=13.4;let best=null;
-  for(let s=1.15;s>=.5;s-=.01){const out=[];let y=Y0,ok=true;
+  for(let s=1;s>=.5;s-=.01){const out=[];let y=Y0,ok=true;   /* s <= 1 : tailles homogenes, le surplus de place sert a aerer et centrer */
     for(const [t,h0,w,g,hmin] of L){if(out.length)y+=Math.max(.45,g*Math.min(1,.4+s*.6));   /* >= 0,45 mm de metal entre deux lignes creusees */const we=largeurEm(t,w)/CAP_EM;let h=Math.max(hmin,h0*s);
       for(;;){/* (13/10) plus grande hauteur hh <= h dont la ligne tient sur SA bande y..y+hh (dichotomie : l'iteration
           d'avant oscillait et laissait passer une ligne trop large au niveau des vis) */
@@ -3235,9 +3250,9 @@ function majGravure(){if(!mFond)return;const {L,or}=lignesGravure(),W=28,H=29,PX
      l'ecran a l'endroit des lettres (le shader du fond ecarte ses pixels sous le masque du texte) et la poche est dessinee
      par l'interieur (faces arriere du prisme des lettres : parois et fond de lettre), fond de lettre brut. */
   TROUS_FOND.value=new THREE.CanvasTexture(cT);TROUS_FOND.value.needsUpdate=true;
-  if(geoL){mLettres=new THREE.Mesh(geoL,brutGrave.clone());mLettres.material.vertexColors=false;mLettres.material.side=THREE.BackSide;mLettres.material.onBeforeCompile=()=>{};mFond.add(mLettres);}
+  if(geoL){mLettres=new THREE.Mesh(geoL,brutGrave.clone());mLettres.material.vertexColors=false;mLettres.material.color.copy(brutGrave.color).multiplyScalar(FOND_LETTRES);mLettres.material.roughness=.85;mLettres.material.metalness=.6;mLettres.material.side=THREE.BackSide;mLettres.material.onBeforeCompile=()=>{};mFond.add(mLettres);}
   majTeinteGravure();}
-let mLettres=null;
+let mLettres=null;const FOND_LETTRES=.38;   // (15/10, Baptiste : « le fond du texte embosse doit etre plus sombre ») fond de lettre : 38 % de la clarte de la face, mat
 // contours d'un texte blanc sur noir (marching squares au sous-pixel, segments orientes : sortie -> entree), simplifies
 // puis extrudes ; repere du fond : x = W/2 - i/k, z = j/k - H/2, face exterieure en y = -3,725, relief vers -y
 function lettresEnRelief(cv,PX,PY,k,W,H,ep){const D=cv.getContext('2d').getImageData(0,0,PX,PY).data,a=(i,j)=>(i<0||j<0||i>=PX||j>=PY)?-.5:D[4*(j*PX+i)]/255-.5;
@@ -3326,7 +3341,8 @@ function appliquerMatieres(){const M=k=>MATIERES[state.matieres[k]]||MATIERES.al
   const kr=(NIVEAUX_POLI[state.niveauPoli]||NIVEAUX_POLI.poli).rp;
   aluBoitier.color.setHex(b.poli);aluBoitier.roughness=Math.min(.6,b.rp*kr);
   brut.color.setHex(b.brut);
-  {const idf=fondMat(),f=MATIERES[idf];brutGrave.color.setHex(peutBrut(idf)?f.brut:f.poli);brutGrave.roughness=peutBrut(idf)?brut.roughness:Math.max(.12,f.rp*2);brutGrave.metalness=peutBrut(idf)?brut.metalness:1;}   /* fond : sa propre matiere (13/10) */
+  {const idf=fondMat(),f=MATIERES[idf];brutGrave.color.setHex(peutBrut(idf)?f.brut:f.poli);brutGrave.roughness=peutBrut(idf)?brut.roughness:Math.max(.12,f.rp*2);brutGrave.metalness=peutBrut(idf)?brut.metalness:1;}
+  if(typeof mLettres!=='undefined'&&mLettres){mLettres.material.color.copy(brutGrave.color).multiplyScalar(FOND_LETTRES);mLettres.material.needsUpdate=true;}   /* fond : sa propre matiere (13/10) */
   const ib=state.matieres.boitier;if(mCarPoli)mCarPoli.material=tranchePolie('boitier')?aluBoitier:brut;
   for(const m of BRUTS)m.material=m===mFond?brutGrave:(brutActif&&peutBrut(ib))?(m.userData.brutMat||brut):aluBoitier;   // le fond garde sa matiere et ses lettres assombries
   aluLunette.color.setHex(l.poli);aluLunette.roughness=Math.min(.6,l.rp*kr);brutCreux.color.setHex(l.brut);
