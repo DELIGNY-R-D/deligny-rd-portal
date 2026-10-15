@@ -39,6 +39,7 @@ import hashlib
 import os
 import re
 import shutil
+import subprocess
 import sys
 import time
 
@@ -214,7 +215,13 @@ def main(argv=None) -> int:
     cible_media = os.path.join(CIBLE, "media")
     if os.path.isdir(cible_media):
         shutil.rmtree(cible_media)
-    shutil.copytree(os.path.join(SOURCE, "media"), cible_media)
+    # (15/10) le site lit la VERSION WEB du modele par defaut (defaut_web.bin.gz, 2,8 Mo), jamais defaut_hd.bin.gz
+    # (7,3 Mo, source de l'atelier) : on la regenere si l'export HD est plus recent, et on ne publie pas le HD.
+    hd, web = os.path.join(SOURCE, "media", "defaut_hd.bin.gz"), os.path.join(SOURCE, "media", "defaut_web.bin.gz")
+    if os.path.isfile(hd) and (not os.path.isfile(web) or os.path.getmtime(web) < os.path.getmtime(hd)):
+        subprocess.run([sys.executable, os.path.join(SOURCE, "outils", "defaut_web.py")], check=True)
+        faits.append("version web du modele par defaut regeneree")
+    shutil.copytree(os.path.join(SOURCE, "media"), cible_media, ignore=shutil.ignore_patterns("defaut_hd.bin.gz"))
     with open(marqueur, "w", encoding="utf-8") as f:
         f.write(emp_src + "\n")
 

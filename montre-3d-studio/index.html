@@ -169,6 +169,13 @@ body.sans-reglages #badge{display:none;}
   .resume .btn{min-height:44px;padding:0 18px;font-size:15px;}
   .vign .tuile,.vign>*{min-height:44px;}
 }
+/* EMBARQUE (15/10/2026) : dans la vitrine du portail, le bandeau du bas
+   (prix, delai, bouton « Suivant ») mangeait une bande d'un ecran deja etroit,
+   et affichait un prix sur une page qui n'est pas une page de vente. Les
+   etapes restent accessibles par les onglets numerotes du haut, toujours
+   visibles : rien n'est rendu inatteignable.
+   En plein ecran le bandeau reste : c'est la qu'il a sa place. */
+html.embarque .resume{display:none}
 </style>
 <script type="importmap">
 {"imports":{"three":"./vendor/three.module.js",
@@ -307,6 +314,13 @@ body.sans-reglages #badge{display:none;}
 </main>
 
 <script type="module">
+/* Sommes-nous dans un cadre ? Deux cas rendent VRAI : un parent different de
+   nous, et un acces a `window.top` qui LEVE, ce qui n'arrive qu'embarque dans
+   une autre origine. Le `catch` conclut donc « embarque », jamais
+   « autonome » : une absence de lecture ne doit pas faire croire a l'absence
+   de cadre. */
+try { if (window.self !== window.top) document.documentElement.classList.add('embarque'); }
+catch (e) { document.documentElement.classList.add('embarque'); }
 import * as THREE from 'three';
 import {OrbitControls} from 'three/addons/controls/OrbitControls.js';
 import {STLLoader} from 'three/addons/loaders/STLLoader.js';
