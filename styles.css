@@ -782,13 +782,20 @@ h3 {
 }
 /* TELEPHONE, ECRAN HAUT (portrait) : 640 px fixes laissaient une grande
    bande de page vide sous la demo alors que le jeu, lui, etouffait. On prend
-   la hauteur reelle du viewport (dvh, qui exclut les barres du navigateur)
-   en gardant de quoi voir le titre au-dessus et le bouton en dessous. */
+   la hauteur reelle du viewport (dvh, qui exclut les barres du navigateur).
+
+   RELEVE DE 78 A 94 dvh (15/10/2026). A 78 dvh, le bas du cadre s'arretait
+   bien au-dessus du bas de l'ecran : la demo etait petite, et les boutons qui
+   la suivent occupaient une place que la demo aurait mieux employee. A 94 dvh
+   le trait du bas atteint le bas de l'ecran, et il faut DESCENDRE pour voir
+   les boutons, ce qui est le comportement voulu : la demonstration d'abord.
+   Pas 100 : il reste de quoi voir qu'une page continue dessous, sinon rien
+   n'indique qu'il faut faire defiler. */
 @media (max-width: 700px) {
   .atlas-embed iframe, .nano-embed iframe {
-    height: 78vh;
-    height: 78dvh;
-    min-height: 460px;
+    height: 94vh;
+    height: 94dvh;
+    min-height: 520px;
   }
 }
 
