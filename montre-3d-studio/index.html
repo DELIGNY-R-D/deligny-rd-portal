@@ -408,13 +408,26 @@ const DESSINS=[
   {nom:"gravure : têtes de mort et volutes",frise:"cranes",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
   {nom:"gravure : arabesque orientale",frise:"ronces",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
   {nom:"gravure : tribal polynésien (koru)",frise:"tribal",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
-  {nom:"gravure : croix pattées et perles",frise:"croix",f:(u,s,p)=>friseSD(u,s,p)>0?1:0}
+  {nom:"gravure : croix pattées et perles",frise:"croix",f:(u,s,p)=>friseSD(u,s,p)>0?1:0},
+  {nom:"météorite (Widmanstätten)",fam:["texture","météorite"]}   /* (14/10) lamelles en creux sur contour exact (distance au contour) */
 ];
 let CARTE_ORIGINE=null;
 /* ── CHIFFRES ET TEXTE EMBOSSES (14/10) ── trace en vue de dessus (44 mm, 40 px/mm) le long du biseau, lettres en
    creux (brutes) sur la lunette polie ; champ signe exact par transformee de distance (Felzenszwalb), en mm. Les glyphes
    sont pre-etires en travers de la pente du biseau (projection). Graisse 800, hauteur >= 1,4 mm : traits >= 0,3 mm. */
 let _TXT=null;
+/* (14/10, Baptiste : « tout en vectoriel, geometrie parfaite ») CONTOUR SOUS-PIXEL. Le champ signe tire d'un trace
+   rasterise suivait les marches des pixels (escalier de 1/2 pixel) ; on corrige chaque pixel de bord par sa COUVERTURE
+   (le trace est rendu antialiase : la valeur grise donne la position exacte du bord dans le pixel), puis on adoucit le
+   champ d'un filtre binomial (sigma ~ 1 pixel) : contour lisse, zero en place a mieux que 0,01 mm. */
+function sdSousPixel(D,B,Do,Di,W,H,K,stride=4,off=0,signeMotif=1,per=false){const SD=new Float32Array(W*H);
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){const q=j*stride+off+i,c=D[4*q]/255,dIn=Di[q],dOut=Do[q];
+    let v=B[q]?(dIn-.5):-(dOut-.5);if(dIn<=1.01&&B[q]||dOut<=1.01&&!B[q])v=c-.5;   // pixel de bord : sa couverture
+    SD[j*W+i]=signeMotif*v/K;}
+  const T=new Float32Array(W*H),w=[1,4,6,4,1],at=(i,W)=>per?((i%W)+W)%W:Math.max(0,Math.min(W-1,i));
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){let a=0;for(let k=-2;k<=2;k++)a+=w[k+2]*SD[j*W+at(i+k,W)];T[j*W+i]=a/16;}
+  for(let j=0;j<H;j++)for(let i=0;i<W;i++){let a=0;for(let k=-2;k<=2;k++)a+=w[k+2]*T[Math.max(0,Math.min(H-1,j+k))*W+i];SD[j*W+i]=a/16;}
+  return SD;}
 function edt1(f,n,d,v,z){let k=0;v[0]=0;z[0]=-1e20;z[1]=1e20;for(let q=1;q<n;q++){let s;while((s=((f[q]+q*q)-(f[v[k]]+v[k]*v[k]))/(2*q-2*v[k]))<=z[k])k--;k++;v[k]=q;z[k]=s;z[k+1]=1e20;}
   k=0;for(let q=0;q<n;q++){while(z[k+1]<q)k++;d[q]=(q-v[k])*(q-v[k])+f[v[k]];}}
 function edt2(B,W,H){const INF=1e20,D=new Float64Array(W*H),f=new Float64Array(Math.max(W,H)),d=new Float64Array(Math.max(W,H)),v=new Int32Array(Math.max(W,H)),z=new Float64Array(Math.max(W,H)+1);
@@ -440,7 +453,7 @@ function texteSD(p){const H=Math.max(1.4,p.hauteur||1.6),t=Math.round(p.texte||0
       const aDe=sv=>{let lo=0,hi=NA;while(hi-lo>1){const m=(lo+hi)>>1;if(S[m]<=sv)lo=m;else hi=m;}return (lo+(sv-S[lo])/((S[hi]-S[lo])||1))/NA;};
       for(let r=0;r<nrep;r++)for(const ch of unit){const w=adv(ch)*k,a=aDe(s0+w/2);if(ch.trim())pose(ch,a);s0+=w;}}
     const D=x.getImageData(0,0,n,n).data,B=new Uint8Array(n*n),Bi=new Uint8Array(n*n);for(let i=0;i<n*n;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
-    const Dout=edt2(B,n,n),Din=edt2(Bi,n,n),SD=new Float32Array(n*n);for(let i=0;i<n*n;i++)SD[i]=(B[i]?-(Din[i]-.5):(Dout[i]-.5))/K;   // > 0 hors des lettres (dessus poli)
+    const Dout=edt2(B,n,n),Din=edt2(Bi,n,n),SD=sdSousPixel(D,B,Dout,Din,n,n,K,n,0,-1);   // > 0 hors des lettres (dessus poli)
     // trait le plus fin (diametre inscrit) par lettre : controle d'imprimabilite
     let fin=99;{const vu=new Uint8Array(n*n),st=new Int32Array(n*n);for(let i0=0;i0<n*n;i0++){if(!B[i0]||vu[i0])continue;let top=0,mx=0;st[top++]=i0;vu[i0]=1;
       while(top){const i=st[--top];if(-SD[i]>mx)mx=-SD[i];for(const j of [i-1,i+1,i-n,i+n])if(j>=0&&j<n*n&&B[j]&&!vu[j]){vu[j]=1;st[top++]=j;}}if(2*mx<fin)fin=2*mx;}}
@@ -527,8 +540,7 @@ function friseSD(u,s,p){const F=FRISES[DESSINS[Math.round(p.dessin||0)].frise];i
   if(!_FRS||_FRS.cle!==cle){const W=Math.ceil(Lt*K),Hp=Math.ceil(H*K),c=document.createElement('canvas');c.width=3*W;c.height=Hp;const x=c.getContext('2d');x.fillStyle='#000';x.fillRect(0,0,3*W,Hp);
     for(let k=0;k<3;k++){x.save();x.scale(W/Lt,Hp/H);x.translate(k*Lt,0);F.dessin(x,Lt,H);x.restore();}   // trois tuiles : la distance est exacte a travers les raccords
     const D=x.getImageData(0,0,3*W,Hp).data,n2=3*W*Hp,B=new Uint8Array(n2),Bi=new Uint8Array(n2);for(let i=0;i<n2;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
-    const Do=edt2(B,3*W,Hp),Di=edt2(Bi,3*W,Hp),SD=new Float32Array(W*Hp);
-    for(let j=0;j<Hp;j++)for(let i=0;i<W;i++){const q=j*3*W+W+i;SD[j*W+i]=(B[q]?(Di[q]-.5):-(Do[q]-.5))/K;}   // > 0 sur le motif (reste poli), < 0 dans le fond (creuse)
+    const Do=edt2(B,3*W,Hp),Di=edt2(Bi,3*W,Hp),SD=sdSousPixel(D,B,Do,Di,W,Hp,K,3*W,W,1,true);   // > 0 sur le motif (reste poli), < 0 dans le fond (creuse)
     _FRS={cle,W,Hp,SD,n};}
   const Z=_FRS,fx=fract(u*Z.n)*Z.W,fy=Math.max(0,Math.min(1,s))*(Z.Hp-1),i=Math.floor(fx)%Z.W,i2=(i+1)%Z.W,j=Math.min(Z.Hp-2,Math.floor(fy)),a=fx-Math.floor(fx),b=fy-j,S=Z.SD,W=Z.W;
   return (S[j*W+i]*(1-a)+S[j*W+i2]*a)*(1-b)+(S[(j+1)*W+i]*(1-a)+S[(j+1)*W+i2]*a)*b;}
@@ -561,7 +573,7 @@ function friseLocale(F,x,y,L,H){const n=Math.max(1,Math.round(L/F.long(H))),Lt=L
   let Z=_FRL[cle];if(!Z){const W=Math.ceil(Lt*K),Hp=Math.ceil(H*K),c=document.createElement('canvas');c.width=3*W;c.height=Hp;const cx=c.getContext('2d');cx.fillStyle='#000';cx.fillRect(0,0,3*W,Hp);
     for(let k=0;k<3;k++){cx.save();cx.scale(W/Lt,Hp/H);cx.translate(k*Lt,0);F.dessin(cx,Lt,H);cx.restore();}
     const D=cx.getImageData(0,0,3*W,Hp).data,n2=3*W*Hp,B=new Uint8Array(n2),Bi=new Uint8Array(n2);for(let i=0;i<n2;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
-    const Do=edt2(B,3*W,Hp),Di=edt2(Bi,3*W,Hp),SD=new Float32Array(W*Hp);for(let j=0;j<Hp;j++)for(let i=0;i<W;i++){const q=j*3*W+W+i;SD[j*W+i]=(B[q]?(Di[q]-.5):-(Do[q]-.5))/K;}
+    const Do=edt2(B,3*W,Hp),Di=edt2(Bi,3*W,Hp),SD=sdSousPixel(D,B,Do,Di,W,Hp,K,3*W,W,1,true);
     Z=_FRL[cle]={W,Hp,SD,Lt};}
   const fx=((x/Z.Lt)%1+1)%1*Z.W,fy=Math.max(0,Math.min(1,y/H))*(Z.Hp-1),i=Math.floor(fx)%Z.W,i2=(i+1)%Z.W,j=Math.min(Z.Hp-2,Math.floor(fy)),a=fx-Math.floor(fx),b=fy-j,S=Z.SD,W=Z.W;
   return (S[j*W+i]*(1-a)+S[j*W+i2]*a)*(1-b)+(S[(j+1)*W+i]*(1-a)+S[(j+1)*W+i2]*a)*b;}
@@ -598,7 +610,7 @@ function ornementSD(p){if(!ORN_IM)return 9;const Hmm=6.2,cle=Hmm+ORN_IM.w;
     x.globalCompositeOperation='lighten';
     for(const [mx,mz] of [[1,1],[-1,1],[1,-1],[-1,-1]]){x.save();x.translate(n/2,n/2);x.scale(mx*K,mz*K);x.drawImage(src,ax-ww/2,az-hh/2,ww,hh);x.restore();}
     const D=x.getImageData(0,0,n,n).data,B=new Uint8Array(n*n),Bi=new Uint8Array(n*n);for(let i=0;i<n*n;i++){const v=D[4*i]>127;B[i]=v?1:0;Bi[i]=v?0:1;}
-    const Do=edt2(B,n,n),Di=edt2(Bi,n,n),SD=new Float32Array(n*n);for(let i=0;i<n*n;i++)SD[i]=(B[i]?-(Di[i]-.5):(Do[i]-.5))/K-.14;   // -0,14 : trait elargi (trait le plus fin >= 0,35 mm)
+    const Do=edt2(B,n,n),Di=edt2(Bi,n,n),SD=sdSousPixel(D,B,Do,Di,n,n,K,n,0,-1);for(let i=0;i<n*n;i++)SD[i]-=.14;   // -0,14 : trait elargi (trait le plus fin >= 0,35 mm)
     _ORN={cle,n,L,SD};}
   const Z=_ORN,fx=(PZ.x/Z.L+.5)*Z.n,fy=(PZ.z/Z.L+.5)*Z.n,i=Math.floor(fx),j=Math.floor(fy);if(i<0||j<0||i>=Z.n-1||j>=Z.n-1)return 9;
   const a=fx-i,b=fy-j,S=Z.SD,n=Z.n;return (S[j*n+i]*(1-a)+S[j*n+i+1]*a)*(1-b)+(S[(j+1)*n+i]*(1-a)+S[(j+1)*n+i+1]*a)*b;}
@@ -849,7 +861,8 @@ function famille(nom,X,Y,P,p){const F=FAMILLES[nom];if(!F)return 0;const m=F.mod
       for(let k=0;k<4;k++){const a=(D[k]+(hash2(k,7,g)-.5)*8)*Math.PI/180,ca=Math.cos(a),sa=Math.sin(a),c=A*ca+B*sa,l=-A*sa+B*ca;
         const S=e*(1.7+1.1*hash2(k,3,g)),i=Math.floor(c/S),f=(c-i*S),w=.35+.55*hash2(i,k*13+1,g)*Math.min(1,e),Lseg=e*(2.5+5*hash2(i,k+9,g)),sg=Math.floor(l/Lseg);
         if(hash2(i*7+sg,k+31,g)<(k===3?.7:.35))continue;const d=Math.abs(f-S/2)/(w/2);if(d>=1.25)continue;
-        const h=.62+.38*hash2(i,k+5,g),bord=d>.82&&d<1.1?.08:0;v=Math.max(v,h*(1-sm(.85,1.2,d))+bord);}
+        const lp=l-sg*Lseg,bout=sm(0,.25,lp)*sm(0,.25,Lseg-lp);   /* (14/10) lamelle effilee aux deux bouts : plus de coupure franche */
+        const h=.62+.38*hash2(i,k+5,g),bord=.08*Math.exp(-(((d-.95)/.09)**2));v=Math.max(v,(h*(1-sm(.85,1.2,d))+bord)*bout);}
       return Math.min(1,v);}
     case 'peau de requin':{const q=e*.6,ro=Math.floor(B/q),a=fract(A/q+(ro&1)*.5)-.5,b=fract(B/q)-.5;return Math.max(0,1-2*Math.hypot(a*1.3,b))*(.6+.4*tri(a*3));}
   }}
@@ -1251,7 +1264,7 @@ function w1Maillage(interieur){const Z=w1Plan(state.lunette.params),{N,g,RF,RS}=
      cotes) et, en option, le LISERE (bande plate polie de part et d'autre du pli) ;
    - MARCHES VERTICALES entre cellules de hauteurs differentes, entre motif et bandes plates : murs le long de la
      normale, sommets communs, coque fermee (aucune fente, aucune jonction en T). */
-function vecActif(){const L=state.lunette;if(L.motif!=='arete')return false;const f=FORMES[Math.round(L.params.forme||0)];return !!f&&f[0]==='facettes';}
+function vecActif(){const L=state.lunette;if(L.motif!=='arete')return false;const f=FORMES[Math.round(L.params.forme||0)];return !!f&&(f[0]==='facettes'||f[1]==='pyramides triangulaires');}
 let VEC_PAS_ARETE=.2,VEC_PAS_ANNEAU=.45;   // fleche < 0,01 mm sur la lunette (rayon ~19 mm), sous la resolution d impression
 function vecMaillage(interieur){const _a=VEC_PAS_ARETE,_n=VEC_PAS_ANNEAU;if(APERCU&&!interieur){VEC_PAS_ARETE=.4;VEC_PAS_ANNEAU=.9;}try{return vecMaillage0(interieur);}finally{VEC_PAS_ARETE=_a;VEC_PAS_ANNEAU=_n;}}
 function vecMaillage0(interieur){const L=state.lunette,p=L.params,md=FORMES[Math.round(p.forme||0)][1],pas=Math.max(.15,p.pas||1.2),g=7,rel=p.relief||.35;
@@ -1262,20 +1275,29 @@ function vecMaillage0(interieur){const L=state.lunette,p=L.params,md=FORMES[Math
   // ---- sites (meme tirage que worley) ----
   const site=(a,b)=>({a,b,x:(a+.1+.8*hash2(a,b,g))*pas,y:(b+.1+.8*hash2(b,a,g+7))*pas,id:hash2(a,b,g+13)});
   const Rmin=R0-2*pas,Rmax=R0+LZ+2*pas,K=Math.ceil(Rmax/pas)+2,S=[],SI=new Map();
-  for(let a=-K;a<=K;a++)for(let b=-K;b<=K;b++){const s=site(a,b),R=Math.hypot(s.x,s.y);if(R<Rmin||R>Rmax)continue;s.k=S.length;S.push(s);SI.set(a*100003+b,s.k);}
+  const TRIG=md==='pyramides triangulaires';
+  /* (14/10, Baptiste : « tout en vectoriel ») PYRAMIDES TRIANGULAIRES EXACTES : reseau de triangles equilateraux de
+     hauteur « pas » (cote pas.2/V3) ; chaque triangle est une cellule dont le site est le centre ; la pyramide a trois
+     facettes planes qui se rejoignent sur les medianes (rayons vers les coins) : maillage exact, aretes vives droites. */
+  if(TRIG){const sd=pas*2/Math.sqrt(3),V=(i,j)=>[i*sd+j*sd/2,j*pas],Kt=Math.ceil(Rmax/pas)+2;
+    for(let j=-Kt;j<=Kt;j++)for(let i=-2*Kt;i<=2*Kt;i++)for(const up of [1,0]){const C=up?[V(i,j),V(i+1,j),V(i,j+1)]:[V(i+1,j),V(i+1,j+1),V(i,j+1)];
+      const x=(C[0][0]+C[1][0]+C[2][0])/3,y=(C[0][1]+C[1][1]+C[2][1])/3,R=Math.hypot(x,y);if(R<Rmin||R>Rmax)continue;
+      const s={a:i,b:j,x,y,id:.5,tri:C.map(q=>[q[0],q[1],-2]),k:S.length};S.push(s);}}
+  else for(let a=-K;a<=K;a++)for(let b=-K;b<=K;b++){const s=site(a,b),R=Math.hypot(s.x,s.y);if(R<Rmin||R>Rmax)continue;s.k=S.length;S.push(s);SI.set(a*100003+b,s.k);}
   // ---- valeur du motif dans la cellule (formules de famille('facettes'), sans le fondu des joints) ----
-  const val=(s,X,Y)=>{const d1=Math.hypot(X-s.x,Y-s.y)/pas;
+  const val=(s,X,Y)=>{if(s.tri){let m=9;for(let e=0;e<3;e++){const A=s.tri[e],B=s.tri[(e+1)%3],L=Math.hypot(B[0]-A[0],B[1]-A[1]);m=Math.min(m,Math.abs((B[0]-A[0])*(Y-A[1])-(B[1]-A[1])*(X-A[0]))/L);}return Math.max(0,Math.min(1,3*m/pas));}
+    const d1=Math.hypot(X-s.x,Y-s.y)/pas;
     if(md==='voronoï cristallin'){const gx=(hash2(Math.round(s.x*97),1,g)-.5)*1.4/pas,gy=(hash2(Math.round(s.y*97),2,g)-.5)*1.4/pas;return Math.min(1,Math.max(0,.6+.35*(s.id-.5)+gx*(X-s.x)+gy*(Y-s.y)));}
     if(md==='low-poly')return Math.min(1,Math.max(0,.55+.6*(s.id-.5)-.45*d1));
     return Math.max(0,1-d1*1.5)*(.45+.55*s.id);};                // cristal
   let vmax=0;for(const s of S)vmax=Math.max(vmax,val(s,s.x,s.y));const hIso=SEUIL_POLI*vmax;   // limite de polissage (poli surface)
   // distances au site ou la valeur casse (pied du cone, plafond / plancher, polissage) -> anneaux exacts
-  const casses=s=>{const c=[];if(md==='cristal'){c.push(pas/1.5);const k=.45+.55*s.id;if(hIso<k)c.push((1-hIso/k)*pas/1.5);}
+  const casses=s=>{const c=[];if(s.tri)return c;if(md==='cristal'){c.push(pas/1.5);const k=.45+.55*s.id;if(hIso<k)c.push((1-hIso/k)*pas/1.5);}
     else if(md==='low-poly'){const v0=.55+.6*(s.id-.5);for(const v of [0,1,hIso])if(v<v0)c.push((v0-v)/.45*pas);}return c;};
   // ---- cellules de Voronoi exactes ----
   const cc=(A,B,C)=>{const ax=A.x,ay=A.y,bx=B.x,by=B.y,cx=C.x,cy=C.y,d=2*(ax*(by-cy)+bx*(cy-ay)+cx*(ay-by)),a2=ax*ax+ay*ay,b2=bx*bx+by*by,c2=cx*cx+cy*cy;
     return [(a2*(by-cy)+b2*(cy-ay)+c2*(ay-by))/d,(a2*(cx-bx)+b2*(ax-cx)+c2*(bx-ax))/d];};
-  const cellule=s=>{let P=[[s.x-3*pas,s.y-3*pas,-1],[s.x+3*pas,s.y-3*pas,-1],[s.x+3*pas,s.y+3*pas,-1],[s.x-3*pas,s.y+3*pas,-1]];   // [x,y,voisin de l'arete qui PART de ce sommet]
+  const cellule=s=>{if(s.tri)return s.tri.map(q=>[...q]);let P=[[s.x-3*pas,s.y-3*pas,-1],[s.x+3*pas,s.y-3*pas,-1],[s.x+3*pas,s.y+3*pas,-1],[s.x-3*pas,s.y+3*pas,-1]];   // [x,y,voisin de l'arete qui PART de ce sommet]
     for(let da=-2;da<=2;da++)for(let db=-2;db<=2;db++){if(!da&&!db)continue;const ti=SI.get((s.a+da)*100003+(s.b+db));const t=ti===undefined?site(s.a+da,s.b+db):S[ti];
       const nx=t.x-s.x,ny=t.y-s.y,c=(t.x*t.x+t.y*t.y-s.x*s.x-s.y*s.y)/2,f=q=>nx*q[0]+ny*q[1]-c,Q=[];   // garde f <= 0
       for(let i=0;i<P.length;i++){const A=P[i],B=P[(i+1)%P.length],fa=f(A),fb=f(B);
@@ -1355,7 +1377,7 @@ function vecMaillage0(interieur){const L=state.lunette,p=L.params,md=FORMES[Math
           const t=(lo+hi)/2,Ls=Math.hypot(b[0]-a[0],b[1]-a[1]);if(t*Ls<2e-3||(1-t)*Ls<2e-3)continue;pts.splice(k+1,0,[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t]);k++;n++;}}}
       if(inv)pts.reverse();for(let k=0;k<pts.length-1;k++)bord.push(pts[k]);}
     const cs=casses(s);
-    const rayon=q=>{const L=Math.hypot(q[0]-s.x,q[1]-s.y),d=[];for(let r=VEC_PAS_ANNEAU;r<L-.03;r+=VEC_PAS_ANNEAU)d.push(r);for(const c of cs)if(c>.01&&c<L-.01)d.push(c);d.sort((a,b)=>a-b);
+    const rayon=q=>{const L=Math.hypot(q[0]-s.x,q[1]-s.y),d=[];for(let r=VEC_PAS_ANNEAU;r<L-.03;r+=VEC_PAS_ANNEAU)d.push(r);for(const c of cs)if(c>.01&&c<L-.01)d.push(c);if(s.tri&&hIso>0&&hIso<1)d.push((1-hIso)*L);   /* pyramide : limite de poli a la meme fraction de chaque rayon */d.sort((a,b)=>a-b);
       const pts=[];for(const r of d){if(pts.length&&r-pts[pts.length-1][3]<.012)continue;const t=r/L;pts.push([s.x+(q[0]-s.x)*t,s.y+(q[1]-s.y)*t,0,r]);}pts.push([q[0],q[1],0,L]);return pts;};
     const enUS=q=>[q[0],q[1],pt(q[0],q[1]),q[3]];
     const apex=[s.x,s.y,pt(s.x,s.y)];
@@ -1532,7 +1554,7 @@ function grilleMotif(){const p=state.lunette.params;LZ=largeurZone();_raccords=n
   if(state.lunette.motif==='embossage'&&(DESSINS[Math.round(p.dessin||0)].vue||DESSINS[Math.round(p.dessin||0)].texte||DESSINS[Math.round(p.dessin||0)].frise))return {N:4800,M:160};   // (14/10) traces fins (arabesques, chiffres) : grille ~0,026 mm   // contours d'une image : grille fine uniforme
   if(state.lunette.motif==='image'&&BASRELIEF.lunette&&BASRELIEF.lunette.dessus)return APERCU?{N:1440,M:60}:{N:3600,M:130};   // ~0,035 mm le long du tour
   const n=fam?(droit?Math.round(PERIM/cel):0):Math.round(p.n||0),rg=rangsLunette();
-  if(fam&&!droit){const pasMin=Math.max(.15,p.pas||1),a=APERCU?3:1;return {N:Math.round(Math.min(4800,Math.max(2160,Math.round(PERIM/pasMin*10)))/a),M:Math.round(Math.min(181,Math.max(72,Math.round(LZ/pasMin*10)))/(APERCU?2:1))};}
+  if(fam&&!droit){const pasMin=Math.max(.15,p.pas||1),a=APERCU?3:1;return {N:Math.round(Math.min(4800,Math.max(3600,Math.round(PERIM/pasMin*10)))/a),M:Math.round(Math.min(181,Math.max(130,Math.round(LZ/pasMin*10)))/(APERCU?2:1))};}
   let N=APERCU?1080:2160; if(n>0){const k=2*Math.max(APERCU?1:4,Math.round((fam?3600:2400)/n/2/(APERCU?3:1)));N=n*k;}
   let M=APERCU?36:72; if(rg>0){const k=2*Math.max(APERCU?1:(fam?4:6),Math.round(72/rg/2/(APERCU?2:1)));M=Math.min(241,rg*k+1);}
   return {N,M};}
@@ -1590,14 +1612,18 @@ function lignesMotif(H,D){const m=state.lunette.motif,p=state.lunette.params;
     for(let k=0;k<nf;k++){const a=a0*(1-k/(2*nf)),dy=D0/nf;x+=a>=Math.PI/2-1e-3?0:dy/Math.tan(a);if(x+niv[niv.length-1]>1e-4)niv.push(-x);}   // bord, pieds des facettes
     return {F:D,niv};}
   if((m==='image'||m==='relief')&&Math.round(p.finition??1)===1){let hm=0;for(const v of H)if(v>hm)hm=v;if(hm>1e-4)return {F:H,niv:[SEUIL_POLI*hm]};}   // limite de polissage
+  /* (14/10) motifs a aretes vives sur grille (textures, meteorite, guilloches...) : la ligne a mi-hauteur du relief (pied
+     des aretes) et la limite de polissage deviennent des chaines de sommets -> contours nets, sans escalier */
+  if(m==='arete'){let hm=0;for(const v of H)if(v>hm)hm=v;if(hm>1e-4){const niv=[.5*hm];if(Math.round(p.finition??2)===1)niv.push(SEUIL_POLI*hm);return {F:H,niv};}}
   return null;}
 // (13/10) essai ecarte : sur les cones des facettes cristallines, la detection des aretes par pentes froissait la
 // surface (faux positifs sur les generatrices courbes). Desactive ; le maillage exact de ces motifs est vectoriel.
 const SNAP_ARETES=false;
-function zoneAjustee(N,M){const n=N*M,P=new Float32Array(n*3),H=new Float32Array(n),NV=new Float32Array(n*3),D=new Float32Array(n),LI=new Float32Array(n);
+function zoneAjustee(N,M,sansCalage){const n=N*M,P=new Float32Array(n*3),H=new Float32Array(n),NV=new Float32Array(n*3),D=new Float32Array(n),LI=new Float32Array(n);
   for(let i=0;i<N;i++)for(let j=0;j<M;j++){const k=i*M+j;P.set(pointZone(i,N,j,M),k*3);H[k]=dernierH;D[k]=dernierD;LI[k]=dernierL;NV.set(dernierN,k*3);}
-  const champs=[],L=lignesMotif(H,D);if(L)champs.push({F:L.F,niv:L.niv,lire:L.F===D?()=>dernierD:()=>dernierH});
-  if(lisereActif())champs.push({F:LI,niv:[0],lire:()=>dernierL});           // bord du lisere : ligne exacte
+  const champs=[],L=lignesMotif(H,D);if(L)champs.push({F:L.F,nom:L.F===D?'D':'H',niv:L.niv,lire:L.F===D?()=>dernierD:()=>dernierH});
+  if(lisereActif())champs.push({F:LI,nom:'LI',niv:[0],lire:()=>dernierL});           // bord du lisere : ligne exacte
+  if(sansCalage)return {P,H,NV,LI,D,champs};   // (14/10) la coupe exacte (couperZone) remplace le calage
   const best=new Float32Array(n).fill(9),DI=new Float32Array(n),DJ=new Float32Array(n),X=[];let deplaces=0;
   const prend=(a,b,t,di,dj)=>{X.push(a,b,t,di,dj);if(t<=.5){if(t<best[a]){best[a]=t;DI[a]=di*t*.998;DJ[a]=dj*t*.998;}}
     else{const u=1-t;if(u<best[b]){best[b]=u;DI[b]=-di*u*.998;DJ[b]=-dj*u*.998;}}};     // .998 : le sommet reste de SON cote de la ligne
@@ -1632,8 +1658,8 @@ function zoneAjustee(N,M){const n=N*M,P=new Float32Array(n*3),H=new Float32Array
     if(t<=.5&&best[b]>.5&&1-t<=.7){best[b]=1-t;DI[b]=-di*(1-t)*.998;DJ[b]=-dj*(1-t)*.998;}
     else if(t>.5&&best[a]>.5&&t<=.7){best[a]=t;DI[a]=di*t*.998;DJ[a]=dj*t*.998;}}
   for(let k=0;k<n;k++){if(best[k]>.7||best[k]<.002)continue;const i=(k/M)|0,j=k%M;
-    P.set(pointZone((i+DI[k]+N)%N,N,j+DJ[k],M),k*3);H[k]=dernierH;LI[k]=dernierL;NV.set(dernierN,k*3);deplaces++;}
-  zoneAjustee.dernier={N,M,deplaces};return {P,H,NV,LI};}
+    P.set(pointZone((i+DI[k]+N)%N,N,j+DJ[k],M),k*3);H[k]=dernierH;LI[k]=dernierL;D[k]=dernierD;NV.set(dernierN,k*3);deplaces++;}
+  zoneAjustee.dernier={N,M,deplaces};return {P,H,NV,LI,D};}
 // diagonale de chaque maille : celle qui SUIT la ligne du motif quand deux sommets opposes sont dessus (sinon la maille
 // coupee en travers laisse une encoche dans le contour poli), sinon celle qui plie le moins
 function diagLigne(P,a,b,c,d,I,dessus){if(dessus){const A=dessus(a),B=dessus(b),C=dessus(c),D=dessus(d);
@@ -1643,7 +1669,7 @@ function dessusZone(H){const m=state.lunette.motif,p=state.lunette.params;
   if(m==='embossage')return v=>H[v]>-2e-4;
   if((m==='image'||m==='relief')&&Math.round(p.finition??1)===1){let hm=0;for(const v of H)if(v>hm)hm=v;const L=SEUIL_POLI*hm-1e-6;return v=>H[v]>=L;}
   return null;}
-function indexGrille(N,M,P,H,LI){const I=[],d0=H?dessusZone(H):null,ds=LI&&lisereActif()?(d0?v=>d0(v)||LI[v]<=1e-6:v=>LI[v]<=1e-6):d0;for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M-1;j++){const a=i*M+j,b=i2*M+j;diagLigne(P,a,b,a+1,b+1,I,ds);}}
+function indexGrille(N,M,P,H,LI,D){const I=[],d0=D&&state.lunette.motif==='embossage'&&D.some(Number.isFinite)?(v=>D[v]>-1e-4):H?dessusZone(H):null,ds=LI&&lisereActif()?(d0?v=>d0(v)||LI[v]<=1e-6:v=>LI[v]<=1e-6):d0;for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M-1;j++){const a=i*M+j,b=i2*M+j;diagLigne(P,a,b,a+1,b+1,I,ds);}}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setIndex(I);return g;}
 /* (13/10, Baptiste) RENDU DES FINITIONS, ECRAN SEULEMENT (le fichier STL garde toujours les aretes vives) :
    - mat (brut) : aretes un peu arrondies (la matiere brute et le sablage cassent l'arete) ;
@@ -1652,7 +1678,15 @@ function indexGrille(N,M,P,H,LI){const I=[],d0=H?dessusZone(H):null,ds=LI&&liser
      deposee n'est pas un polissage a proprement parler. */
 const PLACAGES=['laitonOr','laitonRose'];
 function arrondiEcran(){const L=state.lunette,f=Math.round(L.params.finition??(L.motif==='arete'?2:1));return L.motif!=='lisse'&&(f===0||PLACAGES.includes(state.matieres.lunette));}
-function grilleSeparee(N,M){const Z=zoneAjustee(N,M),H=Z.H,NV=Z.NV,g=indexGrille(N,M,Z.P,Z.H,Z.LI);
+function grilleSeparee(N,M){coupeZone.lisse=false;
+  if(!arrondiEcran()){const Z0=zoneAjustee(N,M,true);if(Z0.champs.length){const g0=indexGrille(N,M,Z0.P,Z0.H,Z0.LI,Z0.D),C=couperZone(N,M,Z0,Array.from(g0.index.array));
+      const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(C.P,3));g.setIndex(C.I);coupeZone.dernier={sommets:C.H.length,triangles:C.I.length/3};
+      const r=separer(g,C.H,C.LI,C.D);
+      /* reliefs au profil lisse (embossage, bas-reliefs) : normales de la surface ENTIERE (ponderees par l'aire, aucune
+         couture poli / brut) -> parois sans reflet en zigzag. Les aretes vives gardent leur angle de cassure. */
+      if(state.lunette.motif!=='arete'){g.computeVertexNormals();for(const q of r)q.setAttribute('normal',g.getAttribute('normal'));coupeZone.lisse=true;}else coupeZone.lisse=false;
+      return r;}}
+  const Z=zoneAjustee(N,M),H=Z.H,NV=Z.NV,g=indexGrille(N,M,Z.P,Z.H,Z.LI,Z.D);
   /* POLI SURFACE, ECRAN SEULEMENT (12/10, Baptiste) : le polissage casse l'arete des sommets -> on arrondit les
      aretes CONVEXES (on ne fait que descendre les sommets, rayon ~0,08 mm). Le fichier de fabrication (peauLunette,
      export STL) ne passe pas ici : il garde les aretes vives. */
@@ -1665,9 +1699,9 @@ function grilleSeparee(N,M){const Z=zoneAjustee(N,M),H=Z.H,NV=Z.NV,g=indexGrille
     const P=g.getAttribute('position').array;
     for(let k=0;k<N*M;k++){const dh=Math.min(0,A[k]-H[k]);if(dh<0){P[k*3]+=dh*NV[k*3];P[k*3+1]+=dh*NV[k*3+1];P[k*3+2]+=dh*NV[k*3+2];}}
     g.getAttribute('position').needsUpdate=true;}
-  return separer(g,H,Z.LI);}
+  return separer(g,H,Z.LI,Z.D);}
 // zone decoree -> [triangles polis, triangles bruts] selon la finition (partage par la grille et le maillage parametrique)
-function separer(g,H,LI){
+function separer(g,H,LI,D){
   const m=state.lunette.motif,p=state.lunette.params;let hmax=0,hmin=0;for(const v of H){hmax=Math.max(hmax,v);hmin=Math.min(hmin,v);}
   const C=new Float32Array(H.length*3);
   for(let i=0;i<H.length;i++){let c=1;
@@ -1682,10 +1716,10 @@ function separer(g,H,LI){
   const I=g.index.array,haut=[],bas=[];
   // embossage : un triangle est poli s'il est ENTIEREMENT sur la surface d'origine (ses 3 sommets ; le bord du creux est
   // une chaine de sommets, voir zoneAjustee) -> limite poli / brut nette, sans dents de scie
-  const emb=m==='embossage'&&fin===1;
+  const emb=m==='embossage'&&fin===1,dOk=D&&D.some(Number.isFinite);   // (14/10) avec la distance au contour (calee) : limite poli / brut exactement sur le contour
   // lisere : bande polie (sauf finition mate), ses 3 sommets dans la bande ou sur son bord
   const lis=LI&&fin!==0?t=>LI[I[t]]<=1e-6&&LI[I[t+1]]<=1e-6&&LI[I[t+2]]<=1e-6:()=>false;
-  for(let t=0;t<I.length;t+=3){const a=H[I[t]],b=H[I[t+1]],c=H[I[t+2]];(lis(t)||(emb?Math.min(a,b,c)>(w1Actif()&&_W1&&_W1.paves?-.85*(p.profondeur||.35):-2e-4):poli((a+b+c)/3)))?haut.push(I[t],I[t+1],I[t+2]):bas.push(I[t],I[t+1],I[t+2]);}
+  for(let t=0;t<I.length;t+=3){const a=H[I[t]],b=H[I[t+1]],c=H[I[t+2]];(lis(t)||(emb&&dOk?Math.min(D[I[t]],D[I[t+1]],D[I[t+2]])>-1e-4:emb?Math.min(a,b,c)>(w1Actif()&&_W1&&_W1.paves?-.85*(p.profondeur||.35):-2e-4):poli((a+b+c)/3)))?haut.push(I[t],I[t+1],I[t+2]):bas.push(I[t],I[t+1],I[t+2]);}
   const mk=ix=>{const n=new THREE.BufferGeometry();n.setAttribute('position',g.getAttribute('position'));n.setAttribute('color',g.getAttribute('color'));n.setIndex(ix);return n;};
   return [mk(haut),mk(bas)];}
 // ── MAILLAGE PARAMETRIQUE DES RESEAUX (12/10, Baptiste : « la 3D la plus propre et la plus parfaite possible,
@@ -1871,7 +1905,7 @@ function construireLunette(){
   const EXACT=w1Actif()||vecActif(),casse=EXACT?(poliSurf?40:22):0;   // maillages exacts : jamais de normales moyennees a travers une marche
   const PAVES=w1Actif()&&_W1&&_W1.paves;   // paves bombes : surface C1 partout -> normales lisses (aucune arete a garder)
   const garderN=gg=>{const n=gg.toNonIndexed(),o=new THREE.BufferGeometry();for(const k of ['position','normal','color'])if(n.getAttribute(k))o.setAttribute(k,n.getAttribute(k));return o;};   // normales de la surface ENTIERE (pas de couture poli / brut)
-  const prep=gg=>PAVES&&(gg===sommets||gg===creux)?garderN(gg):EXACT&&(gg===sommets||gg===creux)?autoLisse(gg,casse):RP&&(gg===sommets||gg===creux)?(poliSurf?lisseC(gg):autoLisse(gg)):(gg===sommets||gg===creux)&&poliSurf?lisseC(gg):gg===sommets||gg===creux?autoLisse(gg,CASSE[state.lunette.motif]??15):gg===tr1?aligneTranche(lisse(gg)):gg===tr2p?normaleBoitier(lisse(gg)):gg===tr2b?facette(gg):lisse(gg);
+  const prep=gg=>(PAVES||(!RP&&!EXACT&&coupeZone.lisse&&gg.getAttribute('normal')))&&(gg===sommets||gg===creux)?garderN(gg):EXACT&&(gg===sommets||gg===creux)?autoLisse(gg,casse):RP&&(gg===sommets||gg===creux)?(poliSurf?lisseC(gg):autoLisse(gg)):(gg===sommets||gg===creux)&&poliSurf?lisseC(gg):gg===sommets||gg===creux?autoLisse(gg,CASSE[state.lunette.motif]??15):gg===tr1?aligneTranche(lisse(gg)):gg===tr2p?normaleBoitier(lisse(gg)):gg===tr2b?facette(gg):lisse(gg);
   const g=mergeGeometries([mergeGeometries(polis.map(gg=>blanc(prep(gg)))),mergeGeometries(bruts.map(gg=>blanc(prep(gg))))],true);
   if(volumeSigne(g)<0){retourner(g);const N=g.getAttribute('normal').array;                  // permuter AUSSI les normales, puis les inverser
     const Cc=g.getAttribute('color').array;for(let i=0;i<Cc.length;i+=9)for(let k=0;k<3;k++){const t=Cc[i+3+k];Cc[i+3+k]=Cc[i+6+k];Cc[i+6+k]=t;}
@@ -2126,7 +2160,7 @@ const brut=(()=>{const N=512,h=new Float32Array(N*N),R=rng(8420);
    GEOMETRIQUE est exactement celui du fichier (cle), la piece est lue telle quelle, sans calcul ; sinon calcul normal. */
 const HD_SANS=new Set(['matieres','origine','gravurePerso','flancs']);
 const cleGeo=()=>DEFAUT_HD_V+'|'+JSON.stringify(state,(k,v)=>HD_SANS.has(k)?undefined:v);   // la version fait partie de la cle : un fichier d'une version anterieure n'est jamais relu
-const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='9';   // a incrementer a chaque nouvel export du fichier
+const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='10';   // a incrementer a chaque nouvel export du fichier
 function encoderHD(g){const P=g.getAttribute('position').array,N=g.getAttribute('normal').array,C=g.getAttribute('color')?.array,n=P.length/3;
   const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];for(let i=0;i<n;i++)for(let a=0;a<3;a++){const v=P[3*i+a];if(v<mn[a])mn[a]=v;if(v>mx[a])mx[a]=v;}
   const ax=new Uint8Array(n);for(let t=0;t<n;t+=3){const o=3*t,ux=P[o+3]-P[o],uy=P[o+4]-P[o+1],uz=P[o+5]-P[o+2],vx=P[o+6]-P[o],vy=P[o+7]-P[o+1],vz=P[o+8]-P[o+2];
@@ -2978,18 +3012,35 @@ const VOL={carrure:0,fond:0,lunette:1751,cadran:333};
 const ORIGINES={europe:{nom:'Europe',dmls:1,fonderie:1,delai:0,credits:1.25},chine:{nom:'Chine',dmls:.3,fonderie:1,delai:7,credits:1}};
 state.origine='chine';
 const coefOrigine=(id,o=state.origine)=>{const O=ORIGINES[o]||ORIGINES.chine;return (TARIFS[id]||{proc:'DMLS'}).proc.startsWith('DMLS')?O.dmls:O.fonderie;};
+/* (14/10, Baptiste : « recaler les tarifs sur les devis Craftcloud ») TARIFS REELS, devis Craftcloud du 13/10
+   (exports/devis_20261013/craftcloud_metaux_20261013.md : 3 pieces, 6,03 cm3, port compris, meilleure offre).
+   DMLS : niveau EUROPE = devis (Chine) / 0,3, la Chine est rendue par coefOrigine (0,3) ; repartition 70 % fixe par piece,
+   30 % au cm3. Polissage : ecart reel « mat sable -> poli et sable » par piece, module par le niveau (satine x0,67,
+   poli x1, miroir x1,2 : ecarts reels inox 11,7 / 17,5 / 21 EUR par piece en Chine). Fonderie (offres chinoises,
+   pas moins cheres en Europe sur nos volumes) : laiton, bronze, argent cales sur le devis ; ors et platine au gramme
+   TOUT COMPRIS (cheetahfarms : 18 ct ~196 EUR/g, 14 ct ~165 EUR/g, platine ~143 EUR/g). Placages : ecart reel
+   laiton plaque - laiton (~40 EUR par piece). */
 const TARIFS={
-  alu:{proc:'DMLS',dens:2.68,fixe:35,cm3:2.4,min:65,poli:22,d:10,dpoli:3},
-  titane:{proc:'DMLS',dens:4.43,fixe:50,cm3:5.5,min:110,poli:35,d:13,dpoli:0},
-  inox:{proc:'DMLS',dens:7.99,fixe:45,cm3:4.2,min:95,poli:25,d:13,dpoli:3},
-  bronze:{proc:'fonderie',dens:8.8,fixe:30,cm3:3.6,min:45,poli:15,d:15,dpoli:0},
-  laiton:{proc:'fonderie',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,d:15,dpoli:0},
-  laitonOr:{proc:'fonderie + placage or',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,plac:30,d:20,dpoli:0},
-  laitonRose:{proc:'fonderie + placage or rose',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,plac:30,d:20,dpoli:0},
-  rhodiumBlanc:{proc:'fonderie + rhodiage',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,plac:25,d:20,dpoli:0},
-  rhodiumNoir:{proc:'fonderie + rhodiage noir',dens:8.5,fixe:28,cm3:3.2,min:40,poli:15,plac:28,d:20,dpoli:0},
-  argent:{proc:'fonderie',dens:10.4,fixe:35,cm3:4,g:1.1,min:60,poli:15,d:15,dpoli:0},
-  or18:{proc:'fonderie or 18 ct (750)',dens:15.5,fixe:60,cm3:6,g:95,min:150,poli:40,d:20,dpoli:3}};   // or 18 ct : ~95 EUR/g travaille, a suivre au cours de l'or
+  alu:{proc:'DMLS',dens:2.68,fixe:55,cm3:10.3,min:55,poli:58,d:10,dpoli:3},
+  titane:{proc:'DMLS',dens:4.43,fixe:65,cm3:12,min:65,poli:89,d:13,dpoli:3},
+  inox:{proc:'DMLS',dens:7.99,fixe:55,cm3:10.3,min:55,poli:58,d:13,dpoli:3},
+  bronze:{proc:'fonderie',dens:8.8,fixe:100,cm3:16.1,min:100,poli:0,d:15,dpoli:0},
+  laiton:{proc:'fonderie',dens:8.5,fixe:70,cm3:11.9,min:70,poli:1,d:15,dpoli:0},
+  laitonOr:{proc:'fonderie + placage or',dens:8.5,fixe:70,cm3:11.9,min:70,poli:1,plac:40,d:12,dpoli:0},
+  laitonRose:{proc:'fonderie + placage or rose',dens:8.5,fixe:70,cm3:11.9,min:70,poli:1,plac:40,d:12,dpoli:0},
+  rhodiumBlanc:{proc:'fonderie + rhodiage',dens:8.5,fixe:70,cm3:11.9,min:70,poli:1,plac:40,d:12,dpoli:0},
+  rhodiumNoir:{proc:'fonderie + rhodiage noir',dens:8.5,fixe:70,cm3:11.9,min:70,poli:1,plac:40,d:12,dpoli:0},
+  argent:{proc:'fonderie',dens:10.4,fixe:35,cm3:4,g:9.5,min:60,poli:0,d:12,dpoli:0},
+  or18:{proc:'fonderie or 18 ct (750)',dens:15.5,fixe:25,cm3:0,g:196,min:150,poli:0,d:12,dpoli:0},
+  or18Rose:{proc:'fonderie or rose 18 ct (750)',dens:15.2,fixe:25,cm3:0,g:196,min:150,poli:0,d:12,dpoli:0},
+  or18Blanc:{proc:'fonderie or blanc 18 ct (750)',dens:15.9,fixe:25,cm3:0,g:196,min:150,poli:0,d:12,dpoli:0},
+  or14:{proc:'fonderie or 14 ct (585)',dens:13.1,fixe:25,cm3:0,g:165,min:130,poli:0,d:12,dpoli:0},
+  or14Rose:{proc:'fonderie or rose 14 ct (585)',dens:13.1,fixe:25,cm3:0,g:165,min:130,poli:0,d:12,dpoli:0},
+  or14Blanc:{proc:'fonderie or blanc 14 ct (585)',dens:13.4,fixe:25,cm3:0,g:165,min:130,poli:0,d:12,dpoli:0},
+  platine:{proc:'fonderie platine 950',dens:21.4,fixe:25,cm3:0,g:143,min:180,poli:0,d:12,dpoli:0}};
+// niveau de polissage des surfaces polies (Boitier) : prix x et rugosite d'affichage x
+const NIVEAUX_POLI={satine:{nom:'Satiné',prix:.67,rp:4},poli:{nom:'Poli',prix:1,rp:1},miroir:{nom:'Miroir',prix:1.2,rp:.45}};
+state.niveauPoli='poli';
 // composants hors impression : ordre de grandeur pour une piece unique
 const COMPOSANTS=[['Mouvement quartz suisse',25],['Verre saphir',35],['Bracelet cuir de pomme + boucle laiton',60],['Couronne, tube, 8 vis laiton',15],['Assemblage et contrôle',40]];
 // PRIX DE VENTE (12/10) : DELIGNY R&D (SASU) est en FRANCHISE EN BASE de TVA (art. 293 B CGI) : elle ne facture pas
@@ -2999,7 +3050,7 @@ const COMPOSANTS=[['Mouvement quartz suisse',25],['Verre saphir',35],['Bracelet 
 const VENTE={base:1598,coef:2.2,coefMetal:1.25,sav:5,generaux:60,emballage:15,envoi:14};
 function prixPiece(id,vmm3,polir,orig=state.origine){const t=TARIFS[id]||TARIFS.alu,v=vmm3/1000,metal=t.g?v*t.dens*t.g:0,k=coefOrigine(id,orig);
   let p=(t.fixe+t.cm3*v*1.15)*k+metal;p=Math.max(p,t.min*k);
-  const pol=!peutBrut(id)?t.poli:(polir?t.poli*(polir>1?1.5:1):0);   /* livre poli d'office (fonderie) ou polissage demande */
+  const nv=(NIVEAUX_POLI[state.niveauPoli]||NIVEAUX_POLI.poli).prix,pol=nv*(!peutBrut(id)?t.poli:(polir?t.poli*(polir>1?1.5:1):0));   /* livre poli d'office (fonderie) ou polissage demande */
   return {prix:p+(pol+(t.plac||0))*k,metal,delai:t.d+(polir&&t.dpoli?t.dpoli:0)+(ORIGINES[orig]||ORIGINES.chine).delai,masse:v*t.dens};}
 // cout de fabrication d'une configuration (pieces + composants achetes), metal precieux isole
 function coutConfig(ib,il,fl,ic,fc=0,tb=1,tl=1,orig=state.origine){const L=[[ib,VOL.carrure,(!peutBrut(ib)||tb)?1:0],[fondMat(),VOL.fond,peutBrut(fondMat())?0:1],[il,VOL.lunette,Math.max(fl,(!peutBrut(il)||tl)?1:0)],[ic,VOL.cadran,fc?2:0]];
@@ -3095,7 +3146,7 @@ let _prixT=0;function majPrix(){clearTimeout(_prixT);_prixT=setTimeout(()=>{cons
 let mFond=null,mGravure=null;state.gravurePerso='';
 // texte de la gravure (12/10, mise en page de Baptiste) : [texte, hauteur mm, graisse, espace AVANT en mm]
 const MAT_GRAVURE={alu:'ALUMINIUM',titane:'TITANIUM',inox:'STEEL 316L',bronze:'BRONZE',laiton:'BRASS',laitonOr:'GOLD PLATED BRASS',laitonRose:'ROSE GOLD PLATED BRASS',
-  rhodiumBlanc:'RHODIUM PLATED BRASS',rhodiumNoir:'BLACK RHODIUM PLATED BRASS',argent:'SILVER 925',or18:'GOLD 18 CT 750'};
+  rhodiumBlanc:'RHODIUM PLATED BRASS',rhodiumNoir:'BLACK RHODIUM PLATED BRASS',argent:'SILVER 925',or18:'GOLD 18 CT 750',or18Rose:'ROSE GOLD 18 CT 750',or18Blanc:'WHITE GOLD 18 CT 750',or14:'GOLD 14 CT 585',or14Rose:'ROSE GOLD 14 CT 585',or14Blanc:'WHITE GOLD 14 CT 585',platine:'PLATINUM 950'};
 const ADRESSE_GRAVURE='231 RUE SAINT-HONORE 75001 PARIS',MOUVEMENT_REF='RONDA 763';   // calibre 6 3/4 x 8''' de la Montre T
 // poinçon de maitre (or 18 ct) : initiales du fabricant DELIGNY R&D + symbole ; a faire insculper au bureau de garantie
 const POINCON_MAITRE={lettres:'DR',symbole:'✦'};
@@ -3118,7 +3169,7 @@ function lignesGravure(){const m=state.matieres,ids=[...new Set([m.boitier,m.lun
     /* (14/10, Baptiste : « enleve l'adresse dans le fond ») */['ASSEMBLED IN FRANCE',1.45,600,.9,CAP_MINI],['DESIGNED IN PARIS',1.45,600,.45,CAP_MINI],
     ['SWISS MOVEMENT',1.45,600,.45,CAP_MINI],[MOUVEMENT_REF,1.45,600,.45,CAP_MINI],
     ['3D PRINTED',1.45,600,.9,CAP_MINI],...lm.map(t=>[t,1.45,600,.45,CAP_MINI]),[(P?'CR '+P.cr:'CR …')+' / '+an,1.45,600,.9,CAP_MINI]];
-  return {L,or:ids.includes('or18')};}
+  return {L,or:ids.some(i=>ORS.includes(i))};}
 // face plate du fond : demi-largeur libre (entre les vis, hors arrondis) mesuree sur media/fond_vierge.stl, z = -14,5..14,5 par 0,25
 const FOND_DEMI=[0.0, 2.8, 9.4, 10.0, 10.4, 10.8, 11.1, 11.4, 11.6, 11.9, 9.2, 8.6, 8.5, 8.3, 8.3, 8.3, 8.3, 8.4, 8.6, 9.1, 13.1, 13.1, 13.2, 13.2, 13.3, 13.3, 13.4, 13.4, 13.4, 13.5, 13.5, 13.5, 13.5, 13.6, 13.6, 13.6, 13.6, 13.6, 13.6, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.7, 13.6, 13.6, 13.6, 13.6, 13.6, 13.6, 13.5, 13.5, 13.5, 13.5, 13.4, 13.4, 13.4, 13.3, 13.3, 13.2, 13.2, 13.1, 13.1, 8.8, 8.6, 8.4, 8.3, 8.3, 8.3, 8.4, 8.5, 8.8, 9.2, 11.8, 11.6, 11.3, 11.1, 10.7, 10.4, 9.8, 9.4, 0.0, 0.0];
 const demiFond=z=>{const f=(z+14.5)/.25,g=i=>FOND_DEMI[Math.max(0,Math.min(FOND_DEMI.length-1,i))]||0;return Math.min(g(Math.floor(f)),g(Math.ceil(f)));};   // prudent : le plus etroit des deux releves voisins
@@ -3236,13 +3287,20 @@ const MATIERES={
   rhodiumBlanc:{fin:['poli'],nom:'Rhodium blanc',sous:'laiton',poli:0xe6e8eb,rp:.05,brut:0x86888b,cad:0x6a6c70},
   rhodiumNoir:{fin:['poli'],nom:'Rhodium noir',sous:'laiton',poli:0x46474b,rp:.06,brut:0x2f3033,cad:0x26272a},
   argent:{fin:['poli'],nom:'Argent massif',sous:'fonderie',poli:0xe7e4de,rp:.07,brut:0x928e86,cad:0x75726c},
-  or18:{fin:['brut','poli'],nom:'Or jaune 18 ct',sous:'fonderie cire perdue',poli:0xe4b95e,rp:.06,brut:0x9e7c40,cad:0x7f6432}};
+  or18:{fin:['brut','poli'],nom:'Or jaune 18 ct',sous:'fonderie cire perdue',poli:0xe4b95e,rp:.06,brut:0x9e7c40,cad:0x7f6432},
+  or18Rose:{fin:['brut','poli'],nom:'Or rose 18 ct',sous:'fonderie cire perdue',poli:0xe6ad8c,rp:.06,brut:0x9a6a52,cad:0x7c5544},
+  or18Blanc:{fin:['brut','poli'],nom:'Or blanc 18 ct',sous:'fonderie, rhodié',poli:0xe9e7e2,rp:.05,brut:0x908d86,cad:0x75726c},
+  or14:{fin:['brut','poli'],nom:'Or jaune 14 ct',sous:'fonderie cire perdue',poli:0xdcb468,rp:.07,brut:0x957645,cad:0x785f37},
+  or14Rose:{fin:['brut','poli'],nom:'Or rose 14 ct',sous:'fonderie cire perdue',poli:0xdea58a,rp:.07,brut:0x926551,cad:0x765242},
+  or14Blanc:{fin:['brut','poli'],nom:'Or blanc 14 ct',sous:'fonderie, rhodié',poli:0xe2e0db,rp:.06,brut:0x8b8882,cad:0x706e69},
+  platine:{fin:['brut','poli'],nom:'Platine 950',sous:'fonderie cire perdue',poli:0xdcdcdc,rp:.05,brut:0x87878a,cad:0x6c6c6f}};
+const ORS=['or18','or18Rose','or18Blanc','or14','or14Rose','or14Blanc','platine'];   // metaux precieux : poinçons (reserve du cadre au fond)
 state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'titane'};
 // (13/10, Baptiste) FOND AU CONTACT DE LA PEAU : sueur acide (pH 4,5-6), sel et sebum. Seuls les metaux qui ne se piquent,
 // ne verdissent ni ne marquent la peau : titane (le plus inerte, hypoallergenique), inox 316L (passive) et or 18 ct.
 // Alu brut (piqures, grisaille), laiton, bronze, cuivre (vert-de-gris, taches), argent (noircit), plaques (s'usent
 // au frottement) sont exclus du fond, quel que soit le boitier.
-const FOND_OK=['titane','inox','or18'];
+const FOND_OK=['titane','inox','or18','or18Rose','or18Blanc','platine'];   // (14/10) ors 18 ct et platine : inertes au contact de la peau (l'or 14 ct, plus allie, n'est pas propose au fond)
 const fondMat=()=>FOND_OK.includes(state.matieres.fond)?state.matieres.fond:'titane';
 // CADRAN (12/10, Baptiste) : brut (aretes cassees) OU poli integral, selon ce que la matiere permet
 state.cadranFin=0;
@@ -3265,13 +3323,14 @@ function bornerFinition(){const p=state.lunette.params,M=MOTIFS_LUNETTE[state.lu
 const _hex=h=>[(h>>16)&255,(h>>8)&255,h&255];
 function appliquerMatieres(){const M=k=>MATIERES[state.matieres[k]]||MATIERES.alu;
   const b=M('boitier'),l=M('lunette'),c=M('cadran');
-  aluBoitier.color.setHex(b.poli);aluBoitier.roughness=b.rp;
+  const kr=(NIVEAUX_POLI[state.niveauPoli]||NIVEAUX_POLI.poli).rp;
+  aluBoitier.color.setHex(b.poli);aluBoitier.roughness=Math.min(.6,b.rp*kr);
   brut.color.setHex(b.brut);
   {const idf=fondMat(),f=MATIERES[idf];brutGrave.color.setHex(peutBrut(idf)?f.brut:f.poli);brutGrave.roughness=peutBrut(idf)?brut.roughness:Math.max(.12,f.rp*2);brutGrave.metalness=peutBrut(idf)?brut.metalness:1;}   /* fond : sa propre matiere (13/10) */
   const ib=state.matieres.boitier;if(mCarPoli)mCarPoli.material=tranchePolie('boitier')?aluBoitier:brut;
   for(const m of BRUTS)m.material=m===mFond?brutGrave:(brutActif&&peutBrut(ib))?(m.userData.brutMat||brut):aluBoitier;   // le fond garde sa matiere et ses lettres assombries
-  aluLunette.color.setHex(l.poli);aluLunette.roughness=l.rp;brutCreux.color.setHex(l.brut);
-  titane.color.setHex(c.cad);bornerFinCadran();aluCadran.color.setHex(c.poli);aluCadran.roughness=c.rp;if(mCadran)mCadran.material=state.cadranFin?aluCadran:titane;
+  aluLunette.color.setHex(l.poli);aluLunette.roughness=Math.min(.6,l.rp*kr);brutCreux.color.setHex(l.brut);
+  titane.color.setHex(c.cad);bornerFinCadran();aluCadran.color.setHex(c.poli);aluCadran.roughness=Math.min(.6,c.rp*kr);if(mCadran)mCadran.material=state.cadranFin?aluCadran:titane;
   for(const m of [aluBoitier,brut,brutGrave,aluLunette,brutCreux,titane,aluCadran])m.needsUpdate=true;majPrix();}
 // bille d'echantillon : moitie haute polie (reflet du studio), bas brut grenu (cadran : tout brut)
 function vignetteMatiere(id,piece){const m=MATIERES[id],S=120,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d'),im=x.createImageData(S,S);
@@ -3293,6 +3352,10 @@ function panneauMatieres(){const BOX={boitier:'matBoitier',lunette:'matLunette',
       ()=>{state.matieres[piece]=id;if(piece==='boitier'||piece==='lunette'){state.tranches[piece]=peutPoli(id);if(piece==='lunette')reconstruire('lunette');}appliquerMatieres();panneauMatieres();if(piece==='lunette'){for(const k of [..._vign.keys()])if(k.startsWith('S|'))_vign.delete(k);bornerFinition();panneau('lunette');reconstruire('lunette');}});
       g.lastChild.title=m.nom+' · '+m.sous+' · '+(m.fin.length>1?'brut ou poli':m.fin[0]==='brut'?'brut seulement':'poli seulement');
       }
+    if(piece==='boitier'){/* (14/10) niveau de polissage de toutes les surfaces polies (prix reels Craftcloud) */
+      const tn=document.createElement('div');tn.className='vign-titre';tn.textContent='Niveau de polissage';const gn=document.createElement('div');gn.className='choixOrigine';
+      gn.innerHTML=Object.entries(NIVEAUX_POLI).map(([k,n])=>`<button type="button" class="${state.niveauPoli===k?'on':''}" data-n="${k}"><b>${n.nom}</b></button>`).join('');
+      gn.querySelectorAll('button').forEach(bt=>bt.onclick=()=>{state.niveauPoli=bt.dataset.n;appliquerMatieres();panneauMatieres();});box.append(tn,gn);}
     if(piece==='boitier'){/* tranches polies : boitier / lunette, associes ou dissocies */
       const t3=document.createElement('div');t3.className='vign-titre';t3.textContent='Tranche polie';box.appendChild(t3);
       const blk=document.createElement('div');blk.className='tranches';
@@ -3528,10 +3591,41 @@ const ANCRAGE=.35;
 function grilleFermee(N,M,pos,dessus){const P=new Float32Array(N*M*3);for(let i=0;i<N;i++)for(let j=0;j<M;j++)P.set(pos(i,j),(i*M+j)*3);
   const I=[];for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=0;j<M;j++){const j2=(j+1)%M,a=i*M+j,b=i2*M+j,c=i*M+j2,d=i2*M+j2;diagLigne(P,a,b,c,d,I,dessus&&j2>j?dessus:null);}}
   const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setIndex(I);return g;}
+/* (14/10, Baptiste : « tout en vectoriel, parametrique, geometrie parfaite ») COUPE EXACTE PAR LES LIGNES DU MOTIF.
+   Chaque triangle de la grille traverse par une ligne caracteristique (bord du creux, pieds des facettes, mi-hauteur
+   des aretes vives, limite de polissage, bord du lisere) est COUPE en deux le long de cette ligne : les points de
+   passage sont calcules sur le vrai motif (dichotomie a 18 pas : < 0,1 micron), partages par les deux triangles qui
+   bordent chaque arete (maillage ferme). Le contour du motif devient une chaine de sommets exacts, sans escalier, a
+   l'ecran comme dans le fichier d'impression ; poli et brut se separent exactement sur la ligne. */
+const coupeZone={dernier:null};
+function couperZone(N,M,Z,I0){const P=Array.from(Z.P),H=Array.from(Z.H),D=Array.from(Z.D),LI=Array.from(Z.LI),NV=Array.from(Z.NV),FI=[],FJ=[];
+  const nG=N*M,par=v=>v<nG?[(v/M)|0,v%M]:[FI[v-nG],FJ[v-nG]];let I=I0;
+  for(const C of Z.champs){const F=C.nom==='D'?D:C.nom==='LI'?LI:H;
+    for(const lv of C.niv){const cache=new Map(),out=[];const sg=v=>{const f=F[v]-lv;return f>1e-7?1:f<-1e-7?-1:0;};
+      const croise=(a,b)=>{const k=a<b?a+'_'+b:b+'_'+a;let r=cache.get(k);if(r!==undefined)return r;
+        let [ia,ja]=par(a),[ib,jb]=par(b);if(ib-ia>N/2)ib-=N;else if(ia-ib>N/2)ib+=N;const fa=F[a]-lv;let lo=0,hi=1;
+        for(let it=0;it<18;it++){const t=(lo+hi)/2;pointZone(((ia+(ib-ia)*t)%N+N)%N,N,ja+(jb-ja)*t,M);const f=C.lire()-lv;if((f>0)===(fa>0))lo=t;else hi=t;}
+        const t=(lo+hi)/2,fi=((ia+(ib-ia)*t)%N+N)%N,fj=ja+(jb-ja)*t,q=pointZone(fi,N,fj,M);
+        r=H.length;P.push(q[0],q[1],q[2]);H.push(dernierH);D.push(Number.isFinite(dernierD)?dernierD:NaN);LI.push(dernierL);NV.push(dernierN[0],dernierN[1],dernierN[2]);FI.push(fi);FJ.push(fj);
+        F[r]=lv;cache.set(k,r);return r;};   // exactement sur la ligne
+      const poser=Q=>{for(let i=1;i<Q.length-1;i++)if(Q[0]!==Q[i]&&Q[i]!==Q[i+1]&&Q[0]!==Q[i+1])out.push(Q[0],Q[i],Q[i+1]);};
+      for(let t=0;t<I.length;t+=3){const T=[I[t],I[t+1],I[t+2]],S=T.map(sg);
+        if(!(S.includes(1)&&S.includes(-1))){out.push(T[0],T[1],T[2]);continue;}
+        for(const cote of [1,-1]){const Q=[];for(let k=0;k<3;k++){const a=T[k],b=T[(k+1)%3],sa=S[k],sb=S[(k+1)%3];if(sa===0||sa===cote)Q.push(a);if(sa*sb<0)Q.push(croise(a,b));}poser(Q);}}
+      I=out;}}
+  return {P:Float32Array.from(P),H:Float32Array.from(H),D:Float32Array.from(D),LI:Float32Array.from(LI),NV:Float32Array.from(NV),I};}
 function peauLunette(){const {N,M}=grilleMotif();
   const RP=reseauParam();if(RP)return orienter(pos(peauLunetteParam(RP,N,M)));
   if(w1Actif())return orienter(pos(w1Maillage(true).geo));   // coque fermee exacte du dessin W1
   if(vecActif())return orienter(pos(vecMaillage(true).geo)); // coque fermee exacte des facettes de Voronoi
+  {const Z0=zoneAjustee(N,M,true);if(Z0.champs.length){   // (14/10) coupe exacte : la face decoree coupee, le dessous et les bords inchanges
+    const M2=2*M,top=v=>((v/M)|0)*M2+v%M;
+    const gz=indexGrille(N,M,Z0.P,Z0.H,Z0.LI,Z0.D),C=couperZone(N,M,Z0,Array.from(gz.index.array)),nG=N*M,nNew=C.H.length-nG;
+    const Pf=new Float32Array((N*M2+nNew)*3);for(let i=0;i<N;i++)for(let j=0;j<M2;j++){const q=j<M?C.P.subarray((i*M+j)*3,(i*M+j)*3+3):pointZone(i,N,M2-1-j,M,-ANCRAGE);Pf.set(q,(i*M2+j)*3);}
+    Pf.set(C.P.subarray(nG*3),N*M2*3);const map=v=>v<nG?top(v):N*M2+(v-nG);
+    const I=[];for(let t=0;t<C.I.length;t++)I.push(map(C.I[t]));
+    for(let i=0;i<N;i++){const i2=(i+1)%N;for(let j=M-1;j<M2;j++){const j2=(j+1)%M2,a=i*M2+j,b=i2*M2+j,c=i*M2+j2,d=i2*M2+j2;diag(Pf,a,b,c,d,I);}}   // bord ext., dessous, bord int.
+    const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(Pf,3));g.setIndex(I);return orienter(pos(g));}}
   const Z=zoneAjustee(N,M);   // memes sommets ajustes que l'ecran : le fichier imprime ce qui est affiche
   const g=grilleFermee(N,2*M,(i,j)=>j<M?Z.P.subarray((i*M+j)*3,(i*M+j)*3+3):pointZone(i,N,2*M-1-j,M,-ANCRAGE),
     (()=>{const ds=dessusZone(Z.H);return ds?v=>{const i=(v/(2*M))|0,j=v%(2*M);return j<M&&ds(i*M+j);}:null;})());
@@ -3681,7 +3775,7 @@ function diagCadran(pas=.04){const r1=C_R1-.25,n=Math.round(2*r1/pas),H=new Floa
   if(amp>.03){for(let x=1;x<n-1;x++)for(let y=1;y<n-1;y+=2){const g=Math.hypot(H[(x+1)*n+y]-H[(x-1)*n+y],H[x*n+y+1]-H[x*n+y-1])/(2*pas);pentes.push(Math.atan(g)*180/Math.PI);}
     o=resumeIlots(ilots(H,n,n,pas,pas,false,hmin+amp/2),FAB.detail);}
   return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),...o,pente:pct(pentes,.99),jeu:+(state.aiguilles-reliefMaxCadran()).toFixed(2)};}
-window.__studio={reconstruireFlancs,flancsSTL,PANNEAUX,texteSD,crantageSTL,ouvrirDessin,pointZone,hZ:()=>dernierH,exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+window.__studio={coupeZone,reconstruireFlancs,flancsSTL,PANNEAUX,texteSD,crantageSTL,ouvrirDessin,pointZone,hZ:()=>dernierH,exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
 document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');appliquerMatieres();if(mLunette)mLunette.material=[aluLunette,on?brutCreux:aluLunette];};
 document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
 for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
@@ -3706,7 +3800,7 @@ const lireDefaut=()=>{try{const v=localStorage.getItem(CFG_CLE+'-defaut');return
 const ecrireDefaut=n=>{try{localStorage.setItem(CFG_CLE+'-defaut',n);}catch(e){}};
 function instantane(){return JSON.parse(JSON.stringify({origine:state.origine,lunette:state.lunette,cadran:state.cadran,matieres:state.matieres,cadranFin:state.cadranFin||0,tranches:state.tranches,gravurePerso:state.gravurePerso||'',index:state.index??0,aiguilles:state.aiguilles??.8}));}
 let _cfgJeton=0;   // une application plus recente annule celle en cours (bas-relief charge en asynchrone)
-async function appliquerCfg(c){const jeton=++_cfgJeton;state.origine=c.origine==='europe'?'europe':'chine';state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'titane',...(c.matieres||{})};state.cadranFin=c.cadranFin||0;bornerFinCadran();state.tranches=c.tranches?{...c.tranches}:{boitier:peutPoli(state.matieres.boitier),lunette:peutPoli(state.matieres.lunette),liees:true};state.gravurePerso=c.gravurePerso||'';{const gp=document.getElementById('gravPerso');if(gp)gp.value=state.gravurePerso;}majGravure();appliquerMatieres();panneauMatieres();state.index=c.index;document.getElementById('indexC').value=String(c.index);
+async function appliquerCfg(c){const jeton=++_cfgJeton;state.niveauPoli=NIVEAUX_POLI[c.niveauPoli]?c.niveauPoli:"poli";state.origine=c.origine==='europe'?'europe':'chine';state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'titane',...(c.matieres||{})};state.cadranFin=c.cadranFin||0;bornerFinCadran();state.tranches=c.tranches?{...c.tranches}:{boitier:peutPoli(state.matieres.boitier),lunette:peutPoli(state.matieres.lunette),liees:true};state.gravurePerso=c.gravurePerso||'';{const gp=document.getElementById('gravPerso');if(gp)gp.value=state.gravurePerso;}majGravure();appliquerMatieres();panneauMatieres();state.index=c.index;document.getElementById('indexC').value=String(c.index);
   state.flancs={frise:'',relief:.25,...(c.flancs||{})};try{reconstruireFlancs();window.majFlancsUI&&window.majFlancsUI();}catch(e){}
   state.aiguilles=AIG_FIXE;aig.position.y=0;   // (13/10) aiguilles fixes, quelle que soit la config enregistree
   state.lunette.zone=c.lunette.zone||'biseau';document.getElementById('zoneL').value=state.lunette.zone;
@@ -3854,9 +3948,12 @@ const PRESETS=[
   {nom:'Titane mat',m:{boitier:'titane',lunette:'titane',cadran:'titane'},fl:0,fc:0,tr:false},
   {nom:'Alu et titane',m:{boitier:'alu',lunette:'alu',cadran:'titane'},fl:1,fc:0,tr:true},
   {nom:'Or jaune 18 ct',m:{boitier:'or18',lunette:'or18',cadran:'or18'},fl:2,fc:1,tr:true},
+  {nom:'Or rose 18 ct',m:{boitier:'or18Rose',lunette:'or18Rose',cadran:'or18Rose'},fl:2,fc:1,tr:true},
+  {nom:'Or blanc 18 ct',m:{boitier:'or18Blanc',lunette:'or18Blanc',cadran:'or18Blanc'},fl:2,fc:1,tr:true},
+  {nom:'Platine 950',m:{boitier:'platine',lunette:'platine',cadran:'platine'},fl:2,fc:1,tr:true},
   {nom:'Laiton plaqué or',m:{boitier:'laitonOr',lunette:'laitonOr',cadran:'titane'},fl:1,fc:0,tr:true},
   {nom:'Argent massif',m:{boitier:'argent',lunette:'argent',cadran:'titane'},fl:2,fc:0,tr:true}];
-function appliquerComposition(m,fl,fc,tr){state.matieres={fond:m.boitier==='or18'?'or18':(state.matieres.fond||'titane'),...m};state.tranches={boitier:tr,lunette:tr,liees:true};state.cadranFin=fc;
+function appliquerComposition(m,fl,fc,tr){state.matieres={fond:FOND_OK.includes(m.boitier)&&ORS.includes(m.boitier)?m.boitier:(state.matieres.fond||'titane'),...m};state.tranches={boitier:tr,lunette:tr,liees:true};state.cadranFin=fc;
   if(state.lunette.params&&MOTIFS_LUNETTE[state.lunette.motif]?.r.finition)state.lunette.params.finition=fl;
   bornerFinCadran();bornerFinition();for(const k of [..._vign.keys()])if(k.startsWith('S|'))_vign.delete(k);
   appliquerMatieres();panneauMatieres();panneau('lunette');reconstruire('lunette');reconstruire('cadran');}
