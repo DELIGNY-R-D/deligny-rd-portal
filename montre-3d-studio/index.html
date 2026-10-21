@@ -2174,7 +2174,7 @@ const brut=(()=>{const N=512,h=new Float32Array(N*N),R=rng(8420);
    GEOMETRIQUE est exactement celui du fichier (cle), la piece est lue telle quelle, sans calcul ; sinon calcul normal. */
 const HD_SANS=new Set(['matieres','origine','gravurePerso','flancs']);
 const cleGeo=()=>DEFAUT_HD_V+'|'+JSON.stringify(state,(k,v)=>HD_SANS.has(k)?undefined:v);   // la version fait partie de la cle : un fichier d'une version anterieure n'est jamais relu
-const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='10';   // a incrementer a chaque nouvel export du fichier
+const HD_DEFAUT={cle:null,pieces:{}},DEFAUT_HD_V='10';   // a incrementer a chaque nouvel export du fichier ; puis python3 outils/defaut_web.py (le site ne lit que la version web, la publication la regenere si besoin)
 function encoderHD(g){const P=g.getAttribute('position').array,N=g.getAttribute('normal').array,C=g.getAttribute('color')?.array,n=P.length/3;
   const mn=[1e9,1e9,1e9],mx=[-1e9,-1e9,-1e9];for(let i=0;i<n;i++)for(let a=0;a<3;a++){const v=P[3*i+a];if(v<mn[a])mn[a]=v;if(v>mx[a])mx[a]=v;}
   const ax=new Uint8Array(n);for(let t=0;t<n;t+=3){const o=3*t,ux=P[o+3]-P[o],uy=P[o+4]-P[o+1],uz=P[o+5]-P[o+2],vx=P[o+6]-P[o],vy=P[o+7]-P[o+1],vz=P[o+8]-P[o+2];
@@ -2200,10 +2200,32 @@ function decoderHD(m,buf,off){const {n,nv,mn,mx}=m,dv=new DataView(buf.buffer,bu
 // piece HD enregistree, si l'etat geometrique est celui du fichier (une nouvelle geometrie a chaque fois : l'ancienne est liberee a l'echange)
 function geoDefaut(piece){const q=HD_DEFAUT.pieces[piece];if(!q||HD_DEFAUT.cle!==cleGeo())return null;
   const g=new THREE.BufferGeometry();for(const k of Object.keys(q.attributes))g.setAttribute(k,q.attributes[k]);g.setIndex(q.index);for(const gr of q.groups)g.addGroup(gr.start,gr.count,gr.materialIndex);return g;}
-async function chargerDefautHD(){try{const r=await fetch('media/defaut_hd.bin.gz?v='+DEFAUT_HD_V);if(!r.ok)return;
+/* (15/10, Baptiste : « allege sans detruire la qualite visuelle ; une version optimisee pour le site, differente de celle
+   qui sera exportee ») VERSION WEB du modele par defaut : media/defaut_web.bin.gz (2,8 Mo au lieu de 7,3), produite
+   par outils/defaut_web.py depuis defaut_hd.bin.gz. Faces cachees retirees, sommets dans l'ordre d'emploi, positions au
+   pas de 1,7 um, normales en octaedre, un flux par grandeur. AFFICHAGE SEULEMENT : les fichiers d'impression sont
+   recalcules par peauLunette()/peauCadran(), ils ne lisent jamais ce fichier. */
+function varints(buf,deb,lg,n){const out=new Int32Array(n);let p=deb,k=0;const fin=deb+lg;
+  while(p<fin&&k<n){let v=0,s=0,b;do{b=buf[p++];v+=(b&127)*2**s;s+=7;}while(b&128);out[k++]=(v%2)?-(v+1)/2:v/2;}return out;}
+function decoderWeb(m,buf,off){const {n,nv,mn,mx,dec}=m,L=m.flux;let p=off;const lire=k=>{const a=varints(buf,p,L[k],k===0?n:nv);p+=L[k];return a;};
+  const dI=lire(0),dx=lire(1),dy=lire(2),dz=lire(3),o1=lire(4),o2=lire(5);
+  const I=new Uint32Array(n);let hw=-1;for(let i=0;i<n;i++){const v=hw+1-dI[i];I[i]=v;if(v>hw)hw=v;}
+  const P=new Float32Array(nv*3),N=new Float32Array(nv*3),U=new Float32Array(nv*2),C=m.couleur?new Float32Array(nv*3):null;
+  const s=[0,1,2].map(a=>(mx[a]-mn[a])/65535*2**dec),dm=dec?2**(dec-1):0,sc=[0,1,2].map(a=>(mx[a]-mn[a])/65535);
+  const cb=buf.subarray(p,p+L[6]),ab=buf.subarray(p+L[6],p+L[6]+L[7]);
+  let qx=0,qy=0,qz=0,a1=0,a2=0,c=0;
+  for(let v=0;v<nv;v++){qx+=dx[v];qy+=dy[v];qz+=dz[v];const x=mn[0]+qx*s[0]+dm*sc[0],y=mn[1]+qy*s[1]+dm*sc[1],z=mn[2]+qz*s[2]+dm*sc[2];P[3*v]=x;P[3*v+1]=y;P[3*v+2]=z;
+    a1+=o1[v];a2+=o2[v];let ox=a1/127,oy=a2/127,oz=1-Math.abs(ox)-Math.abs(oy);if(oz<0){const tx=(1-Math.abs(oy))*(ox>=0?1:-1),ty=(1-Math.abs(ox))*(oy>=0?1:-1);ox=tx;oy=ty;}
+    const l=Math.hypot(ox,oy,oz)||1;N[3*v]=ox/l;N[3*v+1]=oy/l;N[3*v+2]=oz/l;
+    if(C){c=(c+cb[v])&255;C[3*v]=C[3*v+1]=C[3*v+2]=c/255;}const ax=ab[v];
+    if(ax===1){U[2*v]=x/2.5;U[2*v+1]=z/2.5;}else if(ax===0){U[2*v]=z/2.5;U[2*v+1]=y/2.5;}else{U[2*v]=x/2.5;U[2*v+1]=y/2.5;}}
+  const g=new THREE.BufferGeometry();g.setAttribute('position',new THREE.BufferAttribute(P,3));g.setAttribute('normal',new THREE.BufferAttribute(N,3));
+  if(C)g.setAttribute('color',new THREE.BufferAttribute(C,3));g.setAttribute('uv',new THREE.BufferAttribute(U,2));g.setIndex(new THREE.BufferAttribute(I,1));
+  for(const [st,ct,mi] of m.groupes)g.addGroup(st,ct,mi);return {g,taille:L.reduce((a,b)=>a+b,0)};}
+async function chargerDefautHD(){try{const r=await fetch('media/defaut_web.bin.gz?v='+DEFAUT_HD_V);if(!r.ok)return;
     const raw=new Uint8Array(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
     const lh=new DataView(raw.buffer).getUint32(0,true),tete=JSON.parse(new TextDecoder().decode(raw.subarray(4,4+lh)));let off=4+lh;
-    for(const [nom,m] of Object.entries(tete.pieces)){const {g,taille}=decoderHD(m,raw,off);off+=taille;HD_DEFAUT.pieces[nom]=g;}
+    for(const [nom,m] of Object.entries(tete.pieces)){const {g,taille}=(tete.v===2?decoderWeb:decoderHD)(m,raw,off);off+=taille;HD_DEFAUT.pieces[nom]=g;}
     HD_DEFAUT.cle=tete.cle;}catch(e){console.info('cache HD par defaut indisponible : calcul',e);}}
 // atelier : ecrit le fichier depuis l'etat par defaut courant (pieces HD affichees)
 async function exporterDefautHD(){const pieces={},bufs=[];for(const [nom,m] of [['lunette',mLunette],['cadran',mCadran]]){const e=encoderHD(m.geometry);pieces[nom]=e.meta;bufs.push(e.buf);}
