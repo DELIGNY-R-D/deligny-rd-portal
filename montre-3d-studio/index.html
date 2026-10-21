@@ -3258,16 +3258,20 @@ function largeurFond(a,b){let m=99;for(let z=a;z<=b+1e-6;z+=.125)m=Math.min(m,de
    autres ; le recentrage n'etait que partiel (bloc decale de +0,75 mm). Maintenant le bloc est pose AU CENTRE de la face
    (z 0, ou la face a 24,5 mm de large de -9,5 a +9,5) : chaque ligne garde sa taille propre (marque 2,2, le reste 1,5),
    n'est reduite que si ELLE ne tient pas sur sa bande, et le tout (poincon or compris) est recentre apres chaque reduction. */
-function placerGravure(L,or){const Y0=-13.4,Y1=13.4,CAD=1.6,GCAD=.9;
+/* (21/10, Baptiste : « CR doit arriver au meme niveau que DELIGNY par rapport a la vis ; le cadre doit tomber entre les
+   deux vis, sur l'axe ») : le TEXTE seul est centre (meme distance marque / vis du haut et CR / vis du bas) ; le cadre
+   des poinçons est pose sur l'axe des deux vis du bas (z = VIS_Z, centre), hors du calcul du centrage. */
+const VIS_Z=10.83;
+function placerGravure(L,or){const Y0=-13.4,Y1=13.4,CAD=1.6,GCAD=.45,cadre0=VIS_Z-CAD/2;
   const we=L.map(([t,,w])=>largeurEm(t,w)/CAP_EM);
   for(let s=1;s>=.5;s-=.01){let H=L.map(([,h0,,,hmin])=>Math.max(hmin,h0*s));
     const G=L.map(([,,,g],k)=>k?Math.max(.45,g*Math.min(1,.4+s*.6)):0);   /* >= 0,45 mm de metal entre deux lignes creusees */
     let ok=true,pos=null;
-    for(let it=0;it<6&&ok;it++){const tot=H.reduce((a,h,k)=>a+h+G[k],0)+(or?GCAD+CAD:0);let y=-tot/2;pos=[];let change=false;
-      if(y<Y0||y+tot>Y1){ok=false;break;}
+    for(let it=0;it<6&&ok;it++){const tot=H.reduce((a,h,k)=>a+h+G[k],0);let y=-tot/2;pos=[];let change=false;
+      if(y<Y0||y+tot>(or?cadre0-GCAD:Y1)){ok=false;break;}
       for(let k=0;k<L.length;k++){y+=G[k];const b=largeurFond(y,y+H[k]);if(H[k]*we[k]>b+1e-6){const hh=b/we[k];if(hh<L[k][4]-1e-6){ok=false;break;}H[k]=hh;change=true;}pos.push(y);y+=H[k];}
       if(!ok)break;
-      if(!change){let cadre=null;if(or){cadre=y+GCAD;if(largeurFond(cadre,cadre+CAD)<5.4){ok=false;break;}}
+      if(!change){let cadre=null;if(or){cadre=cadre0;if(largeurFond(cadre,cadre+CAD)<5.4){ok=false;break;}}
         const out=L.map(([t,,w],k)=>({t,w,h:H[k],base:pos[k]+H[k],lmax:+largeurFond(pos[k],pos[k]+H[k]).toFixed(2)}));
         return {out,cadre,bas:or?cadre+CAD:y};}}}
   return null;}
@@ -3352,7 +3356,8 @@ function lettresEnRelief(cv,PX,PY,k,W,H,ep){const D=cv.getContext('2d').getImage
   const g=new THREE.ExtrudeGeometry(formes.map(f=>f.s),{depth:ep+.01,bevelEnabled:false,curveSegments:1});
   g.rotateX(Math.PI/2);g.translate(0,-3.725+ep,0);g.computeVertexNormals();return g;}   // (14/10) poche : de la face (-3,725, +0,01 mm dehors) a 0,25 mm DANS le metal
 function majTeinteGravure(){if(!mGravure)return;const f=MATIERES[fondMat()]||MATIERES.titane,m=mGravure.material;   /* (13/10) lettres en relief : leur dessus est lape (poli) sur le fond brut */
-  m.color.setHex(f.poli);m.metalness=1;m.roughness=Math.max(.08,f.rp);m.envMapIntensity=1.2;m.needsUpdate=true;}
+  /* (21/10, Baptiste : « le cadre et le poinçon ne doivent pas etre brillants mais plus sombres, comme le texte ») */
+  m.color.copy(brutGrave.color).multiplyScalar(FOND_LETTRES);m.metalness=.6;m.roughness=.85;m.envMapIntensity=1;m.needsUpdate=true;}
 // ───────────── MATIERES (12/10) ─────────────
 // poli : teinte et rugosite du poli miroir ; brut : teinte du brut d'impression / de fonderie ; cadran : teinte
 // du cadran (toujours brut, aretes cassees). Placages du laiton : la couche couvre toute la piece.
@@ -3407,7 +3412,7 @@ function appliquerMatieres(){const M=k=>MATIERES[state.matieres[k]]||MATIERES.al
   aluBoitier.color.setHex(b.poli);aluBoitier.roughness=Math.min(.6,b.rp*kr);
   brut.color.setHex(b.brut);
   {const idf=fondMat(),f=MATIERES[idf];brutGrave.color.setHex(peutBrut(idf)?f.brut:f.poli);brutGrave.roughness=peutBrut(idf)?brut.roughness:Math.max(.12,f.rp*2);brutGrave.metalness=peutBrut(idf)?brut.metalness:1;}
-  if(typeof mLettres!=='undefined'&&mLettres){mLettres.material.color.copy(brutGrave.color).multiplyScalar(FOND_LETTRES);mLettres.material.needsUpdate=true;}   /* fond : sa propre matiere (13/10) */
+  if(typeof mLettres!=='undefined'&&mLettres){mLettres.material.color.copy(brutGrave.color).multiplyScalar(FOND_LETTRES);mLettres.material.needsUpdate=true;}if(typeof mGravure!=='undefined'&&mGravure)majTeinteGravure();   /* fond : sa propre matiere (13/10) */
   const ib=state.matieres.boitier;if(mCarPoli)mCarPoli.material=tranchePolie('boitier')?aluBoitier:brut;
   for(const m of BRUTS)m.material=m===mFond?brutGrave:(brutActif&&peutBrut(ib))?(m.userData.brutMat||brut):aluBoitier;   // le fond garde sa matiere et ses lettres assombries
   aluLunette.color.setHex(l.poli);aluLunette.roughness=Math.min(.6,l.rp*kr);brutCreux.color.setHex(l.brut);
