@@ -4,6 +4,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
 <title>Avis & idées - Deligny R&amp;D</title>
+<meta name="description" content="Laisser un avis sur une œuvre de l'atelier DELIGNY R&D ou proposer une idée de série. Avis publiés après relecture.">
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -42,13 +43,13 @@
 <h2>Laisser un avis</h2>
 <div class="card">
   <p class="note">Sur une œuvre précise ou sur le travail de l'atelier. Publié après relecture.</p>
-  <label>Œuvre (facultatif)</label><select id="oeuvre"><option value="">(sur le travail en général)</option></select>
-  <label>Pseudonyme</label><input id="pseudo" maxlength="40">
-  <label>Pays (facultatif)</label><input id="pays" maxlength="40">
-  <label>Note</label><select id="note"><option value="5">5 - remarquable</option><option value="4">4</option>
+  <label for="oeuvre">Œuvre (facultatif)</label><select id="oeuvre"><option value="">(sur le travail en général)</option></select>
+  <label for="pseudo">Pseudonyme</label><input id="pseudo" maxlength="40">
+  <label for="pays">Pays (facultatif)</label><input id="pays" maxlength="40">
+  <label for="note">Note</label><select id="note"><option value="5">5 - remarquable</option><option value="4">4</option>
     <option value="3">3</option><option value="2">2</option><option value="1">1</option>
     <option value="0">sans note</option></select>
-  <label>Ton avis</label><textarea id="texte" maxlength="1200"></textarea>
+  <label for="texte">Ton avis</label><textarea id="texte" maxlength="1200"></textarea>
   <button id="go">ENVOYER</button>
   <div class="msg" id="msg"></div>
 </div>
@@ -57,9 +58,9 @@
 <div class="card">
   <p class="note">Une série à explorer, un sujet, une collaboration ? Ça arrive directement sur l'établi
   de Baptiste et n'est jamais publié.</p>
-  <label>Pseudonyme (facultatif)</label><input id="ipseudo" maxlength="40">
-  <label>Contact (facultatif)</label><input id="icontact" maxlength="120">
-  <label>Ton idée</label><textarea id="itexte" maxlength="2000"></textarea>
+  <label for="ipseudo">Pseudonyme (facultatif)</label><input id="ipseudo" maxlength="40">
+  <label for="icontact">Contact (facultatif)</label><input id="icontact" maxlength="120">
+  <label for="itexte">Ton idée</label><textarea id="itexte" maxlength="2000"></textarea>
   <button id="igo">ENVOYER L'IDÉE</button>
   <div class="msg" id="imsg"></div>
 </div>

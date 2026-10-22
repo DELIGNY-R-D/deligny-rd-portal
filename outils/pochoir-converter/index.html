@@ -109,29 +109,29 @@ footer .disc{max-width:640px;margin:0 auto 10px;}
       </div>
 
       <div class="field">
-        <label>Largeur physique visée (mm) — convertit mm → pixels pour le bruit et les ponts</label>
+        <label for="widthMm">Largeur physique visée (mm) — convertit mm → pixels pour le bruit et les ponts</label>
         <input type="number" id="widthMm" value="200" min="10" step="10">
       </div>
       <div class="row2">
         <div class="field">
-          <label>Seuil noir/blanc</label>
+          <label for="thresholdMode">Seuil noir/blanc</label>
           <select id="thresholdMode">
             <option value="auto" selected>Auto (Otsu)</option>
             <option value="manual">Manuel</option>
           </select>
         </div>
         <div class="field">
-          <label>Valeur (0-255)</label>
+          <label for="thresholdValue">Valeur (0-255)</label>
           <input type="number" id="thresholdValue" value="128" min="0" max="255" disabled>
         </div>
       </div>
       <div class="row2">
         <div class="field">
-          <label>Bruit min. à retirer (mm²)</label>
+          <label for="minNoise">Bruit min. à retirer (mm²)</label>
           <input type="number" id="minNoise" value="1.0" min="0" step="0.5">
         </div>
         <div class="field">
-          <label>Largeur des ponts (mm)</label>
+          <label for="bridgeWidth">Largeur des ponts (mm)</label>
           <input type="number" id="bridgeWidth" value="3.0" min="0.5" step="0.5">
         </div>
       </div>

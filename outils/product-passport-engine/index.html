@@ -129,11 +129,11 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         <input type="text" id="f-ref" placeholder="LAMPE-E14-V2.1">
       </div>
       <div class="field">
-        <label>Matière(s) utilisée(s)</label>
+        <label for="f-mat">Matière(s) utilisée(s)</label>
         <input type="text" id="f-mat" placeholder="PLA recyclé, laiton, câble textile…">
       </div>
       <div class="field">
-        <label>Date de fabrication</label>
+        <label for="f-made">Date de fabrication</label>
         <input type="date" id="f-made">
       </div>
       <div class="field">
@@ -144,15 +144,15 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         </div>
       </div>
       <div class="field">
-        <label>Fournisseur des matières premières</label>
+        <label for="f-sup">Fournisseur des matières premières</label>
         <input type="text" id="f-sup" placeholder="Filalab (FR) — PLA ; Douilles Pro (FR) — laiton">
       </div>
       <div class="field">
-        <label>Instructions de réparation</label>
+        <label for="f-rep">Instructions de réparation</label>
         <textarea id="f-rep" placeholder="Démontage, pièces de rechange, précautions…"></textarea>
       </div>
       <div class="field">
-        <label>Fin de vie — recyclable ?</label>
+        <label for="f-eolr">Fin de vie — recyclable ?</label>
         <select id="f-eolr">
           <option value="">Non renseigné</option>
           <option value="oui">Oui, recyclable</option>
@@ -161,7 +161,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         </select>
       </div>
       <div class="field">
-        <label>Fin de vie — comment (tri, dépôt, séparation matières…)</label>
+        <label for="f-eoli">Fin de vie — comment (tri, dépôt, séparation matières…)</label>
         <textarea id="f-eoli" placeholder="Ex : séparer le laiton du PLA avant recyclage…"></textarea>
       </div>
       <div class="row-btn">
@@ -189,7 +189,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
             <label class="opt" data-v="url"><input type="radio" name="qrmode" value="url">URL hébergée (à héberger toi-même)</label>
           </div>
           <div class="field" id="qr-url-field" style="display:none;margin-top:10px">
-            <label>URL où tu vas héberger la page passeport exportée</label>
+            <label for="qr-url">URL où tu vas héberger la page passeport exportée</label>
             <input type="text" id="qr-url" placeholder="https://exemple.com/passeports/lampe-e14-v2-1.html">
           </div>
         </fieldset>

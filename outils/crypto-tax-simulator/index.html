@@ -194,17 +194,17 @@ footer .disc b{color:var(--dim);}
       </div>
 
       <form class="addrow" id="addrow">
-        <div><label>Date</label><input type="date" id="f-date" required></div>
-        <div><label>Type</label>
+        <div><label for="f-date">Date</label><input type="date" id="f-date" required></div>
+        <div><label for="f-type">Type</label>
           <select id="f-type">
             <option value="achat">Achat</option>
             <option value="cession">Cession</option>
             <option value="echange">Échange crypto↔crypto</option>
           </select>
         </div>
-        <div><label>Actif</label><input type="text" id="f-asset" placeholder="BTC" required></div>
-        <div><label>Valeur €</label><input type="number" step="0.01" id="f-value" placeholder="0.00" required></div>
-        <div><label>Frais €</label><input type="number" step="0.01" id="f-fees" placeholder="0.00"></div>
+        <div><label for="f-asset">Actif</label><input type="text" id="f-asset" placeholder="BTC" required></div>
+        <div><label for="f-value">Valeur €</label><input type="number" step="0.01" id="f-value" placeholder="0.00" required></div>
+        <div><label for="f-fees">Frais €</label><input type="number" step="0.01" id="f-fees" placeholder="0.00"></div>
         <div><label>Valeur portefeuille €<span style="opacity:.6"> (cession)</span></label><input type="number" step="0.01" id="f-vgp" placeholder="requis si cession"></div>
         <div class="full6"><button type="submit" class="btn pri sm">+ Ajouter la transaction</button></div>
       </form>
@@ -236,10 +236,10 @@ footer .disc b{color:var(--dim);}
       <h2>4 · Scénario unique — teste un « et si » avant de déclarer</h2>
       <div class="scenario-note">Ajoute une cession hypothétique (elle ne modifie PAS tes transactions ci-dessus) pour voir son impact sur l'impôt estimé, année par année.</div>
       <form class="scenario-form" id="scenario-form">
-        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Date</label><input type="date" id="sc-date"></div>
-        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Actif</label><input type="text" id="sc-asset" placeholder="BTC" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
-        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Valeur de cession €</label><input type="number" step="0.01" id="sc-value" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
-        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px">Valeur portefeuille €</label><input type="number" step="0.01" id="sc-vgp" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px" for="sc-date">Date</label><input type="date" id="sc-date"></div>
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px" for="sc-asset">Actif</label><input type="text" id="sc-asset" placeholder="BTC" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px" for="sc-value">Valeur de cession €</label><input type="number" step="0.01" id="sc-value" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
+        <div><label style="font-size:10.5px;color:var(--dim2);text-transform:uppercase;font-weight:600;display:block;margin-bottom:4px" for="sc-vgp">Valeur portefeuille €</label><input type="number" step="0.01" id="sc-vgp" style="width:100%;background:var(--card2);border:1px solid var(--sep);border-radius:9px;color:var(--txt);padding:8px 9px;font:13px var(--font)"></div>
       </form>
       <div class="row-btn" style="justify-content:flex-start;margin-top:10px">
         <button class="btn pri sm" id="sc-run">Simuler ce scénario</button>
