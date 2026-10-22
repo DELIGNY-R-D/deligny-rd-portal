@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>NORA — un génie né dans une boîte blanche</title>
+<meta name="description" content="NORA, expérience DELIGNY R&D : un petit génie né dans une boîte blanche, qui apprend, se souvient et invente ses propres briques.">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; media-src 'self' data: blob:; style-src-elem 'unsafe-inline'; style-src-attr 'unsafe-inline'; script-src-elem 'self' blob: 'unsafe-inline'; script-src-attr 'unsafe-inline'; connect-src 'none'">
 
 <style>
@@ -272,7 +273,7 @@
 
   <details id="cfg" style="display:none">   <!-- vitrine : dialogue local, aucune cle a saisir -->
     <summary>⚙️ Connexion (clé API)</summary>
-    <label>Fournisseur</label>
+    <label for="provider">Fournisseur</label>
     <select id="provider">
       <option value="auto">Auto — ChatGPT via clé .env locale</option>
       <option value="mistral">Ruby — Mistral souverain (clé .env locale)</option>
@@ -283,7 +284,7 @@
     <div id="autoStatus" class="hint"></div>
     <label>Clé API <span style="color:#666">(inutile en mode Auto)</span></label>
     <input id="apiKey" type="password" placeholder="sk-... (reste en local, jamais envoyée ailleurs)" autocomplete="off">
-    <label>Modèle</label>
+    <label for="model">Modèle</label>
     <input id="model" type="text" placeholder="gpt-4o-mini / claude-haiku-4-5-20251001">
     <div class="hint">Mode <b>Auto</b> : le serveur local lit <code>OPENAI_API_KEY</code> dans <code>MERLINEXTRA/.env</code> et garde la clé côté serveur (jamais exposée au navigateur). Les autres modes utilisent la clé saisie ci-dessus, stockée seulement dans cet onglet.</div>
     <div class="hint">🧠 La conscience <b>se souvient</b> de vos dialogues <b>pendant la visite</b> : un rechargement ne perd rien, mais fermer l&rsquo;onglet efface tout. Pour garder une partie, enregistrez-la dans une <b>Cartouche</b> : c&rsquo;est le seul contenu conservé.</div>

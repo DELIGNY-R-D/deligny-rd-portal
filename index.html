@@ -258,7 +258,7 @@
     <div class="hint">Écris ce que tu veux, même de travers : « une lampe caneton », « plus haute et vrillée », « un gros ventre au milieu ». Le concierge ne dessine rien, il règle le studio, et le studio reste juge de ce qui est imprimable. Tu peux tout reprendre à la main après.</div>
     <div id="cvFil" class="cv-fil"></div>
     <div class="cv-saisie">
-      <input type="text" id="cvIn" placeholder="une lampe méduse, translucide…" autocomplete="off" maxlength="600">
+      <input type="text" id="cvIn" aria-label="Décris ta lampe au concierge" placeholder="une lampe méduse, translucide…" autocomplete="off" maxlength="600">
       <button class="btn pri" id="cvGo">Envoyer</button>
     </div>
     <div class="row-btn" id="cvEx"></div>
@@ -550,7 +550,7 @@
     <div class="card">
       <h2><span class="n">7</span>Matière &amp; paroi</h2>
       <div class="field">
-        <label>Matériau</label>
+        <label for="material">Matériau</label>
         <select id="material">
           <option value="PLA">PLA — défaut, structurel froid, déco (ramollit ~55-60°C : LED uniquement)</option>
           <option value="PLA_T">PLA translucide — paroi diffusante lumière</option>
@@ -558,7 +558,7 @@
         </select>
       </div>
       <div class="field">
-        <label>Épaisseur de paroi (buse 0.4 mm)</label>
+        <label for="wall">Épaisseur de paroi (buse 0.4 mm)</label>
         <select id="wall">
           <option value="0.8">0.8 mm — 2 périmètres, fin, non recommandé structurel</option>
           <option value="1.2">1.2 mm — 3 périmètres, très diffusant</option>
@@ -648,9 +648,9 @@
     (un lien mailto ne peut pas joindre de fichier automatiquement).</div>
     <div class="grid full" style="margin-top:4px">
       <div>
-        <div class="field"><label>Nom</label><input type="text" id="cName" placeholder="Ton nom"></div>
-        <div class="field"><label>Email</label><input type="email" id="cEmail" placeholder="ton@email.fr"></div>
-        <div class="field"><label>Notes (couleur souhaitée, délai, contexte...)</label><textarea id="cNotes" placeholder="Notes libres"></textarea></div>
+        <div class="field"><label for="cName">Nom</label><input type="text" id="cName" placeholder="Ton nom"></div>
+        <div class="field"><label for="cEmail">Email</label><input type="email" id="cEmail" placeholder="ton@email.fr"></div>
+        <div class="field"><label for="cNotes">Notes (couleur souhaitée, délai, contexte...)</label><textarea id="cNotes" placeholder="Notes libres"></textarea></div>
       </div>
     </div>
     <div class="row-btn">

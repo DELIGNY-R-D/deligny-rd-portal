@@ -365,15 +365,15 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
     <div class="fp" id="fp-transform">
       <div class="fp-title" id="fpt-title">Déplacer</div>
       <div class="fp-row">
-        <label id="fpt-xl">X (mm)</label>
+        <label id="fpt-xl" for="fpt-x">X (mm)</label>
         <input id="fpt-x" type="number" value="0" step="1" oninput="applyTransform()">
       </div>
       <div class="fp-row">
-        <label id="fpt-yl">Y (mm)</label>
+        <label id="fpt-yl" for="fpt-y">Y (mm)</label>
         <input id="fpt-y" type="number" value="0" step="1" oninput="applyTransform()">
       </div>
       <div class="fp-row">
-        <label id="fpt-zl">Z (mm)</label>
+        <label id="fpt-zl" for="fpt-z">Z (mm)</label>
         <input id="fpt-z" type="number" value="0" step="1" oninput="applyTransform()">
       </div>
       <div class="fp-actions">
@@ -394,10 +394,10 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
     <!-- Panel : Hélicoïde -->
     <div class="fp" id="fp-helico">
       <div class="fp-title">Hélicoïde</div>
-      <div class="fp-row"><label>Rayon</label><input id="hel-R" type="number" value="30" step="1"></div>
-      <div class="fp-row"><label>Fil r</label><input id="hel-r" type="number" value="4" step="0.5"></div>
-      <div class="fp-row"><label>Spires</label><input id="hel-T" type="number" value="5" step="1"></div>
-      <div class="fp-row"><label>Hauteur</label><input id="hel-H" type="number" value="90" step="5"></div>
+      <div class="fp-row"><label for="hel-R">Rayon</label><input id="hel-R" type="number" value="30" step="1"></div>
+      <div class="fp-row"><label for="hel-r">Fil r</label><input id="hel-r" type="number" value="4" step="0.5"></div>
+      <div class="fp-row"><label for="hel-T">Spires</label><input id="hel-T" type="number" value="5" step="1"></div>
+      <div class="fp-row"><label for="hel-H">Hauteur</label><input id="hel-H" type="number" value="90" step="5"></div>
       <div class="fp-actions">
         <button onclick="closePanel('fp-helico')">Annuler</button>
         <button class="ok" onclick="applyHelico()">Générer</button>
@@ -407,10 +407,10 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
     <!-- Panel : Réseau rectangulaire -->
     <div class="fp" id="fp-resrect">
       <div class="fp-title">Réseau rectangulaire</div>
-      <div class="fp-row"><label>Colonnes</label><input id="rr-cols" type="number" value="3" min="1" step="1"></div>
-      <div class="fp-row"><label>Lignes</label><input id="rr-rows" type="number" value="2" min="1" step="1"></div>
-      <div class="fp-row"><label>Esp. X</label><input id="rr-ex" type="number" value="60" step="5"></div>
-      <div class="fp-row"><label>Esp. Z</label><input id="rr-ez" type="number" value="60" step="5"></div>
+      <div class="fp-row"><label for="rr-cols">Colonnes</label><input id="rr-cols" type="number" value="3" min="1" step="1"></div>
+      <div class="fp-row"><label for="rr-rows">Lignes</label><input id="rr-rows" type="number" value="2" min="1" step="1"></div>
+      <div class="fp-row"><label for="rr-ex">Esp. X</label><input id="rr-ex" type="number" value="60" step="5"></div>
+      <div class="fp-row"><label for="rr-ez">Esp. Z</label><input id="rr-ez" type="number" value="60" step="5"></div>
       <div class="fp-actions">
         <button onclick="closePanel('fp-resrect')">Annuler</button>
         <button class="ok" onclick="applyResRect()">Appliquer</button>
@@ -420,8 +420,8 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
     <!-- Panel : Réseau circulaire -->
     <div class="fp" id="fp-rescirc">
       <div class="fp-title">Réseau circulaire</div>
-      <div class="fp-row"><label>Copies</label><input id="rc-n" type="number" value="6" min="2" max="36" step="1"></div>
-      <div class="fp-row"><label>Rayon</label><input id="rc-r" type="number" value="80" step="5"></div>
+      <div class="fp-row"><label for="rc-n">Copies</label><input id="rc-n" type="number" value="6" min="2" max="36" step="1"></div>
+      <div class="fp-row"><label for="rc-r">Rayon</label><input id="rc-r" type="number" value="80" step="5"></div>
       <div class="fp-actions">
         <button onclick="closePanel('fp-rescirc')">Annuler</button>
         <button class="ok" onclick="applyResCirc()">Appliquer</button>
@@ -432,7 +432,7 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
     <div class="fp" id="fp-decalage">
       <div class="fp-title">Décalage (offset)</div>
       <div class="fp-row">
-        <label>Dist.</label>
+        <label for="dec-slider">Dist.</label>
         <input id="dec-slider" type="range" min="-30" max="80" value="0"
           oninput="previewDecalage(this.value); document.getElementById('dec-val').textContent=this.value+'mm'">
         <span id="dec-val">0mm</span>
@@ -447,7 +447,7 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
     <div class="fp" id="fp-section">
       <div class="fp-title">Coupe</div>
       <div class="fp-row">
-        <label>Plan Y</label>
+        <label for="sec-slider">Plan Y</label>
         <input id="sec-slider" type="range" min="-200" max="200" value="0"
           oninput="updateSection(this.value); document.getElementById('sec-val').textContent=this.value+'mm'">
         <span id="sec-val">0mm</span>
@@ -461,43 +461,43 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
     <!-- Extrusion -->
     <div class="fp" id="fp-extrusion">
       <div class="fp-title">Extrusion</div>
-      <div class="fp-row"><label>Hauteur</label><input id="ext-h" type="number" value="30" min="1" max="500"><span>mm</span></div>
-      <div class="fp-row"><label>Biseau</label><input id="ext-bevel" type="checkbox"></div>
+      <div class="fp-row"><label for="ext-h">Hauteur</label><input id="ext-h" type="number" value="30" min="1" max="500"><span>mm</span></div>
+      <div class="fp-row"><label for="ext-bevel">Biseau</label><input id="ext-bevel" type="checkbox"></div>
       <div class="fp-hint">Dessinez un Cercle ou Rectangle dans la vue Face</div>
       <div class="fp-actions"><button onclick="closePanel('fp-extrusion')">Annuler</button><button class="ok" onclick="applyExtrusion()">Extruder</button></div>
     </div>
     <!-- Révolution -->
     <div class="fp" id="fp-revolution">
       <div class="fp-title">Révolution</div>
-      <div class="fp-row"><label>Angle</label><input id="rev-angle" type="number" value="360" min="1" max="360"><span>°</span></div>
-      <div class="fp-row"><label>Segments</label><input id="rev-segs" type="number" value="48" min="4" max="128"></div>
+      <div class="fp-row"><label for="rev-angle">Angle</label><input id="rev-angle" type="number" value="360" min="1" max="360"><span>°</span></div>
+      <div class="fp-row"><label for="rev-segs">Segments</label><input id="rev-segs" type="number" value="48" min="4" max="128"></div>
       <div class="fp-hint">Dessinez un profil (Lignes) dans la vue Face — côté droit</div>
       <div class="fp-actions"><button onclick="closePanel('fp-revolution')">Annuler</button><button class="ok" onclick="applyRevolution()">Générer</button></div>
     </div>
     <!-- Coque -->
     <div class="fp" id="fp-coque">
       <div class="fp-title">Coque</div>
-      <div class="fp-row"><label>Épaisseur</label><input id="coque-t" type="number" value="3" min="0.5" max="30"><span>mm</span></div>
+      <div class="fp-row"><label for="coque-t">Épaisseur</label><input id="coque-t" type="number" value="3" min="0.5" max="30"><span>mm</span></div>
       <div class="fp-actions"><button onclick="closePanel('fp-coque')">Annuler</button><button class="ok" onclick="applyCoque()">Appliquer</button></div>
     </div>
     <!-- Dépouille -->
     <div class="fp" id="fp-depouille">
       <div class="fp-title">Dépouille</div>
-      <div class="fp-row"><label>Angle</label><input id="dep-angle" type="number" value="5" min="0.5" max="45"><span>°</span></div>
+      <div class="fp-row"><label for="dep-angle">Angle</label><input id="dep-angle" type="number" value="5" min="0.5" max="45"><span>°</span></div>
       <div class="fp-actions"><button onclick="closePanel('fp-depouille')">Annuler</button><button class="ok" onclick="applyDepouille()">Appliquer</button></div>
     </div>
     <!-- Congé -->
     <div class="fp" id="fp-conge">
       <div class="fp-title">Congé</div>
-      <div class="fp-row"><label>Passes</label><input id="conge-passes" type="number" value="2" min="1" max="6"></div>
+      <div class="fp-row"><label for="conge-passes">Passes</label><input id="conge-passes" type="number" value="2" min="1" max="6"></div>
       <div class="fp-actions"><button onclick="closePanel('fp-conge')">Annuler</button><button class="ok" onclick="applyConge()">Appliquer</button></div>
     </div>
     <!-- Texte 3D -->
     <div class="fp" id="fp-texte">
       <div class="fp-title">Texte 3D</div>
-      <div class="fp-row"><label>Texte</label><input id="txt-val" type="text" value="GDS" style="width:72px"></div>
-      <div class="fp-row"><label>Taille</label><input id="txt-size" type="number" value="30" min="1" max="300"><span>mm</span></div>
-      <div class="fp-row"><label>Hauteur</label><input id="txt-h" type="number" value="8" min="1" max="60"><span>mm</span></div>
+      <div class="fp-row"><label for="txt-val">Texte</label><input id="txt-val" type="text" value="GDS" style="width:72px"></div>
+      <div class="fp-row"><label for="txt-size">Taille</label><input id="txt-size" type="number" value="30" min="1" max="300"><span>mm</span></div>
+      <div class="fp-row"><label for="txt-h">Hauteur</label><input id="txt-h" type="number" value="8" min="1" max="60"><span>mm</span></div>
       <div class="fp-actions"><button onclick="closePanel('fp-texte')">Annuler</button><button class="ok" onclick="applyTexte()">Générer</button></div>
     </div>
 
