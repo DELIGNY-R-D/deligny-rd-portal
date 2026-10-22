@@ -283,7 +283,7 @@
     </select>
     <div id="autoStatus" class="hint"></div>
     <label>Clé API <span style="color:#666">(inutile en mode Auto)</span></label>
-    <input id="apiKey" type="password" placeholder="sk-... (reste en local, jamais envoyée ailleurs)" autocomplete="off">
+    <input id="apiKey" type="password" placeholder="sk-... (stockée dans ce navigateur, envoyée seulement au fournisseur choisi)" autocomplete="off">
     <label for="model">Modèle</label>
     <input id="model" type="text" placeholder="gpt-4o-mini / claude-haiku-4-5-20251001">
     <div class="hint">Mode <b>Auto</b> : le serveur local lit <code>OPENAI_API_KEY</code> dans <code>MERLINEXTRA/.env</code> et garde la clé côté serveur (jamais exposée au navigateur). Les autres modes utilisent la clé saisie ci-dessus, stockée seulement dans cet onglet.</div>
