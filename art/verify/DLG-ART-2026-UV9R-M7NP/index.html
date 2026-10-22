@@ -246,15 +246,17 @@ la moindre démarche à faire.</div>
 })();
 </script>
 <script>
-/* Attention mesurée anonymement : ni IP, ni cookie. Le fuseau du navigateur est
+/* Attention mesurée anonymement : ni IP, ni cookie, ni navigateur. Le fuseau du navigateur est
    la seule indication de région ; la durée est envoyée au départ de la page. */
 (function () {
   var API = "https://atlas-studio.pro/deligny/api", OID = "DLG-ART-2026-UV9R-M7NP", t0 = Date.now();
   function post(p, b) { try { fetch(API + p, { method: "POST", keepalive: true,
     headers: { "Content-Type": "text/plain" }, body: JSON.stringify(b) }).catch(function () {}); } catch (e) {} }
   var tz = ""; try { tz = Intl.DateTimeFormat().resolvedOptions().timeZone || ""; } catch (e) {}
-  post("/track", { type: "vue", oeuvre: OID, page: "oeuvre", tz: tz, ref: document.referrer, ua: navigator.userAgent.slice(0, 120) });
-  post("/scan", { oeuvre: OID, ua: navigator.userAgent.slice(0, 120), ref: document.referrer, tz: tz });
+  /* Provenance : seul le nom du site est transmis (mentions légales), ni l'adresse complète ni le navigateur. */
+  var ref = ""; try { ref = document.referrer ? new URL(document.referrer).hostname : ""; } catch (e) {}
+  post("/track", { type: "vue", oeuvre: OID, page: "oeuvre", tz: tz, ref: ref, ua: "" });
+  post("/scan", { oeuvre: OID, ua: "", ref: ref, tz: tz });
   addEventListener("visibilitychange", function () {
     if (document.visibilityState === "hidden")
       post("/track", { type: "duree", oeuvre: OID, sec: Math.round((Date.now() - t0) / 1000), tz: tz });
@@ -279,13 +281,13 @@ la moindre démarche à faire.</div>
 })();
 </script>
 <script>
-/* Balise de scan — anonyme : œuvre + user-agent tronqué, ni IP conservée ni cookie.
+/* Balise de scan, anonyme : œuvre + nom du site de provenance, ni navigateur, ni IP conservée, ni cookie.
    Silencieuse si le collecteur est indisponible (la page reste 100% fonctionnelle). */
 try {
   fetch("https://atlas-studio.pro/deligny/scan/api/scan", { method: "POST",
     headers: { "Content-Type": "text/plain" }, keepalive: true,
-    body: JSON.stringify({ oeuvre: "DLG-ART-2026-UV9R-M7NP", ua: navigator.userAgent.slice(0, 120),
-                            ref: (document.referrer || "").slice(0, 120) }) }).catch(function () {});
+    body: JSON.stringify({ oeuvre: "DLG-ART-2026-UV9R-M7NP", ua: "",
+                            ref: (function () { try { return document.referrer ? new URL(document.referrer).hostname : ""; } catch (e) { return ""; } })() }) }).catch(function () {});
 } catch (e) {}
 </script>
   <script src="../../../chargement-simule.js?v=eb8d5eaa" defer></script>
