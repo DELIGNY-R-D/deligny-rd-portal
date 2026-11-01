@@ -6,7 +6,7 @@
 import * as G from './lib/geometrie.js?v=2a2ad325';
 import { weldMesh, meshStats, meshVolume } from './lib/maillage.js?v=b09a1731';
 import { depuisOrientation, fusionner, verdict as verdictDe } from './lib/constats.js?v=afa386ad';
-import { estimate, MATERIALS } from './lib/print_engine.js?v=6eee5189';
+import { estimate, MATERIALS } from './lib/print_engine.js?v=6f8287b5';
 
 export const DEBUT_BETA = '2026-10-23';
 export const MACHINES = {
