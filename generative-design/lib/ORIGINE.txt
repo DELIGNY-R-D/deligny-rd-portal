@@ -1,0 +1,3 @@
+Copies des modules de GENERAL DESIGN STUDIO (DESIGN:ART/GENERATIVE_DESIGN), commit e766305, le 2026-10-22.
+Source : app/maillage.js, app/materiaux.js, app/constats.js, app/print_engine.js, app/shapes_cad.js, app/lamp_cad.js, print-checker/geometrie.js.
+Ne pas editer ici : modifier dans GDS puis recopier (controle de derive : diff -q).

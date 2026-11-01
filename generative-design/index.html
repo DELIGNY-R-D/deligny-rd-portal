@@ -210,6 +210,19 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
 .dh-val.pass { color:#22c55e; } .dh-val.warn { color:#7e57c2; }
 .dh-val.fail { color:#ef4444; } .dh-val.na   { color:#ccc; }
 
+.dh-reglages { display:flex; gap:4px; margin-top:6px; }
+.dh-reglages select { flex:1; font:10px 'DM Mono',monospace; color:#555; background:#fafafa; border:1px solid #e6e6e6; border-radius:3px; padding:2px 3px; min-width:0; }
+#dh-constats { margin-top:6px; display:flex; flex-direction:column; gap:3px; }
+.dh-constat { font-size:10px; line-height:1.4; color:#555; padding:3px 6px; border-left:2px solid #ddd; background:#fafafa; border-radius:0 3px 3px 0; }
+.dh-constat.HARD { border-left-color:#ef4444; } .dh-constat.SOFT { border-left-color:#7e57c2; } .dh-constat.OPT { border-left-color:#3b82f6; } .dh-constat.INFO { border-left-color:#d8d8d8; color:#888; }
+.dh-cid { font-family:'DM Mono',monospace; font-size:9px; color:#999; margin-right:4px; }
+.dh-csugg { display:block; color:#999; font-size:9.5px; }
+.dh-actions { display:flex; gap:6px; margin-top:7px; }
+.dh-btn { flex:1; font:10px system-ui; color:#444; background:#fff; border:1px solid #ddd; border-radius:4px; padding:4px 6px; text-align:center; text-decoration:none; cursor:pointer; }
+.dh-btn:hover { border-color:#7e57c2; color:#7e57c2; }
+.dh-note { font-size:9px; color:#aaa; margin-top:6px; line-height:1.4; }
+.tb-beta { font:500 10px system-ui; color:#7e57c2; letter-spacing:.04em; margin-left:8px; }
+
 /* ── TOAST ───────────────────────────────────────────── */
 #toast {
   position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
@@ -232,6 +245,9 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
   <button class="tb-btn" onclick="connectBlender()" style="display:none">Connecter</button>
   <button class="tb-btn primary" id="btn-push" onclick="pushToBlender()" disabled style="display:none">→ Blender</button>
   <span style="font:500 11px system-ui;color:#8a8a8a;letter-spacing:.06em">STUDIO DE CONCEPTION GENERATIVE</span>
+  <div class="sep"></div>
+  <label class="tb-btn" title="Analyser un STL : fermeture, surplombs, orientation, parois, coût. Le fichier reste dans le navigateur.">Importer un STL<input type="file" id="stl-file" accept=".stl" onchange="window.importerSTL(this)" style="display:none"></label>
+  <span class="tb-beta">bêta publique</span>
 </div>
 
 <div id="main">
@@ -543,6 +559,17 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
         <span class="dh-key">Temps impr.</span>
         <span class="dh-val" id="dh-time-val">—</span>
       </div>
+      <div class="dh-reglages">
+        <select id="dh-machine" onchange="window.relancerRapport()" title="Imprimante"><option value="bambu_a1">Bambu Lab A1</option><option value="bambu_a1mini">Bambu Lab A1 mini</option><option value="prusa_mk4">Prusa MK4</option><option value="ender3_s1">Ender-3 S1</option></select>
+        <select id="dh-matiere" onchange="window.relancerRapport()" title="Matière"><option>PLA</option><option>PETG</option><option>ABS</option><option>ASA</option><option>TPU</option></select>
+        <select id="dh-buse" onchange="window.relancerRapport()" title="Buse"><option value="0.4">∅0.4</option><option value="0.6">∅0.6</option><option value="0.2">∅0.2</option></select>
+      </div>
+      <div id="dh-constats"></div>
+      <div class="dh-actions">
+        <button class="dh-btn" onclick="window.telechargerRapport()">Rapport JSON</button>
+        <a class="dh-btn" href="../contact.html?sujet=piece-certifiee">Demander une pièce certifiée</a>
+      </div>
+      <div class="dh-note">Bêta publique · le même format de constats que notre atelier · votre fichier ne quitte pas le navigateur.</div>
     </div>
 
     <div id="input-row">
@@ -564,7 +591,9 @@ html, body { height: 100%; background: #fff; color: #1a1a1a; font-family: 'Inter
 <script type="module">
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { buildShape } from './shapes_cad.js?v=29c48d31';
+import { buildShape } from './lib/shapes_cad.js?v=1b13d6fd';   // lot F1 (coques fermees, gyroide ferme)
+import * as FAB from './fabricabilite.js?v=cf3c7b25';           // rapport de fabricabilite, beta publique
+import { buildLampMesh } from './lib/lamp_cad.js?v=505846d4';     // le moteur /api/intent repond parfois « lamp » : ce type n'est pas dans shapes_cad
 
 /* ── COPILOTE HORS LIGNE (vitrine deligny-rd.fr) ──────────────────────────
  * La version applicative envoie la phrase a /api/intent, qui la traduit en
@@ -1548,16 +1577,29 @@ function initInput(canvas) {
 
 // ── LOAD SHAPE ────────────────────────────────────────
 function loadShape(type, params) {
+  let raw;
+  try { raw = (type === 'lamp' || type === 'lampe') ? buildLampMesh(params) : buildShape(type, params); } catch(e) { addMsg('system', `Erreur builder : ${e.message}`); return; }
+  if (!raw || !raw.V || !raw.V.length) { addMsg('system', 'Mesh vide.'); return; }
+  currentSpec = { type, params };
+  mountRaw(raw, type);
+}
+
+/* Pièce importée (STL posé, hauteur sur Z) : affichée en Y haut comme les générateurs. */
+function loadTris(tris, nom) {
+  const raw = FAB.trisVersMesh(FAB.zVersY(tris));
+  raw.meta.nom = nom;
+  currentSpec = { type: 'stl', params: {}, nom };
+  mountRaw(raw, nom);
+}
+
+function mountRaw(raw, label) {
   if (measureHelper) { scene.remove(measureHelper); measureHelper = null; }
   if (meshGroup) {
     scene.remove(meshGroup);
     meshGroup.traverse(o => { if (o.isMesh) { o.geometry.dispose(); o.material.dispose(); } });
     meshGroup = null; edgeLines = null;
   }
-  let raw;
-  try { raw = buildShape(type, params); } catch(e) { addMsg('system', `Erreur builder : ${e.message}`); return; }
-  if (!raw || !raw.V || !raw.V.length) { addMsg('system', 'Mesh vide.'); return; }
-
+  window.currentRaw = raw; window.currentRawNom = label;
   const geo = new THREE.BufferGeometry();
   const isFlat = raw.V instanceof Float32Array || raw.V instanceof Float64Array;
   if (isFlat) {
@@ -1589,9 +1631,8 @@ function loadShape(type, params) {
   for (const q of ['front','side','top','back']) vps[q] = { zoom: z, px: 0, py: 0 };
 
   document.getElementById('btn-push').disabled = !blenderOk;
-  currentSpec = { type, params };
   if (measureOn) refreshMeasure();
-  updateDesignHealth(geo);
+  rapportFabricabilite(geo);
 }
 
 // ── OBJ EXPORT ────────────────────────────────────────
@@ -1691,6 +1732,69 @@ function _dhSet(key, status, label) {
   if (dot) dot.className = `dh-dot ${status}`;
   if (val) { val.className = `dh-val ${status}`; val.textContent = label; }
 }
+
+let _rapportCourant = null, _rapportSerie = 0;
+async function rapportFabricabilite(geo) {
+  const el = document.getElementById('design-health');
+  if (!el || !window.currentRaw) return;
+  el.style.display = 'block';
+  const serie = ++_rapportSerie;
+  const raw = window.currentRaw;
+  let tris = FAB.meshVersTris(raw);
+  if (raw.meta && raw.meta.units === 'u10mm') tris = FAB.echelle(tris, 10);   // formes phi / gyroide : 1 unite = 10 mm
+  tris = FAB.yVersZ(tris);   // le studio affiche en Y haut (generateurs comme STL importe) ; l analyse se fait piece posee, Z haut
+  const machine = document.getElementById('dh-machine')?.value || 'bambu_a1';
+  const matiere = document.getElementById('dh-matiere')?.value || 'PLA';
+  const buse = parseFloat(document.getElementById('dh-buse')?.value || '0.4');
+  const lbl = document.querySelector('#design-health .dh-machine-label'); if (lbl) lbl.textContent = `${FAB.MACHINES[machine].nom} · ${matiere} · ∅${buse}`;
+  _dhSet('geo', 'na', '…'); _dhSet('print', 'na', 'analyse…');
+  const liste = document.getElementById('dh-constats'); if (liste) liste.textContent = '';
+  try {
+    const r = await FAB.analyserTris(tris, { machine, matiere, buse, nom: window.currentRawNom || currentSpec?.type || 'piece', origine: currentSpec?.type === 'stl' ? 'fichier' : 'studio' },
+      p => { if (serie === _rapportSerie) _dhSet('print', 'na', `analyse ${Math.round(p * 100)} %`); });
+    if (serie !== _rapportSerie) return;
+    _rapportCourant = r; window.dernierRapport = r;
+    const m = r.mesures;
+    _dhSet('geo', m.sante.watertight ? 'pass' : 'fail', m.sante.watertight ? `${tris.length} △ · fermé` : `${m.sante.open} arête(s) ouverte(s)`);
+    const st = { PASS: 'pass', WARN: 'warn', FAIL: 'fail' }[r.verdict] || 'na';
+    const hard = r.constats.filter(c => c.severity === 'HARD').length, soft = r.constats.filter(c => c.severity === 'SOFT').length;
+    _dhSet('print', st, r.verdict + (r.constats.length ? ` · ${hard} bloquant${hard > 1 ? 's' : ''}, ${soft} avert.` : ' · aucun constat'));
+    const cv = document.getElementById('dh-cost-val'); if (cv) cv.textContent = `${m.estimation.weightG} g · ${m.estimation.costEur.toFixed(2)} €`;
+    const tv = document.getElementById('dh-time-val'); if (tv) tv.textContent = m.estimation.timeMin < 60 ? `${m.estimation.timeMin} min` : `${Math.floor(m.estimation.timeMin / 60)}h${String(Math.round(m.estimation.timeMin % 60)).padStart(2, '0')}`;
+    if (liste) {
+      for (const c of r.constats) {
+        const li = document.createElement('div'); li.className = `dh-constat ${c.severity}`;
+        const t = document.createElement('span'); t.className = 'dh-cid'; t.textContent = c.severity + ' ' + c.id;
+        li.append(t, document.createTextNode(' ' + c.msg));
+        if (c.suggestion) { const sg = document.createElement('span'); sg.className = 'dh-csugg'; sg.textContent = '→ ' + c.suggestion; li.appendChild(sg); }
+        liste.appendChild(li);
+      }
+      const o = m.meilleure_orientation;
+      const info = document.createElement('div'); info.className = 'dh-constat INFO';
+      info.textContent = `surplomb ${m.surplomb_pct} %` + (o ? ` · meilleure pose : ${o.nom} (${o.surplomb_pct} %)` : '') + (m.parois_critiques_pct != null ? ` · parois sous le cordon : ${m.parois_critiques_pct} %` : '') + ` · ${(m.volume_mm3 / 1000).toFixed(1)} cm³`;
+      liste.appendChild(info);
+    }
+  } catch (e) {
+    if (serie === _rapportSerie) _dhSet('print', 'fail', 'analyse interrompue : ' + (e.message || e));
+  }
+}
+window.telechargerRapport = () => {
+  if (!_rapportCourant) { showToast('Aucun rapport : génère ou importe une pièce.'); return; }
+  const blob = new Blob([JSON.stringify(_rapportCourant, null, 1)], { type: 'application/json' });
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'rapport-fabricabilite.json'; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+};
+window.relancerRapport = () => { if (meshGroup) rapportFabricabilite(); };
+window.importerSTL = async (input) => {
+  const f = input.files && input.files[0]; input.value = '';
+  if (!f) return;
+  if (f.size > 60 * 1024 * 1024) { showToast('STL trop gros (60 Mo max).'); return; }
+  try {
+    const tris = FAB.normalesSortantes(FAB.stlVersTris(await f.arrayBuffer()));
+    if (!tris.length) throw new Error('aucun triangle lu');
+    addMsg('system', `${f.name} : ${tris.length} triangles, analysé dans le navigateur (le fichier n'est pas envoyé).`);
+    loadTris(tris, f.name);
+  } catch (e) { addMsg('system', 'STL illisible : ' + (e.message || e)); }
+};
 
 function updateDesignHealth(geo) {
   const el = document.getElementById('design-health');
