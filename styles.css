@@ -2319,3 +2319,21 @@ img.app-banner {
     gap: 4px;
   }
 }
+
+/* Page logiciels : le seul disponible, en vedette au-dessus de la grille (02/11). */
+.lg-vedette {
+  display: grid;
+  gap: clamp(18px, 3vw, 36px);
+  align-items: start;
+  margin-top: clamp(20px, 3vw, 32px);
+  padding: clamp(18px, 2.6vw, 30px);
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--shadow);
+}
+.lg-vedette-image { display: block; border-radius: 12px; overflow: hidden; border: 1px solid var(--line); }
+.lg-vedette-image img { display: block; width: 100%; height: auto; }
+.lg-vedette-texte > p { margin: 12px 0 0; font-size: 1.02rem; line-height: 1.65; color: var(--ink-dim); }
+.lg-vedette .lgd-actions { margin-top: 18px; }
+@media (min-width: 900px) { .lg-vedette { grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); } }

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="fiscus">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#5b4a8a"/><stop offset="100%" stop-color="#2e4a7d"/>
+  </linearGradient></defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <rect x="236" y="104" width="168" height="200" rx="10"/><path d="M262 148h116M262 182h116M262 216h72"/><path d="M262 262h40"/><circle cx="376" cy="262" r="12"/><path d="M370 262l5 5 9-10"/>
+  </g>
+  <text x="34" y="360" fill="#ffffff" opacity=".85" font-family="Avenir Next, Avenir, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="3">FISCUS</text>
+</svg>
