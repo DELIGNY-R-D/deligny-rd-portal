@@ -170,7 +170,8 @@
           <iframe src="https://atlas-studio.pro/desktop/desktop.html" title="Atlas Studio Pro, affichage Bureau (Chaises Lenoir, donnees fictives)" loading="lazy"></iframe>
         </div>
         <div class="atlas-embed atlas-embed-normale">
-          <iframe src="https://atlas-studio.pro/demo-vue-normale.html" title="Atlas Studio Pro, vue normale (Chaises Lenoir, donnees fictives)" loading="lazy"></iframe>
+          <!-- Pas de loading="lazy" ici : ce cadre est en display:none jusqu'au clic sur « Vue normale », et Chrome ne charge jamais un cadre differe qui etait masque au depart (constat 02/11 : cadre vide, aucune requete). -->
+          <iframe src="https://atlas-studio.pro/demo-vue-normale.html" title="Atlas Studio Pro, vue normale (Chaises Lenoir, donnees fictives)"></iframe>
         </div>
         <div class="tool-widget-actions">
           <a class="btn btn-primary" href="https://atlas-studio.pro">Decouvrir Atlas Studio Pro &rarr;</a>
