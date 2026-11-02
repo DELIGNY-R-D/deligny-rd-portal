@@ -28,7 +28,7 @@
     <nav class="nav" aria-label="Navigation principale">
       <a href="index.html">Accueil</a>
       <span class="nav-sep" aria-hidden="true"></span>
-            <details class="nav-dropdown" name="nav-menu">
+      <details class="nav-dropdown" name="nav-menu">
         <summary class="nav-dropdown-toggle">Produit</summary>
         <div class="nav-dropdown-menu">
         <a href="portfolio/index.html">Portfolio</a>
@@ -38,15 +38,22 @@
         </div>
       </details>
       <span class="nav-sep" aria-hidden="true"></span>
-            <details class="nav-dropdown" name="nav-menu">
+      <details class="nav-dropdown" name="nav-menu">
         <summary class="nav-dropdown-toggle">Logiciel</summary>
         <div class="nav-dropdown-menu">
         <a href="logiciels.html">Logiciels</a>
-        <a href="index.html#outils">Outils gratuits</a>
         </div>
       </details>
       <span class="nav-sep" aria-hidden="true"></span>
-      <a href="index.html#offre">Offre service</a>
+      <details class="nav-dropdown" name="nav-menu">
+        <summary class="nav-dropdown-toggle">Offre</summary>
+        <div class="nav-dropdown-menu">
+        <a href="offre/index.html#service">Offre service</a>
+        <a href="offre/index.html#produit">Offre produit</a>
+        <a href="offre/index.html#logiciel">Offre logiciel</a>
+        </div>
+      </details>
+      <span class="nav-sep" aria-hidden="true"></span>
       <a href="contact.html" aria-current="page">Contact</a>
     </nav>
   </header>
@@ -56,9 +63,8 @@
       <p class="eyebrow">Contact</p>
       <h1>Écrire à <span class="grad-text grad-text--bleu">DELIGNY R&amp;D.</span></h1>
       <p class="lead">
-        Un projet logiciel, un devis FACTORY, une question sur l'offre ou le book design :
-        trois champs suffisent, la réponse est directe, et aucun logiciel de courriel
-        n'est nécessaire pour écrire.
+        Un projet logiciel, une question sur l'offre, un objet à concevoir ou le book design :
+        dites-nous ce qui vous amène. C'est l'atelier qui lit, et c'est l'atelier qui répond.
       </p>
       <div class="hero-actions">
         <a class="btn-pill" href="mailto:contact@deligny-rd.fr">
@@ -73,20 +79,20 @@
     </section>
 
     <section class="section split ct-grille">
+      <div class="desk-card cp-carte">
+        <p class="eyebrow">Dites-nous l'essentiel</p>
+        <h2 class="ct-titre">Dites-nous ce qui vous amène.</h2>
+        <p class="ct-intro">
+          Choisissez le sujet, indiquez l'échéance, laissez votre adresse et deux phrases.
+          Le message arrive directement à l'atelier et vous recevez la réponse par courriel.
+          Si vous préférez votre propre messagerie, le lien en bas la rouvre déjà rédigée.
+        </p>
+        <div id="composeur"></div>
+      </div>
       <figure class="footer-scene ct-figure">
         <img src="img/contact-paris.png" alt="Illustration du quartier de la Place Vendome, Paris 1er" loading="lazy" width="1558" height="1010" />
         <figcaption>231 Rue Saint-Honoré, 75001 Paris</figcaption>
       </figure>
-      <div class="desk-card cp-carte">
-        <p class="eyebrow">Dites-nous l'essentiel</p>
-        <h2 class="ct-titre">Trois champs, et le message part.</h2>
-        <p class="ct-intro">
-          Pas de formulaire a rallonge : choisissez ce qui vous amene, laissez votre
-          adresse et deux phrases. Le message arrive directement a l'atelier ; si vous
-          preferez votre propre logiciel de courriel, le lien le rouvre deja redige.
-        </p>
-        <div id="composeur"></div>
-      </div>
 
       <div class="desk-card ct-carte">
         <p class="eyebrow">Informations professionnelles</p>
