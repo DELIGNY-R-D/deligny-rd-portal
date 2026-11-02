@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-IwX3IRzorSGZTbj4G7lKXpYMEmWhS35Dgk8p6F7v00o='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-V9ZW3DyzueGI0uj8dbHWUZu1Bqvc5QET2b2owBetvwk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1241,6 +1241,14 @@ const PIED = { diaMm: 104.0, transitionMm: 30, pasMm: 1.5 };
 function appliquerPied(prof){
   if(prof.length < 2) return prof;
   const h0 = prof[0].h, H = PIED.transitionMm, rC = PIED.diaMm/2;
+  /* 02/11 (Baptiste : « ça lui fait un bourrelet alors que je n'en voulais pas »).
+   * La coupe 2D épingle déjà le point du bas sur le cercle Ø104. Refondre quand
+   * même les 30 derniers mm en S transformait un évasement droit en lèvre
+   * arrondie (trait 52 → 59 mm en 20 mm : maillé 52,7 à 9 mm, palier à 57,3 de
+   * 21 à 25 mm). Quand le dessin part du cercle, il est maillé tel quel : c'est
+   * le client qui dessine le bas. La fonte ne reste que pour un profil qui n'y
+   * part pas (état ancien, autre chemin). */
+  if(Math.abs(prof[0].r - rC) < 0.01) return prof;
   const rAt = (h)=>{
     for(let k=0;k<prof.length-1;k++){
       if(h <= prof[k+1].h){
@@ -6691,6 +6699,24 @@ function renderWarnings(){
     hasHard = true;
     lines.push(['bad', `Diamètre minimum ${(rMin*2).toFixed(0)} mm (minimum ${DIA_MIN_MM} mm) — sous cette cote le module n'entre plus et le col piège la chaleur de la LED.`]);
   }
+  /* 02/11 : le col fileté de la bague monte à l'intérieur de la peau jusqu'à
+   * BAGUE.hautMm (20,7 mm du sol), soit 12,2 mm au-dessus du bas du dessin (posé
+   * 8,5 mm au-dessus du sol). Sur cette hauteur la paroi intérieure doit rester
+   * au-delà du Ø100 de l'assise, sinon elle traverse le col. La fonte du pied sur
+   * 30 mm masquait ce cas en silence ; elle est retirée (bourrelet), donc la
+   * règle est dite ici, mesurée sur le dessin, pas seulement empêchée. */
+  if(state.type === 'poser' && bagueActive() && state.profile.length >= 2){
+    const hCol = BAGUE.hautMm - (BAGUE.assiseMm - 0.5);
+    const rExtMin = BAGUE.assiseIntDiaMm/2 + parseFloat(state.wall) - 0.05;
+    const P = state.profile;
+    const rAt = (h)=>{ for(let k=0;k<P.length-1;k++){ if(h <= P[k+1].h){ const d=P[k+1].h-P[k].h, u=d>1e-9?(h-P[k].h)/d:0; return P[k].r+u*(P[k+1].r-P[k].r); } } return P[P.length-1].r; };
+    let pire = null;
+    for(let h=0; h<=hCol+1e-9; h+=0.5){ const r = rAt(h); if(r < rExtMin && (!pire || r < pire.r)) pire = { h, r }; }
+    if(pire){
+      hasHard = true;
+      lines.push(['bad', `Bas du dessin : Ø${fr(pire.r*2,1)} mm à ${fr(pire.h,1)} mm de haut — le col de la bague monte à l'intérieur de la peau sur les ${fr(hCol,1)} premiers mm, la paroi le traverserait. Garde au moins Ø${fr(rExtMin*2,1)} jusqu'à ${fr(hCol,1)} mm, puis rentre librement.`]);
+    }
+  }
   for(let i=0;i<state.profile.length-1;i++){
     const a=overhangDeg(state.profile[i],state.profile[i+1]);
     if(a>OVERHANG.HARD_DEG){ hasHard=true; lines.push(['bad', `Segment ${i+1}→${i+2} : la paroi s'évase de ${a.toFixed(0)}° en montant (> ${OVERHANG.HARD_DEG}°) — support d'impression nécessaire, ou retourne la pièce tête en bas.`]); }
@@ -6800,8 +6826,8 @@ function renderPoser(){
     L.push(['bad', `Bague V3 non décodée (${BASE_KIT.note||'?'}) : reconstruction paramétrique de secours `
       + `Ø${fr(BAGUE.diaExtMm,2)} — ne lance PAS de série avec ce fichier.`]);
   }
-  L.push(['ok', `PIED : l'abat-jour se termine par un cercle extérieur Ø${fr(PIED.diaMm,1)} mm — la forme, `
-    + `même complexe, fond son relief et rejoint ce cercle sur les ${PIED.transitionMm} derniers mm.`]);
+  L.push(['ok', `PIED : le point du bas est le cercle Ø${fr(PIED.diaMm,1)} mm de la bague, pièce réelle, il ne se déplace pas. `
+    + `Au-dessus, le bas suit ton trait tel quel, sans fonte ajoutée : pour un pied plus fin, rentre dès ${fr(BAGUE.hautMm - (BAGUE.assiseMm - 0.5),1)} mm.`]);
   /* ⚠️ RÈGLE POSÉE PAR BAPTISTE : rien de l'emmanchement ne dépasse Ø104. On la
    * MESURE sur le maillage construit, pas sur les constantes qui l'ont produit —
    * une constante juste ne prouve pas que la pièce livrée l'est, et c'est
