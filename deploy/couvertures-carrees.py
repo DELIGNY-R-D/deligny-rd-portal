@@ -56,7 +56,6 @@ BOITES = {
     'Frankenstein-W1':   ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'Frankenstein-W2':   ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'Affiches':          ('cover.jpg', lambda W, H: portrait(W, H, 50)),
-    'Tableaux':          ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'Stepdrive-230':     ('cover.jpg', lambda W, H: portrait(W, H, 39)),
 }
 
