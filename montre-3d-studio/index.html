@@ -191,7 +191,7 @@ html.embarque .resume{display:none}
     <h2>Concierge</h2>
     <div class="fil" id="fil"></div>
     <div class="saisie">
-      <textarea id="msg" maxlength="600" placeholder="un cadran avec des montagnes au lever du soleil, une lunette perlée…"></textarea>
+      <textarea id="msg" maxlength="600" placeholder="un cadran guilloché soleil, une lunette perlée…"></textarea>
       <button class="btn pri" id="go">Envoyer</button>
     </div>
     <div class="ex" id="ex"></div>
@@ -345,7 +345,7 @@ const MOTIFS_LUNETTE = {
 };
 const MOTIFS_CADRAN = {
   lisse:      {nom:'Lisse', r:{}},
-  montagnes:  {nom:'Montagnes', r:{plans:[1,4,3,1,'plans'], hauteur:[.1,1.2,.4,.01,'hauteur mm'], pics:[3,9,6,1,'pics'], rayon:[5,8.3,7.9,.1,'taille mm'], graine:[1,999,7,1,'variante'], soleil:[0,1,1,1,'soleil']}},
+  montagnes:  {nom:'Montagnes', retire:1, r:{plans:[1,4,3,1,'plans'], hauteur:[.1,1.2,.4,.01,'hauteur mm'], pics:[3,9,6,1,'pics'], rayon:[5,8.3,7.9,.1,'taille mm'], graine:[1,999,7,1,'variante'], soleil:[0,1,1,1,'soleil']}},
   soleil:     {nom:'Soleil (rayons)', r:{n:[12,160,72,1,'rayons'], largeur:[.2,.8,.45,.01,'largeur'], relief:[.05,1.2,.2,.01,'relief mm']}},
   guilloche:  {nom:'Guilloché', r:{petales:[4,36,12,1,'pétales'], anneaux:[2,30,10,1,'anneaux'], relief:[.05,1.2,.2,.01,'relief mm']}},
   vagues:     {nom:'Vagues', r:{longueur:[.6,4,1.4,.05,'longueur mm'], ondulation:[0,2,.8,.05,'ondulation'], concentriques:[0,1,0,1,'concentriques'], relief:[.05,1.2,.2,.01,'relief mm']}},
@@ -394,7 +394,7 @@ const DESSINS=[
   // continus de la face avant au biseau. n/4 losanges par quart (88 -> 1,4 mm), periode radiale 2,7/rangs mm.
   // MOTIF D'ORIGINE RELEVE (V4, « Montre T 2 V2.stl ») : carte de hauteur vue de dessus, profil de lunette
   // retire par moyenne glissante le long du tour -> clair = case haute (reste polie), sombre = case creusee
-  {nom:"motif d'origine (relevé V4)",carte:'media/motif_origine.png',monde:1,f:(u,s,p)=>{const c=CARTE_ORIGINE;if(!c)return 1;const L=44;
+  {nom:"motif d'origine (relevé V4)",retire:1,carte:'media/motif_origine.png',monde:1,f:(u,s,p)=>{const c=CARTE_ORIGINE;if(!c)return 1;const L=44;
     /* (12/10) la carte relevee s'arrete avant le bord de la lunette (a 9 h : 18,5 mm pour un bord a ~19,6) -> fin
        liseré sans motif. On cale la carte, angle par angle, sur la zone decoree : son bord interieur de donnees sur
        le bord interieur de la zone, son bord exterieur sur le bord exterieur. Le motif va jusqu'au bord. */
@@ -402,7 +402,7 @@ const DESSINS=[
     if(B){const k=((Math.round((th+Math.PI)/(2*Math.PI)*B.K)%B.K)+B.K)%B.K,ri=B.ri[k],re=B.re[k],P=profilZone(th),zi=P[0][0],ze=P[P.length-1][0];
       if(re>ri&&ze>ri&&r>ri)rm=ri+(r-ri)*(re-ri)/(ze-ri);}   /* pivot au bord INTERIEUR des donnees : l'interieur du motif est inchange, seul l'exterieur s'etire jusqu'au bord */
     return echantillon(c,(rm*Math.cos(th)/L+.5)*(c.w-1),(rm*Math.sin(th)/L+.5)*(c.h-1));}},
-  {nom:"damier d'origine (circulaire)",monde:1,f:(u,s,p)=>{const phi=Math.atan2(Math.abs(PZ.z),Math.abs(PZ.x)),r=Math.hypot(PZ.x,PZ.z);
+  {nom:"damier d'origine (circulaire)",retire:1,monde:1,f:(u,s,p)=>{const phi=Math.atan2(Math.abs(PZ.z),Math.abs(PZ.x)),r=Math.hypot(PZ.x,PZ.z);
     const a=phi/(Math.PI/2)*Math.max(1,Math.round(p.n/4)),b=r/(2.7/Math.max(1,p.rangs));
     return .5+.5*Math.tanh(3*Math.cos(Math.PI*(a+b))*Math.cos(Math.PI*(a-b)));}},
   {nom:"damier W1 (Fibonacci)",monde:1,f:(u,s,p)=>w1HMonde(p)<0?0:1},
@@ -699,7 +699,7 @@ const CASES = new Set(['soleil','concentriques','diguette','inverser','ventouses
 const defauts = M => Object.fromEntries(Object.entries(M.r).map(([k,v])=>[k,v[2]]));
 // Etat de depart du projet Montre T (07/10) : lunette ecailles de dragon, cadran terrasses.
 const state = {
-  lunette:{motif:'embossage', zone:'tout', params:{dessin:17,n:88,rangs:3,proportion:.5,profondeur:.35,angle:60,facettes:1,finition:1,jonction:1,pivot:0}},   // (13/10) damier W1 vectoriel : face en damier, biseau en frise de Fibonacci
+  lunette:{motif:'embossage', zone:'tout', params:{dessin:7,n:88,rangs:3,proportion:.5,profondeur:.35,angle:60,facettes:1,finition:1,jonction:1,pivot:0}},   // (03/11, Baptiste : « met losanges par defaut ») dessin 7 = losanges ; avant : 17 = damier W1 vectoriel
   cadran:{motif:'terrasses', params:{couches:9,collines:4,taille:5,diguette:1,graine:21,relief:.4}},
 };
 
@@ -2955,7 +2955,7 @@ async function appliquerIA(piece,id,encore){const r=await (await fetch(AI_BASE+'
 function valeurSelect(piece){return state[piece].motif==='image'&&state[piece].ia?'ia:'+state[piece].ia:state[piece].motif;}
 function remplirSelect(sel,M,piece){sel.innerHTML='';const gf=document.createElement('optgroup');gf.label='Familles paramétriques (encyclopédie)';
   for(const [k,v] of Object.entries(M)){if(!v.famille)continue;const o=document.createElement('option');o.value=k;o.textContent=v.nom;gf.appendChild(o);}
-  for(const [k,v] of Object.entries(M)){if(k==='image'||v.famille)continue;const o=document.createElement('option');o.value=k;o.textContent=v.nom;sel.appendChild(o);}
+  for(const [k,v] of Object.entries(M)){if(k==='image'||v.famille||v.retire)continue;const o=document.createElement('option');o.value=k;o.textContent=v.nom;sel.appendChild(o);}
   if(gf.children.length)sel.appendChild(gf);
   const g=document.createElement('optgroup');g.label='Bas-relief IA';const o0=document.createElement('option');o0.value='image';o0.textContent='Nouveau bas-relief IA…';g.appendChild(o0);
   for(const m of BIB[piece]){const o=document.createElement('option');o.value='ia:'+m.id;o.textContent='IA : '+m.sujet.slice(0,40);g.appendChild(o);}
@@ -3058,14 +3058,14 @@ function galerieApercus(piece,box){_fileVign=_fileVign.filter(j=>j.img.isConnect
   if(piece==='lunette'){
     const g=bloc('Catégorie',1);const cat=[['lisse','Lisse',{}],['embossage','Embossage',st.motif==='embossage'?p:{}],['arete','Arêtes vives',st.motif==='arete'?p:{}],['relief','Bas-relief',st.motif==='relief'?p:{}]];
     for(const [m,lib,pp] of cat)tuile(g,lib,'S|'+m+'|'+JSON.stringify(pp)+'|'+st.zone,()=>vignetteSphere(m,pp),st.motif===m,()=>{poser('lunette',m,pp);});
-    if(st.motif==='embossage'){const g2=bloc('Dessin',1);DESSINS.forEach((d,k)=>{if(d.ia&&!BASRELIEF.lunette)return;const pp={...p,dessin:k};
+    if(st.motif==='embossage'){const g2=bloc('Dessin',1);DESSINS.forEach((d,k)=>{if(d.retire||(d.ia&&!BASRELIEF.lunette))return;const pp={...p,dessin:k};
       tuile(g2,d.nom,'S|emb|'+k+'|'+[p.n,p.rangs,p.proportion,p.profondeur,p.angle,p.facettes,p.finition,st.zone].join(','),()=>vignetteSphere('embossage',pp),Math.round(p.dessin)===k,()=>{state.lunette.params.dessin=k;panneau('lunette');reconstruire('lunette');});});}
     if(st.motif==='relief'){const g2=bloc('Sujet',1);LISTES.paysage.forEach((nm,k)=>{const pp={...p,paysage:k};
       tuile(g2,nm,'S|rel|'+k+'|'+[p.echelle,p.relief,p.graine,p.finition,st.zone].join(','),()=>vignetteSphere('relief',pp),Math.round(p.paysage||0)===k,()=>{state.lunette.params.paysage=k;panneau('lunette');reconstruire('lunette');});});}
     if(st.motif==='arete'){const g2=bloc('Forme',1);FORMES.forEach((f,k)=>{const pp={...p,forme:k};
       tuile(g2,f[2],'S|ar|'+k+'|'+[p.pas,p.angle,p.tronque,p.relief,p.finition,st.zone].join(','),()=>vignetteSphere('arete',pp),Math.round(p.forme)===k,()=>{state.lunette.params.forme=k;if(f[3])Object.assign(state.lunette.params,f[3]);panneau('lunette');reconstruire('lunette');});});}
   }else{
-    const g=bloc('Motif du cadran');for(const [m,M] of Object.entries(MOTIFS_CADRAN)){if(m==='image')continue;const pp=st.motif===m?p:{};
+    const g=bloc('Motif du cadran');for(const [m,M] of Object.entries(MOTIFS_CADRAN)){if(m==='image'||M.retire)continue;const pp=st.motif===m?p:{};
       tuile(g,M.nom,'C|'+m+'|'+JSON.stringify(pp),()=>vignetteCadran(m,pp),st.motif===m,()=>{poser(piece,m,pp);});}
     if(estFamille(st.motif)){const g2=bloc('Mode');FAMILLES[st.motif].modes.forEach((md,k)=>{const pp={...p,mode:k};
       tuile(g2,nomMode(md),'C|'+st.motif+'|'+JSON.stringify(pp),()=>vignetteCadran(st.motif,pp),Math.round(p.mode)===k,()=>{state[piece].params.mode=k;panneau(piece);reconstruire(piece);});});}}
@@ -3482,7 +3482,7 @@ function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, 
         if(!finitionsLunette(state.matieres.lunette).includes(i)){const v=g.lastChild;v.classList.add('off');v.onclick=null;
           v.title=MATIERES[state.matieres.lunette].nom+' : '+(peutPoli(state.matieres.lunette)?'livré poli (pas de brut)':'livré brut (pas de polissage)');}});d.appendChild(g);}
     else if(LISTES[k]){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
-      LISTES[k].forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
+      LISTES[k].forEach((m,i)=>{if(k==='dessin'&&DESSINS[i]?.retire)return;const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
       se.value=String(Math.round(val));d.innerHTML=`<label>${lib}</label>`;d.appendChild(se);se.onchange=()=>{state[piece].params[k]=+se.value;reconstruire(piece);};}
     else if(k==='mode'&&estFamille(state[piece].motif)){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
       FAMILLES[state[piece].motif].modes.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=nomMode(m);se.appendChild(o);});
@@ -3785,7 +3785,7 @@ function appliquer(d){const faits=[],refus=[...(d.rejets||[])];
     listeOrnements(); faits.push('ornements : '+(state.ornements.map(g=>ORN[g.type].nom.toLowerCase()).join(', ')||'aucun')); construireOrnements();}
   return {faits,refus};}
 // Repli hors ligne : meme dictionnaire que montre_concierge.local (sans IA, et il le dit).
-const MOTS=[[['terrasse','rizi','strat','couche','vue de haut'],'cadran','terrasses'],[['montagn','alpes','sommet','massif'],'cadran','montagnes'],[['topograph','courbes de niveau','carte'],'cadran','topographie'],
+const MOTS=[[['terrasse','rizi','strat','couche','vue de haut'],'cadran','terrasses'],[['topograph','courbes de niveau','carte'],'cadran','topographie'],
 [['guilloch','rosace','spirograph'],'cadran','guilloche'],
   [['soleil','sunburst','rayonn'],'cadran','soleil'],[['perle','pointill','points'],'lunette','perles'],[['damier','echiquier','échiquier','carreau'],'lunette','damier'],
   [['dragon','reptile'],'lunette','dragon'],[['ecaille','écaille','poisson','serpent'],'lunette','ecailles'],[['torsad','spiral','vrill','tresse'],'lunette','torsade'],
@@ -3802,7 +3802,7 @@ function local(msg){const p=' '+msg.toLowerCase()+' ', seg={lunette:'',cadran:''
     if(M.relief)params.relief=fort?M.relief[1]:fin?(M.relief[0]+M.relief[2])/2:M.relief[2];
     for(const c of ['n','nombre','pics','petales'])if(M[c]&&nb){params[c]=+nb;break;}
     d[piece]={motif,params};dit.push(piece+' '+motif);}
-  d.reponse=dit.length?'Hors ligne, j\'ai reconnu : '+dit.join(', ')+'.':'Hors ligne et rien reconnu. Essaie : cadran montagnes et lunette perles.';
+  d.reponse=dit.length?'Hors ligne, j\'ai reconnu : '+dit.join(', ')+'.':'Hors ligne et rien reconnu. Essaie : cadran terrasses et lunette perles.';
   return d;}
 async function envoyer(t){t=(t||document.getElementById('msg').value).trim();if(!t)return;
   document.getElementById('msg').value='';const go=document.getElementById('go');go.disabled=true;
@@ -3820,7 +3820,7 @@ async function envoyer(t){t=(t||document.getElementById('msg').value).trim();if(
   go.disabled=false;}
 document.getElementById('go').onclick=()=>envoyer();
 document.getElementById('msg').addEventListener('keydown',e=>{if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();envoyer();}});
-['un cadran montagnes au lever du soleil','une lunette perlée et un ciel étoilé','vagues partout, très marquées','lunette torsadée, cadran guilloché','sobre et lisse'].forEach(t=>{
+['un cadran guilloché soleil, une lunette en damier','une lunette perlée et un ciel étoilé','vagues partout, très marquées','lunette torsadée, cadran guilloché','sobre et lisse'].forEach(t=>{
   const b=document.createElement('button');b.className='btn';b.textContent=t;b.onclick=()=>envoyer(t);document.getElementById('ex').appendChild(b);});
 bulle('lui','Décris la montre que tu veux : un motif pour la lunette, un motif pour le cadran. Je règle, le studio construit et vérifie les reliefs.');
 chargerBibliotheque(); // apres AI_BASE (declare plus haut dans le concierge)
@@ -3893,7 +3893,8 @@ async function appliquerCfg(c){const jeton=++_cfgJeton;state.niveauPoli=NIVEAUX_
   for(const piece of ['lunette','cadran']){const b=c[piece];
     if(b.motif==='image'&&b.ia){await appliquerIA(piece,b.ia,()=>jeton===_cfgJeton);if(jeton!==_cfgJeton)return;state[piece].params={...state[piece].params,...b.params};}
     else state[piece]={...b,params:{...b.params}};
-    if(!(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[state[piece].motif])state[piece]={...state[piece],motif:'lisse',params:{}};   // motif retire du catalogue (ex. ciel etoile)
+    if(!(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[state[piece].motif]||(piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN)[state[piece].motif].retire)state[piece]={...state[piece],motif:'lisse',params:{}};   // motif retire du catalogue (ex. ciel etoile, montagnes)
+    if(piece==='lunette'&&state.lunette.motif==='embossage'&&DESSINS[Math.round(state.lunette.params.dessin||0)]?.retire)state.lunette.params.dessin=7;   // dessin retire (03/11) : losanges
     if(piece==='lunette'&&state.lunette.perso)chargerPerso(state.lunette.perso);
     document.getElementById(SEL[piece]).value=valeurSelect(piece);panneau(piece);reconstruire(piece);}}
 function listerCfg(){const L=document.getElementById('cfgListe');L.innerHTML='';const l=lireCfg();
@@ -3920,9 +3921,9 @@ function paramsAlea(M){const out={};for(const [k,[lo,hi,def,pas]] of Object.entr
 document.getElementById('cfgAlea').onclick=()=>{
   const catL=tirer(BIB.lunette.length?['embossage','embossage','arete','image']:['embossage','embossage','arete']);
   const lun={zone:tirer(['biseau','face','tout']),motif:catL,params:paramsAlea(MOTIFS_LUNETTE[catL])};
-  if(catL==='embossage'&&DESSINS[lun.params.dessin]?.ia)lun.params.dessin=0;
+  if(catL==='embossage'&&(DESSINS[lun.params.dessin]?.ia||DESSINS[lun.params.dessin]?.retire))lun.params.dessin=7;   // 7 = losanges
   if(catL==='image')lun.ia=tirer(BIB.lunette).id;
-  const motsC=Object.keys(MOTIFS_CADRAN).filter(k=>k!=='image'&&(k!=='image'||BIB.cadran.length)),catC=tirer(motsC);
+  const motsC=Object.keys(MOTIFS_CADRAN).filter(k=>k!=='image'&&!MOTIFS_CADRAN[k].retire),catC=tirer(motsC);
   const cad={motif:catC,params:paramsAlea(MOTIFS_CADRAN[catC])};
   if(cad.params.relief!=null)cad.params.relief=Math.min(cad.params.relief,.5);   // jeu sous les aiguilles standard
   // (12/10) l'aleatoire tire aussi les MATIERES de chaque piece et la FINITION de la lunette
@@ -3996,7 +3997,7 @@ ${L('Fabrication',[...new Set([P.ib,P.il,P.ic].map(id=>TARIFS[id].proc.startsWit
 </table></div>
 <div class="credit"><div class="n">${P.cr}<small> / ${P.CR_AN}</small></div><div style="flex:1"><b>Crédits de production ${an}</b><div class="j"><i></i></div>
 <p>Chaque année, DELIGNY R&amp;D ne fabrique que 1 000 crédits de montres (1 crédit = ${P.EUR_CR} €). Cette pièce en a consommé ${P.cr}, soit ${pctFr} % de la production de l'année. Plus une montre est précieuse, plus elle est rare.</p></div></div>
-<div class="pied"><div>DELIGNY R&amp;D · SAS · SIREN 107 503 807<br>deligny-rd.fr</div><div style="text-align:right">Signature<div class="sig"></div></div></div>
+<div class="pied"><div>DELIGNY R&amp;D · SASU · SIREN 107 503 807<br>deligny-rd.fr</div><div style="text-align:right">Signature<div class="sig"></div></div></div>
 </div><img src="https://atlas-studio.pro/deligny/api/px?page=montre-3d-studio" alt="" width="1" height="1" loading="eager">
 </body></html>`;
   const w=window.open(URL.createObjectURL(new Blob([html],{type:'text/html'})),'_blank');if(!w)alert('Autorise les fenêtres pour afficher le certificat.');}
