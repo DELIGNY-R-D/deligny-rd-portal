@@ -423,6 +423,27 @@ main {
   }
 }
 
+/* 04/11 (Baptiste : « dans Affiches il y a un trou, remonte les deux images en
+   bas a droite ») : cette planche enchaine un portrait, quatre paysages et un
+   portrait ; en grille a deux colonnes, le portrait de gauche laissait un vide
+   sous le paysage de droite. Ici les images coulent en deux colonnes (flux
+   continu, pas de rangees) : les hauteurs s'equilibrent et plus rien ne
+   baille. Reserve aux planches qui melangent les formats. */
+.pf-gallery--colonnes {
+  display: block;
+  columns: 2;
+  column-gap: clamp(14px, 2vw, 22px);
+}
+.pf-gallery--colonnes img {
+  break-inside: avoid;
+  margin-bottom: clamp(14px, 2vw, 22px);
+}
+@media (max-width: 640px) {
+  .pf-gallery--colonnes {
+    columns: 1;
+  }
+}
+
 /* ── Tableaux de fiche ──────────────────────────────────────────────── */
 .pf-table {
   width: 100%;
