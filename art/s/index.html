@@ -36,11 +36,11 @@
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .back { font-size: 11px; letter-spacing: .1em; }
 </style></head><body>
-<div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
+<div class="back"><a href="../galerie-3d/">← GALERIE 3D</a></div>
 
 <h1>DELIGNY R&amp;D<small>DELIGNY R&amp;D · ART &amp; POCHOIR</small></h1>
 <div class="card" id="corps"><p class="note">Un instant…</p></div>
-<noscript><p class="note">Continue vers le <a href="../">répertoire des œuvres</a>.</p></noscript>
+<noscript><p class="note">Continue vers le <a href="../galerie-3d/">galerie 3D</a>.</p></noscript>
 
 <script>
 const API = "https://atlas-studio.pro/deligny/api";
@@ -72,7 +72,7 @@ const c = param("c");
                            ref: document.referrer, ua: navigator.userAgent.slice(0, 120) });
     $("corps").innerHTML = `<p class="note">Merci d'avoir scanné.<br>Redirection vers ${esc(cible)}…</p>`;
   } catch (e) {
-    $("corps").innerHTML = '<p class="note">Ce code ne correspond à aucun support connu. <a href="../">Voir les œuvres →</a></p>';
+    $("corps").innerHTML = '<p class="note">Ce code ne correspond à aucun support connu. <a href="../galerie-3d/">Voir les œuvres →</a></p>';
     return;
   }
   setTimeout(() => location.replace(cible), 700);

@@ -1,7 +1,7 @@
 {
   "version": "https://jsonfeed.org/version/1.1",
   "title": "Répertoire des œuvres — DELIGNY R&D",
-  "home_page_url": "https://deligny-rd.fr/art/",
+  "home_page_url": "https://deligny-rd.fr/art/galerie-3d/",
   "feed_url": "https://deligny-rd.fr/art/feed.json",
   "description": "Œuvres certifiées du studio : manifeste signé Ed25519, empreinte SHA-256 et page de vérification publique.",
   "items": [
