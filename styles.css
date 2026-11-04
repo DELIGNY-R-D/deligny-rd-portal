@@ -2296,6 +2296,11 @@ img.app-banner {
 #desk {
   align-items: flex-start;
   text-align: left;
+  /* 04/11 (Baptiste : « écart trop grand ») : l'en-tete n'occupe plus tout
+     l'ecran ; il s'arrete sous le paragraphe, et la section suivante vient
+     juste apres. */
+  min-height: 0;
+  padding-bottom: 36px;
 }
 
 #desk .lead {
