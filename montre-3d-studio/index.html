@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src-elem 'self' 'unsafe-inline'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://atlas-studio.pro; connect-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>La montre Pattern personnalisable</title>
+<title>La montre Paterne personnalisable</title>
 <style>
 /* Meme grammaire que le Custom 3D Lamp Studio : feuille creme, vert profond. */
 :root{
@@ -184,7 +184,7 @@ html.embarque .resume{display:none}
 </head>
 <body>
 <div id="montre-demo-publique" style="margin:0;padding:8px 16px;background:#f3efe6;display:flex;align-items:center;gap:18px;font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6"><a href="/" target="_top" style="color:#4a4034;font-weight:600;text-decoration:none;border-bottom:1px solid currentColor">&larr; DELIGNY R&amp;D</a><a href="/w1.html#heritage" target="_top" style="margin-left:auto;color:#4a4034;font-weight:600;text-decoration:none;padding:4px 12px;border:1px solid #c9bfae;border-radius:999px;background:#fff">Pr&eacute;sentation du concept</a></div>
-<header><h1>La montre Pattern personnalisable</h1><span class="sub">DELIGNY R&amp;D · Montre T · personnalisation 3D : lunette et cadran</span></header>
+<header><h1>La montre Paterne personnalisable</h1><span class="sub">DELIGNY R&amp;D · Paterne · personnalisation 3D : lunette et cadran</span></header>
 <main>
 <aside>
   <section>
@@ -405,8 +405,8 @@ const DESSINS=[
   {nom:"damier d'origine (circulaire)",retire:1,monde:1,f:(u,s,p)=>{const phi=Math.atan2(Math.abs(PZ.z),Math.abs(PZ.x)),r=Math.hypot(PZ.x,PZ.z);
     const a=phi/(Math.PI/2)*Math.max(1,Math.round(p.n/4)),b=r/(2.7/Math.max(1,p.rangs));
     return .5+.5*Math.tanh(3*Math.cos(Math.PI*(a+b))*Math.cos(Math.PI*(a-b)));}},
-  {nom:"damier W1 (Fibonacci)",monde:1,f:(u,s,p)=>w1HMonde(p)<0?0:1},
-  {nom:"pavés bombés (Pattern watch)",monde:1,f:(u,s,p)=>w1HMonde(p)<-.5*(p.profondeur||.35)?0:1},
+  {nom:"damier Paterne (Fibonacci)",monde:1,f:(u,s,p)=>w1HMonde(p)<0?0:1},
+  {nom:"pavés bombés (Paterne)",monde:1,f:(u,s,p)=>w1HMonde(p)<-.5*(p.profondeur||.35)?0:1},
   {nom:"chiffres et texte",monde:1,texte:1,f:(u,s,p)=>texteSD(p)<0?0:1},
   {nom:"mon dessin",perso:1,f:(u,s,p)=>persoChamp(u,s,p)},
   {nom:"arabesques aux coins",vue:1,f:(u,s,p)=>ornementSD(p)<0?0:1},
@@ -1162,7 +1162,7 @@ function distanceContour(u,s,p){const C=champDistance(p),x=(u-Math.floor(u))*C.N
    - FACE : damier de cases ~0,75 mm, le long du pli, qui s'etage vers le verre la ou la face s'elargit (coins).
    - BISEAU : frise du rectangle d'or de Fibonacci (carres 5, 3, 2, 1, 1 en spirale), en damier, repetee en
      alternance miroir / inverse. Plus petit carre : 0,5 mm (> 0,3 mm imprimable). */
-const W1_DESSIN="damier W1 (Fibonacci)",W1_PAVES="pavés bombés (Pattern watch)";
+const W1_DESSIN="damier Paterne (Fibonacci)",W1_PAVES="pavés bombés (Paterne)";
 /* (13/10) DESSOUS DES COQUES EXACTES : la surface decoree descendue TOUT DROIT (-y) de « anc ». Decalee le long de la
    normale locale elle se repliait au pli la ou la face est plus etroite que le decalage (0,4 mm de face a 6 h et 12 h) ;
    decalee le long de la bissectrice elle sortait de la matiere cote verre (+120 mm3 a la soudure). Une translation
