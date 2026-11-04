@@ -444,6 +444,25 @@ main {
   }
 }
 
+/* 04/11 : videos de fiche (K1) : trois enregistrements recadres, en marche et
+   en fabrication. Trois colonnes pour ne laisser aucun vide ; la premiere
+   rangee de la fiche, avant les photos. */
+.pf-gallery--videos {
+  grid-template-columns: repeat(3, 1fr);
+}
+.pf-gallery video {
+  width: 100%;
+  height: auto;
+  display: block;
+  background: #000;
+  border: 1px solid var(--line);
+}
+@media (max-width: 640px) {
+  .pf-gallery--videos {
+    grid-template-columns: 1fr;
+  }
+}
+
 /* ── Tableaux de fiche ──────────────────────────────────────────────── */
 .pf-table {
   width: 100%;
