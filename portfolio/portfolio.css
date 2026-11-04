@@ -470,6 +470,12 @@ main {
   aspect-ratio: 3 / 4;
   object-fit: cover;
 }
+/* 04/11 (Baptiste, EX P1) : trois vignettes cote a cote de meme hauteur, au format des videos portrait (720 x 1056) */
+.pf-gallery--portrait img,
+.pf-gallery--portrait video {
+  aspect-ratio: 720 / 1056;
+  object-fit: cover;
+}
 @media (max-width: 640px) {
   .pf-gallery--trois {
     grid-template-columns: 1fr;
