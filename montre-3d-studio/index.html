@@ -2921,22 +2921,29 @@ window.__capture=(q=.9,P,T,fov)=>{if(P){cam.up.set(0,1,0);cam.position.set(...P)
      differees), texture chargee ; plus une image de securite par seconde ;
    - la carte d'ombre n'est recalculee que si la SCENE change : la lumiere rasante est fixe, tourner la montre ne la change pas ;
    - pendant le geste, si l'image depasse 22 ms, la definition descend par paliers (x1,25 puis x1 ; mesure : 98 ms ->
-     41 puis 30 ms par image) et revient pleine 250 ms apres l'arret ; immobile, la montre est toujours en pleine definition. */
+     41 puis 30 ms par image) et revient pleine 250 ms apres l'arret ; immobile, la montre est toujours en pleine definition.
+   (04/11) Le palier atteint est MEMORISE (localStorage) et pose des l'appui sur la montre, carte graphique au repos :
+     changer la definition en pleine rotation (canvas.width) attend que la carte vide ses images en attente, mesure 272 puis
+     124 ms de gel a chaque debut de geste (« ca bug beaucoup puis ca devient fluide »). A l'appui, la file est vide : quelques ms. */
 renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
 let _sale=true,_ombreSale=true,_bouge=0,_derniere=0,_secu=0;const DPR_PLEIN=renderer.getPixelRatio(),PALIERS=[DPR_PLEIN,1.25,1].filter((v,i,a)=>!i||v<a[0]);let _pal=0,_lent=0;
+let _palGeste=0;try{_palGeste=Math.min(PALIERS.length-1,parseInt(localStorage.getItem('montre-palier-geste')||'0')||0);}catch(e){}
+const poserPalier=p=>{if(p===_pal)return;_pal=p;_lent=0;renderer.setPixelRatio(PALIERS[p]);_sale=true;};
+const retenirPalier=p=>{if(p>_palGeste){_palGeste=p;try{localStorage.setItem('montre-palier-geste',String(p));}catch(e){}}};
+const debutGeste=()=>{_bouge=performance.now();_sale=true;if(_palGeste&&!_pal)poserPalier(_palGeste);};   // avant la premiere image du geste
 const marquerScene=()=>{_sale=true;_ombreSale=true;};window.__rafraichir=marquerScene;
 {const add0=THREE.Object3D.prototype.add,rem0=THREE.Object3D.prototype.remove;
  THREE.Object3D.prototype.add=function(...o){marquerScene();return add0.apply(this,o);};THREE.Object3D.prototype.remove=function(...o){marquerScene();return rem0.apply(this,o);};
  const ld=THREE.DefaultLoadingManager,o0=ld.onLoad;ld.onLoad=(...a)=>{marquerScene();if(o0)o0(...a);};}
 ctl.addEventListener('change',()=>{_sale=true;_bouge=performance.now();});addEventListener('resize',()=>{_sale=true;});if(window.ResizeObserver)new ResizeObserver(()=>{_sale=true;}).observe(renderer.domElement);
-for(const e of ['pointerdown','keydown','input','change','click','wheel','touchstart'])addEventListener(e,ev=>{const t=performance.now();if(ev.target===renderer.domElement){_bouge=t;_sale=true;return;}_sale=true;setTimeout(()=>{_sale=true;},150);setTimeout(marquerScene,600);setTimeout(()=>{_sale=true;},1500);},{capture:true,passive:true});
+for(const e of ['pointerdown','keydown','input','change','click','wheel','touchstart'])addEventListener(e,ev=>{const t=performance.now();if(ev.target===renderer.domElement){debutGeste();return;}_sale=true;setTimeout(()=>{_sale=true;},150);setTimeout(marquerScene,600);setTimeout(()=>{_sale=true;},1500);},{capture:true,passive:true});
 (function boucle(t){requestAnimationFrame(boucle);const bouge=ctl.update();if(bouge)_sale=true;
-  if(t-_secu>1000){_secu=t;_sale=true;_ombreSale=true;}
-  if(_pal&&t-_bouge>250){_pal=0;_lent=0;renderer.setPixelRatio(DPR_PLEIN);_sale=true;}
+  if(t-_secu>1000){_secu=t;_sale=true;if(t-_bouge>250)_ombreSale=true;}   // pas de carte d'ombre pendant le geste : tourner la montre ne la change pas
+  if(_pal&&t-_bouge>250)poserPalier(0);   // retour pleine definition, file graphique vide
   if(!_sale)return;_sale=false;
   if(_ombreSale){ombres();renderer.shadowMap.needsUpdate=true;_ombreSale=false;}
   const dt=t-_derniere;_derniere=t;
-  if(t-_bouge<100&&dt>22&&dt<250){if(++_lent>=3&&_pal<PALIERS.length-1){_pal++;_lent=0;renderer.setPixelRatio(PALIERS[_pal]);}}else _lent=0;
+  if(t-_bouge<100&&dt>22&&dt<250){if(++_lent>=3&&_pal<PALIERS.length-1){poserPalier(_pal+1);retenirPalier(_pal);}}else _lent=0;
   renderer.render(scene,cam);})(0);
 
 // ───────────────────────────── panneau ─────────────────────────────
@@ -3380,13 +3387,13 @@ const MATIERES={
   or14Blanc:{fin:['brut','poli'],nom:'Or blanc 14 ct',sous:'fonderie, rhodié',poli:0xe2e0db,rp:.06,brut:0x8b8882,cad:0x706e69},
   platine:{fin:['brut','poli'],nom:'Platine 950',sous:'fonderie cire perdue',poli:0xdcdcdc,rp:.05,brut:0x87878a,cad:0x6c6c6f}};
 const ORS=['or18','or18Rose','or18Blanc','or14','or14Rose','or14Blanc','platine'];   // metaux precieux : poinçons (reserve du cadre au fond)
-state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'titane'};
+state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'alu'};   // (04/11) fond par defaut : la matiere du boitier
 // (13/10, Baptiste) FOND AU CONTACT DE LA PEAU : sueur acide (pH 4,5-6), sel et sebum. Seuls les metaux qui ne se piquent,
 // ne verdissent ni ne marquent la peau : titane (le plus inerte, hypoallergenique), inox 316L (passive) et or 18 ct.
 // Alu brut (piqures, grisaille), laiton, bronze, cuivre (vert-de-gris, taches), argent (noircit), plaques (s'usent
 // au frottement) sont exclus du fond, quel que soit le boitier.
-const FOND_OK=['titane','inox','or18','or18Rose','or18Blanc','platine'];   // (14/10) ors 18 ct et platine : inertes au contact de la peau (l'or 14 ct, plus allie, n'est pas propose au fond)
-const fondMat=()=>FOND_OK.includes(state.matieres.fond)?state.matieres.fond:'titane';
+const FOND_OK=['alu','titane','inox','or18','or18Rose','or18Blanc','platine'];   // (04/11) alu : le fond suit le boitier par defaut   // (14/10) ors 18 ct et platine : inertes au contact de la peau (l'or 14 ct, plus allie, n'est pas propose au fond)
+const fondMat=()=>FOND_OK.includes(state.matieres.fond)?state.matieres.fond:'alu';
 // CADRAN (12/10, Baptiste) : brut (aretes cassees) OU poli integral, selon ce que la matiere permet
 state.cadranFin=0;
 // TRANCHES POLIES (12/10, Baptiste) : polir la tranche de la lunette et/ou du boitier meme quand la matiere ou la
@@ -3888,7 +3895,7 @@ const lireDefaut=()=>{try{return localStorage.getItem(CFG_CLE+'-defaut');}catch(
 const ecrireDefaut=n=>{try{localStorage.setItem(CFG_CLE+'-defaut',n);}catch(e){}};
 function instantane(){return JSON.parse(JSON.stringify({origine:state.origine,lunette:state.lunette,cadran:state.cadran,matieres:state.matieres,cadranFin:state.cadranFin||0,tranches:state.tranches,gravurePerso:state.gravurePerso||'',index:state.index??0,aiguilles:state.aiguilles??.8}));}
 let _cfgJeton=0;   // une application plus recente annule celle en cours (bas-relief charge en asynchrone)
-async function appliquerCfg(c){const jeton=++_cfgJeton;state.niveauPoli=NIVEAUX_POLI[c.niveauPoli]?c.niveauPoli:"poli";state.origine=c.origine==='europe'?'europe':'chine';state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'titane',...(c.matieres||{})};state.cadranFin=c.cadranFin||0;bornerFinCadran();state.tranches=c.tranches?{...c.tranches}:{boitier:peutPoli(state.matieres.boitier),lunette:peutPoli(state.matieres.lunette),liees:true};state.gravurePerso=c.gravurePerso||'';{const gp=document.getElementById('gravPerso');if(gp)gp.value=state.gravurePerso;}majGravure();appliquerMatieres();panneauMatieres();state.index=c.index;document.getElementById('indexC').value=String(c.index);
+async function appliquerCfg(c){const jeton=++_cfgJeton;state.niveauPoli=NIVEAUX_POLI[c.niveauPoli]?c.niveauPoli:"poli";state.origine=c.origine==='europe'?'europe':'chine';state.matieres={boitier:'alu',lunette:'alu',cadran:'titane',fond:'alu',...(c.matieres||{})};state.cadranFin=c.cadranFin||0;bornerFinCadran();state.tranches=c.tranches?{...c.tranches}:{boitier:peutPoli(state.matieres.boitier),lunette:peutPoli(state.matieres.lunette),liees:true};state.gravurePerso=c.gravurePerso||'';{const gp=document.getElementById('gravPerso');if(gp)gp.value=state.gravurePerso;}majGravure();appliquerMatieres();panneauMatieres();state.index=c.index;document.getElementById('indexC').value=String(c.index);
   state.flancs={frise:'',relief:.25,...(c.flancs||{})};try{reconstruireFlancs();window.majFlancsUI&&window.majFlancsUI();}catch(e){}
   state.aiguilles=AIG_FIXE;aig.position.y=0;   // (13/10) aiguilles fixes, quelle que soit la config enregistree
   state.lunette.zone=c.lunette.zone||'biseau';document.getElementById('zoneL').value=state.lunette.zone;
@@ -4042,7 +4049,7 @@ const PRESETS=[
   {nom:'Platine 950',m:{boitier:'platine',lunette:'platine',cadran:'platine'},fl:2,fc:1,tr:true},
   {nom:'Laiton plaqué or',m:{boitier:'laitonOr',lunette:'laitonOr',cadran:'titane'},fl:1,fc:0,tr:true},
   {nom:'Argent massif',m:{boitier:'argent',lunette:'argent',cadran:'titane'},fl:2,fc:0,tr:true}];
-function appliquerComposition(m,fl,fc,tr){state.matieres={fond:FOND_OK.includes(m.boitier)&&ORS.includes(m.boitier)?m.boitier:(state.matieres.fond||'titane'),...m};state.tranches={boitier:tr,lunette:tr,liees:true};state.cadranFin=fc;
+function appliquerComposition(m,fl,fc,tr){state.matieres={fond:FOND_OK.includes(m.boitier)?m.boitier:(state.matieres.fond||'alu'),...m};   /* (04/11) le fond suit la matiere du boitier quand elle est admise au contact de la peau */state.tranches={boitier:tr,lunette:tr,liees:true};state.cadranFin=fc;
   if(state.lunette.params&&MOTIFS_LUNETTE[state.lunette.motif]?.r.finition)state.lunette.params.finition=fl;
   bornerFinCadran();bornerFinition();for(const k of [..._vign.keys()])if(k.startsWith('S|'))_vign.delete(k);
   appliquerMatieres();panneauMatieres();panneau('lunette');reconstruire('lunette');reconstruire('cadran');}
