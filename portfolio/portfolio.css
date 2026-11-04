@@ -217,7 +217,8 @@ main {
    sont produites par deploy/couvertures-carrees.py, centrees sur l'objet, fond
    prolonge si l'objet deborde. Le navigateur n'a plus rien a rogner ni a
    combler : `cover` ne sert que de filet de securite. */
-.pf-card img {
+.pf-card img,
+.pf-card video {   /* 04/11 : vignette animee (K1 sur l'accueil), memes regles que l'image */
   display: block;
   width: 100%;
   /* `height: auto` OBLIGATOIRE : les vignettes portent width/height="800"
@@ -271,7 +272,9 @@ main {
 }
 
 .pf-card:hover img,
-.pf-card:focus-visible img {
+.pf-card:hover video,
+.pf-card:focus-visible img,
+.pf-card:focus-visible video {
   filter: brightness(1.04) saturate(1.05);
 }
 
@@ -499,7 +502,8 @@ main {
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .pf-card img {
+  .pf-card img,
+  .pf-card video {
     transition: none;
   }
 }
