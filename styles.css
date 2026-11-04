@@ -2300,10 +2300,13 @@ img.app-banner {
 
 #desk .lead {
   margin: 0;
-  text-align: justify;
+  /* 04/11 (Baptiste) : ni justification ni cesure, nulle part sur le site :
+     le texte justifie creusait de gros trous entre les mots et coupait
+     « sys-teme » en fin de ligne. Fer a gauche, mots entiers. */
+  text-align: left;
   text-wrap: pretty;
-  hyphens: auto;
-  -webkit-hyphens: auto;
+  hyphens: manual;
+  -webkit-hyphens: manual;
 }
 
 /* EN-TETE DE SECTION SUR TELEPHONE (14/10/2026). `.section-head` aligne
