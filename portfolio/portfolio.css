@@ -457,8 +457,23 @@ main {
   width: 100%;
   height: auto;
   display: block;
-  background: #000;
-  border: 1px solid var(--line);
+  background: transparent;   /* 04/11 (Baptiste) : aucun liseré noir autour des vidéos, sur tout le site */
+  border: 0;
+}
+
+/* 04/11 : Pattern watch, trois photos de rapports voisins mais pas égaux :
+   trois colonnes, même cadre 3:4, chaque photo le remplit. */
+.pf-gallery--trois {
+  grid-template-columns: repeat(3, 1fr);
+}
+.pf-gallery--egales img {
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+@media (max-width: 640px) {
+  .pf-gallery--trois {
+    grid-template-columns: 1fr;
+  }
 }
 @media (max-width: 640px) {
   .pf-gallery--videos {
