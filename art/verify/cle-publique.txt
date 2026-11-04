@@ -1,0 +1,2 @@
+Clé publique Ed25519 (hex) du studio Deligny R&D — signe les manifestes d'œuvres :
+74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f

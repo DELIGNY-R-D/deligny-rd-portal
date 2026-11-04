@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Deligny R&D - Deligny R&amp;D</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
+         max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; line-height: 1.55; }
+  a { color: #7e1e14; }
+  h1 { font-size: 20px; letter-spacing: .18em; }
+  h1 small { display: block; font-size: 11px; letter-spacing: .3em; color: #5b4632; margin-top: 4px; }
+  h2 { font-size: 12px; letter-spacing: .2em; color: #5b4632; margin: 26px 0 10px; text-transform: uppercase; }
+  .titre { font-family: Georgia, serif; font-style: italic; font-size: 24px; margin: 10px 0 2px; }
+  .card { border: 1px solid #191713; background: #fffdf6; padding: 14px 16px; margin-bottom: 14px; }
+  label { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+          color: #5b4632; margin: 12px 0 4px; }
+  input, textarea, select { width: 100%; padding: 9px 10px; border: 1px solid #b4a583;
+          background: #fffdf6; font-family: inherit; font-size: 14px; color: #191713; }
+  textarea { min-height: 90px; resize: vertical; }
+  button { margin-top: 16px; padding: 12px 18px; background: #191713; color: #f5efdf; border: none;
+           font-size: 13px; letter-spacing: .1em; cursor: pointer; font-weight: 700; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.sec { background: none; color: #191713; border: 1px solid #191713; }
+  .note { font-size: 11.5px; color: #5b4632; line-height: 1.5; }
+  .msg { margin-top: 14px; padding: 11px 13px; border: 1px solid #191713; font-size: 13px; display: none; }
+  .msg.ok { border-color: #2d5c2f; color: #2d5c2f; } .msg.ko { border-color: #7e1e14; color: #7e1e14; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  td, th { border-bottom: 1px solid #c9bb9c; padding: 7px 6px; text-align: left; vertical-align: top; }
+  th { font-size: 10px; letter-spacing: .14em; color: #5b4632; }
+  .mono { font-family: Menlo, monospace; font-size: 11px; }
+  .pill { display: inline-block; border: 1px solid #b4a583; padding: 2px 9px; font-size: 10.5px;
+          letter-spacing: .1em; margin-right: 5px; }
+  .stat { font-family: Georgia, serif; font-size: 26px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .back { font-size: 11px; letter-spacing: .1em; }
+</style></head><body>
+<div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
+
+<h1>DELIGNY R&amp;D<small>DELIGNY R&amp;D · ART &amp; POCHOIR</small></h1>
+<div class="card" id="corps"><p class="note">Un instant…</p></div>
+<noscript><p class="note">Continue vers le <a href="../">répertoire des œuvres</a>.</p></noscript>
+
+<script>
+const API = "https://atlas-studio.pro/deligny/api";
+const $ = i => document.getElementById(i);
+function say(el, txt, ok) { el.className = "msg " + (ok ? "ok" : "ko"); el.style.display = "block"; el.innerHTML = txt; }
+async function post(path, body) {
+  const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("erreur " + r.status));
+  return d;
+}
+async function get(path) {
+  const r = await fetch(API + path);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("erreur " + r.status));
+  return d;
+}
+const param = k => new URLSearchParams(location.search).get(k) || "";
+const esc = s => String(s == null ? "" : s).replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+
+const c = param("c");
+(async () => {
+  let cible = "../";
+  try {
+    const s = await get("/support/" + encodeURIComponent(c));
+    cible = s.cible || "../";
+    await post("/track", { type: "support", code: c, tz: (Intl.DateTimeFormat().resolvedOptions().timeZone || ""),
+                           ref: document.referrer, ua: navigator.userAgent.slice(0, 120) });
+    $("corps").innerHTML = `<p class="note">Merci d'avoir scanné.<br>Redirection vers ${esc(cible)}…</p>`;
+  } catch (e) {
+    $("corps").innerHTML = '<p class="note">Ce code ne correspond à aucun support connu. <a href="../">Voir les œuvres →</a></p>';
+    return;
+  }
+  setTimeout(() => location.replace(cible), 700);
+})();
+</script>
+</body></html>
