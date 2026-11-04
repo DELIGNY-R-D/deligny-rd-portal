@@ -3881,8 +3881,10 @@ setTimeout(()=>{const H=Object.fromEntries(location.hash.slice(1).split('&').fil
 const CFG_CLE='montre-studio-configs';
 const lireCfg=()=>{try{return JSON.parse(localStorage.getItem(CFG_CLE)||'[]');}catch(e){return [];}};
 const ecrireCfg=l=>{try{localStorage.setItem(CFG_CLE,JSON.stringify(l));}catch(e){}};
-// configuration par defaut (chargee a l'ouverture) : par son nom ; « DESIGN ORIGINAL » si rien n'est choisi
-const lireDefaut=()=>{try{const v=localStorage.getItem(CFG_CLE+'-defaut');return v===null?'DESIGN ORIGINAL':v;}catch(e){return 'DESIGN ORIGINAL';}};
+// configuration par defaut (chargee a l'ouverture) : par son nom, seulement si l'utilisateur en a choisi une.
+// (04/11, Baptiste : « losanges par defaut ») plus de repli sur une configuration enregistree « DESIGN ORIGINAL » :
+// une ancienne sauvegarde sous ce nom ramenait le damier W1 a l'ouverture et masquait le defaut du studio.
+const lireDefaut=()=>{try{return localStorage.getItem(CFG_CLE+'-defaut');}catch(e){return null;}};
 const ecrireDefaut=n=>{try{localStorage.setItem(CFG_CLE+'-defaut',n);}catch(e){}};
 function instantane(){return JSON.parse(JSON.stringify({origine:state.origine,lunette:state.lunette,cadran:state.cadran,matieres:state.matieres,cadranFin:state.cadranFin||0,tranches:state.tranches,gravurePerso:state.gravurePerso||'',index:state.index??0,aiguilles:state.aiguilles??.8}));}
 let _cfgJeton=0;   // une application plus recente annule celle en cours (bas-relief charge en asynchrone)
