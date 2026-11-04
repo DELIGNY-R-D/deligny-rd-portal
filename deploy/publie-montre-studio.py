@@ -66,12 +66,17 @@ CSP = ("default-src 'none'; "
 BANDEAU = (
     # 12/10 (Baptiste) : plus de texte « Demonstration publique ... » ; on garde seulement le chemin de
     # retour vers l'accueil (le studio est plein ecran : sans lui, le visiteur n'a aucune sortie).
+    # 04/11 (Baptiste) : onglet « Présentation du concept » vers w1.html#heritage ; target=_top car le studio
+    # est aussi encadre (iframe) sur l'accueil et la fiche Pattern watch.
     '<div id="montre-demo-publique" '
-    'style="margin:0;padding:8px 16px;background:#f3efe6;'
+    'style="margin:0;padding:8px 16px;background:#f3efe6;display:flex;align-items:center;gap:18px;'
     'font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6">'
-    '<a href="/" style="color:#4a4034;font-weight:600;'
+    '<a href="/" target="_top" style="color:#4a4034;font-weight:600;'
     'text-decoration:none;border-bottom:1px solid currentColor">'
-    '&larr; DELIGNY R&amp;D</a></div>')
+    '&larr; DELIGNY R&amp;D</a>'
+    '<a href="/w1.html#heritage" target="_top" style="margin-left:auto;color:#4a4034;font-weight:600;'
+    'text-decoration:none;padding:4px 12px;border:1px solid #c9bfae;border-radius:999px;background:#fff">'
+    'Pr&eacute;sentation du concept</a></div>')
 
 
 def empreinte(chemin: str) -> str:
