@@ -29,7 +29,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=1c6a63dd" />
+  <link rel="stylesheet" href="styles.css?v=d48e09ca" />
   <link rel="stylesheet" href="portfolio/portfolio.css?v=2070617c">
   <link rel="stylesheet" href="lampe-embed.css?v=ac0adb41" />
 <!-- HUB:citable-substrate:start -->
@@ -708,6 +708,35 @@
       </div>
     </section>
 
+    <!-- SIMULATION 3D SUR L'ACCUEIL (05/11, demande Baptiste : « mettre les
+         simulations 3D en mode play par defaut » apres Lampe Designer et les
+         logiciels). Huit des vingt-et-un films, memes cartes carrees que le
+         portfolio (format 1440 carre). preload="none" : rien ne se telecharge
+         avant que la carte n'entre a l'ecran ; simulation-3d/lecture-auto.js,
+         deja servi sur la page Simulation 3D, lance la lecture a l'affichage et
+         met en pause hors ecran. Pas d'attribut autoplay : il ferait charger
+         les huit fichiers (11 Mo) des l'ouverture, pour qui ne descend jamais ici. -->
+    <section class="section" id="simulation-3d">
+      <div class="section-head">
+        <p class="eyebrow">Simulation 3D</p>
+        <h2>De la conception à l'image.</h2>
+      </div>
+      <p class="section-lead">Des animations 3D calculées physiquement, pas des vidéos générées par une IA : la géométrie existe avant l'image, et le mouvement sort d'un solveur. Chute, drapé, fluide, matière : justes, et rejouables avec d'autres paramètres.</p>
+      <div class="pf-grid">
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/01-4004b2b3.mp4" poster="simulation-3d/video/01-4004b2b3.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Chute et impact, simulation 3D"></video><figcaption><span class="pf-nom">Chute et impact</span><span class="pf-type">Corps rigides</span></figcaption></figure></a>
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/02-ce93f067.mp4" poster="simulation-3d/video/02-ce93f067.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Fracture, simulation 3D"></video><figcaption><span class="pf-nom">Fracture</span><span class="pf-type">Rupture</span></figcaption></figure></a>
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/03-63f31ec9.mp4" poster="simulation-3d/video/03-63f31ec9.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Drapé, simulation 3D"></video><figcaption><span class="pf-nom">Drapé</span><span class="pf-type">Tissu</span></figcaption></figure></a>
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/12-88de0990.mp4" poster="simulation-3d/video/12-88de0990.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Surface liquide, simulation 3D"></video><figcaption><span class="pf-nom">Surface liquide</span><span class="pf-type">Fluide</span></figcaption></figure></a>
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/27-5fbf0ebe.mp4" poster="simulation-3d/video/27-5fbf0ebe.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Verre et caustiques, simulation 3D"></video><figcaption><span class="pf-nom">Verre et caustiques</span><span class="pf-type">Rendu</span></figcaption></figure></a>
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/31-6646b5ed.mp4" poster="simulation-3d/video/31-6646b5ed.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Contrainte mesurée, simulation 3D"></video><figcaption><span class="pf-nom">Contrainte mesurée</span><span class="pf-type">Structure</span></figcaption></figure></a>
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/32-c0f72047.mp4" poster="simulation-3d/video/32-c0f72047.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Soufflerie, simulation 3D"></video><figcaption><span class="pf-nom">Soufflerie</span><span class="pf-type">Aérodynamique</span></figcaption></figure></a>
+        <a class="pf-card" href="simulation-3d/index.html"><figure><video src="simulation-3d/video/34-43560cfa.mp4" poster="simulation-3d/video/34-43560cfa.jpg" width="800" height="800" muted loop playsinline preload="none" aria-label="Impression FDM, simulation 3D"></video><figcaption><span class="pf-nom">Impression FDM</span><span class="pf-type">Fabrication</span></figcaption></figure></a>
+      </div>
+      <div class="showcase-more">
+        <a class="btn btn-small" href="simulation-3d/index.html">Voir les 21 simulations &rarr;</a>
+      </div>
+    </section>
+
 
 
   </main>
@@ -740,5 +769,6 @@
 <script src="lampe-differe.js?v=e55d4aba"></script>
 <script src="demos-a-l-approche.js?v=bdccd5ed" defer></script>
   <script src="chargement-simule.js?v=eb8d5eaa" defer></script>
+  <script src="simulation-3d/lecture-auto.js?v=62045553" defer></script>
 </body>
 </html>

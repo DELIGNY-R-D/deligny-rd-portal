@@ -2360,3 +2360,7 @@ a.lg-carte:focus-visible {
 
 /* Accueil : renvoi vers la page logiciels sous le dernier studio (02/11). */
 .lg-tous { margin-top: clamp(22px, 3vw, 34px); padding-top: clamp(22px, 3vw, 34px); border-top: 1px solid var(--line); }
+
+/* Simulation 3D sur l'accueil (05/11) : memes cartes carrees que le portfolio,
+   mais la numerotation repart a 01 au lieu de continuer celle des planches. */
+#simulation-3d .pf-grid { counter-reset: planche; }
