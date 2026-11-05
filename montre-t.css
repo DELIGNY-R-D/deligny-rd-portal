@@ -16,6 +16,8 @@
 @media (max-width: 700px) { .mt-galerie--k1 { grid-template-columns: 1fr 1fr; } }
 /* (13/10) galeries : toutes les photos a la meme taille (3:4 recadre), alignees ; derniere rangee centree */
 .mt-galerie img, .mt-galerie--k1 figure img { aspect-ratio: 3 / 4; object-fit: cover; }
+/* 05/11 : les deux premieres vues K1 sont des videos (boucles muettes), memes regles que les images */
+.mt-galerie--k1 figure video { display: block; width: 100%; height: auto; border-radius: 12px; aspect-ratio: 3 / 4; object-fit: cover; }
 .mt-galerie--k1 { display: flex; flex-wrap: wrap; justify-content: center; }
 .mt-galerie--k1 figure { flex: 0 0 calc((100% - 24px) / 3); }
 @media (max-width: 700px) { .mt-galerie--k1 figure { flex-basis: calc((100% - 12px) / 2); } }
