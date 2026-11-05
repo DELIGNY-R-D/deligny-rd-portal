@@ -31,7 +31,6 @@ def portrait(W, H, pos):
 
 BOITES = {
     # en largeur, ou objet a recentrer : boites mesurees sur l'objet
-    'K2':               ('cover.jpg', lambda W, H: (240, 290, 450)),
     'Lock-center-caps': ('cover.jpg', lambda W, H: (290, 264.5, 529)),
     'Bellows':          ('04.jpg',    lambda W, H: (650, 508, 1016)),
     'Granular':         ('02.jpg',    lambda W, H: (470, 830, 1120)),
@@ -44,6 +43,8 @@ BOITES = {
     'Pattern-watch':     ('cover.jpg', lambda W, H: portrait(W, H, 55)),
     'Plis':              ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'K1-Kinetic':        ('cover.jpg', lambda W, H: portrait(W, H, 85)),
+    # 05/11 : photo aux deux mains choisie par Baptiste (visuel 5 de la fiche)
+    'K2':                ('04.jpg',    lambda W, H: portrait(W, H, 36)),
     'L1-Marble':         ('cover.jpg', lambda W, H: portrait(W, H, 45)),
     'L3':                ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'L4C':               ('cover.jpg', lambda W, H: portrait(W, H, 75)),
