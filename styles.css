@@ -2397,3 +2397,32 @@ a.lg-carte:focus-visible {
 .store-tarif b small { margin-left: 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
 .store-tarif-prix { display: block; margin: 4px 0 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
 .store-tarif p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
+
+/* PORTRAIT DU PRESIDENT (contact, 05/11). En fin de page, apres le composeur
+   et les coordonnees : un visage et un nom derriere « l'atelier qui repond ».
+   Photo a gauche, texte centre en hauteur ; empiles et centres sur mobile. */
+.ct-president {
+  display: grid;
+  grid-template-columns: minmax(0, 300px) minmax(0, 460px);
+  justify-content: center;
+  gap: 48px;
+  align-items: center;
+}
+.ct-president .eyebrow { justify-content: flex-start; }
+.ct-portrait {
+  margin: 0;
+  border-radius: 20px;
+  overflow: hidden;
+  box-shadow: var(--shadow);
+}
+.ct-portrait img { display: block; width: 100%; height: auto; }
+.ct-role {
+  margin: 8px 0 14px;
+  color: var(--ink-dim);
+  font-weight: 600;
+}
+@media (max-width: 700px) {
+  .ct-president { grid-template-columns: minmax(0, 1fr); gap: 24px; justify-items: center; text-align: center; }
+  .ct-portrait { width: min(100%, 300px); }
+  .ct-president .eyebrow { justify-content: center; }
+}
