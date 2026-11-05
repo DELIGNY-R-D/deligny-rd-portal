@@ -2364,3 +2364,8 @@ a.lg-carte:focus-visible {
 /* Simulation 3D sur l'accueil (05/11) : memes cartes carrees que le portfolio,
    mais la numerotation repart a 01 au lieu de continuer celle des planches. */
 #simulation-3d .pf-grid { counter-reset: planche; }
+/* Trois par rangee, deux rangees (05/11, Baptiste : « dispose en 3 puis 3 en
+   dessous ») ; sur telephone, la regle du portfolio (deux par ligne) reprend. */
+@media (min-width: 561px) {
+  #simulation-3d .pf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
