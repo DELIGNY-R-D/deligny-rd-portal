@@ -398,6 +398,13 @@ main {
   font-size: clamp(16px, 1.55vw, 18px);
   line-height: 1.68;
 }
+/* Un chapeau en deux paragraphes (06/11) : le second suit le premier sans
+   repeter le filet ni la marge d'ouverture. */
+.pf-lead + .pf-lead {
+  margin-top: 14px;
+  padding-top: 0;
+  border-top: 0;
+}
 
 .pf-gallery {
   display: grid;
