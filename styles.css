@@ -641,6 +641,18 @@ h3 {
   line-height: 1.55;
 }
 
+/* Atouts d'Atlas sur l'accueil (05/11) : liste a puces sobres, meme encre et
+   meme interligne que les paragraphes du bloc, mot cle en encre pleine. */
+.atlas-atouts {
+  margin: 6px 0 14px;
+  padding-left: 20px;
+  display: grid;
+  gap: 6px;
+  color: var(--muted);
+  line-height: 1.55;
+}
+.atlas-atouts strong { color: var(--ink); font-weight: 600; }
+
 .tool-widget-actions {
   margin-top: 16px;
 }
