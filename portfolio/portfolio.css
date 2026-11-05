@@ -161,6 +161,9 @@
   line-height: 1.62;
   color: var(--ink-dim);
 }
+/* Mots mis en avant dans une note de chapitre (05/11) : encre pleine, graisse
+   moderee, pour qu'ils ressortent sans alourdir le paragraphe. */
+.pf-chapitre .pf-note strong { color: var(--ink); font-weight: 600; }
 
 /* ── Les planches ───────────────────────────────────────────────────── */
 /* Numerotation continue sur les trois chapitres : une piece porte le meme
