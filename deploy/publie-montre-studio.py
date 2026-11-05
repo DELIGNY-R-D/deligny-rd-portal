@@ -66,17 +66,12 @@ CSP = ("default-src 'none'; "
 BANDEAU = (
     # 12/10 (Baptiste) : plus de texte « Demonstration publique ... » ; on garde seulement le chemin de
     # retour vers l'accueil (le studio est plein ecran : sans lui, le visiteur n'a aucune sortie).
-    # 04/11 (Baptiste) : onglet « Présentation du concept » vers w1.html#heritage ; target=_top car le studio
+    # 04/11 (Baptiste) : onglet « Présentation du concept » vers w1.html (05/11 : haut de page, plus d'ancre) ; target=_top car le studio
     # est aussi encadre (iframe) sur l'accueil et la fiche Pattern watch.
-    '<div id="montre-demo-publique" '
-    'style="margin:0;padding:8px 16px;background:#f3efe6;display:flex;align-items:center;gap:18px;'
-    'font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6">'
-    '<a href="/" target="_top" style="color:#4a4034;font-weight:600;'
-    'text-decoration:none;border-bottom:1px solid currentColor">'
-    '&larr; DELIGNY R&amp;D</a>'
-    '<a href="/w1.html#heritage" target="_top" style="margin-left:auto;color:#4a4034;font-weight:600;'
-    'text-decoration:none;padding:4px 12px;border:1px solid #c9bfae;border-radius:999px;background:#fff">'
-    'Pr&eacute;sentation du concept</a></div>')
+    # 05/11 (Baptiste) : la marque (couronne + DELIGNY R&D + sous-titre) remplace le simple texte flech ;
+    # le bouton devient plein, vert de la charte (--acc), avec survol. Le <style> est autorise par la CSP
+    # (style-src 'unsafe-inline') ; l'image par img-src 'self'.
+    '<div id="montre-demo-publique" style="margin:0;padding:8px 16px;background:#f3efe6;display:flex;align-items:center;gap:18px;font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6"><style>#montre-demo-publique .mdp-concept:hover,#montre-demo-publique .mdp-concept:focus-visible{background:#1f3829;box-shadow:0 2px 6px rgba(22,22,22,.22);transform:translateY(-1px)}#montre-demo-publique .mdp-marque:hover strong{text-decoration:underline;text-underline-offset:3px}</style><a class="mdp-marque" href="/" target="_top" title="Retour au portail DELIGNY R&amp;D" style="display:flex;align-items:center;gap:10px;color:#161616;text-decoration:none"><img src="/img/logo-mark.png" alt="" width="30" height="30" style="display:block;width:30px;height:30px;object-fit:contain"><span style="display:block;line-height:1.15"><strong style="display:block;font-size:14px;font-weight:700;letter-spacing:-.01em">DELIGNY R&amp;D</strong><small style="display:block;margin-top:2px;font-size:11px;letter-spacing:.02em;color:#6b6b63">Montre Paterne</small></span></a><a class="mdp-concept" href="/w1.html" target="_top" style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;color:#fff;font-weight:600;text-decoration:none;padding:7px 16px;border-radius:999px;background:#2c4a38;border:1px solid #2c4a38;box-shadow:0 1px 2px rgba(22,22,22,.18);transition:background .15s,box-shadow .15s,transform .15s">Pr&eacute;sentation du concept <span aria-hidden="true">&rarr;</span></a></div>')
 
 
 def empreinte(chemin: str) -> str:
