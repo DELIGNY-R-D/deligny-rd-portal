@@ -2124,8 +2124,8 @@ img.app-banner {
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
-.lg-carte:hover,
-.lg-carte:focus-visible {
+a.lg-carte:hover,
+a.lg-carte:focus-visible {
   transform: translateY(-2px);
   box-shadow: var(--shadow-lift);
   border-color: var(--accent);
