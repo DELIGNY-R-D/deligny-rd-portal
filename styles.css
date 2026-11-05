@@ -335,6 +335,8 @@ h3 {
   font-size: 19px;
   line-height: 1.6;
 }
+/* Chapeau en deux paragraphes (06/11, page Contact) : un interligne entre eux. */
+.lead + .lead { margin-top: 14px; }
 
 /* Emphase degradee sur mot-cle, esprit Apple ("confidentialite.") / Atlas
    ("La votre.") — degrade maison rust -> violet plutot que l'arc-en-ciel
