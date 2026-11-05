@@ -2369,3 +2369,31 @@ a.lg-carte:focus-visible {
 @media (min-width: 561px) {
   #simulation-3d .pf-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+
+/* Offre (05/11) : sept offres en trois categories. L'intertitre de categorie
+   occupe toute la largeur de la grille ; le numero d'offre precede le titre. */
+.store-groupe { grid-column: 1 / -1; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--line); }
+.store-groupe:first-child { margin-top: 0; padding-top: 0; border-top: 0; }
+.store-groupe h3 { margin: 6px 0 0; font-size: clamp(18px, 1.6vw, 22px); letter-spacing: -0.01em; }
+.store-groupe h3 small { margin-left: 10px; font-size: 12px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--muted); }
+.store-num { font-family: var(--font-mono, monospace); font-size: 12px; font-weight: 500; letter-spacing: 0.06em; color: var(--muted); margin-right: 4px; }
+
+/* Offre logiciel (05/11) : la carte Atlas porte ses quatre formules. Elle
+   prend toute la largeur de la grille ; chaque formule est une petite colonne. */
+.store-app--large {
+  grid-column: 1 / -1;
+  grid-template-areas:
+    "logo tete"
+    "logo texte"
+    "tarifs tarifs"
+    "prix prix"
+    "note note";
+}
+.store-app--large .store-tarifs { grid-area: tarifs; }
+.store-tarifs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 10px; margin: 14px 0 6px; }
+.store-tarif { border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; background: var(--card, transparent); }
+.store-tarif--phare { border-color: var(--store-teinte, var(--accent)); box-shadow: inset 0 0 0 1px var(--store-teinte, var(--accent)); }
+.store-tarif b { display: block; font-size: 14px; }
+.store-tarif b small { margin-left: 6px; font-size: 11px; font-weight: 500; letter-spacing: 0.06em; text-transform: uppercase; color: var(--muted); }
+.store-tarif-prix { display: block; margin: 4px 0 6px; font-size: 18px; font-weight: 700; letter-spacing: -0.01em; }
+.store-tarif p { margin: 0; font-size: 13px; line-height: 1.45; color: var(--muted); }
