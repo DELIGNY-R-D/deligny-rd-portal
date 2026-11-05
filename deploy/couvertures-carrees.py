@@ -27,7 +27,7 @@ SORTIE = 'cover-carre.jpg'
 # (max-age 4 h cote Pages) : Baptiste voyait encore l'ancienne K2 une heure
 # apres la mise en ligne (05/11). Quand on change la photo d'une piece, on lui
 # donne donc un nouveau nom ici, et on met a jour les deux pages qui la citent.
-SORTIES = {'K2': 'cover-carre-2.jpg'}
+SORTIES = {'K2': 'cover-carre-3.jpg'}
 COTE_MAX = 800
 
 def portrait(W, H, pos):
@@ -48,8 +48,11 @@ BOITES = {
     'Pattern-watch':     ('cover.jpg', lambda W, H: portrait(W, H, 55)),
     'Plis':              ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'K1-Kinetic':        ('cover.jpg', lambda W, H: portrait(W, H, 85)),
-    # 05/11 : photo aux deux mains choisie par Baptiste (visuel 5 de la fiche)
-    'K2':                ('04.jpg',    lambda W, H: portrait(W, H, 36)),
+    # 05/11 : photo aux deux mains choisie par Baptiste (visuel 5 de la fiche).
+    # Cadre zoome de 5 % (cote 1000 sur 1050) et descendu pour que la ligne de
+    # table (y = 966 dans la photo) tombe a 72,9 % de la hauteur, comme celle du
+    # film K1 qui la precede dans la grille : les deux horizons se prolongent.
+    'K2':                ('04.jpg',    lambda W, H: (525, 737, 1000)),
     'L1-Marble':         ('cover.jpg', lambda W, H: portrait(W, H, 45)),
     'L3':                ('cover.jpg', lambda W, H: portrait(W, H, 50)),
     'L4C':               ('cover.jpg', lambda W, H: portrait(W, H, 75)),
