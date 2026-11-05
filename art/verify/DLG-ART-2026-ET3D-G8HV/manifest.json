@@ -58,7 +58,7 @@
       "mode": "reel",
       "cadre": "baguette:or",
       "passe_partout_mm": 10,
-      "etiquette": "noire"
+      "etiquette": "blanche"
     }
   },
   "significations": {
@@ -137,12 +137,12 @@
   },
   "statut": "publié",
   "verification_url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-ET3D-G8HV",
-  "version": 4,
-  "manifeste_precedent_sha256": "4e5c5d70d4476dd07796242e127bc3f33fd2c2f2dca68b19e8dcca2de81d2750",
+  "version": 5,
+  "manifeste_precedent_sha256": "42a460af9c5282227649e40daca64f4ecb023c4513af33d857370a4716788627",
   "signature": {
     "algo": "Ed25519 (RFC 8032)",
     "cle_publique": "74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f",
-    "valeur_hex": "25d23caad58ebc00fcfc9fa1680c63ea5bc4424a0a8f0ca03bc1184a9f73c9966b327fb53467a6f31ecbf13699eba5cad61a88969ea7624d135caf039efdef0f",
-    "manifeste_sha256": "42a460af9c5282227649e40daca64f4ecb023c4513af33d857370a4716788627"
+    "valeur_hex": "3e2c3715dd05b94e438c1791c99581b3e9b69213228ebb375ed2596d21e80f57b9c845e62084a38714829ff52613cfb01ddf860a9d73454fda49bf2ee9b4510f",
+    "manifeste_sha256": "1cfce9114cfee66ae48aa309dbf50d9cace95894513f0ac445ed71f4bd784fd5"
   }
 }
