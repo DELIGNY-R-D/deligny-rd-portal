@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 400" width="640" height="400" role="img" aria-label="general design studio">
+  <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#b8641c"/><stop offset="100%" stop-color="#6d4bc0"/>
+  </linearGradient></defs>
+  <rect width="640" height="400" fill="url(#g)"/>
+  <g fill="none" stroke="#ffffff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" opacity=".92">
+    <path d="M320 92 L430 150 L430 250 L320 308 L210 250 L210 150 Z"/>
+    <path d="M320 92 L320 200 M320 200 L430 150 M320 200 L210 150 M320 200 L320 308" opacity=".7"/>
+    <path d="M250 300 L390 300" opacity=".55"/>
+  </g>
+  <text x="34" y="360" fill="#ffffff" opacity=".85" font-family="Avenir Next, Avenir, Arial, Helvetica, sans-serif" font-size="30" font-weight="700" letter-spacing="3">GDS</text>
+</svg>
