@@ -25,6 +25,32 @@
    ],
    "etiquette": "oeuvres/DLG-ART-2026-UV9R-M7NP/etiquette.jpg",
    "verifier": "../verify/DLG-ART-2026-UV9R-M7NP/"
+  },
+  {
+   "id": "DLG-ART-2026-ET3D-G8HV",
+   "titre": "Le règne des signaux discordants",
+   "statut": "publié",
+   "artiste": "Baptiste Placier",
+   "date": "05/11/2026",
+   "technique": "Pochoir, Encre, Aérographe, Impression numérique haute définition, Composition graphique numérique",
+   "edition": "Pièce unique (1/1)",
+   "intention": "Une figure couronnée à la main bionique traverse un flux de rubans spectraux, de damiers et d'yeux flottants. Les devises bravaches s'y heurtent à la Terre en suspens pour proclamer une liberté indocile…",
+   "dimensions": "50 × 65 cm",
+   "collection": "néo-pop",
+   "cadre": "or",
+   "passe_partout_mm": 10,
+   "photo": "../verify/DLG-ART-2026-ET3D-G8HV/oeuvre.jpg",
+   "image_3d": "oeuvres/DLG-ART-2026-ET3D-G8HV/oeuvre.jpg",
+   "image_redressee": true,
+   "cartouche": "oeuvres/DLG-ART-2026-ET3D-G8HV/cartouche.jpg",
+   "jeton": [
+    0.0159,
+    0.6475,
+    0.1391,
+    0.7638
+   ],
+   "etiquette": "oeuvres/DLG-ART-2026-ET3D-G8HV/etiquette.jpg",
+   "verifier": "../verify/DLG-ART-2026-ET3D-G8HV/"
   }
  ]
 }

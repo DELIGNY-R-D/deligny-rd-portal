@@ -50,10 +50,19 @@
     b.title = on ? "Afficher les panneaux (touche H)" : "Masquer les panneaux (touche H)";
     dispatchEvent(new Event("resize"));            // la scène reprend toute la place
   }
-  document.getElementById("oeil").onclick = () => immersif(!document.documentElement.classList.contains("immersif"));
+  // L'œil bascule les fenêtres posées devant la 3D (photo, cartel), cachées par défaut.
+  function fenetres(on) {
+    document.documentElement.classList.toggle("sans-fenetres", !on);
+    const b = document.getElementById("oeil");
+    b.setAttribute("aria-pressed", !on);
+    b.setAttribute("aria-label", on ? "Masquer les fenêtres devant l'aperçu 3D" : "Afficher la photo et la fiche");
+    b.title = on ? "Masquer les fenêtres (touche H)" : "Afficher la photo et la fiche (touche H)";
+  }
+  fenetres(false);
+  document.getElementById("oeil").onclick = () => fenetres(document.documentElement.classList.contains("sans-fenetres"));
   addEventListener("keydown", e => {
     if (e.target.closest && e.target.closest("input, textarea")) return;
-    if (e.key === "h" || e.key === "H") immersif(!document.documentElement.classList.contains("immersif"));
+    if (e.key === "h" || e.key === "H") fenetres(document.documentElement.classList.contains("sans-fenetres"));
     else if (e.key === "Escape" && document.documentElement.classList.contains("immersif")) immersif(false);
   });
   const $ = id => document.getElementById(id);
@@ -507,7 +516,7 @@
     img.src = o.image_3d;
     try { localStorage.setItem("galerie.choix", o.id); } catch (e) {}
   }
-  fetch("data.json?v=bb91a5be").then(r => r.json()).then(d => {
+  fetch("data.json?v=06337837").then(r => r.json()).then(d => {
     ITEMS = d.items || [];
     $("liste").innerHTML = ITEMS.map((o, i) => `<button type="button" class="oeuvre" data-i="${i}" aria-pressed="false">
         <img src="${esc(o.photo)}" alt="" loading="lazy">
@@ -521,6 +530,7 @@
     const Q = new URLSearchParams(location.search);
     if (k >= 0 && Q.has("cadre")) ITEMS[k].cadre = Q.get("cadre");
     if (k >= 0 && Q.has("pp")) ITEMS[k].passe_partout_mm = +Q.get("pp") || 0;
+    if (k >= 0 && /^(blanche|noire)$/.test(Q.get("et") || "")) ITEMS[k].etiquette = "/document/" + ITEMS[k].id + "/" + Q.get("et");
     taille(); if (ITEMS.length) choisir(k >= 0 ? k : dep);
   });
 })();

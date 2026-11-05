@@ -114,6 +114,10 @@
   #oeil .ferme { display:none; }
   html.immersif #oeil .ouvert { display:none; } html.immersif #oeil .ferme { display:block; }
   html.immersif header, html.immersif .liste, html.immersif .photo, html.immersif .cartel { display:none !important; }
+  /* 05/11/2026 : par défaut, aucune fenêtre DEVANT l'aperçu 3D (photo, cartel) ;
+     l'œil les fait apparaître. La liste des œuvres reste à gauche. */
+  html.sans-fenetres .photo, html.sans-fenetres .cartel { display:none !important; }
+  html.sans-fenetres #oeil .ouvert { display:none; } html.sans-fenetres #oeil .ferme { display:block; }
   html.immersif, html.immersif body { height:100% !important; overflow:hidden; }
   html.immersif body { display:block !important; }
   html.immersif main, html.immersif .scene-zone { display:block !important; height:100% !important; }
@@ -183,6 +187,6 @@
 </button>
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
-<script src="galerie.js?v=5cfd9f27"></script>
+<script src="galerie.js?v=78e8b295"></script>
 
 </body></html>

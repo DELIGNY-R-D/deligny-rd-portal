@@ -1,0 +1,148 @@
+{
+  "type": "cartouche-oeuvre/deligny-rd",
+  "oeuvre": {
+    "id": "DLG-ART-2026-ET3D-G8HV",
+    "titre": "Le règne des signaux discordants",
+    "artiste": "Baptiste Placier",
+    "collection": "néo-pop",
+    "dimensions": "50 × 65 cm",
+    "support": "Papier 200 g/m²",
+    "edition": "Pièce unique (1/1)",
+    "orientation": "Portrait — signature en bas à droite",
+    "lieu": "Paris",
+    "date_creation": {
+      "mode": "exacte",
+      "valeur": "2026-11-05"
+    },
+    "techniques": [
+      {
+        "nom": "Impression numérique haute définition",
+        "confiance": 0.95,
+        "declaree": false
+      },
+      {
+        "nom": "Composition graphique numérique",
+        "confiance": 0.9,
+        "declaree": false
+      },
+      {
+        "nom": "Génération assistée par IA",
+        "confiance": 0.75,
+        "declaree": false
+      },
+      {
+        "nom": "Pochoir",
+        "confiance": 1.0,
+        "declaree": true
+      },
+      {
+        "nom": "Encre",
+        "confiance": 1.0,
+        "declaree": true
+      },
+      {
+        "nom": "Aérographe",
+        "confiance": 1.0,
+        "declaree": true
+      }
+    ],
+    "mots_cles": [
+      "néo-pop",
+      "psychédélisme",
+      "cyberpunk",
+      "typographie",
+      "damier",
+      "transhumanisme"
+    ],
+    "encadrement": {
+      "mode": "reel",
+      "cadre": "baguette:or",
+      "passe_partout_mm": 10,
+      "etiquette": "noire"
+    }
+  },
+  "significations": {
+    "intention_artiste": "Une figure couronnée à la main bionique traverse un flux de rubans spectraux, de damiers et d'yeux flottants. Les devises bravaches s'y heurtent à la Terre en suspens pour proclamer une liberté indocile.\n\nLe trait noir acéré discipline les aplats néo-pop et les hachures denses. Cette saturation chromatique métabolise la frénésie numérique en un manifeste graphique vibrant.\n\nAucun dogme n'est imposé ici. La composition abandonne ses signaux discordants au regardeur, libre d'y tracer sa propre issue hors de tout contrôle.",
+    "interpretation_ia": "Le portrait central couronné ancre une diagonale ascendante rythmée par des rubans prismatiques et des damiers op art. La palette saturée confronte un spectre arc-en-ciel à un bleu céruléen dominant. Entre imagerie cyberpunk et slogans consuméristes détournés, l'œuvre dialogue avec le pop art et le néo-psychédélisme des années 1970. La main bionique ouverte répond au globe terrestre en suspension. Ce réseau saturé de symboles célèbre une émancipation numérique résolument indocile.",
+    "analyse_esthetique": "Cette œuvre grand format, réalisée entièrement à la main, associe des couleurs intenses, des hachures graphiques et des contours noirs marqués sur un fond richement texturé. Réalisée à l’encre à l’aide de pochoirs, de pinceaux rotatifs et d’une palette d’encres, elle mêle typographies expressives, formes fluides et tracés géométriques. La superposition des couleurs, la précision des motifs et la densité de la composition créent un univers graphique foisonnant, où chaque détail résulte d’un travail artisanal minutieux, sans recours à la génération numérique."
+  },
+  "contribution": {
+    "triangle": {
+      "auteur": 65,
+      "ia": 25,
+      "cocreateurs": 10
+    },
+    "ia_dans_oeuvre": true,
+    "note": "l'IA de documentation (titre, fiche) n'est pas comptabilisée"
+  },
+  "participants": [],
+  "artiste_reference": null,
+  "references": [
+    {
+      "element": "Slogan 'Think different.'",
+      "reference": "Campagne publicitaire 'Think different'",
+      "artiste_ou_origine": "Apple",
+      "type": "campagne",
+      "confiance": 0.98,
+      "crop": "pleine_1.png",
+      "position": "centre haut"
+    },
+    {
+      "element": "Poisson ou carpe koï en dessin au trait",
+      "reference": "Pochoir de carpe - Katagami (réf. 230)",
+      "artiste_ou_origine": "Larabesque",
+      "type": "motif",
+      "confiance": 0.9,
+      "crop": "pleine_4.png",
+      "position": "haut droite"
+    },
+    {
+      "element": "Couronne",
+      "reference": "Pochoir couronne (réf. 515)",
+      "artiste_ou_origine": "Larabesque",
+      "type": "motif",
+      "confiance": 0.9,
+      "crop": "pleine_12.png"
+    }
+  ],
+  "medias": [
+    {
+      "fichier": "photo2.png",
+      "role": "originale",
+      "mime": "image/jpeg",
+      "sha256": "49bba16334b57d854becb8f09e380c2a88006bd4ebd107cb6512209b6d4d4d0a",
+      "apercu": "photo2_apercu.jpg",
+      "kind": "image",
+      "format": "png",
+      "dhash": "b2c4c8e4e4e0f439"
+    },
+    {
+      "fichier": "originale.jpg",
+      "role": "maquette",
+      "mime": "image/jpeg",
+      "sha256": "5c1ff155758eade857405872ed13ab54e7576e3dd181ef52e73f5f1e417ce406",
+      "apercu": "originale_apercu.jpg",
+      "kind": "image",
+      "format": "jpg",
+      "dhash": "b486caa2e4e09490"
+    }
+  ],
+  "chronologie": {
+    "creation_oeuvre": {
+      "mode": "exacte",
+      "valeur": "2026-11-05"
+    },
+    "prise_de_vue": null,
+    "generation_document": "2026-11-05 18:00"
+  },
+  "statut": "publié",
+  "verification_url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-ET3D-G8HV",
+  "version": 4,
+  "manifeste_precedent_sha256": "4e5c5d70d4476dd07796242e127bc3f33fd2c2f2dca68b19e8dcca2de81d2750",
+  "signature": {
+    "algo": "Ed25519 (RFC 8032)",
+    "cle_publique": "74d295def0f077a57770d479a2e12f91ec09580ff0696a812620b8e078fc007f",
+    "valeur_hex": "25d23caad58ebc00fcfc9fa1680c63ea5bc4424a0a8f0ca03bc1184a9f73c9966b327fb53467a6f31ecbf13699eba5cad61a88969ea7624d135caf039efdef0f",
+    "manifeste_sha256": "42a460af9c5282227649e40daca64f4ecb023c4513af33d857370a4716788627"
+  }
+}
