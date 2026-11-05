@@ -14,15 +14,15 @@
  * serait bloque sans bruit (incident du 25/08).
  *
  * CE QU'ON NE PREND PAS AU VISITEUR : les commandes restent affichees, une
- * video mise en pause a la main n'est pas relancee de force, et sous
- * `prefers-reduced-motion` rien ne demarre tout seul.
+ * video mise en pause a la main n'est pas relancee de force.
+ * `prefers-reduced-motion` n'est PLUS respecte (05/11, demande Baptiste : « toutes
+ * les videos doivent se lancer automatiquement ») : son Mac a « Reduire les
+ * animations » active et il ne voyait rien demarrer. Ce sont des films muets
+ * en boucle, avec leurs commandes : le visiteur garde la pause.
  */
 (function () {
   var videos = [].slice.call(document.querySelectorAll('video'));
   if (!videos.length) return;
-
-  var mouvementReduit = window.matchMedia
-    && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
   // Une pause DELIBEREE se respecte : on retient les videos que le visiteur a
   // lui-meme arretees, pour ne pas les relancer a chaque defilement.
@@ -35,8 +35,6 @@
     });
     v.addEventListener('play', function () { arreteesALaMain.delete(v); });
   });
-
-  if (mouvementReduit) return;      // rien ne demarre seul, les commandes suffisent
 
   if (!('IntersectionObserver' in window)) return;   // navigateur ancien : comportement d'avant
 
