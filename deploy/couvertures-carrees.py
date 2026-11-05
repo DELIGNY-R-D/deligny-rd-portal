@@ -23,6 +23,11 @@ from PIL import Image, ImageFilter
 
 RACINE = os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'portfolio', 'img')
 SORTIE = 'cover-carre.jpg'
+# Une image changee SOUS LE MEME NOM ne traverse pas le cache du navigateur
+# (max-age 4 h cote Pages) : Baptiste voyait encore l'ancienne K2 une heure
+# apres la mise en ligne (05/11). Quand on change la photo d'une piece, on lui
+# donne donc un nouveau nom ici, et on met a jour les deux pages qui la citent.
+SORTIES = {'K2': 'cover-carre-2.jpg'}
 COTE_MAX = 800
 
 def portrait(W, H, pos):
@@ -92,6 +97,7 @@ for nom, (src, boite) in BOITES.items():
     im = Image.open(chemin).convert('RGB')
     cx, cy, cote = boite(*im.size)
     out = carre(im, cx, cy, cote)
-    dest = os.path.join(RACINE, nom, SORTIE)
+    sortie = SORTIES.get(nom, SORTIE)
+    dest = os.path.join(RACINE, nom, sortie)
     out.save(dest, quality=86, optimize=True, progressive=True)
-    print('%-18s %s %dx%d -> %s %dx%d' % (nom, src, im.size[0], im.size[1], SORTIE, *out.size))
+    print('%-18s %s %dx%d -> %s %dx%d' % (nom, src, im.size[0], im.size[1], sortie, *out.size))
