@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-V9ZW3DyzueGI0uj8dbHWUZu1Bqvc5QET2b2owBetvwk='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-sRtBvDWtgIAiuEoNoMuBW2Fq31Ryxi1AnjC4XhrIBGo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -416,7 +416,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
               <small>✋ déplace sans rien créer · 📐 et ◠ ajoutent un point · 🗑 supprime · double-appui : saisie chiffrée</small>
               <small><span style="color:var(--amber)">■ évasement 45-55°</span> &nbsp;·&nbsp; <span style="color:var(--red)">■ évasement &gt;55° (support)</span></small>
             </div>
-            <canvas id="profileCanvas" width="480" height="480"></canvas>
+            <canvas id="profileCanvas" width="480" height="600"></canvas>
             <!-- Saisie chiffree d'un point. Ouverte au double-clic ou au
                  double-appui, posee SOUS le canevas et jamais sous le doigt. -->
             <div id="ptEdit" hidden style="margin-top:8px;padding:10px 12px;border:1px solid var(--sep);
@@ -449,7 +449,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
               <small id="vueRenduNote">Point de vue fixe, comme une photo de catalogue. Se refait à chaque modification.</small>
             </div>
             <div class="rendu-box">
-              <canvas id="renderCanvas" width="1280" height="960" style="display:none"></canvas>
+              <canvas id="renderCanvas" width="960" height="1200" style="display:none"></canvas>
               <img id="blLiveImg" alt="Rendu Blender de la lampe" style="display:none">
               <div id="renduAttente">Attente du rendu…</div>
             </div>
@@ -3918,7 +3918,11 @@ const PAD = {l:64, r:16, t:14, b:46};
 /* 10/09 : 480x480 et non plus 480x440. Le systeme de coordonnees LOGIQUE
    suit le cadre, qui est desormais carre comme les deux autres ; tout le
    dessin passe par pcW()/pcH(), rien n'est fige a 440. */
-const PCL = {w:480, h:480};
+/* 05/11/2026 : 480x600, PORTRAIT 4:5, comme la coque reelle et le rendu. Les
+   trois vues ont ainsi la meme boite : leurs bords hauts et bas tombent au
+   meme niveau, comme dans la demo de l'accueil. Voir pEch() plus bas : le
+   dessin reste a l'echelle, un 480x600 etire aurait deforme le profil. */
+const PCL = {w:480, h:600};
 function pcW(){ return PCL.w; }
 function pcH(){ return PCL.h; }
 function ajusterDefinitionProfil(){
@@ -3943,10 +3947,22 @@ function pAxisX(){ return PAD.l + (pcW()-PAD.l-PAD.r)/2; }
 })();
 
 function pDemiL(){ return (pcW()-PAD.l-PAD.r)/2; }
-function pMapX(r){ return pAxisX() + (r/bounds().maxR) * pDemiL(); }
-function pMapY(h){ return pcH() - PAD.b - (h/bounds().maxH) * (pcH()-PAD.t-PAD.b); }
-function pUnmapX(x){ return Math.min(bounds().maxR, Math.abs(x-pAxisX()) / pDemiL() * bounds().maxR); }
-function pUnmapY(y){ return Math.max(0,(pcH()-PAD.b-y) / (pcH()-PAD.t-PAD.b) * bounds().maxH); }
+/* ECHELLE UNIQUE (05/11/2026). Avant, la largeur couvrait maxR et la hauteur
+ * maxH, chacune sur sa propre echelle : le rapport variait de 1,04 a 1,9 selon
+ * le type de lampe, et le profil dessine ne ressemblait pas a la coque 3D posee
+ * a cote. Passer le cadre en portrait 4:5 aurait porte l'ecart a 1,23 pour la
+ * lampe a poser. On prend donc la plus petite des deux echelles : tout le champ
+ * permis tient dans le cadre, et un millimetre se mesure pareil dans les deux
+ * sens. La lampe est posee sur le bas du cadre ; ce qui reste libre au-dessus
+ * de maxH est de la marge, pas du dessin possible (pUnmapY borne a maxH). */
+function pEch(){
+  const b = bounds();
+  return Math.min(pDemiL()/b.maxR, (pcH()-PAD.t-PAD.b)/b.maxH);
+}
+function pMapX(r){ return pAxisX() + r * pEch(); }
+function pMapY(h){ return pcH() - PAD.b - h * pEch(); }
+function pUnmapX(x){ return Math.min(bounds().maxR, Math.abs(x-pAxisX()) / pEch()); }
+function pUnmapY(y){ return Math.min(bounds().maxH, Math.max(0, (pcH()-PAD.b-y) / pEch())); }
 
 // Pente du segment par rapport à la verticale (toujours positive) — sert à
 // décrire la forme, pas à juger l'imprimabilité.
@@ -4023,7 +4039,7 @@ function drawProfile(){
       for(const s of (rr===0 ? [0] : [-1,1])){
         const x = pMapX(s*rr);
         if(x < PAD.l - 0.5 || x > w - PAD.r + 0.5) continue;
-        pctx.beginPath(); pctx.moveTo(x, PAD.t); pctx.lineTo(x, bas); pctx.stroke();
+        pctx.beginPath(); pctx.moveTo(x, pMapY(bH)); pctx.lineTo(x, bas); pctx.stroke();
       }
     }
   }
@@ -4043,11 +4059,11 @@ function drawProfile(){
 
   /* REGLETTE HORIZONTALE (demande Baptiste) : le zero est SUR l'axe de
    * rotation, et on lit le RAYON de part et d'autre.
-   * ⚠️ Elle repare une ambiguite reelle, pas un confort : les deux echelles du
-   * dessin NE SONT PAS EGALES — la verticale couvre maxH, l'horizontale maxR,
-   * rapport mesure 1,32. Une cote ne se deduit donc PAS en comparant deux
-   * longueurs a l'ecran d'un axe a l'autre, et un pied a O104 pouvait se lire
-   * O130 sur une capture. Meme convention que la reglette verticale :
+   * Elle repare une ambiguite reelle, pas un confort : avant le 05/11/2026 les
+   * deux echelles du dessin n'etaient PAS egales (rapport mesure 1,32), donc un
+   * pied a O104 pouvait se lire O130 sur une capture. L'echelle est desormais
+   * unique (pEch), mais la reglette reste : elle donne la cote lue, pas
+   * seulement la proportion. Meme convention que la reglette verticale :
    * mineure 10 mm, majeure 20, cote tous les 40.
    * Repartition verticale, police 10 px : trait a PAD.b-10 du bas,
    * graduations sur 6 px, cotes 17 px sous le trait, etiquette de l'axe a 5 px
@@ -4114,7 +4130,7 @@ function drawProfile(){
 
   // Axe de rotation, au centre
   pctx.strokeStyle=accA(.55); pctx.setLineDash([5,5]); pctx.lineWidth=1;
-  pctx.beginPath(); pctx.moveTo(axisX,PAD.t); pctx.lineTo(axisX,h-PAD.b+10); pctx.stroke();
+  pctx.beginPath(); pctx.moveTo(axisX,pMapY(bH)); pctx.lineTo(axisX,h-PAD.b+10); pctx.stroke();
   pctx.setLineDash([]);
   pctx.fillStyle=accA(.85); pctx.font=MONO; pctx.textAlign='center';
   pctx.fillText('axe de rotation', axisX, h-5);
@@ -9312,7 +9328,12 @@ function disposerTelephone(){
     window.dispatchEvent(new Event('resize'));   // les canvas se remesurent
   } else if(!petit && _vuesDeplacees){
     if(barre){
-      [...barre.children].forEach(c => grille.appendChild(c));
+      /* ⚠️ Remettre AVANT « Lampe éteinte / allumée », pas a la fin : un simple
+       * appendChild les rangeait apres ce bouton, donc coque et rendu se
+       * retrouvaient SOUS la coupe au lieu d'etre a cote (constate le
+       * 05/11/2026 en elargissant la fenetre, ou en tournant une tablette). */
+      const repere = document.getElementById('litSeg');
+      [...barre.children].forEach(c => repere ? grille.insertBefore(c, repere) : grille.appendChild(c));
       barre.remove();
     }
     _vuesDeplacees = false;
