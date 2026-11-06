@@ -34,6 +34,55 @@
       delete v.dataset.pauseAuto;
     });
     v.addEventListener('play', function () { arreteesALaMain.delete(v); });
+    // 06/11/2026 (Baptiste) : plus de commandes du navigateur sur les films de la page
+    // Simulation 3D, elles recouvraient l'image sur iPhone. La pause reste possible :
+    // un toucher sur le film l'arrete, un second le relance. Sans effet sur une vignette
+    // prise dans un lien, ou le toucher ouvre la page.
+    if (!v.controls && !v.closest('a')) {
+      v.addEventListener('click', function () {
+        if (v.paused) { arreteesALaMain.delete(v); var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+        else v.pause();
+      });
+    }
+  });
+
+  // LECTURE REFUSEE (06/11/2026, demande Baptiste : « sur iPhone les videos doivent
+  // tourner tout le temps »). Un iPhone en economie d'energie refuse toute lecture
+  // qui ne vient pas d'un geste : `play()` echoue avec NotAllowedError. Deux secours :
+  //   1. la video porte `data-anime` : on la remplace par cette image animee, qui
+  //      tourne sans rien demander a personne (carte K1 de l'accueil et du catalogue) ;
+  //   2. sinon on la retient, et on la relance au premier toucher du visiteur, seul
+  //      moment ou le telephone l'accepte.
+  var refusees = [];
+  function remplacerParImage(v) {
+    var img = document.createElement('img');
+    img.src = v.getAttribute('data-anime');
+    img.alt = v.getAttribute('aria-label') || '';
+    img.width = v.width; img.height = v.height;
+    img.decoding = 'async';
+    img.className = v.className;
+    if (v.parentNode) v.parentNode.replaceChild(img, v);
+  }
+  function lancer(v) {
+    var p = v.play();
+    if (!p || typeof p.catch !== 'function') return;
+    p.catch(function (e) {
+      if (!e || e.name !== 'NotAllowedError') return;      // une pause qui coupe un lancement n'est pas un refus
+      if (v.getAttribute('data-anime')) { remplacerParImage(v); return; }
+      if (refusees.indexOf(v) < 0) refusees.push(v);
+    });
+  }
+  function auGeste() {
+    var encore = [];
+    refusees.forEach(function (v) {
+      if (!v.isConnected || arreteesALaMain.has(v) || !v.dataset.aLEcran) return;
+      var p = v.play();
+      if (p && typeof p.catch === 'function') p.catch(function () { if (encore.indexOf(v) < 0) encore.push(v); });
+    });
+    refusees = refusees.filter(function (v) { return v.isConnected && !v.dataset.aLEcran; }).concat(encore);
+  }
+  ['touchend', 'click', 'keydown'].forEach(function (nom) {
+    document.addEventListener(nom, auGeste, { capture: true, passive: true });
   });
 
   if (!('IntersectionObserver' in window)) return;   // navigateur ancien : comportement d'avant
@@ -42,17 +91,18 @@
     entrees.forEach(function (e) {
       var v = e.target;
       if (e.isIntersecting) {
+        v.dataset.aLEcran = '1';
         if (arreteesALaMain.has(v)) return;
         // metadata seulement a l'approche : le fichier se charge en lisant,
         // il n'est pas telecharge d'avance.
         if (v.preload === 'none') v.preload = 'metadata';
-        var p = v.play();
-        // Un navigateur peut refuser (economie d'energie, reglage) : ce n'est
-        // pas une panne, la video reste jouable a la main.
-        if (p && typeof p.catch === 'function') p.catch(function () {});
-      } else if (!v.paused) {
-        v.dataset.pauseAuto = '1';
-        v.pause();
+        lancer(v);
+      } else {
+        delete v.dataset.aLEcran;
+        if (!v.paused) {
+          v.dataset.pauseAuto = '1';
+          v.pause();
+        }
       }
     });
   }, { threshold: 0.35 });          // un tiers visible suffit a considerer qu'on la regarde

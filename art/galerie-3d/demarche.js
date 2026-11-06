@@ -147,6 +147,15 @@
   // restent là pour la mettre en pause.
   var visibles = [];
   function jouer(v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+  function lireVisibles(jamaisLancees) {
+    var cadre = panneau.getBoundingClientRect();
+    Array.prototype.forEach.call(panneau.querySelectorAll("video"), function (v) {
+      if (jamaisLancees && v.played.length) return;        // une pause voulue se respecte
+      var b = v.getBoundingClientRect();
+      var vu = Math.min(b.bottom, cadre.bottom) - Math.max(b.top, cadre.top);
+      if (b.height && vu > b.height * 0.5 && v.paused) jouer(v);
+    });
+  }
   function suivre() {
     if (!("IntersectionObserver" in window)) return;
     var veille = new IntersectionObserver(function (entrees) {
@@ -167,7 +176,9 @@
       // Le contenu n'est posé qu'à la première ouverture : aucune photo, aucune
       // affiche de vidéo n'est chargée tant que le panneau n'a pas été demandé.
       if (contenu) { panneau.innerHTML = contenu; contenu = ""; suivre(); }
-      else visibles.forEach(jouer);
+      // Lancement DANS le geste d'ouverture : un iPhone en économie d'énergie refuse toute
+      // lecture qui ne vient pas d'un toucher, et celui-ci en est un.
+      lireVisibles(false);
       panneau.scrollTop = 0;
       document.getElementById("dmFermer").focus();
     } else {
@@ -177,6 +188,8 @@
   }
   bouton.addEventListener("click", function () { basculer(!ouvert()); });
   voile.addEventListener("click", function () { basculer(false); });
+  // Chaque toucher dans le panneau relance les vidéos visibles qui n'ont jamais pu démarrer.
+  panneau.addEventListener("touchend", function () { if (ouvert()) lireVisibles(true); }, { passive: true });
   panneau.addEventListener("click", function (e) {
     var cible = e.target.closest ? e.target.closest("#dmFermer, #dmRetour") : null;
     if (cible) basculer(false);

@@ -163,3 +163,15 @@
   opacity: 0.82;
   max-width: 82ch;
 }
+
+/* 06/11/2026 : films sans commandes du navigateur. Un toucher met en pause ou relance
+   (simulation-3d/lecture-auto.js). Le bouton de lecture que l'iPhone dessine quand il
+   refuse la lecture automatique est masque : le film repart au premier toucher. */
+.sim-card video {
+  cursor: pointer;
+}
+
+.sim-card video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
+}

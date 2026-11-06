@@ -175,6 +175,9 @@ main {
 .pf-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(236px, 1fr));
+  /* 06/11/2026 : toutes les lignes a la hauteur de la plus haute, pour que les
+     planches d'une meme serie aient exactement la meme taille. */
+  grid-auto-rows: 1fr;
   gap: clamp(26px, 3.4vw, 44px) clamp(20px, 2.6vw, 32px);
   margin-top: clamp(28px, 4vw, 40px);
 }
@@ -199,13 +202,20 @@ main {
 }
 
 .pf-card {
-  display: block;
+  /* 06/11/2026 : colonne flexible, pour que la planche blanche remplisse toute la
+     hauteur de sa ligne. En `block`, une legende sur deux lignes rendait sa carte
+     plus haute que sa voisine, et la voisine laissait voir le papier beige dessous. */
+  display: flex;
+  flex-direction: column;
   counter-increment: planche;
   text-decoration: none;
   color: inherit;
 }
 
 .pf-card figure {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
   margin: 0;
   /* 13/10/2026 : le cadre et le fond passent de l'image a la FIGURE, pour que
      l'image et sa legende forment une seule planche blanche. Avant, un filet
@@ -235,7 +245,18 @@ main {
   transition: filter 0.35s ease;
 }
 
+/* iPhone en economie d'energie : la lecture automatique est refusee et le
+   navigateur dessine son propre bouton (rond gris, triangle blanc) sur la vignette.
+   La carte est un lien, pas un lecteur : ce bouton n'y a pas sa place. La vignette
+   animee de secours prend le relais (simulation-3d/lecture-auto.js). */
+.pf-card video::-webkit-media-controls-start-playback-button {
+  display: none !important;
+  -webkit-appearance: none;
+}
+
 .pf-card figcaption {
+  flex: 1 1 auto;
+  align-content: start;
   display: grid;
   grid-template-columns: auto 1fr;
   align-items: baseline;
