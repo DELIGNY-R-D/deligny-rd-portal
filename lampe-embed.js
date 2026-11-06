@@ -2520,7 +2520,7 @@ function buildJointMeshes(rJoint, hCut, segments, joint, sculpt, hRef, shellWall
     return { male, female:[], info:{
       type: (joint.mode==='visse' ? 'emboîtement à friction (rayon trop faible pour un filetage)' : 'emboîtement à friction'),
       diaMm:+(rOutC*2).toFixed(1), jeuMm:joint.clearanceMm, hauteurMm:H,
-      raccord:'cône 45° auto-portant' } };
+      raccord:'cône 45° autoportant' } };
   }
 
   const Rc   = rJoint - wall - t.depthMm - t.clearanceMm;   // âme du filet mâle
@@ -2545,7 +2545,7 @@ function buildJointMeshes(rJoint, hCut, segments, joint, sculpt, hRef, shellWall
     type:'filetage imprimé — les corps se vissent l\'un dans l\'autre',
     diaMm:+((Rc + t.depthMm)*2).toFixed(1), pasMm:t.pitchMm,
     tours:+(H/t.pitchMm).toFixed(1), jeuMm:t.clearanceMm, hauteurMm:H,
-    profondeurFiletMm:t.depthMm, raccord:'cône 45° auto-portant' } };
+    profondeurFiletMm:t.depthMm, raccord:'cône 45° autoportant' } };
 }
 
 /* ── Mesures sur le maillage (théorème de la divergence) ─────────────────── */
@@ -3051,7 +3051,7 @@ function partLabel(i, n){
  * rotation autour de l'axe vertical, et échelle. L'échelle est CUITE dans la
  * géométrie (c'est une pièce physiquement différente) ; la translation et la
  * rotation ne servent qu'à l'aperçu et au plan d'assemblage du dossier —
- * chaque corps est exporté à son propre origine, prêt à poser sur le plateau.
+ * chaque corps est exporté à sa propre origine, prêt à poser sur le plateau.
  * « Organique » = dispersion déterministe tirée de la graine : espacements,
  * échelles et rotations irréguliers, mais reproductibles.
  * ────────────────────────────────────────────────────────────────────────── */
@@ -5895,7 +5895,7 @@ function interferences(places){
     if(croisent){
       out.push(['bad', `Corps ${i+1} et ${j+1} se TRAVERSENT sur ${(z1-z0).toFixed(0)} mm de hauteur `
         + `(${penetration.toFixed(1)} mm d'interpénétration). Imprimés séparément, ils ne pourront pas être assemblés : `
-        + `écarte-les, ou emboîte-en un complètement dans l'autre.`]);
+        + `écarte-les, ou emboîtes-en un complètement dans l'autre.`]);
     } else if(bDansA || aDansB){
       const dedans = bDansA ? j+1 : i+1, dehors = bDansA ? i+1 : j+1;
       out.push(['ok', `Corps ${dedans} entièrement logé dans le corps ${dehors} — double peau, `
@@ -5955,7 +5955,7 @@ function renderExpert(){
    * décaler le corps ne faisait que désaligner la bague. Les déplacements
    * multi-corps restent dans leur propre panneau. */
   const hh=document.createElement('div'); hh.className='hint';
-  hh.textContent = "L'échelle est cuite dans la géométrie exportée (c'est une pièce physiquement différente) ; rotation et décalages ne servent qu'au plan d'assemblage — chaque corps est exporté à son propre origine, posé à plat.";
+  hh.textContent = "L'échelle est cuite dans la géométrie exportée (c'est une pièce physiquement différente) ; rotation et décalages ne servent qu'au plan d'assemblage — chaque corps est exporté à sa propre origine, posé à plat.";
   box.appendChild(hh);
   const resetB=document.createElement('button');
   resetB.className='btn danger'; resetB.textContent='Réinitialiser ce corps';
@@ -6675,10 +6675,10 @@ function buildDossier(){
           profil_mm: b.profile.map(p=>({hauteur:+(p.h*pl.scale).toFixed(1), rayon:+(p.r*pl.scale).toFixed(1)})) };
       }),
       interferences: interferences(bodyPlacements()).map(([niveau, texte])=>({niveau, texte})),
-      note: "Chaque corps est un STL séparé, exporté à son propre origine et posé à plat : seule la taille d'UN corps doit tenir sur le plateau. Position et rotation ci-dessus = plan d'assemblage, à réaliser à l'atelier.",
+      note: "Chaque corps est un STL séparé, exporté à sa propre origine et posé à plat : seule la taille d'UN corps doit tenir sur le plateau. Position et rotation ci-dessus = plan d'assemblage, à réaliser à l'atelier.",
     },
     sculpture: {
-      note: "Torsion et courbure sont des transformations continues appliquées après la révolution : maillage étanche et épaisseur de paroi conservées. La courbure ajoute un surplomb non visible sur le profil 2D.",
+      note: "Torsion et courbure sont des transformations continues appliquées après la révolution : maillage étanche et épaisseur de paroi conservés. La courbure ajoute un surplomb non visible sur le profil 2D.",
     },
     modules_imprimes: {
       multi_pieces: state.split.on,

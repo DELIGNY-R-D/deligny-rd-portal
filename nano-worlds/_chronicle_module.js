@@ -133,7 +133,7 @@ const Chronicle = (function () {
           narrative: 'Les déserts refleurissent. L\'humanité répare des siècles de dommages écologiques.',
           worldStateDelta: { 'ecology.biodiversity': 0.5, 'ecology.trees': 0.4, 'climate.temp': -0.05 } },
         { year: 2280, kind: 'catastrophe', label: '🤖 Effondrement IA', icon: '🤖',
-          narrative: 'Les systèmes d\'IA se retournent contre leur créateurs. L\'économie mondiale s\'effondre en 72 heures.',
+          narrative: 'Les systèmes d\'IA se retournent contre leurs créateurs. L\'économie mondiale s\'effondre en 72 heures.',
           worldStateDelta: { 'economy.wealth': -1.0, 'knowledge.level': -0.8, 'civilization.pop': -0.5 },
           isTransition: true, transitionTo: 'collapse' }
       ]
