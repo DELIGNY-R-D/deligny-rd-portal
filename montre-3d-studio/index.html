@@ -297,7 +297,9 @@ html.embarque .resume{display:none}
       <button class="btn on" id="tBrut" title="Flancs, dessous du boîtier et fond tels qu'ils sortent de l'impression, non polis">Alu brut</button>
     </div>
   </section>
-  <section>
+  <!-- (06/11/2026, Baptiste) la fabrication n'est plus montree a la montre personnalisable :
+       la section reste dans la page pour ses scripts, mais cachee et hors des etapes. -->
+  <section hidden>
     <h2>Fabrication</h2>
     <div class="ligne">
       <button class="btn pri" id="fabGo">Produire les pièces réelles</button>
@@ -4055,7 +4057,7 @@ panneauComposition();
     {id:'boitier',lib:'Boîtier',vue:'profil',aide:'Matière du boîtier et tranches polies (boîtier et lunette, associées ou non).',secs:[par('Boîtier')]},
     {id:'fond',lib:'Fond',vue:'dos',aide:'Le texte du fond suit la configuration ; ajoute ta ligne personnelle.',secs:[par('Texte personnalisé')]},
     {id:'prix',lib:'Prix',vue:'trois',aide:'Prix et délai de ta montre, puis ta demande de commande.',secs:[par('Prix et délai')]},
-    {id:'plus',lib:'Plus',vue:null,aide:'Idées (concierge, encyclopédie, aléatoire), configurations enregistrées, vues et fabrication.',secs:[par('Concierge'),par('Mes configurations'),par('Encyclopédie'),par('Vue'),par('Fabrication')]}];
+    {id:'plus',lib:'Plus',vue:null,aide:'Idées (concierge, encyclopédie, aléatoire), configurations enregistrées et vues.',secs:[par('Concierge'),par('Mes configurations'),par('Encyclopédie'),par('Vue')]}];
   const nav=document.createElement('nav');nav.className='etapes';aside.prepend(nav);
   const aide=document.createElement('p');aide.className='etape-titre';nav.after(aide);
   ETAPES.forEach((e,i)=>{const b=document.createElement('button');b.type='button';b.title=e.lib;b.innerHTML=e.id==='plus'?'⋯':`<b>${i+1}</b>${e.lib}`;b.onclick=()=>aller(i,true);nav.appendChild(b);e.btn=b;});
