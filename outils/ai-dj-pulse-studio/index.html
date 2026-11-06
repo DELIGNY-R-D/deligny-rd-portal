@@ -165,7 +165,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
         <b>Marge d'erreur indicative : ±5 à 8 BPM</b>, avec un risque d'erreur d'octave (BPM détecté = moitié ou double du tempo réel) sur des morceaux peu percussifs. Vérifie toujours à l'oreille.
         <br><br>
         <b>Méthode de détection de tonalité :</b> FFT sur des fenêtres échantillonnées le long du morceau, énergie spectrale regroupée en 12 classes de hauteur (chromagramme), comparée par corrélation de Pearson aux 24 profils de référence Krumhansl-Kessler (12 majeurs + 12 mineurs) — la meilleure corrélation donne la tonalité retenue.
-        <b>Marge d'erreur réelle et documentée : la détection de tonalité par chroma atteint typiquement 60 à 80% de précision selon le genre musical</b> (littérature MIR), sensiblement moins fiable que la détection de BPM. Une confusion entre une tonalité et sa relative majeur/mineur (ex. Do majeur / La mineur) est fréquente et normale — les deux partagent le même profil chroma — l'outil te le signale quand c'est le cas plutôt que de trancher à tort. Vérifie toujours à l'oreille avant de t'y fier pour un mix.
+        <b>Marge d'erreur réelle et documentée : la détection de tonalité par chroma atteint typiquement 60 à 80 % de précision selon le genre musical</b> (littérature MIR), sensiblement moins fiable que la détection de BPM. Une confusion entre une tonalité et sa relative majeure/mineure (ex. Do majeur / La mineur) est fréquente et normale — les deux partagent le même profil chroma — l'outil te le signale quand c'est le cas plutôt que de trancher à tort. Vérifie toujours à l'oreille avant de t'y fier pour un mix.
       </div>
     </div>
 
@@ -202,7 +202,7 @@ footer .disc{max-width:680px;margin:0 auto 10px;}
       </div>
 
       <div class="xfade-wrap">
-        <div class="xfade-labels"><span>A</span><span id="xfade-pct">Fondu en direct — 100% A</span><span>B</span></div>
+        <div class="xfade-labels"><span>A</span><span id="xfade-pct">Fondu en direct — 100 % A</span><span>B</span></div>
         <input type="range" id="crossfader" min="0" max="100" value="0" step="1" disabled>
       </div>
 
@@ -671,7 +671,7 @@ function stopAll(){
     if(decks.B.gain){ decks.B.gain.gain.cancelScheduledValues(ctx.currentTime); decks.B.gain.gain.setValueAtTime(0, ctx.currentTime); }
   }
   $('crossfader').value=0;
-  $('xfade-pct').textContent='Fondu en direct — 100% A';
+  $('xfade-pct').textContent='Fondu en direct — 100 % A';
 }
 $('stop-all').onclick=stopAll;
 

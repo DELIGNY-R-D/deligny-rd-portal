@@ -498,7 +498,7 @@ async function buildAndRender(p){
     ? `Mode <b>auto-porté</b> : les données sont encodées directement dans le QR — aucune page à héberger, lisible hors-ligne par n'importe quel lecteur QR. Poids des données : <b>${bytes} octets</b> (correction d'erreur ${qrResult.level}, limite ≈ ${MAX_QR_BYTES} octets).`
     : `Mode <b>URL hébergée</b> : le QR pointe vers <b>${esc(qrTarget)}</b>. C'est à toi d'y déposer le fichier HTML téléchargé ci-dessous — sans ça, le QR ne mènera nulle part.`;
   $('qr-meta').innerHTML = capNote +
-    `<div class="qr-verify ${verified?'ok':'bad'}">${verified ? '✅ QR vérifié : relu automatiquement (jsQR) et identique aux données encodées' : '❌ Échec de la relecture automatique du QR — regénère'}</div>`;
+    `<div class="qr-verify ${verified?'ok':'bad'}">${verified ? '✅ QR vérifié : relu automatiquement (jsQR) et identique aux données encodées' : '❌ Échec de la relecture automatique du QR — régénère'}</div>`;
 
   LAST_HTML = buildPassportHTML(p, qrResult.dataURL, mode, qrTarget);
   LAST_QR_DATAURL = qrResult.dataURL;
