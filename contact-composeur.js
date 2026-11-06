@@ -199,6 +199,24 @@
   }
   choix.mode = mode;
 
+  /* DEMANDE DEJA ECRITE (06/11/2026). Le studio de la montre Paterne mene ici avec
+   * la configuration, la reference et le prix deja rediges : il les depose dans
+   * sessionStorage (meme site), jamais dans l'adresse. On les pose dans le message ;
+   * le visiteur n'a plus qu'a donner son courriel. Lue une seule fois, ignoree si
+   * elle a plus d'une heure. */
+  try {
+    var brut = sessionStorage.getItem('deligny-demande');
+    if (brut) {
+      sessionStorage.removeItem('deligny-demande');
+      var demande = JSON.parse(brut);
+      if (demande && typeof demande.texte === 'string' && !champ.value
+          && Date.now() - (demande.quand || 0) < 3600000) {
+        champ.value = demande.texte.slice(0, 3800);
+        champ.rows = Math.max(champ.rows || 0, 14);
+      }
+    }
+  } catch (e) {}
+
   champ.addEventListener('input', majEtat);
   courriel.addEventListener('input', function () { montre('', ''); });
 
