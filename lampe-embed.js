@@ -193,9 +193,11 @@ function bagueActive(){
  * L'abat-jour est ferme par un disque plat et repose sur son propre bas.
  * LE STL DE FABRICATION NE CHANGE PAS : la vraie bague V2 y reste fusionnee.
  * LE CADRAGE NE CHANGE PAS NON PLUS : la boite englobante qui regle l'echelle
- * et le centre des vues compte toujours le volume du pied (voir rebuildMesh et
- * sceneFaces), pour que l'abat-jour garde exactement la place et la taille
- * qu'il avait. Remettre `true` ramene l'ancien affichage partout. */
+ * et le centre des vues compte toujours le volume du pied (voir rebuildMesh) :
+ * meme echelle, meme camera. L'abat-jour est POSE sur le sol ou reposait le
+ * pied (bbox.poseZ), exactement comme le rendu studio, dont la camera est fixe
+ * et qui pose l'objet sur la table : les deux vues restent alignees.
+ * Remettre `true` ramene l'ancien affichage partout. */
 const VUES_AVEC_SOCLE = false;
 
 /* Disque plat qui ferme le bas d'une coque creuse, pour les VUES seulement.
@@ -3491,12 +3493,8 @@ function buildParts(segList, mode){
  * substituts que l'ecran recevait avant le 06/11 (bague sous le corps qui porte
  * la connexion, base d'atelier dessous). Ils ne sont plus dessines ; ils ne
  * servent qu'a garder le cadrage d'avant. Vide si le socle est affiche. */
-let _segsVues = null;
-function piedHorsVue(segsPreview){
-  if(VUES_AVEC_SOCLE || !bagueActive()) return [];
-  const segs = segsPreview || _segsVues;
-  if(!segs || !segs.length) return [];
-  _segsVues = segs;
+function piedHorsVue(segs){
+  if(VUES_AVEC_SOCLE || !bagueActive() || !segs || !segs.length) return [];
   const ib = socketEndBodyIdx();
   const neutre = {tx:0,ty:0,tz:0,rot:0,scale:1};
   const out = [];
@@ -3699,13 +3697,17 @@ function rebuildMesh(){
     bb.minZ=Math.min(bb.minZ,w[2]); bb.maxZ=Math.max(bb.maxZ,w[2]);
   })));
   /* CADRAGE INCHANGE (06/11/2026). Le pied n'est plus dessine, mais il comptait
-   * dans cette boite : la retrecir aurait grossi et deplace l'abat-jour dans
-   * son cadre. On y remet donc les memes substituts qu'avant, sans les afficher. */
+   * dans cette boite : la retrecir aurait grossi l'abat-jour dans son cadre.
+   * On y remet donc les memes substituts qu'avant, sans les afficher. poseZ est
+   * la hauteur du pied retire : la coque descend d'autant pour reposer sur le
+   * sol d'avant, comme dans le rendu studio (voir drawPreview). */
+  const basVisible = bb.minZ;
   piedHorsVue(segsPreview).forEach(v=>{
     bb.minX=Math.min(bb.minX,v[0]); bb.maxX=Math.max(bb.maxX,v[0]);
     bb.minY=Math.min(bb.minY,v[1]); bb.maxY=Math.max(bb.maxY,v[1]);
     bb.minZ=Math.min(bb.minZ,v[2]); bb.maxZ=Math.max(bb.maxZ,v[2]);
   });
+  bb.poseZ = (bb.maxX>=bb.minX && basVisible > bb.minZ) ? basVisible - bb.minZ : 0;
   if(bb.maxX<bb.minX) bb={minX:0,maxX:1,minY:0,maxY:1,minZ:0,maxZ:1};
   // économie de matière de l'ajourage : volume réel vs coque pleine équivalente
   const refVol = MESH.parts.reduce((s,p)=>s+(p.refVolMm3||0), 0);
@@ -3802,7 +3804,8 @@ function drawPreview(hq){
   const bb = MESH.stats.bbox || {minX:-50,maxX:50,minY:-50,maxY:50,minZ:0,maxZ:200};
   const gap = view.explode * 45;                       // écartement vertical des modules
   const spanXY = Math.max(1, Math.max(bb.maxX-bb.minX, bb.maxY-bb.minY));
-  const midZ = (bb.minZ+bb.maxZ)/2;
+  // + poseZ : pied retire des vues, l'abat-jour descend sur le sol d'avant (06/11)
+  const midZ = (bb.minZ+bb.maxZ)/2 + (bb.poseZ||0);
   const totalH = Math.max(1, (bb.maxZ-bb.minZ) + gap*Math.max(0,parts.length-1));
   /* CADRAGE ALIGNE SUR LE RENDU STUDIO (12/10/2026), mesure et non estime.
    * Les deux vues se lisent cote a cote : une piece qui n'a ni la meme taille
@@ -4111,18 +4114,10 @@ function sceneFaces(W, H){
    * Un décalage vertical après coup coûte une passe et garantit le même
    * cadrage pour toutes les formes — la table est toujours là, la lampe est
    * toujours posée. */
-  /* 06/11/2026 : le pied n'est plus dessine. Le decalage reste calcule sur le
-   * bas du pied (solCadre), pour que l'abat-jour garde sa place d'avant ; le sol
-   * dessine, lui, remonte sous le bas reel de l'abat-jour : il ne flotte pas. */
-  let solCadre = groundY;
-  for(const v of piedHorsVue()){
-    const sy = cy - project3d(v[0], v[2]-midZ, v[1]).y*scale;
-    if(sy > solCadre) solCadre = sy;
-  }
-  const cible = H*0.80, dy = cible - solCadre;
+  const cible = H*0.80, dy = cible - groundY;
   if(isFinite(dy) && Math.abs(dy) > 0.5){
     for(const f of faces) for(const p of f.P) p.sy += dy;
-    groundY += dy;
+    groundY = cible;
   }
   return {faces, cx, cy:cy+dy, groundY, footR, scale};
 }
