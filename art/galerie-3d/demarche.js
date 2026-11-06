@@ -18,7 +18,7 @@
     return '<img src="' + IMG + src + '" alt="' + alt + '" width="' + l + '" height="' + h + '" loading="lazy" decoding="async">';
   }
   function video(nom, legende, l, h) {
-    return '<figure class="dm-video"><video controls playsinline muted preload="none" width="' + l + '" height="' + h + '"'
+    return '<figure class="dm-video"><video controls playsinline muted loop preload="none" width="' + l + '" height="' + h + '"'
       + ' poster="demarche/' + nom + '.jpg" aria-label="' + legende + '">'
       + '<source src="demarche/' + nom + '.mp4" type="video/mp4"></video>'
       + '<figcaption>' + legende + '</figcaption></figure>';
@@ -100,6 +100,12 @@
     + '<p>Chaque composition est créée à l\'aide d\'un pinceau rotatif et d\'une palette à encres sur mesure, '
     + 'deux outils développés au sein de l\'atelier pour expérimenter de nouvelles techniques picturales.</p>'
 
+    + '<section><h3>En atelier</h3>'
+    + '<div class="dm-videos">'
+    + video("pochoir", "Découpe, pochoirs et aérographe", 720, 960)
+    + video("encres", "Les encres au travail", 720, 900)
+    + '</div></section>'
+
     + '<section><h3>Le pinceau rotatif</h3>'
     + '<p>Un pinceau équipé d\'un roulement à billes, qui procure un confort et une douceur d\'utilisation inégalés. '
     + 'Pensé pour le travail à l\'encre, cet outil de création offre une expérience unique : une légère inclinaison '
@@ -125,12 +131,6 @@
     + '</div>'
     + '<a class="dm-fiche" href="../../portfolio/Palette-a-encres.html">La fiche de la palette →</a></section>'
 
-    + '<section><h3>En atelier</h3>'
-    + '<div class="dm-videos">'
-    + video("encres", "Les encres au travail", 720, 900)
-    + video("pochoir", "Découpe, pochoirs et aérographe", 720, 960)
-    + '</div></section>'
-
     + '<section><p>Les œuvres sont présentées dans une galerie virtuelle en 3D, avec leur certificat d\'authenticité '
     + 'et un espace dédié à l\'achat et à la vente.</p>'
     + '<div class="dm-liens"><button type="button" id="dmRetour">Voir la galerie</button>'
@@ -141,6 +141,24 @@
   document.body.appendChild(panneau);
 
   function ouvert() { return panneau.classList.contains("ouvert"); }
+  // Lecture automatique : une vidéo joue (sans son, en boucle) tant qu'elle est visible dans
+  // le panneau ouvert, et s'arrête dès qu'elle en sort. Voulu par Baptiste (06/11/2026), y
+  // compris quand le système demande moins d'animations : les commandes de chaque vidéo
+  // restent là pour la mettre en pause.
+  var visibles = [];
+  function jouer(v) { var p = v.play(); if (p && p.catch) p.catch(function () {}); }
+  function suivre() {
+    if (!("IntersectionObserver" in window)) return;
+    var veille = new IntersectionObserver(function (entrees) {
+      entrees.forEach(function (e) {
+        var i = visibles.indexOf(e.target);
+        if (e.isIntersecting && i < 0) visibles.push(e.target);
+        if (!e.isIntersecting && i >= 0) visibles.splice(i, 1);
+        if (e.isIntersecting && ouvert()) jouer(e.target); else e.target.pause();
+      });
+    }, { root: panneau, threshold: 0.5 });
+    Array.prototype.forEach.call(panneau.querySelectorAll("video"), function (v) { veille.observe(v); });
+  }
   function basculer(on) {
     panneau.classList.toggle("ouvert", on);
     voile.classList.toggle("ouvert", on);
@@ -148,7 +166,8 @@
     if (on) {
       // Le contenu n'est posé qu'à la première ouverture : aucune photo, aucune
       // affiche de vidéo n'est chargée tant que le panneau n'a pas été demandé.
-      if (contenu) { panneau.innerHTML = contenu; contenu = ""; }
+      if (contenu) { panneau.innerHTML = contenu; contenu = ""; suivre(); }
+      else visibles.forEach(jouer);
       panneau.scrollTop = 0;
       document.getElementById("dmFermer").focus();
     } else {
