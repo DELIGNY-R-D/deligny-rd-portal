@@ -249,7 +249,8 @@ html.embarque .resume{display:none}
   <section>
     <h2>Prix et délai (estimation)</h2>
     <div id="origine" class="origine"></div><div id="prixTab"></div>
-    <div class="ligne" style="margin-top:8px"><button class="btn pri" id="btnCertif" type="button">Aperçu du certificat de la montre</button></div>
+    <div class="ligne" style="margin-top:8px"><button class="btn pri" id="btnCommande" type="button">Demander ma commande</button></div>
+    <div class="note">La demande part à l'atelier avec ta configuration et ce prix. Le certificat d'origine est établi à la vente, pour la montre fabriquée.</div>
   </section>
   <section>
     <h2>Mes configurations</h2>
@@ -3940,7 +3941,7 @@ document.getElementById('cfgAlea').onclick=()=>{
   if(lun.params.finition!=null)lun.params.finition=tirer(finitionsLunette(matieres.lunette));
   appliquerCfg({lunette:lun,cadran:cad,matieres,cadranFin:Math.random()<.5?1:0,index:Math.floor(Math.random()*7),aiguilles:.8});};
 
-// ───────────── CERTIFICAT DE LA MONTRE (12/10, aperçu) ─────────────
+// ───────────── COMMANDE DE LA MONTRE (12/10 certificat en aperçu ; 06/11 demande de commande) ─────────────
 // Le certificat porte la configuration exacte ET les credits de production consommes (sur 1 000 par an = 85 000 EUR).
 // Apercu imprimable A4 genere ici ; numerotation definitive + signature Ed25519 : a brancher sur CARTOUCHE
 // (DESIGN:ART/ART generator/Certificat, meme cle Deligny R&D) au lieu d'un second outil de certificat.
@@ -3960,57 +3961,34 @@ function nonCommandable(){if(!ESSAIS_BLOQUES)return null;const L=state.lunette;
   const pl=Object.entries(state.matieres||{}).find(([,m])=>PLACAGES.includes(m));
   if(pl)return `${MATIERES[pl[1]]?.nom||'Placage'} : finition en essai sur pièce réelle, pas encore commandable.`;
   return null;}
-function certificatMontre(){const nc=nonCommandable();if(nc){alert(nc);return;}const P=window._prixCourant;if(!P){alert('Calcul du prix en cours, réessaie dans une seconde.');return;}
-  let img='';try{const src=window.__capture(.95,undefined,undefined),im=new Image();im.src=src;   /* le rendu a un fond transparent : on le pose sur le papier */
-    const cv=document.createElement('canvas'),c2=renderer.domElement;cv.width=c2.width;cv.height=c2.height;const x=cv.getContext('2d');x.fillStyle='#ebe6da';x.fillRect(0,0,cv.width,cv.height);x.drawImage(c2,0,0);img=cv.toDataURL('image/jpeg',.9);}catch(e){}
-  const an=new Date().getFullYear(),date=new Date().toLocaleDateString('fr-FR',{day:'numeric',month:'long',year:'numeric'});
+/* (06/11/2026, Baptiste) LE PARCOURS S'ARRETE AU PRIX : plus d'apercu du certificat. Le certificat
+   d'origine est genere a chaque vente, pour la montre reellement fabriquee ; ici on envoie une DEMANDE
+   DE COMMANDE. Elle decrit la configuration et le prix affiches, puis ouvre la page de contact du site,
+   ou le visiteur ajoute son courriel et envoie. Le texte passe par sessionStorage (meme site), jamais
+   par l'adresse. Dans l'atelier local (port 4555) la page de contact n'existe pas : courriel direct. */
+function demanderCommande(){const nc=nonCommandable();if(nc){alert(nc);return;}const P=window._prixCourant;if(!P){alert('Calcul du prix en cours, réessaie dans une seconde.');return;}
+  const an=new Date().getFullYear();
   const lp=state.lunette.params,lm=MOTIFS_LUNETTE[state.lunette.motif],cm=MOTIFS_CADRAN[state.cadran.motif];
   const decor=state.lunette.motif==='embossage'?(DESSINS[Math.round(lp.dessin||0)]||{}).nom:state.lunette.motif==='arete'?(FORMES[Math.round(lp.forme||0)]||[])[2]:'';
   const fin=['mate (brute)','poli surface','poli intégral'][Math.round(lp.finition??1)]||'';
   const idx=(document.querySelector('#indexC option:checked')||{}).textContent||'';
   const empreinte=[...JSON.stringify({m:state.matieres,l:state.lunette,c:state.cadran,i:state.index})].reduce((h,c)=>(h*31+c.charCodeAt(0))>>>0,7).toString(16).toUpperCase().padStart(8,'0');
-  const esc=t=>String(t??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
-  const L=(k,v)=>`<tr><th>${k}</th><td>${esc(v)}</td></tr>`,M=id=>MATIERES[id].nom+' · '+MATIERES[id].sous;
-  const pct=(P.cr/P.CR_AN*100).toFixed(1),pctFr=pct.replace('.',',');
-  const html=`<!doctype html><html lang="fr"><head><meta charset="utf-8"><title>Certificat Montre T · DELIGNY R&amp;D</title><style>
-@page{size:A4;margin:0}*{box-sizing:border-box}body{margin:0;background:#e9e5da;font:11pt/1.45 Georgia,'Times New Roman',serif;color:#1d1a15}
-.f{width:210mm;min-height:297mm;margin:0 auto;background:#f8f4ea;padding:16mm 16mm 14mm;position:relative}
-h1{font:600 22pt/1 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.18em;margin:0}
-.sous{font:10pt 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.12em;text-transform:uppercase;color:#6b5f4c;margin-top:4px}
-.haut{display:flex;justify-content:space-between;align-items:flex-end;border-bottom:1px solid #1d1a15;padding-bottom:8px}
-.num{text-align:right;font:9.5pt 'Avenir Next',Avenir,Helvetica,sans-serif;color:#6b5f4c}.num b{display:block;font-size:13pt;color:#1d1a15;letter-spacing:.08em}
-.photo{margin:10px 0;height:88mm;display:flex;align-items:center;justify-content:center;background:radial-gradient(circle at 50% 40%,#fbf9f3,#e4dfd2);border-radius:4px;overflow:hidden}
-.photo img{max-height:100%;max-width:100%}
-table{width:100%;border-collapse:collapse;font-size:10pt}th{text-align:left;font:600 8.5pt 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.08em;text-transform:uppercase;color:#6b5f4c;width:38%;padding:4px 0;vertical-align:top}
-td{padding:4px 0;border-bottom:1px dotted #b9ad97}
-.bloc{margin-top:10px}.bloc h2{font:600 9pt 'Avenir Next',Avenir,Helvetica,sans-serif;letter-spacing:.16em;text-transform:uppercase;margin:0 0 4px}
-.credit{margin-top:12px;border:1.5px solid #1d1a15;padding:9px 12px;display:flex;gap:14px;align-items:center}
-.credit .n{font:600 26pt/1 'Avenir Next',Avenir,Helvetica,sans-serif}.credit .n small{font-size:10pt;font-weight:400}
-.credit .j{height:5px;background:#d6cfbf;margin:5px 0}.credit .j i{display:block;height:100%;background:#1d1a15;width:${pct}%}
-.credit p{margin:0;font-size:9pt;color:#4a4034}
-.pied{position:absolute;left:16mm;right:16mm;bottom:12mm;display:flex;justify-content:space-between;font:8.5pt 'Avenir Next',Avenir,Helvetica,sans-serif;color:#6b5f4c;border-top:1px solid #b9ad97;padding-top:6px}
-.sig{height:16mm;border-bottom:1px solid #1d1a15;width:60mm}
-.apercu{position:absolute;top:8mm;right:16mm;font:700 8pt Helvetica,sans-serif;letter-spacing:.2em;color:#a33228;border:1px solid #a33228;padding:2px 6px;transform:rotate(3deg)}
-@media print{body{background:none}.f{margin:0}}
-</style></head><body><div class="f"><div class="apercu">APERÇU · NON SIGNÉ</div>
-<div class="haut"><div><h1>DELIGNY</h1><div class="sous">Certificat d'origine · Montre T</div></div><div class="num">N° provisoire<b>MT-${an}-${empreinte}</b>${date}</div></div>
-<div class="photo">${img?`<img src="${img}" alt="Montre T">`:''}</div>
-<div class="bloc"><h2>Configuration</h2><table>
-${L('Boîtier',M(P.ib)+(!peutBrut(P.ib)?' — entièrement poli':tranchePolie('boitier')?' — tranche polie'+(P.ib==='titane'?' à la main':'')+', flancs et fond bruts':' — entièrement brut'))}
-${L('Lunette',M(P.il)+' — '+lm.nom+(decor?' « '+decor+' »':'')+(lm.r.finition?', finition '+fin:'')+(tranchePolie('lunette')?', tranche polie':', tranche brute'))}
-${L('Cadran',M(P.ic)+' — '+cm.nom+(state.cadranFin?', poli intégral':', brut, arêtes cassées'))}
-${L('Index',idx.replace(/^Index : /,''))}
-${L('Fond','Embossé '+lignesGravure().L.map(l=>l[0]).join(' · ')+(lignesGravure().or?' · poinçon de maître et poinçon de titre (tête d\'aigle, 750) apposés par le bureau de garantie':''))}
-${L('Mouvement','Quartz suisse')}${L('Bracelet','Cuir de pomme, boucle déployante laiton')}
-${L('Fabrication',[...new Set([P.ib,P.il,P.ic].map(id=>TARIFS[id].proc.startsWith('DMLS')?'impression métal DMLS':'fonderie à cire perdue'))].join(' et ').replace(/^./,c=>c.toUpperCase())+', pièces imprimées en '+(ORIGINES[P.origine]||ORIGINES.chine).nom+', assemblée en France · délai estimé ~'+P.dmax+' jours ouvrés')}
-</table></div>
-<div class="credit"><div class="n">${P.cr}<small> / ${P.CR_AN}</small></div><div style="flex:1"><b>Crédits de production ${an}</b><div class="j"><i></i></div>
-<p>Chaque année, DELIGNY R&amp;D ne fabrique que 1 000 crédits de montres (1 crédit = ${P.EUR_CR} €). Cette pièce en a consommé ${P.cr}, soit ${pctFr} % de la production de l'année. Plus une montre est précieuse, plus elle est rare.</p></div></div>
-<div class="pied"><div>DELIGNY R&amp;D · SASU · SIREN 107 503 807<br>deligny-rd.fr</div><div style="text-align:right">Signature<div class="sig"></div></div></div>
-</div><img src="https://atlas-studio.pro/deligny/api/px?page=montre-3d-studio" alt="" width="1" height="1" loading="eager">
-</body></html>`;
-  const w=window.open(URL.createObjectURL(new Blob([html],{type:'text/html'})),'_blank');if(!w)alert('Autorise les fenêtres pour afficher le certificat.');}
-document.getElementById('btnCertif').onclick=certificatMontre;
+  const M=id=>MATIERES[id].nom+' · '+MATIERES[id].sous,eur=x=>Math.round(x).toLocaleString('fr-FR')+' €';
+  const texte=['Demande de commande : montre Paterne personnalisée.',
+    'Référence de configuration : MT-'+an+'-'+empreinte,'',
+    'Boîtier : '+M(P.ib)+(!peutBrut(P.ib)?', entièrement poli':tranchePolie('boitier')?', tranche polie'+(P.ib==='titane'?' à la main':'')+', flancs et fond bruts':', entièrement brut'),
+    'Lunette : '+M(P.il)+', '+lm.nom+(decor?' « '+decor+' »':'')+(lm.r.finition?', finition '+fin:'')+(tranchePolie('lunette')?', tranche polie':', tranche brute'),
+    'Cadran : '+M(P.ic)+', '+cm.nom+(state.cadranFin?', poli intégral':', brut, arêtes cassées'),
+    'Index : '+idx.replace(/^Index : /,''),
+    'Fond : embossé '+lignesGravure().L.map(l=>l[0]).join(' · '),
+    'Mouvement : quartz suisse. Bracelet : cuir de pomme, boucle déployante laiton.',
+    'Pièces imprimées en '+(ORIGINES[P.origine]||ORIGINES.chine).nom+', assemblée en France.','',
+    'Prix estimé affiché : '+eur(P.PV)+' ('+P.cr+' crédits sur '+P.CR_AN+'). Délai estimé : environ '+P.dmax+' jours ouvrés.',
+    ...(commandesOuvertes()?[]:['Ouverture des commandes annoncée le '+DATE_OUVERTURE_TXT+'.'])].join('\n');
+  if(location.port==='4555'){location.href='mailto:contact@deligny-rd.fr?subject='+encodeURIComponent('Demande de commande, montre Paterne')+'&body='+encodeURIComponent(texte);return;}
+  try{sessionStorage.setItem('deligny-demande',JSON.stringify({sujet:'fabrication',texte,quand:Date.now()}));}catch(e){}
+  location.href='../contact.html?sujet=fabrication';}
+document.getElementById('btnCommande').onclick=demanderCommande;
 {const gp=document.getElementById('gravPerso');
  /* LIMITE DE FABRICATION (12/10) : la ligne libre est embossee comme le reste du fond (0,30 mm). En capitales, sans
     caractere que la police n'a pas, et jamais plus serree que 1,0 mm de hauteur de lettre (comme les autres lignes) :
@@ -4076,7 +4054,7 @@ panneauComposition();
     {id:'lunette',lib:'Lunette',vue:'trois',aide:'Catégorie, dessin et finition de la lunette, puis sa matière.',secs:[par('Lunette')]},
     {id:'boitier',lib:'Boîtier',vue:'profil',aide:'Matière du boîtier et tranches polies (boîtier et lunette, associées ou non).',secs:[par('Boîtier')]},
     {id:'fond',lib:'Fond',vue:'dos',aide:'Le texte du fond suit la configuration ; ajoute ta ligne personnelle.',secs:[par('Texte personnalisé')]},
-    {id:'prix',lib:'Prix',vue:'trois',aide:'Prix, délai et certificat de ta montre.',secs:[par('Prix et délai')]},
+    {id:'prix',lib:'Prix',vue:'trois',aide:'Prix et délai de ta montre, puis ta demande de commande.',secs:[par('Prix et délai')]},
     {id:'plus',lib:'Plus',vue:null,aide:'Idées (concierge, encyclopédie, aléatoire), configurations enregistrées, vues et fabrication.',secs:[par('Concierge'),par('Mes configurations'),par('Encyclopédie'),par('Vue'),par('Fabrication')]}];
   const nav=document.createElement('nav');nav.className='etapes';aside.prepend(nav);
   const aide=document.createElement('p');aide.className='etape-titre';nav.after(aide);
@@ -4088,9 +4066,9 @@ panneauComposition();
   aside.appendChild(res);
   let cur=0;function aller(i,cam){cur=i;ETAPES.forEach((e,j)=>{e.btn.classList.toggle('on',j===i);for(const s of e.secs)if(s)s.style.display=j===i?'':'none';});
     aide.textContent=ETAPES[i].aide;aside.scrollTop=0;
-    const sv=document.getElementById('resSuiv');sv.textContent=i<ETAPES.length-2?'Suivant : '+ETAPES[i+1].lib+' →':i===ETAPES.length-2?'Voir le certificat':'Revenir au début';
+    const sv=document.getElementById('resSuiv');sv.textContent=i<ETAPES.length-2?'Suivant : '+ETAPES[i+1].lib+' →':i===ETAPES.length-2?'Demander ma commande':'Revenir au début';
     if(cam&&ETAPES[i].vue)vueDe(ETAPES[i].vue);try{localStorage.setItem('montre-etape2',String(i));}catch(e){}}
-  document.getElementById('resSuiv').onclick=()=>{if(cur<ETAPES.length-2)aller(cur+1,true);else if(cur===ETAPES.length-2)certificatMontre();else aller(0,true);};
+  document.getElementById('resSuiv').onclick=()=>{if(cur<ETAPES.length-2)aller(cur+1,true);else if(cur===ETAPES.length-2)demanderCommande();else aller(0,true);};
   let i0=0;try{i0=Math.min(ETAPES.length-1,+(localStorage.getItem('montre-etape2')||0));}catch(e){}aller(i0,false);
   window.majResume=()=>{const P=window._prixCourant;if(!P)return;const eur=x=>Math.round(x).toLocaleString('fr-FR')+' €';
     const nc=nonCommandable();document.getElementById('resPx').firstChild.textContent=nc?'Essai':eur(P.PV);document.getElementById('resCr').textContent=nc?'pas encore commandable':!commandesOuvertes()?`commandes le ${DATE_OUVERTURE_TXT}`:`${P.cr} crédits · ~${P.dmax} jours`;};
@@ -4103,5 +4081,6 @@ if(!location.hash.includes('appliquer=')&&!location.hash.includes('ia=')){const 
   let t=0;se.onchange=()=>{state.flancs.frise=se.value;reconstruireFlancs();};rg.oninput=()=>{state.flancs.relief=+rg.value;out.textContent=(+rg.value).toFixed(2).replace('.',',');clearTimeout(t);t=setTimeout(reconstruireFlancs,250);};}
 initEncyclopedie();   // apres ORN : le catalogue decrit aussi les volumes 3D
 </script>
+<img src="https://atlas-studio.pro/deligny/api/px?page=montre-3d-studio" alt="" width="1" height="1" loading="eager">
 </body>
 </html>
