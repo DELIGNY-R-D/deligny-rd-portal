@@ -12,7 +12,7 @@
   },
   {
    "num": "31",
-   "titre": "Contrainte mesuree",
+   "titre": "Contrainte mesurée",
    "texte": "Ici la couleur n'habille pas la piece, elle la MESURE. Chaque point compare la longueur de son arete a sa longueur au repos, memorisee a la premiere image, et l'echelle va du bleu au repos au violet a l'effort maximal, en passant par le vert, le jaune, l'orange et le rouge. Le D reste bleu parce qu'il ne travaille pas ; la couronne et le G virent au magenta parce qu'ils encaissent toute la torsion. C'est la carte qu'un bureau d'etudes regarde, produite par le calcul qui fait l'animation, et non repeinte apres coup.",
    "video": "video/31-6646b5ed.mp4",
    "affiche": "video/31-6646b5ed.jpg",
@@ -52,7 +52,7 @@
   },
   {
    "num": "03",
-   "titre": "Drape",
+   "titre": "Drapé",
    "texte": "Un voile tombe librement, epouse le relief, puis une rafale l'emporte. Raide dans le plan et mou en flexion : c'est ce couple qui fait un tissu credible plutot qu'un tas.",
    "video": "video/03-63f31ec9.mp4",
    "affiche": "video/03-63f31ec9.jpg",
@@ -62,7 +62,7 @@
   },
   {
    "num": "11",
-   "titre": "Matiere fibreuse",
+   "titre": "Matière fibreuse",
    "texte": "Des milliers de brins, chacun simule comme un ressort, peignes par le vent. C'est la meme technique pour un velours, une brosse ou un tapis.",
    "video": "video/11-714ca90f.mp4",
    "affiche": "video/11-714ca90f.jpg",
@@ -82,7 +82,7 @@
   },
   {
    "num": "28",
-   "titre": "Carbone forge",
+   "titre": "Carbone forgé",
    "texte": "Le carbone forge est l'une des matieres les plus difficiles a refaire, et pour une raison precise : ce n'est pas un motif, c'est un empilement de milliers de FRAGMENTS de fibre orientes au hasard. Chacun renvoie la lumiere dans SA direction. Le peindre sur la couleur ne donne rien du tout — il faut faire varier l'orientation de la reflexion fragment par fragment. D'ou le rendu : une lumiere rasante balaie la piece, et l'on voit les eclats s'allumer les uns apres les autres selon leur inclinaison. Un eclairage de face les effacerait tous d'un coup.",
    "video": "video/28-b85a1898.mp4",
    "affiche": "video/28-b85a1898.jpg",
@@ -102,7 +102,7 @@
   },
   {
    "num": "30",
-   "titre": "Coulee de metal",
+   "titre": "Coulée de métal",
    "texte": "Du metal en fusion tombe sur la piece, la nappe, ruisselle sur ses faces et s'en va. La couleur mesure l'epaisseur du film : un rayon part de chaque point vers le haut et cherche la surface libre, donc la distance touchee EST la hauteur de matiere qui pese. Une pellicule qui glisse reste bleue, un bourrelet monte l'echelle.",
    "video": "video/30-770bebfb.mp4",
    "affiche": "video/30-770bebfb.jpg",
@@ -142,7 +142,7 @@
   },
   {
    "num": "41",
-   "titre": "Pliage de tole",
+   "titre": "Pliage de tôle",
    "texte": "Une tole pliee a EXACTEMENT la meme longueur developpee qu'a plat. C'est la premiere chose qu'apprend un plieur, c'est ce qui rend le metier calculable, et c'est ce qu'aucun rendu approximatif ne respecte : deformer une tole a peu pres l'allonge ou la raccourcit, et l'oeil le voit tout de suite parce que les bords ne tombent plus en face. La geometrie est donc calculee par une marche le long du profil, qui conserve la longueur par construction. Le rayon de pli apparait en meme temps que le pli, comme sur une presse. Seul procede froid de la serie : pas de front chaud, un inox brosse, et la lumiere qui traverse la decoupe ecrit la marque au sol.",
    "video": "video/41-2bf8ef33.mp4",
    "affiche": "video/41-2bf8ef33.jpg",
