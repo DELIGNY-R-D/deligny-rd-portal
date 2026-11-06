@@ -1,6 +1,6 @@
 <!DOCTYPE html>
 <html lang="fr" class="publique"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self' https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; media-src 'self'; style-src 'unsafe-inline'; script-src 'self'; connect-src 'self' https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Galerie 3D — Deligny R&amp;D</title>
 <meta name="description" content="Galerie 3D des œuvres DELIGNY R&D : chaque tableau en trois dimensions, sa photographie, son cartel et son certificat d'authenticité.">
@@ -103,6 +103,8 @@
   @media (max-width:860px){
     html.publique .colonne { display:block; border-right:0; overflow:visible; }
     html.publique .col-outils { border-top:0; padding:10px 16px 20px; }
+    /* la bande des œuvres défile dans sa largeur : sans cela elle élargit toute la page */
+    html.publique .colonne .liste { overflow-x:auto; overflow-y:hidden; }
   }
   /* Œil : masque tous les panneaux, le tableau seul en plein cadre. */
   #oeil { position:fixed; right:18px; bottom:18px; z-index:15; width:46px; height:46px; border-radius:50%;
@@ -188,5 +190,6 @@
 <script src="three.min.js?v=9274bbce"></script>
 <script src="OrbitControls.js?v=02bb4ade"></script>
 <script src="galerie.js?v=78e8b295"></script>
+<script src="demarche.js?v=e8dbc880"></script>
 
 </body></html>
