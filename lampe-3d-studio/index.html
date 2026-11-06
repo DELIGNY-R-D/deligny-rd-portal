@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-sRtBvDWtgIAiuEoNoMuBW2Fq31Ryxi1AnjC4XhrIBGo='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-LlXu2N0SbDYm/waIJt5D0ZiIDkvhR8GNUGt33Xn0PLY='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -1433,6 +1433,46 @@ function chargerDeco(){
  * scintilleraient — la famille de bugs qu'on vient d'éteindre. */
 /* Substituts d'affichage : le cache est indexe PAR NOMBRE DE SEGMENTS.
  * ⚠️ Un cache simple les figeait a 48 segments, quel que soit l'abat-jour. */
+/* ── LES VUES MONTRENT LE DESSIN, PAS LE SOCLE (05/11/2026) ─────────────────
+ * Demande de Baptiste, sur le rendu : « la partie en bas, tu l'enleves, et tu
+ * fermes le fond ; comme ca le dessin de profil est encore mieux respecte ».
+ * La coque 3D, l'ebauche et le rendu Blender n'affichent donc plus ni la bague
+ * ni la base d'atelier (un pied de 8,5 mm de meme teinte, qui se confondait
+ * avec l'abat-jour et faisait flotter la lampe) : l'abat-jour est ferme par un
+ * disque plat et repose sur son propre bas. LE STL DE FABRICATION NE CHANGE PAS :
+ * la vraie bague V2 y reste fusionnee, elle tient l'abat-jour sur le module LED.
+ * Remettre `true` ramene l'ancien affichage (bague + base) partout. */
+const VUES_AVEC_SOCLE = false;
+
+/* Disque plat qui ferme le bas d'une coque creuse, pour les VUES seulement.
+ * On lit le vrai bord interieur du bas dans le maillage (memes sommets, donc
+ * aucun jour entre le disque et la paroi) au lieu de le recalculer. */
+function fermerFond(tris){
+  if(!tris || !tris.length) return [];
+  let zmin = Infinity;
+  for(const t of tris) for(const v of t) if(v[2] < zmin) zmin = v[2];
+  const seuil = zmin + 0.02, vus = new Map();
+  for(const t of tris) for(const v of t){
+    if(v[2] > seuil) continue;
+    const k = v[0].toFixed(3) + '|' + v[1].toFixed(3);
+    if(!vus.has(k)) vus.set(k, [v[0], v[1]]);
+  }
+  const pts = [...vus.values()];
+  if(pts.length < 6) return [];
+  const rMin = Math.min(...pts.map(p => Math.hypot(p[0], p[1])));
+  const paroi = Math.max(0.4, +state.wall || 1.8);
+  // le bas porte deux cercles (exterieur, interieur) : on ne garde que l'interieur
+  const bord = pts.filter(p => Math.hypot(p[0], p[1]) <= rMin + paroi*0.5)
+                  .sort((p,q) => Math.atan2(p[1],p[0]) - Math.atan2(q[1],q[0]));
+  if(bord.length < 6) return [];
+  const out = [];
+  for(let i = 0; i < bord.length; i++){
+    const a = bord[i], b = bord[(i+1) % bord.length];
+    out.push([[0,0,zmin], [b[0],b[1],zmin], [a[0],a[1],zmin]]);   // normale vers le bas
+  }
+  return out;
+}
+
 let _bagueProxy = {}, _decoProxy = {};
 function bagueProxy(segments){
   /* ⚠️ MEME NOMBRE DE SEGMENTS QUE L'ABAT-JOUR, et meme phase (12/08, demande
@@ -3900,7 +3940,20 @@ const pc = $('profileCanvas'), pctx = pc.getContext('2d');
 /* b = 46 et non 26 : il faut loger la reglette horizontale (trait,
  * graduations, cotes) SOUS le dessin, sans recouvrir l'etiquette de
  * l'axe de rotation. */
-const PAD = {l:64, r:16, t:14, b:46};
+/* ── LA LAMPE A LA MEME PLACE DANS LES TROIS VUES (05/11/2026) ──────────────
+ * Demande : « aligne la lampe comme dans la demo de l'accueil ». Trois cadres
+ * de meme taille ne suffisent pas : encore faut-il que la LAMPE y tienne la meme
+ * place. Mesure sur le rendu studio de reference (cadre 464 px de haut) : pied
+ * a 87,7 % de la hauteur, sommet a 44,4 %, soit une lampe de 43,3 % pour les
+ * 171 mm de la Dune. Les deux autres vues se calent donc sur lui :
+ *   sol      = ligne de pied, en fraction de la hauteur du cadre ;
+ *   pxParMm  = pixels LOGIQUES (cadre 480x600) par millimetre, 0,433 x 600 / 171.
+ * La coupe 2D et la coque 3D lisent ces deux valeurs, le rendu Blender les
+ * a deja par son cadrage fixe : changer l'une, c'est re-mesurer l'autre. */
+const ALIGN = { sol: 0.875, pxParMm: 1.519 };
+/* PAD.b = 600 x (1 - sol) = 75 : la ligne 0 mm de la coupe tombe sur le meme
+   pied que la coque et le rendu, la regle graduee passe dessous. */
+const PAD = {l:64, r:16, t:14, b:Math.round(600 * (1 - ALIGN.sol))};
 // L'échelle de la coupe suit les bornes du TYPE de lampe : une applique (140 mm)
 // n'est pas dessinée à l'échelle d'une lampe à poser (250 mm).
 /* Axe de rotation AU CENTRE (06/08) : l'ancien axe était collé à gauche et le
@@ -3957,7 +4010,9 @@ function pDemiL(){ return (pcW()-PAD.l-PAD.r)/2; }
  * de maxH est de la marge, pas du dessin possible (pUnmapY borne a maxH). */
 function pEch(){
   const b = bounds();
-  return Math.min(pDemiL()/b.maxR, (pcH()-PAD.t-PAD.b)/b.maxH);
+  // ALIGN.pxParMm plafonne : meme grandeur que la coque 3D et le rendu. Les
+  // deux autres termes ne servent qu'a garantir que le champ permis tient.
+  return Math.min(ALIGN.pxParMm, pDemiL()/b.maxR, (pcH()-PAD.t-PAD.b)/b.maxH);
 }
 function pMapX(r){ return pAxisX() + r * pEch(); }
 function pMapY(h){ return pcH() - PAD.b - h * pEch(); }
@@ -4133,7 +4188,7 @@ function drawProfile(){
   pctx.beginPath(); pctx.moveTo(axisX,pMapY(bH)); pctx.lineTo(axisX,h-PAD.b+10); pctx.stroke();
   pctx.setLineDash([]);
   pctx.fillStyle=accA(.85); pctx.font=MONO; pctx.textAlign='center';
-  pctx.fillText('axe de rotation', axisX, h-5);
+  pctx.fillText('axe de rotation', axisX, h-PAD.b+41);
 
   // Polyligne ÉDITABLE : trait plein à droite, miroir atténué à gauche
   function pathSide(sign){
@@ -5083,9 +5138,12 @@ function buildParts(segList, mode){
         // l'export recoit la VRAIE bague V2 FUSIONNEE (elle s'imprime avec
         // l'abat-jour) ; l'ecran recoit le substitut ferme, cf. bagueProxy() ;
         // le RENDU la recoit a part, pour qu'elle puisse etre opaque.
-        if(mode === 'rendu') bagueSeparee = trianglesBaseKit();
-        else meshes[0] = meshes[0].concat(
-          mode === 'export' ? trianglesBaseKit() : bagueProxy(segments));
+        if(mode === 'export') meshes[0] = meshes[0].concat(trianglesBaseKit());
+        else if(VUES_AVEC_SOCLE){
+          if(mode === 'rendu') bagueSeparee = trianglesBaseKit();
+          else meshes[0] = meshes[0].concat(bagueProxy(segments));
+        }
+        else meshes[0] = meshes[0].concat(fermerFond(meshes[0]));   // vues : le dessin, fond ferme
       } else {
         // secours si le décodage échoue : reconstruction paramétrique, avec
         // avertissement (renderPoser) — ne pas lancer de série avec ça
@@ -5224,7 +5282,7 @@ function rebuildMesh(){
    * l'ombrage par normales, qui ne touche jamais aux positions. */
   /* La base d'atelier, à l'écran seulement : ajoutée à l'APERÇU, jamais à
    * MESH.parts — le STL téléchargé et le devis ne la voient pas. */
-  if(bagueActive()){
+  if(VUES_AVEC_SOCLE && bagueActive()){
     const dt = trianglesDeco();
     if(dt.length){
       // substitut fermé aussi en qualité — la vraie base part au rendu Blender,
@@ -5240,7 +5298,7 @@ function rebuildMesh(){
   if(trisApercu > 14000){
     const segsDraft = Array.from({length:n},(_,i)=>segFor(i,'draft'));
     MESH.draft = buildParts(segsDraft, 'draft');
-    if(bagueActive() && trianglesDeco().length){
+    if(VUES_AVEC_SOCLE && bagueActive() && trianglesDeco().length){
       MESH.draft = [...MESH.draft, { tris: decoProxy(Math.max(...segsDraft)), decor:true, label:'base (ébauche)',
         body:0, xf:{tx:0,ty:0,tz:0,rot:0,scale:1}, perfore:false }];
     }
@@ -5414,7 +5472,10 @@ function drawPreview(hq){
   const spanXY = Math.max(1, Math.max(bb.maxX-bb.minX, bb.maxY-bb.minY));
   const midZ = (bb.minZ+bb.maxZ)/2;
   const totalH = Math.max(1, (bb.maxZ-bb.minZ) + gap*Math.max(0,parts.length-1));
-  const scale = Math.min((w-70)/(spanXY*1.15), (h-70)/totalH) * 0.94 * view.zoom;
+  /* Echelle PROVISOIRE : le calage reel se fait plus bas, une fois les faces
+   * projetees, parce que la hauteur vue depend de l'elevation (on voit l'ouverture
+   * en ellipse) et qu'on ne la connait qu'apres projection. */
+  const scale = ALIGN.pxParMm * SS;
   const cx=w/2, cy=h*0.52;
   const L = {x:0.35, y:0.62, z:-0.70};                 // lumière en repère vue (z<0 = vers la caméra)
   const cols = state.bodies.map((_,i)=>hexToRgb(bodyColor(i)));
@@ -5476,6 +5537,40 @@ function drawPreview(hq){
                   body:part.body||0, tint:(part.body||0)+part.index});
     });
   });
+  /* CALAGE SUR LA REFERENCE COMMUNE (05/11/2026). On mesure la silhouette
+   * projetee, on la ramene a la hauteur que la coupe 2D donne a la meme lampe
+   * (hauteur x pxParMm), et on pose son PIED sur la ligne ALIGN.sol. Resultat :
+   * meme grandeur et meme sol que la coupe et le rendu. En zoom avant on rend
+   * la main : le sujet grandit et se recentre, comme avant. */
+  if(faces.length){
+    let haut=Infinity, bas=-Infinity, gau=Infinity, dro=-Infinity;
+    faces.forEach(f=>f.P.forEach(P=>{
+      if(P.sy<haut) haut=P.sy; if(P.sy>bas) bas=P.sy;
+      if(P.sx<gau) gau=P.sx;   if(P.sx>dro) dro=P.sx;
+    }));
+    const hs = Math.max(1, bas-haut), ws = Math.max(1, dro-gau);
+    const zRel = view.zoom / 0.8;                       // 1 = vue par defaut
+    /* Hauteur de reference : celle du PROFIL, que la coupe 2D dessine. La
+     * silhouette projetee inclut les ellipses de l'ouverture et du pied vus de
+     * dessus ; et, si VUES_AVEC_SOCLE est vrai, la base d'atelier sous la lampe
+     * (maillage de 179,5 mm pour un profil de 171 mm). Les vues n'affichent plus
+     * ce socle depuis le 05/11, mais le calage sur la hauteur du PROFIL reste le
+     * bon dans les deux cas. Caler la silhouette COMPLETE sur la
+     * hauteur du profil donne le meme sommet et le meme pied que la coupe et
+     * que le rendu de reference, mesures a 0,442 / 0,444 pour le sommet.
+     * Plusieurs corps ou vue eclatee : pas de profil unique, on garde la
+     * hauteur du maillage. */
+    const hRef = (state.compo.count <= 1 && !gap && state.profile.length > 1)
+      ? Math.max(1, ...state.profile.map(p => p.h)) : totalH;
+    let k = (hRef * ALIGN.pxParMm * SS * zRel) / hs;
+    // jamais hors cadre a la vue par defaut, quelle que soit la lampe
+    if(zRel <= 1.001) k = Math.min(k, (h*0.90)/hs, (w-24*SS)/ws);
+    faces.forEach(f=>f.P.forEach(P=>{ P.sx = cx + (P.sx-cx)*k; P.sy = cy + (P.sy-cy)*k; }));
+    const haut2 = cy + (haut-cy)*k, bas2 = cy + (bas-cy)*k;
+    const t = Math.max(0, Math.min(1, (zRel-1)/0.6));    // 0 = pied cale, 1 = centre
+    const dy = (1-t)*(h*ALIGN.sol - bas2) + t*(h*0.52 - (haut2+bas2)/2);
+    if(dy) faces.forEach(f=>f.P.forEach(P=>{ P.sy += dy; }));
+  }
   faces.sort((f1,f2)=>f2.depth-f1.depth);
 
   if(hq && faces.length){
@@ -5674,7 +5769,7 @@ function sceneFaces(W, H){
    * une bande de quelques pixels. Un objet posé sur RIEN ne lit pas comme une
    * photo. On lui laisse de l'air : 62 % de la hauteur, centrée à 52 %, ce qui
    * dégage ~19 % de table sous elle et autant de mur au-dessus. */
-  const scale = Math.min((W*0.78)/spanXY, (H*0.62)/totalH);
+  let scale = Math.min((W*0.78)/spanXY, (H*0.62)/totalH);
   const cx = W/2, cy = H*0.52, midZ = (bb.minZ+bb.maxZ)/2;
   const faces = [];
   let groundY = -1e9, footR = 0;
@@ -5698,14 +5793,33 @@ function sceneFaces(W, H){
       faces.push({P, n:{x:N.x,y:N.y,z:N.depth}, depth:(P[0].depth+P[1].depth+P[2].depth)/3, body:part.body||0});
     }
   });
+  /* CALAGE SUR LA REFERENCE COMMUNE (05/11/2026), comme la coque 3D : meme
+   * hauteur que la coupe 2D (hauteur du profil x pxParMm, ramenee a la taille du
+   * canevas), pied sur ALIGN.sol. Sans cela l'apercu immediat posait la lampe
+   * ailleurs que le rendu Blender, et elle SAUTAIT quand l'image arrivait. */
+  if(faces.length){
+    let haut=Infinity, bas=-Infinity, gau=Infinity, dro=-Infinity;
+    for(const f of faces) for(const q of f.P){
+      if(q.sy<haut) haut=q.sy; if(q.sy>bas) bas=q.sy;
+      if(q.sx<gau) gau=q.sx;   if(q.sx>dro) dro=q.sx;
+    }
+    const hs = Math.max(1, bas-haut), ws = Math.max(1, dro-gau);
+    const hRef = (state.compo.count <= 1 && state.profile.length > 1)
+      ? Math.max(1, ...state.profile.map(q => q.h)) : totalH;
+    const k = Math.min((hRef * ALIGN.pxParMm * (H/600)) / hs, (H*0.90)/hs, (W-24)/ws);
+    for(const f of faces) for(const q of f.P){ q.sx = cx + (q.sx-cx)*k; q.sy = cy + (q.sy-cy)*k; }
+    groundY = cy + (groundY-cy)*k;
+    footR *= k;
+    scale *= k;
+  }
   faces.sort((f1,f2)=>f2.depth-f1.depth);
-  /* On RECALE la ligne de sol à 80 % de la hauteur, au lieu d'espérer qu'elle
-   * y tombe. La projection est en perspective : le point le plus bas ne se
+  /* On RECALE la ligne de sol sur ALIGN.sol (0,875 de la hauteur ; c'etait 80 %
+   * avant le 05/11), au lieu d'esperer qu'elle y tombe. La projection est en perspective : le point le plus bas ne se
    * déduit pas de la boîte englobante, il faut l'avoir projeté pour le savoir.
    * Un décalage vertical après coup coûte une passe et garantit le même
    * cadrage pour toutes les formes — la table est toujours là, la lampe est
    * toujours posée. */
-  const cible = H*0.80, dy = cible - groundY;
+  const cible = H*ALIGN.sol, dy = cible - groundY;
   if(isFinite(dy) && Math.abs(dy) > 0.5){
     for(const f of faces) for(const p of f.P) p.sy += dy;
     groundY = cible;
@@ -6108,7 +6222,7 @@ async function rendreBlender(live, sigAttendue){
     const nCorps = Math.max(1, state.compo.count);
     const partsRendu = buildParts(
       Array.from({length:nCorps}, (_,i)=>segFor(i,'rendu')), 'rendu');
-    const avecDeco = bagueActive() ? [...partsRendu, { tris: trianglesDeco(), label:'base atelier (rendu seulement)', xf:{tx:0,ty:0,tz:0,rot:0,scale:1} }] : partsRendu;
+    const avecDeco = (VUES_AVEC_SOCLE && bagueActive()) ? [...partsRendu, { tris: trianglesDeco(), label:'base atelier (rendu seulement)', xf:{tx:0,ty:0,tz:0,rot:0,scale:1} }] : partsRendu;
     /* L'index doit etre calcule sur la liste REELLEMENT ENVOYEE : le filtre
      * ci-dessous ecarte les pieces vides, donc un index pris sur `avecDeco`
      * designerait le mauvais module des qu'une piece est vide. */
