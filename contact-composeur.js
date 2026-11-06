@@ -39,12 +39,12 @@
     { id: 'logiciel',    titre: 'Un logiciel sur mesure',          objet: 'Projet logiciel' },
     { id: 'saas',        titre: 'Atlas en abonnement',             objet: 'Abonnement Atlas Studio Pro' },
     { id: 'site',        titre: 'Un site internet',                objet: 'Site internet' },
-    { id: 'heberge',     titre: 'Heberger ou infogerer',           objet: 'Hebergement' },
-    { id: 'agent',       titre: 'Automatiser des taches',          objet: 'Agent AI et automatisation' },
+    { id: 'heberge',     titre: 'Héberger ou infogérer',           objet: 'Hébergement' },
+    { id: 'agent',       titre: 'Automatiser des tâches',          objet: 'Agent AI et automatisation' },
     { id: 'fabrication', titre: 'Concevoir ou fabriquer un objet', objet: 'Conception et fabrication' },
     { id: 'autre',       titre: 'Autre chose',                     objet: 'Prise de contact' },
   ];
-  var DELAIS = ['Des que possible', 'Dans le mois', 'Ce trimestre', 'Pas encore fixe'];
+  var DELAIS = ['Dès que possible', 'Dans le mois', 'Ce trimestre', 'Pas encore fixé'];
 
   var choix = { sujet: null, delai: null };
 
@@ -83,7 +83,7 @@
 
   // ── Construction ──────────────────────────────────────────────────────
   hote.appendChild(ligne('Je viens pour', SUJETS, 'sujet'));
-  hote.appendChild(ligne('Echeance', DELAIS, 'delai'));
+  hote.appendChild(ligne('Échéance', DELAIS, 'delai'));
 
   var champ = document.createElement('textarea');
   champ.className = 'cp-texte';
@@ -97,7 +97,7 @@
   courriel.type = 'email';
   courriel.className = 'cp-courriel';
   courriel.autocomplete = 'email';
-  courriel.placeholder = 'Votre adresse, pour la reponse';
+  courriel.placeholder = 'Votre adresse, pour la réponse';
   courriel.setAttribute('aria-label', 'Votre adresse de courriel');
   hote.appendChild(courriel);
 
@@ -140,7 +140,7 @@
 
   var note = document.createElement('p');
   note.className = 'cp-note';
-  note.textContent = 'Le message part vers l’atelier et vous recevez la reponse a l’adresse donnee. Aucun compte, aucun mouchard : la mesure d’audience est decrite dans les mentions legales.';
+  note.textContent = 'Le message part vers l’atelier et vous recevez la réponse à l’adresse donnée. Aucun compte, aucun mouchard : la mesure d’audience est décrite dans les mentions légales.';
   hote.appendChild(note);
 
   // Un robot remplit un formulaire en moins d'une seconde : on retient l'heure
@@ -157,16 +157,16 @@
       'Bonjour,',
       '',
       (choix.mode === 'devis'
-        ? 'Demande : un devis personnalise pour ' + choix.sujet.titre.toLowerCase() + '.'
+        ? 'Demande : un devis personnalisé pour ' + choix.sujet.titre.toLowerCase() + '.'
         : choix.mode === 'offre'
-          ? 'Demande : l\'offre « ' + choix.sujet.titre + ' », telle que presentee sur le site.'
+          ? 'Demande : l\'offre « ' + choix.sujet.titre + ' », telle que présentée sur le site.'
           : 'Demande : ' + choix.sujet.titre + '.'),
-      'Echeance : ' + (choix.delai || 'a preciser') + '.',
+      'Échéance : ' + (choix.delai || 'à préciser') + '.',
       '',
-      (champ.value.trim() || '[decrivez votre besoin en deux phrases]'),
+      (champ.value.trim() || '[décrivez votre besoin en deux phrases]'),
       '',
       '—',
-      'Envoye depuis deligny-rd.fr/contact.html',
+      'Envoyé depuis deligny-rd.fr/contact.html',
     ].join('\n');
 
     lienMail.href = 'mailto:contact@deligny-rd.fr'
@@ -237,13 +237,13 @@
     if (envoyer.getAttribute('aria-disabled') === 'true') {
       // Sans sujet choisi il n'y a rien a envoyer : on montre ou ca manque au
       // lieu de laisser un clic sans effet.
-      montre('Choisissez d’abord ce qui vous amene.', 'ko');
+      montre('Choisissez d’abord ce qui vous amène.', 'ko');
       signaleManque(0);
       return;
     }
     var adresse = courriel.value.trim();
     if (adresse.indexOf('@') < 1 || adresse.indexOf('.', adresse.indexOf('@')) < 0) {
-      montre('Il manque votre adresse de courriel, sans quoi la reponse ne peut pas vous arriver.', 'ko');
+      montre('Il manque votre adresse de courriel, sans quoi la réponse ne peut pas vous arriver.', 'ko');
       courriel.focus();
       return;
     }
@@ -273,7 +273,7 @@
       return r.json().then(function (j) { return { code: r.status, corps: j }; });
     }).then(function (rep) {
       if (rep.code === 200 && rep.corps && rep.corps.ok) {
-        montre(rep.corps.message || 'Message recu.', rep.corps.notifie === false ? 'ko' : 'ok');
+        montre(rep.corps.message || 'Message reçu.', rep.corps.notifie === false ? 'ko' : 'ok');
         if (rep.corps.notifie !== false) {
           champ.value = '';
           majEtat();
@@ -281,12 +281,12 @@
         return;
       }
       // Un refus explique se dit tel quel : le visiteur peut corriger.
-      montre((rep.corps && rep.corps.error) || 'Envoi refuse.', 'ko');
+      montre((rep.corps && rep.corps.error) || 'Envoi refusé.', 'ko');
       envoyer.disabled = false;
     }).catch(function () {
       // Reseau coupe, API arretee : plutot que de perdre le message, on renvoie
       // le visiteur vers le mailto deja redige, qui ne depend de personne.
-      montre('L’envoi n’a pas abouti. Le lien « ou l’ouvrir dans mon logiciel de courriel » contient deja votre message.', 'ko');
+      montre('L’envoi n’a pas abouti. Le lien « ou l’ouvrir dans mon logiciel de courriel » contient déjà votre message.', 'ko');
       envoyer.disabled = false;
     });
   });

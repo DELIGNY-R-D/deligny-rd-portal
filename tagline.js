@@ -9,14 +9,14 @@
   if(!el) return;
 
   var taglines = [
-    "Imaginer. Experimenter. Construire.",
-    "De l'idee au reel.",
+    "Imaginer. Expérimenter. Construire.",
+    "De l'idée au réel.",
     "Inventer ce qui manque.",
     "Explorer. Concevoir. Fabriquer.",
-    "Des idees aux systemes.",
+    "Des idées aux systèmes.",
     "Concevoir autrement.",
-    "Transformer l'intuition en realite.",
-    "Entre recherche et creation."
+    "Transformer l'intuition en réalité.",
+    "Entre recherche et création."
   ];
 
   var hourNumber = Math.floor(Date.now() / 3600000);
