@@ -2477,3 +2477,29 @@ body.accueil .section-lead,
 body.accueil .tool-widget-head {
   max-width: none;
 }
+
+/* PARAGRAPHES RECTANGULAIRES, 07/11 (Baptiste : « les paragraphes doivent
+   etre les plus rectangulaires possible, droits des deux cotes, cette logique
+   partout »). Justification sur tout le texte courant du site, SANS cesure
+   (decision du 04/11 maintenue : mots entiers) ; la derniere ligne reste au
+   fer a gauche. Les paragraphes centres des bandeaux gardent leur derniere
+   ligne centree. */
+main p,
+main li,
+.footer p {
+  text-align: justify;
+  text-align-last: start;
+  text-wrap: pretty;
+  hyphens: manual;
+  -webkit-hyphens: manual;
+}
+.hero:not(#desk) p {
+  text-align-last: center;
+}
+main p.eyebrow,
+main figcaption p,
+main .btn,
+main .tag {
+  text-align: start;
+  text-align-last: auto;
+}
