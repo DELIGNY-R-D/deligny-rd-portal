@@ -539,6 +539,12 @@ h3 {
   line-height: 1.6;
 }
 
+/* Plusieurs paragraphes d'introduction a la suite (accueil, Simulation 3D,
+   07/11) : chacun porte le retrait negatif du premier, on les resserre. */
+.section-lead + .section-lead {
+  margin-top: -18px;
+}
+
 .showcase-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
