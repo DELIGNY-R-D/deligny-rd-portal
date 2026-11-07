@@ -2451,3 +2451,14 @@ a.lg-carte:focus-visible {
   .ct-portrait { width: min(100%, 300px); }
   .ct-president .eyebrow { justify-content: center; }
 }
+
+/* ACCUEIL, 07/11 (Baptiste : « tous les textes de l'accueil doivent continuer
+   jusqu'au bord à droite ») : aucune largeur plafonnée sur les paragraphes de
+   l'accueil, ils occupent toute la colonne. Fer a gauche, pas de justification
+   ni de cesure. Porte sur body.accueil : les autres pages gardent leurs
+   colonnes de lecture. */
+body.accueil .lead,
+body.accueil .section-lead,
+body.accueil .tool-widget-head {
+  max-width: none;
+}
