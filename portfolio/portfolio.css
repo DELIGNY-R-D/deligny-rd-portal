@@ -654,3 +654,19 @@ main {
 }
 
 
+
+/* 07/11 (Baptiste, Rotary brush : « ajuste les images pour qu'elles soient de
+   la meme taille et alignees ») : les photos d'une meme planche n'ont pas
+   toutes le meme rapport (0,73 a 0,80 sur Rotary brush). En grille, chaque
+   tuile prend donc un rapport fixe et la photo le remplit (recadrage de
+   quelques pour cent sur les bords, centre). Portrait 3/4 ou paysage 3/2
+   selon la planche ; les planches qui melangent les deux (Moaroom, La
+   Factory, Stepdrive) et le flux en colonnes (Affiches) ne sont pas touches. */
+.pf-gallery--portrait img {
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+}
+.pf-gallery--paysage img {
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+}
