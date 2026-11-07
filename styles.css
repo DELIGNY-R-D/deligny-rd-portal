@@ -2380,6 +2380,21 @@ a.lg-carte:focus-visible {
 
 /* Accueil : renvoi vers la page logiciels sous le dernier studio (02/11). */
 .lg-tous { margin-top: clamp(22px, 3vw, 34px); padding-top: clamp(22px, 3vw, 34px); border-top: 1px solid var(--line); }
+/* 07/11 (Baptiste, iPhone) : le bouton « Voir tous les logiciels » en violet et
+   plus grand, et moins de vide entre lui et la section Simulation 3D : la
+   section Logiciels ne garde que 40 px sous le bouton au lieu de 96. */
+.lg-tous .btn-primary {
+  min-height: 54px;
+  padding: 0 28px;
+  border-color: var(--purple);
+  background: var(--purple);
+  font-size: 17px;
+}
+.lg-tous .btn-primary:hover {
+  border-color: var(--purple-2);
+  background: var(--purple-2);
+}
+#logiciels { padding-bottom: 40px; }
 
 /* Simulation 3D sur l'accueil (05/11) : memes cartes carrees que le portfolio,
    mais la numerotation repart a 01 au lieu de continuer celle des planches. */
