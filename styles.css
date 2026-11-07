@@ -1218,7 +1218,24 @@ img.app-banner {
     width: 100%;
     flex-wrap: nowrap;
     overflow-x: auto;
-    gap: 18px;
+    gap: 0;
+  }
+
+  /* L'ecart se porte sur les entrees visibles, pas sur le gap du ruban :
+     la boite interne d'un <details> ferme compte comme un item de flex
+     (largeur 0) et touchait un gap de plus par menu. */
+  .nav > a,
+  .nav-dropdown-toggle {
+    margin-right: 14px;
+  }
+  .nav > a:last-child {
+    margin-right: 0;
+  }
+
+  /* Les separateurs verticaux doublaient l'ecart (gap de chaque cote) :
+     sur un telephone les cinq entrees doivent tenir sur une ligne (07/11). */
+  .nav-sep {
+    display: none;
   }
 
   /* Le ruban mobile defile deja horizontalement (overflow-x) : un menu
@@ -2502,4 +2519,22 @@ main .btn,
 main .tag {
   text-align: start;
   text-align-last: auto;
+}
+
+/* Colonne etroite (telephone) : sans cesure, la justification creuse des
+   trous entre les mots. La coupure automatique des mots (dictionnaire
+   francais du navigateur, lang="fr") est alors autorisee, limitee aux mots
+   de 8 lettres et plus, jamais dans les deux dernieres lignes serrees. */
+@media (max-width: 640px) {
+  main p,
+  main li,
+  .footer p {
+    hyphens: auto;
+    -webkit-hyphens: auto;
+    hyphenate-limit-chars: 8 4 3;
+    -webkit-hyphenate-limit-before: 4;
+    -webkit-hyphenate-limit-after: 3;
+    hyphenate-limit-lines: 2;
+    -webkit-hyphenate-limit-lines: 2;
+  }
 }
