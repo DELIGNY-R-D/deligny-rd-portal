@@ -671,37 +671,3 @@ main {
   object-fit: cover;
 }
 
-/* 08/11 (Baptiste : « rajoute une partie biographie ») : chapitre
-   Biographie place entre les planches d'art et les metiers. Texte courant en
-   deux colonnes sur grand ecran, une seule sous 860 px. */
-.pf-bio {
-  max-width: 1180px;
-  margin: clamp(40px, 6vw, 72px) auto 0;
-  padding: 0 22px;
-}
-.pf-bio .eyebrow { margin: 0 0 10px; }
-.pf-bio-sous {
-  margin: 10px 0 0;
-  font-size: 14px;
-  letter-spacing: .04em;
-  color: var(--ink-dim);
-}
-.pf-bio-texte {
-  margin-top: clamp(22px, 3vw, 34px);
-  columns: 2;
-  column-gap: clamp(28px, 4vw, 56px);
-}
-.pf-bio-texte p {
-  margin: 0 0 16px;
-  font-size: 15.5px;
-  line-height: 1.62;
-  color: var(--ink-dim);
-  break-inside: avoid;
-}
-.pf-bio-texte p:first-child {
-  font-size: clamp(16px, 1.6vw, 18.5px);
-  color: var(--ink);
-}
-@media (max-width: 860px) {
-  .pf-bio-texte { columns: 1; }
-}

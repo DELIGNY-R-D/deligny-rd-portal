@@ -2538,3 +2538,23 @@ main .tag {
     -webkit-hyphenate-limit-lines: 2;
   }
 }
+
+/* 08/11 (Baptiste) : biographie complete sous « Votre interlocuteur » sur la
+   page Contact, repliee derriere « En savoir plus » (details natif, sans
+   script), dans la colonne de texte, sous le portrait a droite. */
+.ct-bio {
+  margin-top: 22px;
+}
+.ct-bio > summary {
+  display: inline-flex;
+  list-style: none;
+  cursor: pointer;
+}
+.ct-bio > summary::-webkit-details-marker { display: none; }
+.ct-bio[open] > summary { display: none; }
+.ct-bio-texte p {
+  margin: 0 0 16px;
+  color: var(--ink-dim);
+}
+.ct-bio-texte p:first-child { color: var(--ink); }
+.ct-bio-texte strong { color: var(--ink); font-weight: 600; }
