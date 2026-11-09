@@ -674,3 +674,10 @@ main {
   object-fit: cover;
 }
 
+
+/* K1 : le mecanisme partage le cadre 3:4 de la photo voisine. */
+.pf-gallery video.pf-video--k1-mecanisme {
+  aspect-ratio: 3 / 4;
+  object-fit: cover;
+  object-position: center top;
+}
