@@ -608,6 +608,9 @@ main {
 }
 
 .pf-metier li {
+  text-align: start;
+  text-align-last: auto;
+  word-spacing: normal;
   padding: 8px 0;
   border-top: 1px solid var(--line);
   font-size: 15px;
