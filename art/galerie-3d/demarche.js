@@ -102,6 +102,7 @@
 
     + '<section><h3>En atelier</h3>'
     + '<div class="dm-videos">'
+    + video("tableau-stop-motion", "Le règne des signaux discordants : les étapes de création", 720, 1280)
     + video("pochoir", "Découpe, pochoirs et aérographe", 720, 960)
     + video("encres", "Les encres au travail", 720, 900)
     + '</div></section>'
