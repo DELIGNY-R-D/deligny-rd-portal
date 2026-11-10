@@ -53,6 +53,10 @@
     "#dmPanneau section{margin-top:34px;padding-top:22px;border-top:1px solid var(--line)}",
     "#dmPanneau h3{font-size:10.5px;letter-spacing:.2em;text-transform:uppercase;color:var(--accent);",
     "font-weight:500;margin-bottom:12px}",
+    "#dmPanneau h4{font-size:13px;letter-spacing:.08em;color:var(--accent);margin-bottom:12px}",
+    "#dmPanneau .dm-detail{border-top:0;padding-top:0;margin-top:26px}",
+    "#dmPanneau .dm-liste{padding-left:20px;margin-top:14px;font-size:14px;line-height:1.65}",
+    "#dmPanneau .dm-liste li+li{margin-top:12px}",
     "#dmPanneau .dm-fiche{display:inline-block;margin-top:12px;font-size:11.5px;letter-spacing:.04em;color:var(--accent)}",
     "#dmPanneau .dm-photos{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:18px}",
     "#dmPanneau .dm-photos img,#dmPanneau video{display:block;width:100%;height:auto;border:1px solid var(--line);",
@@ -96,18 +100,16 @@
   var contenu =
     '<div class="dm-tete"><div><div class="dm-rang">Tableaux</div><h2 id="dmTitre">La démarche</h2></div>'
     + '<button type="button" id="dmFermer">Fermer</button></div>'
-    + '<p class="dm-chapeau">Œuvres originales réalisées à la main, au format raisin (50\u00a0×\u00a065\u00a0cm), à l\'encre.</p>'
-    + '<p>Chaque composition est créée à l\'aide d\'un pinceau rotatif et d\'une palette à encres sur mesure, '
-    + 'deux outils développés au sein de l\'atelier pour expérimenter de nouvelles techniques picturales.</p>'
+    + "<p class=\"dm-chapeau\">À la rencontre de l’art, du design et de l’ingénierie.</p><p>DELIGNY R&amp;D explore de nouvelles formes d’expression artistique en associant création manuelle, expérimentation mécanique et technologies numériques.</p><p>Cette démarche s’articule autour de trois dimensions complémentaires : <strong>la création d’œuvres originales, la performance artistique et la valorisation numérique des œuvres.</strong></p><section><h3>01 · Les œuvres et le processus créatif</h3><p>Les tableaux sont des pièces uniques réalisées à la main, au format raisin (50 × 65 cm), à l’encre et selon différentes techniques mixtes.</p><p>Chaque composition naît d’un dialogue entre le geste artistique, la matière et le mouvement.</p><p>Le processus repose notamment sur des outils développés au sein de l’atelier : un <strong>pinceau rotatif équipé d’un roulement à billes</strong>, une <strong>palette à encres sur mesure</strong>, ainsi que l’utilisation de pochoirs, de découpes et d’autres procédés expérimentaux.</p><p>Cette approche permet d’explorer des textures, des compositions et des effets graphiques singuliers, à la frontière entre création spontanée et maîtrise technique.</p>"
 
-    + '<section><h3>En atelier</h3>'
+    + '<section class="dm-detail"><h4>En atelier</h4>'
     + '<div class="dm-videos">'
     + video("tableau-stop-motion", "Le règne des signaux discordants : les étapes de création", 720, 1280)
     + video("pochoir", "Découpe, pochoirs et aérographe", 720, 960)
     + video("encres", "Les encres au travail", 720, 900)
     + '</div></section>'
 
-    + '<section><h3>Le pinceau rotatif</h3>'
+    + '<section class="dm-detail"><h4>Le pinceau rotatif</h4>'
     + '<p>Un pinceau équipé d\'un roulement à billes, qui procure un confort et une douceur d\'utilisation inégalés. '
     + 'Pensé pour le travail à l\'encre, cet outil de création offre une expérience unique : une légère inclinaison '
     + 'suffit à maîtriser le mouvement du pinceau avec précision.</p>'
@@ -120,7 +122,7 @@
     + '</div>'
     + '<a class="dm-fiche" href="../../portfolio/Rotary-brush.html">La fiche du pinceau →</a></section>'
 
-    + '<section><h3>La palette à encres</h3>'
+    + '<section class="dm-detail"><h4>La palette à encres</h4>'
     + '<p>J\'ai conçu cette palette pour préparer et mélanger des encres indélébiles. Elle permet de garder les '
     + 'couleurs séparées et de rincer soigneusement les pinceaux avant de changer de teinte.</p>'
     + '<p>Les deux dernières images montrent des tableaux réalisés avec ces encres.</p>'
@@ -132,10 +134,7 @@
     + '</div>'
     + '<a class="dm-fiche" href="../../portfolio/Palette-a-encres.html">La fiche de la palette →</a></section>'
 
-    + '<section><p>Les œuvres sont présentées dans une galerie virtuelle en 3D, avec leur certificat d\'authenticité '
-    + 'et un espace dédié à l\'achat et à la vente.</p>'
-    + '<div class="dm-liens"><button type="button" id="dmRetour">Voir la galerie</button>'
-    + '<a href="../achat-vente/">Achat / Vente</a></div></section>';
+    + "</section><section><h3>02 · Les performances artistiques</h3><p>La démarche peut également prendre la forme de <strong>performances artistiques en direct</strong>, organisées lors d’expositions, de vernissages ou d’événements culturels.</p><p>Le public découvre la réalisation d’une œuvre, les outils spécialement conçus pour cette pratique et les différentes étapes du processus créatif.</p><p>Ces interventions offrent aux galeries une dimension événementielle supplémentaire, favorisant les échanges entre l’artiste, les visiteurs et les collectionneurs.</p></section><section><h3>03 · Le passeport numérique et l’authentification</h3><p>Les œuvres bénéficient d’un <strong>passeport numérique authentifié</strong>, accessible par QR code, ou par NFC selon l’équipement de l’œuvre, associé à un espace de présentation en ligne.</p><p>Ce dispositif réunit, au sein d’une fiche numérique évolutive et selon les contenus renseignés :</p><ul class=\"dm-liste\"><li><strong>Identité et authenticité :</strong> certificat, identifiant unique, signature numérique et informations de provenance.</li><li><strong>Présentation artistique :</strong> histoire de l’œuvre, démarche créative, inspirations et symbolique.</li><li><strong>Documentation technique :</strong> dimensions, matériaux, procédés de création et particularités.</li><li><strong>Archives multimédias :</strong> photographies, vidéos, croquis, documents et fichiers 3D associés à l’œuvre.</li><li><strong>Traçabilité :</strong> historique des expositions, ventes et changements de propriétaire, selon les informations disponibles.</li></ul><p>Une <strong>galerie virtuelle en 3D</strong> complète cette expérience en proposant un espace immersif de découverte des œuvres, associé à un espace d’achat et de vente.</p></section><section><h3>04 · Collaborations avec les galeries</h3><p>Au-delà de la présentation de ses propres créations, DELIGNY R&amp;D propose aux galeries différentes possibilités de collaboration :</p><ul class=\"dm-liste\"><li><strong>Expositions :</strong> présentation de tableaux originaux, accompagnés éventuellement d’affiches numériques en tirages limités et d’objets de design.</li><li><strong>Événements et performances :</strong> réalisation d’œuvres en direct et rencontres autour des techniques de création.</li><li><strong>Valorisation des collections :</strong> intégration de passeports numériques authentifiés pour documenter, présenter et accompagner les œuvres d’autres artistes.</li><li><strong>Expériences numériques :</strong> présentation immersive des œuvres, enrichissement des contenus et prolongement de l’expérience au-delà de l’espace physique.</li></ul><p>L’ambition est de créer des passerelles durables entre artistes, galeries et collectionneurs, en associant <strong>l’expérience sensible de l’œuvre physique aux possibilités offertes par le numérique.</strong></p><div class=\"dm-liens\"><a href=\"../../contact.html\">Parlons d’une collaboration</a></div></section><section><h3>Découvrir l’univers DELIGNY R&amp;D</h3><div class=\"dm-liens\"><button type=\"button\" id=\"dmRetour\">Galerie virtuelle 3D</button><a href=\"../achat-vente/\">Achat / Vente</a><a href=\"../../portfolio/index.html\">Portfolio</a><a href=\"../../portfolio/Affiches.html\">Affiches</a></div></section>";
 
   document.body.appendChild(bouton);
   document.body.appendChild(voile);
