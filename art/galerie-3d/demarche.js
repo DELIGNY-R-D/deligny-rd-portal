@@ -168,7 +168,12 @@
     }, { root: panneau, threshold: 0.5 });
     Array.prototype.forEach.call(panneau.querySelectorAll("video"), function (v) { veille.observe(v); });
   }
-  function basculer(on) {
+  var hashGalerie = location.hash === "#demarche" ? "" : location.hash;
+  function basculer(on, depuisAdresse) {
+    if (!depuisAdresse) {
+      if (on && location.hash !== "#demarche") hashGalerie = location.hash;
+      history.pushState(null, "", location.pathname + location.search + (on ? "#demarche" : hashGalerie));
+    }
     panneau.classList.toggle("ouvert", on);
     voile.classList.toggle("ouvert", on);
     bouton.setAttribute("aria-expanded", on ? "true" : "false");
@@ -186,6 +191,10 @@
       bouton.focus();
     }
   }
+  function suivreAdresse() { basculer(location.hash === "#demarche", true); }
+  addEventListener("popstate", suivreAdresse);
+  addEventListener("hashchange", suivreAdresse);
+  if (location.hash === "#demarche") basculer(true, true);
   bouton.addEventListener("click", function () { basculer(!ouvert()); });
   voile.addEventListener("click", function () { basculer(false); });
   // Chaque toucher dans le panneau relance les vidéos visibles qui n'ont jamais pu démarrer.
