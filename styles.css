@@ -1183,6 +1183,16 @@ img.app-banner {
   font-size: 12px;
   font-weight: 600;
   letter-spacing: -0.005em;
+  /* 11/11 : le badge est un lien vers souverainete.html (ce qu'il engage). */
+  text-decoration: none;
+  transition: transform .15s ease, box-shadow .15s ease;
+}
+
+a.sovereign-badge:hover,
+a.sovereign-badge:focus-visible {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.12);
+  color: var(--ink);
 }
 
 .sovereign-badge .flags {
