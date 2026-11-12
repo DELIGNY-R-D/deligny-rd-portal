@@ -53,7 +53,12 @@ def git(*args):
 
 
 def pages():
-    for p in git("ls-files", "*.html").split():
+    # 12/11 : --others --exclude-standard ajoute les pages NOUVELLES pas encore
+    # committees. publie.sh genere le sitemap AVANT de committer : sans cela,
+    # souverainete.html (11/11) puis Patron-parametrique.html (12/11) ont
+    # manque au sitemap et il a fallu une seconde publication a chaque fois.
+    for p in git("ls-files", "--cached", "--others", "--exclude-standard",
+                 "*.html").split():
         if p.startswith("deploy/"):
             continue
         yield p
