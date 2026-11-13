@@ -29,7 +29,7 @@
   <meta property="og:image" content="https://deligny-rd.fr/img/og-image.jpg" />
   <meta property="og:url" content="https://deligny-rd.fr/" />
   <meta name="twitter:card" content="summary_large_image" />
-  <link rel="stylesheet" href="styles.css?v=0184f0be" />
+  <link rel="stylesheet" href="styles.css?v=25f194c0" />
   <link rel="stylesheet" href="portfolio/portfolio.css?v=e556b390">
   <link rel="stylesheet" href="lampe-embed.css?v=ac0adb41" />
 <!-- HUB:citable-substrate:start -->
@@ -164,12 +164,26 @@
           <label for="atlas-view-bureau">Bureau</label>
           <label for="atlas-view-normale">Vue normale</label>
         </div>
-        <div class="atlas-embed atlas-embed-bureau">
-          <!-- Pas de loading="lazy" ici : ce cadre est en display:none jusqu'au clic sur « Bureau », et Chrome ne charge jamais un cadre differe qui etait masque au depart (constat 02/11 : cadre vide, aucune requete). -->
-          <iframe src="https://atlas-studio.pro/desktop/desktop.html" title="Atlas Studio Pro, affichage Bureau (Chaises Lenoir, données fictives)"></iframe>
+        <!-- 13/11 : les deux cadres partent A L'APPROCHE (demos-a-l-approche.js), plus au chargement de la page.
+             Mesure du 13/11 sur la page servie : le Bureau (application complete, 27 scripts) se chargeait pour tout le
+             monde dans un cadre masque, et la vue normale des 900 px ; sur telephone les deux tournaient derriere le
+             logo interactif. Le cadre Bureau est en display:none : l'observateur ne le voit qu'une fois « Bureau » choisi,
+             c'est exactement le moment voulu. Sur telephone : affiche + ouverture en plein ecran, comme la montre. -->
+        <div class="atlas-embed atlas-embed-bureau"
+             data-demo-src="https://atlas-studio.pro/desktop/desktop.html"
+             data-demo-affiche="img/screenshots/atlas-bureau-20261105b.jpg"
+             data-demo-affiche-texte="Ouvrir le Bureau en plein écran &rarr;"
+             data-demo-titre="Atlas Studio Pro, affichage Bureau (Chaises Lenoir, données fictives)"
+             data-demo-attente="Chargement du Bureau Atlas Studio Pro…">
+          <noscript><a class="btn btn-primary" href="https://atlas-studio.pro/desktop/desktop.html">Ouvrir le Bureau &rarr;</a></noscript>
         </div>
-        <div class="atlas-embed atlas-embed-normale">
-          <iframe src="https://atlas-studio.pro/demo-vue-normale.html" title="Atlas Studio Pro, vue normale (Chaises Lenoir, données fictives)" loading="lazy"></iframe>
+        <div class="atlas-embed atlas-embed-normale"
+             data-demo-src="https://atlas-studio.pro/demo-vue-normale.html"
+             data-demo-affiche="img/screenshots/atlas-vue-normale-20261105b.jpg"
+             data-demo-affiche-texte="Essayer Atlas Studio Pro en plein écran &rarr;"
+             data-demo-titre="Atlas Studio Pro, vue normale (Chaises Lenoir, données fictives)"
+             data-demo-attente="Chargement de la démonstration Atlas Studio Pro…">
+          <noscript><a class="btn btn-primary" href="https://atlas-studio.pro/demo-vue-normale.html">Essayer la vue normale &rarr;</a></noscript>
         </div>
         <div class="tool-widget-actions">
           <a class="btn btn-primary" href="https://atlas-studio.pro">Découvrir Atlas Studio Pro &rarr;</a>
@@ -755,7 +769,7 @@
   </footer>
 <a class="sovereign-badge" href="souverainete.html" title="Ce que ce badge engage"><span class="flags"><svg class="flag-icon" viewBox="0 0 3 2" width="18" height="12" role="img" aria-label="France"><rect width="1" height="2" fill="#0055A4"/><rect x="1" width="1" height="2" fill="#fff"/><rect x="2" width="1" height="2" fill="#EF4135"/></svg><svg class="flag-icon" viewBox="0 0 3 2" width="18" height="12" role="img" aria-label="Union européenne"><rect width="3" height="2" fill="#003399"/><g fill="#FFCC00"><circle cx="1.5" cy="0.35" r="0.09"/><circle cx="1.825" cy="0.437" r="0.09"/><circle cx="2.063" cy="0.675" r="0.09"/><circle cx="2.15" cy="1.0" r="0.09"/><circle cx="2.063" cy="1.325" r="0.09"/><circle cx="1.825" cy="1.563" r="0.09"/><circle cx="1.5" cy="1.65" r="0.09"/><circle cx="1.175" cy="1.563" r="0.09"/><circle cx="0.937" cy="1.325" r="0.09"/><circle cx="0.85" cy="1.0" r="0.09"/><circle cx="0.937" cy="0.675" r="0.09"/><circle cx="1.175" cy="0.437" r="0.09"/></g></svg></span><span>Entreprise souveraine</span></a>
 <img src="https://atlas-studio.pro/deligny/api/px?page=index" alt="" width="1" height="1" loading="eager">
-<script src="logo-3d.js?v=d065c989"></script>
+<script src="logo-3d.js?v=ecb96991"></script>
 <script src="tagline.js?v=3aaa63e8"></script>
 <!-- CHARGEMENT DIFFERE (25/08) : lampe-embed.js pese 305 Ko compresses, soit
      88 % du poids de l'accueil, pour un configurateur que la plupart des
@@ -763,8 +777,8 @@
      son emplacement. L'URL reste dans un attribut « ...src=" » pour que
      deploy/cache-bust.py continue de la versionner. -->
 <script id="lampeDiffere" data-src="lampe-embed.js?v=9bb22d4e"></script>
-<script src="lampe-differe.js?v=e55d4aba"></script>
-<script src="demos-a-l-approche.js?v=bdccd5ed" defer></script>
+<script src="lampe-differe.js?v=4b134030"></script>
+<script src="demos-a-l-approche.js?v=eb4eaf78" defer></script>
   <script src="chargement-simule.js?v=eb8d5eaa" defer></script>
   <script src="simulation-3d/lecture-auto.js?v=4b0538aa" defer></script>
 </body>
