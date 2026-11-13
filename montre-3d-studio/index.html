@@ -1129,8 +1129,8 @@ function profilCreux(t,p){const D=p.profondeur,n=Math.max(1,Math.round(p.facette
    Ici : le champ est echantillonne une fois par reglage sur une grille de 0,02 mm, le contour est releve au point de
    passage exact sur chaque arete, puis chaque case recoit la distance euclidienne a son point de contour le plus proche
    (propagation 8SSEDT, periodique sur le tour). Lecture bilineaire : continue, sans escalier. */
-let _CDIST=null;
-function champDistance(p){const h=APERCU?.04:.02,cle=JSON.stringify([p.dessin,p.n,p.rangs,p.proportion,p.graine,p.pivot,p.inverser,p.angleMotif,LZ.toFixed(4),h,DERIVE&&DERIVE.k,DERIVE&&JSON.stringify(DERIVE.p),!!CARTE_ORIGINE,Object.keys(p).filter(k=>!['profondeur','angle','facettes','finition'].includes(k)).map(k=>p[k]).join()]);
+let _CDIST=null;let VIGNETTE=false;   // (13/11) vrai pendant le calcul d'une vignette : champ de distance a 0,08 mm au lieu de 0,02 (vignette de 150 px, ecart mesure 1/255 par canal, 1 450 ms -> 135 ms)
+function champDistance(p){const h=VIGNETTE?.08:APERCU?.04:.02,cle=JSON.stringify([p.dessin,p.n,p.rangs,p.proportion,p.graine,p.pivot,p.inverser,p.angleMotif,LZ.toFixed(4),h,DERIVE&&DERIVE.k,DERIVE&&JSON.stringify(DERIVE.p),!!CARTE_ORIGINE,Object.keys(p).filter(k=>!['profondeur','angle','facettes','finition'].includes(k)).map(k=>p[k]).join()]);
   if(_CDIST&&_CDIST.cle===cle)return _CDIST;
   const NU=Math.max(64,Math.ceil(PERIM/h)),NS=Math.max(8,Math.ceil(LZ/h)+1),hu=PERIM/NU,hs=LZ/(NS-1),n=NU*NS,seuil=1-p.proportion;
   const F=new Float32Array(n);for(let i=0;i<NU;i++)for(let j=0;j<NS;j++)F[i*NS+j]=champDessin(i/NU,j/(NS-1),p)-seuil;
@@ -3016,8 +3016,8 @@ function ombrer(H,w,h,dx,teinte,exa=1){const c=document.createElement('canvas');
 const POLI={m:'poli',c:[226,229,233]},BRUT={m:'brut',c:[112,109,102]},TITANE={m:'titane',c:[92,90,80]};
 function vignetteLunette(motif,params){const W=198,Hh=78,N=2160,i0=Math.round(.11*N);const sauve=state.lunette;
   state.lunette={...sauve,motif,params:{...defauts(MOTIFS_LUNETTE[motif]),...params}};const H=new Float32Array(W*Hh);
-  try{grilleMotif();for(let j=0;j<Hh;j++)for(let i=0;i<W;i++){pointZone(i0+i,N,j,Hh);H[j*W+i]=dernierH;}}
-  finally{state.lunette=sauve;grilleMotif();}
+  VIGNETTE=true;_CDIST=null;try{grilleMotif();for(let j=0;j<Hh;j++)for(let i=0;i<W;i++){pointZone(i0+i,N,j,Hh);H[j*W+i]=dernierH;}}
+  finally{VIGNETTE=false;_CDIST=null;state.lunette=sauve;grilleMotif();}
   const fin=Math.round((params&&params.finition)??(motif==='arete'?2:motif==='lisse'?2:1)),emb=motif==='embossage';
   return ombrer(H,W,Hh,PERIM/N,(v,mx)=>{if(fin===0)return BRUT;if(fin===2)return POLI;
     if(emb){const t=Math.min(1,-v/Math.max(.05,params.profondeur||.45));return v>-.012?POLI:{...BRUT,a:1-.5*t};}
@@ -3033,8 +3033,8 @@ function _studioS(rx,ry,rz){const dot=(a,b,c)=>{const l=Math.hypot(a,b,c);return
   v+=1.2*sm(.84,.95,dot(-.55,.55,.62));v+=.8*sm(.965,.99,dot(.85,.2,.45));return v;}
 function vignetteSphere(motif,params){const W=198,Hh=78,N=2160,i0=Math.round(.11*N);const sauve=state.lunette;
   state.lunette={...sauve,motif,params:{...defauts(MOTIFS_LUNETTE[motif]),...params}};const H=new Float32Array(W*Hh);
-  try{grilleMotif();for(let j=0;j<Hh;j++)for(let i=0;i<W;i++){pointZone(i0+i,N,j,Hh);H[j*W+i]=dernierH;}}
-  finally{state.lunette=sauve;grilleMotif();}
+  VIGNETTE=true;_CDIST=null;try{grilleMotif();for(let j=0;j<Hh;j++)for(let i=0;i<W;i++){pointZone(i0+i,N,j,Hh);H[j*W+i]=dernierH;}}
+  finally{VIGNETTE=false;_CDIST=null;state.lunette=sauve;grilleMotif();}
   let mx=1e-6;for(const v of H)mx=Math.max(mx,Math.abs(v));
   const fin=Math.round((params&&params.finition)??(motif==='arete'?2:1)),emb=motif==='embossage';
   const S=150,c=document.createElement('canvas');c.width=c.height=S;const x=c.getContext('2d'),im=x.createImageData(S,S);
@@ -3064,7 +3064,7 @@ function vignetteCadran(motif,params){const W=168,Hh=70,R=11.6;const p={...defau
     H[j*W+i]=r>C_R1?-99:FC[motif](x,z,r,t,p)*sm(C_R0,C_R0+.35,r)*(1-sm(C_R1-.25,C_R1,r));}
   return ombrer(H,W,Hh,dx,()=>TITANE,4);}   // relief exagere x4 : lisible a la taille d'une vignette
 function demanderVignette(cle,fn,img){if(_vign.has(cle)){img.src=_vign.get(cle);return;}_fileVign.push({cle,fn,img});if(!_vignEnCours)pomperVign();}
-function pomperVign(){_vignEnCours=true;if(performance.now()-_bouge<300){setTimeout(pomperVign,150);return;}   // (13/11) pas de vignette pendant un geste
+function pomperVign(){_vignEnCours=true;if(performance.now()-_bouge<300||Object.values(enCours).some(Boolean)){setTimeout(pomperVign,150);return;}   // (13/11) pas de vignette pendant un geste, ni tant qu'une piece HD est en attente (la montre d'abord, le panneau ensuite)
   const job=_fileVign.shift();if(!job){_vignEnCours=false;return;}
   if(!job.img.isConnected){setTimeout(pomperVign,0);return;}
   if(!_vign.has(job.cle)){try{_vign.set(job.cle,job.fn());}catch(e){_vign.set(job.cle,'');}}job.img.src=_vign.get(job.cle);setTimeout(pomperVign,0);}
@@ -3708,7 +3708,7 @@ function couperZone(N,M,Z,I0){const P=Array.from(Z.P),H=Array.from(Z.H),D=Array.
     for(const lv of C.niv){const cache=new Map(),out=[];const sg=v=>{const f=F[v]-lv;return f>1e-7?1:f<-1e-7?-1:0;};
       const croise=(a,b)=>{const k=a<b?a+'_'+b:b+'_'+a;let r=cache.get(k);if(r!==undefined)return r;
         let [ia,ja]=par(a),[ib,jb]=par(b);if(ib-ia>N/2)ib-=N;else if(ia-ib>N/2)ib+=N;const fa=F[a]-lv;let lo=0,hi=1;
-        for(let it=0;it<18;it++){const t=(lo+hi)/2;pointZone(((ia+(ib-ia)*t)%N+N)%N,N,ja+(jb-ja)*t,M);const f=C.lire()-lv;if((f>0)===(fa>0))lo=t;else hi=t;}
+        for(let it=0;it<9;it++){const t=(lo+hi)/2;pointZone(((ia+(ib-ia)*t)%N+N)%N,N,ja+(jb-ja)*t,M);const f=C.lire()-lv;if((f>0)===(fa>0))lo=t;else hi=t;}   // (13/11) 9 pas : 1/512 d'arete, ~0,00005 mm sur une maille de 0,026 mm ; 18 pas evaluaient le motif deux fois plus pour une precision sans objet (lunette embossage 8,5 s -> 6,8 s)
         const t=(lo+hi)/2,fi=((ia+(ib-ia)*t)%N+N)%N,fj=ja+(jb-ja)*t,q=pointZone(fi,N,fj,M);
         r=H.length;P.push(q[0],q[1],q[2]);H.push(dernierH);D.push(Number.isFinite(dernierD)?dernierD:NaN);LI.push(dernierL);NV.push(dernierN[0],dernierN[1],dernierN[2]);FI.push(fi);FJ.push(fj);
         F[r]=lv;cache.set(k,r);return r;};   // exactement sur la ligne
