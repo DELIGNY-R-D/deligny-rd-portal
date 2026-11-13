@@ -88,6 +88,11 @@
     function verifier() {
       if (charge || !window.innerHeight) return;
       var r = hote.getBoundingClientRect();
+      // Un emplacement masque (display:none, cas du cadre Bureau d'Atlas tant
+      // que « Vue normale » est choisie) a un rectangle nul : il n'est pas « a
+      // moins de 900 px », il n'est nulle part. Sans ce test, le filet le
+      // chargeait au premier defilement (constate 13/11).
+      if (!r.width && !r.height) return;
       if (r.top < window.innerHeight + 900 && r.bottom > -900) {
         retirer();
         charger();
@@ -95,6 +100,8 @@
     }
 
     function retirer() {
+      removeEventListener('pointerdown', verifier);
+      removeEventListener('keydown', verifier);
       removeEventListener('scroll', verifier);
       removeEventListener('resize', verifier);
       document.removeEventListener('visibilitychange', verifier);
@@ -124,7 +131,11 @@
     document.addEventListener('visibilitychange', verifier);
     addEventListener('scroll', verifier, { passive: true });
     addEventListener('resize', verifier, { passive: true });
-    addEventListener('pointerdown', charger, { once: true, passive: true });
-    addEventListener('keydown', charger, { once: true });
+    // 13/11 : le premier geste VERIFIE la distance, il ne charge plus sans
+    // condition. Avant, le premier toucher n'importe ou (le logo interactif en
+    // haut de page, typiquement) lancait toutes les demonstrations d'un coup :
+    // c'est ce travail de fond qui faisait saccader le logo sur telephone.
+    addEventListener('pointerdown', verifier, { passive: true });
+    addEventListener('keydown', verifier);
   }
 })();

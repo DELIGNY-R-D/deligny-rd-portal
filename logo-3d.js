@@ -17,13 +17,17 @@
   var DPR = Math.min(window.devicePixelRatio || 1, 1.5);
   var W = 0, H = 0, CX = 0, CY = 0, GROUND = 0;
   function resize(){
+    // Sans changement de taille, on ne touche pas au canvas : reaffecter
+    // canvas.width l'efface et repart d'une image blanche (iOS envoie des
+    // resize quand sa barre d'adresse se replie pendant le defilement).
+    if(canvas.clientWidth === W && canvas.clientHeight === H && canvas.width) return;
     W = canvas.clientWidth; H = canvas.clientHeight;
     canvas.width = W * DPR; canvas.height = H * DPR;
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     CX = W / 2; CY = H / 2;
     GROUND = H - 26;
   }
-  window.addEventListener('resize', resize);
+  window.addEventListener('resize', function(){ resize(); reveiller(); });
 
   // Vitesse -> couleur : au repos, vert. Plus le balayage est rapide, plus la
   // teinte glisse vers le cyan, le bleu, puis le violet. 16/09 : la suite
@@ -115,7 +119,10 @@
       x: CX, y: CY, vx: 0, vy: 0,
       size: (1.3 + relief * 1.1) + Math.random() * 0.9,
       disturbed: false, settleT: 0,
-      hue: BASE_HUE
+      hue: BASE_HUE,
+      // Couleur de repos calculee UNE fois : au repos, aucune chaine hsl() n'est
+      // plus construite par particule et par image.
+      restStyle: 'hsl(' + BASE_HUE + ',70%,' + (37 + (1 - relief) * 16).toFixed(0) + '%)'
     });
   }
 
@@ -167,6 +174,7 @@
         p.hue = hue;
       }
     }
+    reveiller();
   }
 
   canvas.addEventListener('pointermove', function(e){
@@ -190,19 +198,34 @@
   var running = false;
   var rafId = null;
   var GRAVITY = 0.34;
+  // 13/11 : la boucle ne tourne que quand quelque chose bouge. Au repos, la
+  // couronne est dessinee une fois puis la boucle s'arrete ; elle repart au
+  // premier balayage. Hors ecran (logo defile vers le haut), elle s'arrete
+  // aussi. Avant, 430 rectangles et 430 chaines hsl() etaient redessines
+  // 60 fois par seconde en permanence, meme sans personne sur le logo.
+  var visible = true;
+  function reveiller(){
+    if(running && visible && !document.hidden && !rafId) rafId = requestAnimationFrame(frame);
+  }
+  if('IntersectionObserver' in window){
+    new IntersectionObserver(function(entrees){
+      visible = entrees[entrees.length - 1].isIntersecting;
+      if(!visible && rafId){ cancelAnimationFrame(rafId); rafId = null; }
+      else reveiller();
+    }).observe(canvas);
+  }
 
   // Coupe totalement la boucle quand l'onglet est en arriere-plan : zero
   // travail, pas juste un rendu invisible.
   document.addEventListener('visibilitychange', function(){
     if(document.hidden){
       if(rafId){ cancelAnimationFrame(rafId); rafId = null; }
-    } else if(running && !rafId){
-      rafId = requestAnimationFrame(frame);
-    }
+    } else reveiller();
   });
 
   function frame(){
-    rafId = requestAnimationFrame(frame);
+    rafId = null;
+    var actif = false;
     // Efface en transparence : le fond visible est celui du CSS derriere le
     // canvas (blanc sur la page dediee, beige de l'accueil une fois integre)
     // — un seul moteur, pas de couleur de fond a synchroniser en JS.
@@ -214,8 +237,13 @@
 
       if(p.disturbed){
         p.settleT++;
+        // La gravite s'eteint a mesure que le rappel monte : sinon, pour une
+        // particule dont la place est a moins de 57 px du sol, 0,34 de
+        // gravite l'emporte sur le rappel (0,006 x distance) et elle reste
+        // collee au sol pour toujours, la boucle avec elle (constate 13/11).
+        var rampG = Math.min(1, p.settleT / 45);
         if(p.y < GROUND){
-          p.vy += GRAVITY;
+          p.vy += GRAVITY * (1 - rampG);
         } else {
           p.y = GROUND;
           if(p.vy > 0) p.vy *= -0.15;
@@ -240,6 +268,7 @@
           p.x = homeX; p.y = homeY; p.vx = 0; p.vy = 0;
           p.disturbed = false; p.settleT = 0;
         }
+        actif = true;
       } else {
         p.x = homeX; p.y = homeY;
       }
@@ -247,16 +276,21 @@
       // Le relief (calcule une seule fois a la construction) fait office de
       // profondeur : coeur du trait plus sombre et dense, bord plus clair —
       // un vrai bas-relief, sans rotation ni calcul par frame.
-      var hue = p.disturbed ? p.hue : BASE_HUE;
-      var edgeLift = (1 - p.relief) * 16;
-      var light = (p.disturbed ? 45 : 37) + edgeLift;
-      ctx.fillStyle = 'hsl(' + hue.toFixed(0) + ',70%,' + light.toFixed(0) + '%)';
+      if(p.disturbed){
+        var light = 45 + (1 - p.relief) * 16;
+        ctx.fillStyle = 'hsl(' + p.hue.toFixed(0) + ',70%,' + light.toFixed(0) + '%)';
+      } else {
+        ctx.fillStyle = p.restStyle;
+      }
       var s = p.size;
       ctx.fillRect(p.x - s, p.y - s, s * 2, s * 2);
     }
+    // Encore du mouvement : on reprogramme. Sinon, l'image de repos reste
+    // affichee et la boucle se tait jusqu'au prochain geste.
+    if(actif && visible && !document.hidden) rafId = requestAnimationFrame(frame);
   }
 
-  function start(){ running = true; ctx.clearRect(0, 0, W, H); rafId = requestAnimationFrame(frame); }
+  function start(){ running = true; ctx.clearRect(0, 0, W, H); reveiller(); }
 
   resize();
 })();

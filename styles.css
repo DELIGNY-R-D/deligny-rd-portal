@@ -2328,6 +2328,8 @@ a.lg-carte:focus-visible {
    le studio en plein ecran (voir demos-a-l-approche.js). */
 .demo-affiche{display:block;position:relative;background:#f1efe9;color:inherit;text-decoration:none}
 .demo-affiche img{display:block;width:100%;height:auto;aspect-ratio:4/3;object-fit:cover}
+/* 13/11 : les captures Atlas sont au format ecran (1280x701), on les montre entieres. */
+.atlas-embed .demo-affiche img{aspect-ratio:1280/701}
 .demo-affiche-bouton{position:absolute;left:16px;right:16px;bottom:16px;display:flex;align-items:center;justify-content:center;min-height:52px;
   border-radius:999px;background:#1f3d2f;color:#fff;font-weight:600;font-size:17px;box-shadow:0 6px 18px rgba(0,0,0,.25)}
 

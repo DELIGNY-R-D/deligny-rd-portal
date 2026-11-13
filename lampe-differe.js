@@ -43,7 +43,17 @@
   // Filets : un differe qui echoue laisserait un widget VIDE, ce qui serait
   // pire que 305 Ko de trop. L'observateur ne se declenche jamais si la fenetre
   // a une hauteur nulle (onglet ouvert en arriere-plan, cas exotiques).
-  addEventListener('scroll', charger, { once: true, passive: true });
-  addEventListener('pointerdown', charger, { once: true, passive: true });
-  addEventListener('keydown', charger, { once: true });
+  // 13/11 : les filets verifient la distance (700 px, comme l'observateur) au
+  // lieu de charger sans condition. Le premier toucher sur le logo interactif
+  // en haut de page lancait 309 Ko de script et le decodage de 500 Ko de
+  // donnees pendant que le visiteur jouait avec les particules.
+  function verifier() {
+    if (lance || !window.innerHeight) return;
+    var r = cible.getBoundingClientRect();
+    if (r.top < window.innerHeight + 700 && r.bottom > -700) charger();
+  }
+  addEventListener('scroll', verifier, { passive: true });
+  addEventListener('pointerdown', verifier, { passive: true });
+  addEventListener('keydown', verifier);
+  document.addEventListener('visibilitychange', verifier);
 })();
