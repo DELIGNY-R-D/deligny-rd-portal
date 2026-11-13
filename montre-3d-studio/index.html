@@ -5,7 +5,6 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src-elem 'self' 'unsafe-inline'; script-src-attr 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://atlas-studio.pro; connect-src 'self'; worker-src 'self' blob:; base-uri 'self'; form-action 'none'; upgrade-insecure-requests">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>La montre Paterne personnalisable</title>
-<meta name="description" content="Paterne, montre personnalisable conçue pour la fabrication additive : choisissez matière, origine et finition dans le configurateur 3D, qui refuse le non-fabricable. Prix calculé dans le studio. DELIGNY R&D, Paris." />
 <style>
 /* Meme grammaire que le Custom 3D Lamp Studio : feuille creme, vert profond. */
 :root{
@@ -182,15 +181,6 @@ html.embarque .resume{display:none}
 {"imports":{"three":"./vendor/three.module.js",
  "three/addons/":"./vendor/jsm/"}}
 </script>
-<meta property="og:type" content="website" />
-<meta property="og:site_name" content="DELIGNY R&amp;D" />
-<meta property="og:title" content="La montre Paterne personnalisable" />
-<meta property="og:description" content="Paterne, montre personnalisable conçue pour la fabrication additive : choisissez matière, origine et finition dans le configurateur 3D, qui refuse le non-fabricable. Prix calculé dans le studio. DELIGNY R&D, Paris." />
-<meta property="og:url" content="https://deligny-rd.fr/montre-3d-studio/" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta property="og:image" content="https://deligny-rd.fr/portfolio/img/Pattern-watch/og-00.jpg" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
 </head>
 <body>
 <div id="montre-demo-publique" style="margin:0;padding:8px 16px;background:#f3efe6;display:flex;align-items:center;gap:18px;font:400 13px/1.5 system-ui,sans-serif;border-bottom:1px solid #ddd5c6"><style>#montre-demo-publique .mdp-concept:hover,#montre-demo-publique .mdp-concept:focus-visible{background:#1f3829;box-shadow:0 2px 6px rgba(22,22,22,.22);transform:translateY(-1px)}#montre-demo-publique .mdp-marque:hover strong{text-decoration:underline;text-underline-offset:3px}</style><a class="mdp-marque" href="/" target="_top" title="Retour au portail DELIGNY R&amp;D" style="display:flex;align-items:center;gap:10px;color:#161616;text-decoration:none"><img src="/img/logo-mark.png" alt="" width="30" height="30" style="display:block;width:30px;height:30px;object-fit:contain"><span style="display:block;line-height:1.15"><strong style="display:block;font-size:14px;font-weight:700;letter-spacing:-.01em">DELIGNY R&amp;D</strong><small style="display:block;margin-top:2px;font-size:11px;letter-spacing:.02em;color:#6b6b63">Montre Paterne</small></span></a><a class="mdp-concept" href="/w1.html" target="_top" style="margin-left:auto;display:inline-flex;align-items:center;gap:8px;color:#fff;font-weight:600;text-decoration:none;padding:7px 16px;border-radius:999px;background:#2c4a38;border:1px solid #2c4a38;box-shadow:0 1px 2px rgba(22,22,22,.18);transition:background .15s,box-shadow .15s,transform .15s">Pr&eacute;sentation du concept <span aria-hidden="true">&rarr;</span></a></div>
@@ -2116,7 +2106,7 @@ const envAtelier=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironmen
 // tres intenses sur fond sombre, c'est ce contraste qui fait lire le poli miroir comme du chrome
 // (l'environnement genere, trop doux, le rendait satine). Repli sur l'atelier s'il manque.
 if(!/rapide=1/.test(location.hash))new RGBELoader().load('media/studio_small_08_1k.hdr',t=>{t.mapping=THREE.EquirectangularReflectionMapping;
-  const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(envEnrichi(t),.012,.1,400).texture;t.dispose();pm.dispose();},undefined,()=>{});
+  quandCalme(()=>{const pm=new THREE.PMREMGenerator(renderer);scene.environment=pm.fromScene(envEnrichi(t),.012,.1,400).texture;t.dispose();pm.dispose();_sale=true;});},undefined,()=>{});
 // ENVIRONNEMENT ENRICHI (09/10) : sous l'horizon le HDRI n'est qu'un sol uni ; or le fond poli (et le dessous des
 // flancs) reflete cette moitie-la -> aplat gris. On pose sous la montre un vrai plateau de studio : sol gris moyen,
 // deux longues boites a lumiere, des panneaux lateraux (dont un chaud) et un drapeau noir pour le contraste.
@@ -2237,6 +2227,7 @@ function decoderWeb(m,buf,off){const {n,nv,mn,mx,dec}=m,L=m.flux;let p=off;const
   for(const [st,ct,mi] of m.groupes)g.addGroup(st,ct,mi);return {g,taille:L.reduce((a,b)=>a+b,0)};}
 async function chargerDefautHD(){try{const r=await fetch('media/defaut_web.bin.gz?v='+DEFAUT_HD_V);if(!r.ok)return;
     const raw=new Uint8Array(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer());
+    await new Promise(r=>quandCalme(r));   // (13/11) le decodage attend la fin du geste en cours
     const lh=new DataView(raw.buffer).getUint32(0,true),tete=JSON.parse(new TextDecoder().decode(raw.subarray(4,4+lh)));let off=4+lh;
     for(const [nom,m] of Object.entries(tete.pieces)){const {g,taille}=(tete.v===2?decoderWeb:decoderHD)(m,raw,off);off+=taille;HD_DEFAUT.pieces[nom]=g;}
     HD_DEFAUT.cle=tete.cle;}catch(e){console.info('cache HD par defaut indisponible : calcul',e);}}
@@ -2943,7 +2934,13 @@ let _sale=true,_ombreSale=true,_bouge=0,_derniere=0,_secu=0;const DPR_PLEIN=rend
 let _palGeste=0;try{_palGeste=Math.min(PALIERS.length-1,parseInt(localStorage.getItem('montre-palier-geste')||'0')||0);}catch(e){}
 const poserPalier=p=>{if(p===_pal)return;_pal=p;_lent=0;renderer.setPixelRatio(PALIERS[p]);_sale=true;};
 const retenirPalier=p=>{if(p>_palGeste){_palGeste=p;try{localStorage.setItem('montre-palier-geste',String(p));}catch(e){}}};
-const debutGeste=()=>{_bouge=performance.now();_sale=true;if(_palGeste&&!_pal)poserPalier(_palGeste);};   // avant la premiere image du geste
+const debutGeste=()=>{_bouge=performance.now();_sale=true;if(_palGeste&&!_pal)poserPalier(_palGeste);};
+/* (13/11) TRAVAIL DE FOND SEULEMENT QUAND LA MONTRE EST AU REPOS. Sur iPhone 17, « la 3D saccade au debut quand je la
+   manipule » : le visiteur tourne la montre pendant que l'environnement HDR se convertit (PMREM, carte graphique
+   occupee), que le modele par defaut se decode et que les vignettes du panneau se calculent, tout sur le meme fil que
+   le rendu. quandCalme(fn) attend que le dernier geste date de plus de 300 ms avant d'executer fn ; au repos, elle
+   execute tout de suite. */
+const quandCalme=(fn,marge=300)=>{const t=()=>{if(performance.now()-_bouge>marge)fn();else setTimeout(t,120);};t();};   // avant la premiere image du geste
 const marquerScene=()=>{_sale=true;_ombreSale=true;};window.__rafraichir=marquerScene;
 {const add0=THREE.Object3D.prototype.add,rem0=THREE.Object3D.prototype.remove;
  THREE.Object3D.prototype.add=function(...o){marquerScene();return add0.apply(this,o);};THREE.Object3D.prototype.remove=function(...o){marquerScene();return rem0.apply(this,o);};
@@ -3067,7 +3064,8 @@ function vignetteCadran(motif,params){const W=168,Hh=70,R=11.6;const p={...defau
     H[j*W+i]=r>C_R1?-99:FC[motif](x,z,r,t,p)*sm(C_R0,C_R0+.35,r)*(1-sm(C_R1-.25,C_R1,r));}
   return ombrer(H,W,Hh,dx,()=>TITANE,4);}   // relief exagere x4 : lisible a la taille d'une vignette
 function demanderVignette(cle,fn,img){if(_vign.has(cle)){img.src=_vign.get(cle);return;}_fileVign.push({cle,fn,img});if(!_vignEnCours)pomperVign();}
-function pomperVign(){_vignEnCours=true;const job=_fileVign.shift();if(!job){_vignEnCours=false;return;}
+function pomperVign(){_vignEnCours=true;if(performance.now()-_bouge<300){setTimeout(pomperVign,150);return;}   // (13/11) pas de vignette pendant un geste
+  const job=_fileVign.shift();if(!job){_vignEnCours=false;return;}
   if(!job.img.isConnected){setTimeout(pomperVign,0);return;}
   if(!_vign.has(job.cle)){try{_vign.set(job.cle,job.fn());}catch(e){_vign.set(job.cle,'');}}job.img.src=_vign.get(job.cle);setTimeout(pomperVign,0);}
 function tuile(grille,label,cle,fn,sel,click){const d=document.createElement('div');d.className='v'+(sel?' sel':'');const im=document.createElement('img');im.alt='';
@@ -3224,7 +3222,7 @@ let _prixT=0;function majPrix(){clearTimeout(_prixT);_prixT=setTimeout(()=>{cons
   const client=nc?`<div class="prixClient"><div class="pv" style="font-size:18px">Pas encore commandable</div><div class="sous" style="font-size:12.5px;color:var(--ink)">${nc}</div></div>`:`<div class="prixClient"><div class="pv">${eur(PV)}</div>${bientot}<div class="sous">TVA non applicable, art. 293 B du CGI</div>
     <ul><li>Pièces imprimées en ${ORIGINES[state.origine].nom}, assemblée et contrôlée en France</li><li>Pièce unique fabriquée à la commande, livrée en ~${dmax+3} jours ouvrés</li><li>Édition : ${cr} crédits sur ${CR_AN} en ${new Date().getFullYear()} (au plus ${nMax} exemplaire${nMax>1?'s':''} de cette configuration par an)</li></ul>
     <div class="jauge"><i style="width:${pct.toFixed(1)}%"></i></div>
-    <div class="vign-titre">Inclus</div><ul class="inclus"><li>Boîtier, lunette, cadran et fond dans les matières choisies</li><li>Mouvement quartz suisse ${MOUVEMENT_REF}, verre saphir</li><li>Bracelet cuir de pomme, boucle déployante laiton</li><li>Texte du fond embossé, ligne personnelle comprise</li><li>Certificat d'origine, écrin, livraison assurée en France</li></ul></div>`;
+    <div class="vign-titre">Inclus</div><ul class="inclus"><li>Boîtier, lunette, cadran et fond dans les matières choisies</li><li>Mouvement quartz suisse ${MOUVEMENT_REF}, verre saphir</li><li>Bracelet cuir de pomme, boucle déployante laiton</li><li>Certificat d'origine, écrin, livraison assurée en France</li></ul></div>`;
   reg.style.display=ATELIER?'':'none';
   h=client+(ATELIER?'<details class="fins atelier"><summary>Détail atelier : coûts, marge, impôts (visible seulement dans le studio local)</summary>'+h+'</details>':'');
   tab.innerHTML=h;window._prixCourant={PV,cr,CR_AN,EUR_CR,nMax,dmax:dmax+3,ib,il,ic,fl,origine:state.origine};majOrigine();majGravure();if(window.majResume)window.majResume();},120);}
@@ -3240,7 +3238,7 @@ let mFond=null,mGravure=null;state.gravurePerso='';
 // texte de la gravure (12/10, mise en page de Baptiste) : [texte, hauteur mm, graisse, espace AVANT en mm]
 const MAT_GRAVURE={alu:'ALUMINIUM',titane:'TITANIUM',inox:'STEEL 316L',bronze:'BRONZE',laiton:'BRASS',laitonOr:'GOLD PLATED BRASS',laitonRose:'ROSE GOLD PLATED BRASS',
   rhodiumBlanc:'RHODIUM PLATED BRASS',rhodiumNoir:'BLACK RHODIUM PLATED BRASS',argent:'SILVER 925',or18:'GOLD 18 CT 750',or18Rose:'ROSE GOLD 18 CT 750',or18Blanc:'WHITE GOLD 18 CT 750',or14:'GOLD 14 CT 585',or14Rose:'ROSE GOLD 14 CT 585',or14Blanc:'WHITE GOLD 14 CT 585',platine:'PLATINUM 950'};
-const ADRESSE_GRAVURE='231 RUE SAINT-HONORE 75001 PARIS',MOUVEMENT_REF='RONDA 763';   // calibre 6 3/4 x 8''' de la Montre T
+const ADRESSE_GRAVURE='231 RUE SAINT-HONORE 75001 PARIS',MOUVEMENT_REF='ETA';   /* (06/11, Baptiste : « mouvement suisse ETA ») ; la cote du logement reste celle du calibre 6 3/4 x 8''' */   // calibre 6 3/4 x 8''' de la Montre T
 // poinçon de maitre (or 18 ct) : initiales du fabricant DELIGNY R&D + symbole ; a faire insculper au bureau de garantie
 const POINCON_MAITRE={lettres:'DR',symbole:'✦'};
 // (13/10, Baptiste : « lettres plus grandes et plus grasses, garde tout, utilise l'espace entre les vis ») : TOUT en
@@ -3997,8 +3995,13 @@ function demanderCommande(){const nc=nonCommandable();if(nc){alert(nc);return;}c
     'Pièces imprimées en '+(ORIGINES[P.origine]||ORIGINES.chine).nom+', assemblée en France.','',
     'Prix estimé affiché : '+eur(P.PV)+' ('+P.cr+' crédits sur '+P.CR_AN+'). Délai estimé : environ '+P.dmax+' jours ouvrés.',
     ...(commandesOuvertes()?[]:['Ouverture des commandes annoncée le '+DATE_OUVERTURE_TXT+'.'])].join('\n');
-  if(location.port==='4555'){location.href='mailto:contact@deligny-rd.fr?subject='+encodeURIComponent('Demande de commande, montre Paterne')+'&body='+encodeURIComponent(texte);return;}
-  try{sessionStorage.setItem('deligny-demande',JSON.stringify({sujet:'fabrication',texte,quand:Date.now()}));}catch(e){}
+  // La configuration est ENREGISTREE (« Mes configurations ») sous le nom de la demande, et jointe
+  // en clair a la demande pour que l'atelier la rejoue telle quelle.
+  const nomCfg='Demande MT-'+an+'-'+empreinte;let cfg='';
+  try{const l=lireCfg().filter(x=>x.nom!==nomCfg);l.unshift({nom:nomCfg,date:new Date().toLocaleString('fr-FR'),etat:instantane()});ecrireCfg(l);listerCfg();cfg=JSON.stringify(instantane());}catch(e){}
+  const texteComplet=cfg&&texte.length+cfg.length<3700?texte+'\n\nConfiguration enregistrée « '+nomCfg+' » (pour l\'atelier) : '+cfg:texte;
+  if(location.port==='4555'){location.href='mailto:contact@deligny-rd.fr?subject='+encodeURIComponent('Demande de commande, montre Paterne')+'&body='+encodeURIComponent(texteComplet);return;}
+  try{sessionStorage.setItem('deligny-demande',JSON.stringify({sujet:'fabrication',texte:texteComplet,quand:Date.now()}));}catch(e){}
   location.href='../contact.html?sujet=fabrication';}
 document.getElementById('btnCommande').onclick=demanderCommande;
 {const gp=document.getElementById('gravPerso');
