@@ -267,6 +267,10 @@
         if(ramp >= 1 && dHome < 1.2 && Math.hypot(p.vx, p.vy) < 0.3){
           p.x = homeX; p.y = homeY; p.vx = 0; p.vy = 0;
           p.disturbed = false; p.settleT = 0;
+          // 15/11 (Baptiste) : la particule garde la couleur prise pendant le
+          // geste au lieu de retomber au vert d'origine. La couronne porte
+          // ainsi la trace des derniers balayages.
+          p.restStyle = 'hsl(' + p.hue.toFixed(0) + ',70%,' + (37 + (1 - p.relief) * 16).toFixed(0) + '%)';
         }
         actif = true;
       } else {
