@@ -367,7 +367,7 @@ const MOTIFS_CADRAN = {
   terre:      {nom:'Terre réelle (montagnes, canyons)', r:{lieu:[0,9,0,1,'lieu'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.3,.05,'détail'], relief:[.1,1.2,.7,.01,'relief mm']}},
   ville:      {nom:'Ville célèbre (plan réel)', r:{ville:[0,9,0,1,'ville'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,.45,.01,'relief mm']}},
   mars:       {nom:'Mars réelle (relevés NASA)', r:{region:[0,7,0,1,'région'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.5,.05,'détail'], relief:[.1,1.2,.6,.01,'relief mm']}},
-  apollo:     {nom:'Édition Apollo 11', r:{zoom:[1,2.5,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.6,.05,'détail'], relief:[.1,1.2,.5,.01,'relief mm']}},
+  apollo:     {nom:'Édition Apollo 11', r:{zoom:[1,2.5,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,.5,.01,'relief mm']}},
   bulles:     {nom:'Bulles et cratères', retire:1, r:{nombre:[4,60,24,1,'nombre'], taille:[.8,5,2.6,.05,'taille maxi mm'], cratere:[0,1,1,1,'cratères'], graine:[1,999,5,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
   terrasses:  {nom:'Terrasses (strates)', r:{couches:[3,14,8,1,'couches'], collines:[1,6,3,1,'collines'], taille:[2,8,4.5,.1,'taille mm'], diguette:[0,1,1,1,'diguettes'], graine:[1,999,21,1,'variante'], relief:[.1,1.2,.4,.01,'relief mm']}},
   /* (14/10, Baptiste : « enleve etoile ») motif « Ciel etoile » retire du catalogue */
@@ -720,7 +720,7 @@ const LUNE=[['tycho','Tycho',150,512],['copernic','Copernic',170,512],['clavius'
   ['hadley','Hadley (Apollo 15)',100,512],['tsiolkovski','Tsiolkovski (face cachée)',280,512],['orientale','Mer Orientale',1100,512],
   ['schrodinger','Schrödinger (pôle Sud)',380,512],['shackleton','Shackleton (pôle Sud, Artemis)',60,512]];
 // edition Apollo 11 : carre de 58 km CENTRE SUR LE SITE d'alunissage (0,674 N ; 23,473 E), 1,2 km par mm de cadran
-const LUNE_A11=['apollo11','Base de la Tranquillité',58,512],A11_KMMM=1.2,LUNE_V=5,_LUNE={};
+const LUNE_A11=['apollo11','Base de la Tranquillité',58,512],A11_KMMM=1.2,LUNE_V=6,_LUNE={};
 function chargerLune(s){const k=(s[4]||'lune')+'/'+s[0],D=_LUNE[k];if(D)return D.v?D:null;_LUNE[k]={};
   (async()=>{try{const r=await fetch('media/'+k+'.bin.gz?v='+LUNE_V);if(!r.ok)throw new Error('HTTP '+r.status);
       const d=new Uint16Array(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()),N=s[3],v=new Float32Array(N*N);
