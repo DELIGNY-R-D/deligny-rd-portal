@@ -2173,12 +2173,8 @@ function indexVolumes(){const s=styleIndex(),out=[];if(![0,1,2].includes(s))retu
     else if(s===1){const r=fort?.62:.42,b=new THREE.SphereGeometry(r,40,20,0,Math.PI*2,0,Math.PI/2);b.scale(1,Math.min(1,(Hi+.02)/r),1);b.translate(x,y0-.02,z);out.push(pos(b));}   // dome aplati si besoin
     else{const r=fort?.66:.46,n=4;for(let q=0;q<n;q++){const rq=r*Math.sqrt(1-(q/n)**2),h=Math.min(r,Hi+.02)/n,c=new THREE.CylinderGeometry(rq,rq,h,48);c.translate(x,y0-.02+h*(q+.5),z);out.push(pos(c));}}}
   return out;}
-// MODULE LUNAIRE ET DRAPEAU (edition Apollo 11, v2 15/11, Baptiste : « rapproche-toi au mieux du vrai design, augmente
-// la taille presque jusqu'en haut du verre, decale-le entre le chanfrein et le plat ») : LM-5 « Eagle » d'apres ses cotes
-// reelles (m) : 4 jambes a 4,7 m de l'axe (patins de 0,94 m), etage de descente octogonal de 4,2 m (1,25 a 2,95 m),
-// tuyere, etage de remontee (cabine cylindrique de 2,34 m, face avant a facettes et fenetres triangulaires, ecoutille,
-// baie arriere, reservoirs lateraux, tunnel d'amarrage), radar de rendez-vous, antenne bande S orientable, antennes VHF,
-// 4 blocs de propulseurs RCS, echelle sur la jambe avant, porche ; Aldrin au pied de l'echelle.
+// MODULE LUNAIRE ET DRAPEAU (edition Apollo 11, v3 15/11) : LM d'Apollo SIMPLIFIE, presque cartoon (decision Baptiste
+// apres la v2 detaillee), meme matiere que le cadran. Drapeau tenu par un arc de cercle sous la toile (pas de porte-a-faux).
 // Centre a 12,4 mm (la jonction plat / chanfrein, 1 h 30), tourne de 45° : deux jambes sur le plat, deux sur le chanfrein.
 // Echelle calculee pour que le sommet arrive a 0,16 mm sous le verre (5,265 mm). Tout ce qui depasse le niveau des
 // aiguilles reste au-dela de 10,9 mm du centre (pointe des minutes a 10,6).
@@ -2190,7 +2186,7 @@ function apolloVolumes(){if(state.cadran.motif!=='apollo')return [];
   const W=(bx,bz,s)=>[X0+s*(bx*ct+bz*st),Z0+s*(-bx*st+bz*ct)];
   // echelle s (mm par m) et altitude yb du sol nominal : etage de descente au-dessus du sol le plus haut sous lui, sommet a A11_V2.haut
   let s=.25,yb=0;for(let it=0;it<8;it++){let g=-9;for(let k=0;k<16;k++){const q=k/16*6.283;for(const rr of [0,1.2,2.25]){const [x,z]=W(rr*Math.cos(q),rr*Math.sin(q),s);g=Math.max(g,solApollo(x,z));}}
-    yb=g-1.1*s;s=Math.max(.12,Math.min(.4,(A11_V2.haut-g)/(6.95-1.1)));}
+    yb=g-1.1*s;s=Math.max(.12,Math.min(.4,(A11_V2.haut-g)/(6.42-1.1)));}
   const mini=.035;   // rayon mini d'une barre (mm) : 0,07 mm de diametre
   const pt=(bx,by,bz)=>{const [x,z]=W(bx,bz,s);return new THREE.Vector3(x,yb+by*s,z);};
   const poser=(g,bx,by,bz,ry=0)=>{g.scale(s,s,s);g.rotateY(th+ry);const [x,z]=W(bx,bz,s);g.translate(x,yb+by*s,z);out.push(pos(g));};
@@ -2198,45 +2194,27 @@ function apolloVolumes(){if(state.cadran.motif!=='apollo')return [];
     Q.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());M.compose(V.addVectors(A,B).multiplyScalar(.5),Q,new THREE.Vector3(1,1,1));g.applyMatrix4(M);out.push(pos(g));};
   const boite=(w,h,d,bx,by,bz,rx=0,ry=0)=>{const g=new THREE.BoxGeometry(w,h,d);if(rx)g.rotateX(rx);if(ry)g.rotateY(ry);poser(g,bx,by,bz);};
   const cyl=(r1,r2,h,n,bx,by,bz,rx=0,rz=0,ry=0)=>{const g=new THREE.CylinderGeometry(r1,r2,h,n);if(rx)g.rotateX(rx);if(rz)g.rotateZ(rz);if(ry)g.rotateY(ry);poser(g,bx,by,bz);};
-  // ── ETAGE DE DESCENTE : octogone (faces planes face aux jambes), feuille d'or en bandes, tuyere
-  cyl(2.27,2.27,1.7,8,0,2.1,0,0,0,Math.PI/8);
-  for(const y of [1.45,2.05,2.65])cyl(2.31,2.31,.07,8,0,y,0,0,0,Math.PI/8);           // plis de la feuille d'or
-  cyl(.5,.82,.75,24,0,.88,0);                                                           // tuyere de descente
-  boite(1.3,.7,.12,0,1.85,-2.3);                                                        // baie MESA (avant gauche) / ALSEP
-  // ── JAMBES : jambe principale (amortisseur), deux contre-fiches, patin pose sur SON sol (plat ou chanfrein)
+  // (15/11, Baptiste : « simplifie le design du vaisseau, presque cartoon ») : volumes francs et ronds, peu de pieces,
+  // barres epaisses (lisibles et fabricables) : etage de descente, tuyere, 4 jambes + patins, echelle, cabine ronde
+  // a deux fenetres, ecoutille, tunnel et une antenne parabolique.
+  cyl(2.35,2.35,1.6,8,0,2.15,0,0,0,Math.PI/8);                                         // etage de descente octogonal
+  cyl(2.45,2.45,.18,8,0,2.95,0,0,0,Math.PI/8);                                          // rebord du dessus
+  cyl(.45,.95,.8,20,0,.95,0);                                                           // tuyere
   const JAMBES=[[0,-1],[1,0],[0,1],[-1,0]];
-  for(const [i,j] of JAMBES){const [px,pz]=W(4.7*i,4.7*j,s),gy=solApollo(px,pz),P=new THREE.Vector3(px,gy+.12*s,pz),H=pt(2.25*i,2.75,2.25*j);
-    barre(H,P,.11);
-    const Qj=P.clone().lerp(H,.32),lat=(u)=>pt(1.6*i+u*j,1.3,1.6*j-u*i);
-    barre(Qj,lat(1.2),.07);barre(Qj,lat(-1.2),.07);barre(pt(2.25*i,2.75,2.25*j),pt(2.25*i+.9*j,1.3,2.25*j-.9*i),.05);
-    const pad=new THREE.CylinderGeometry(.47*s,.4*s,.5*s,20);pad.translate(px,gy-.1*s,pz);out.push(pos(pad));}   // patin (enfonce sur la pente)
-  // echelle sur la jambe avant (vers le centre) et porche
-  {const P0=pt(0,.4,-4.3),P1=pt(0,2.7,-2.4);for(const u of [-.38,.38]){const d=pt(u,0,0).sub(pt(0,0,0));barre(P0.clone().add(d),P1.clone().add(d),.05);}
-   for(let k=1;k<9;k++){const t=k/9,c=P0.clone().lerp(P1,t);barre(c.clone().add(pt(-.38,0,0).sub(pt(0,0,0))),c.clone().add(pt(.38,0,0).sub(pt(0,0,0))),.035);}
-   boite(1.1,.1,1.0,0,2.98,-2.55);}
-  // ── ETAGE DE REMONTEE
-  cyl(1.17,1.17,1.25,28,0,4.3,-.85,Math.PI/2);                                          // cabine de l'equipage (axe avant-arriere)
-  {const f=new THREE.BoxGeometry(2.5,2.1,.3);f.rotateX(-.12);poser(f,0,4.25,-1.55);}    // face avant a facettes
-  for(const u of [-1,1]){
-    const w=new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(.08*u,.05),new THREE.Vector2(.75*u,.05),new THREE.Vector2(.2*u,.62)]),{depth:.12,bevelEnabled:false});
-    w.translate(0,0,-.06);poser(w,0,4.85,-1.76);}                                        // fenetres triangulaires (en relief : se lisent)
-  boite(.85,.85,.14,0,3.55,-1.74);                                                      // ecoutille avant
-  boite(2.9,2.55,1.65,0,4.22,.25);                                                      // section centrale
-  boite(3.1,1.55,1.05,0,4.55,1.55);                                                     // baie d'equipements arriere
-  cyl(.72,.72,1.5,20,-1.65,3.95,.35);cyl(.66,.66,1.4,20,1.62,3.9,.45);                 // reservoirs d'ergols (comburant, carburant)
-  cyl(.5,.5,.55,20,0,5.75,.15);                                                         // tunnel d'amarrage superieur
-  // radar de rendez-vous (avant, en haut) et antenne bande S orientable (cote droit)
-  barre(pt(0,5.45,-1.2),pt(0,5.95,-1.55),.09);cyl(.48,.48,.12,24,0,6.05,-1.6,-1.0);
-  barre(pt(1.2,5.4,.8),pt(1.75,6.05,.9),.07);cyl(.45,.45,.1,24,1.85,6.15,.9,0,-.9);
-  barre(pt(-1.25,5.45,-.3),pt(-1.6,6.9,-.7),.04);barre(pt(1.35,5.3,1.9),pt(1.75,6.8,2.25),.04);   // antennes VHF
-  // 4 blocs RCS aux coins (bloc + tuyeres haut / bas / laterale)
-  for(const [i,j] of [[1,1],[1,-1],[-1,1],[-1,-1]]){const bx=1.75*i,bz=1.45*j;boite(.38,.38,.38,bx,4.75,bz);
-    cyl(.09,.13,.3,10,bx,5.05,bz);cyl(.13,.09,.3,10,bx,4.45,bz);cyl(.09,.13,.3,10,bx+.3*i,4.75,bz,0,-Math.PI/2*i);}
-  // ── ALDRIN au pied de l'echelle (1,8 m) : bottes, jambes, torse, sac PLSS, casque
-  {const [ax,az]=W(.9,-5.4,s),ay=solApollo(ax,az),A=(dx,dy,dz)=>{const [x,z]=W(.9+dx,-5.4+dz,s);return [x,ay+dy*s,z];};
-   const mk=(g,dx,dy,dz)=>{g.scale(s,s,s);g.rotateY(th);const [x,y,z]=A(dx,dy,dz);g.translate(x,y,z);out.push(pos(g));};
-   mk(new THREE.BoxGeometry(.5,.8,.32),0,.4,0);mk(new THREE.BoxGeometry(.6,.7,.42),0,1.15,0);mk(new THREE.BoxGeometry(.55,.75,.3),0,1.2,.33);
-   mk(new THREE.SphereGeometry(.21,14,10),0,1.68,0);mk(new THREE.BoxGeometry(.16,.6,.18),.4,1.05,0);mk(new THREE.BoxGeometry(.16,.6,.18),-.4,1.05,0);}
+  for(const [i,j] of JAMBES){const [px,pz]=W(4.5*i,4.5*j,s),gy=solApollo(px,pz),P=new THREE.Vector3(px,gy+.2*s,pz);
+    barre(pt(2.1*i,2.5,2.1*j),P,.3);                                                    // jambe
+    barre(P.clone().lerp(pt(2.1*i,2.5,2.1*j),.4),pt(2.0*i,1.4,2.0*j),.22);              // contre-fiche
+    const pad=new THREE.CylinderGeometry(.7*s,.6*s,.55*s,20);pad.translate(px,gy-.05*s,pz);out.push(pos(pad));}   // patin
+  {const P0=pt(0,.5,-4.0),P1=pt(0,2.6,-2.45),d=pt(.45,0,0).sub(pt(0,0,0));                // echelle (2 montants, 4 barreaux)
+   barre(P0.clone().add(d),P1.clone().add(d),.13);barre(P0.clone().sub(d),P1.clone().sub(d),.13);
+   for(let k=1;k<5;k++){const c=P0.clone().lerp(P1,k/5);barre(c.clone().add(d),c.clone().sub(d),.1);}}
+  {const c=new THREE.SphereGeometry(1.5,28,18);c.scale(1.2,.85,1.05);poser(c,0,4.2,0);}  // cabine ronde (etage de remontee)
+  {const f=new THREE.CylinderGeometry(.95,.95,.5,24);f.rotateX(Math.PI/2);poser(f,0,4.1,-1.45);}   // face avant
+  for(const u of [-1,1]){const w=new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(.12*u,.15),new THREE.Vector2(.85*u,.15),new THREE.Vector2(.25*u,.8)]),{depth:.2,bevelEnabled:false});
+    w.translate(0,0,-.1);poser(w,0,4.15,-1.75);}                                         // deux fenetres triangulaires
+  boite(.8,.8,.3,0,3.5,-1.65);                                                          // ecoutille
+  cyl(.65,.65,.6,20,0,5.45,0);                                                          // tunnel d'amarrage
+  barre(pt(1.2,4.8,.6),pt(1.7,5.8,.8),.14);cyl(.6,.25,.3,20,1.75,5.95,.8,0,-.6);        // antenne parabolique
   // ── DRAPEAU plante sur le plat, a cote (sens horaire), hors de la course des aiguilles
   const ad=a+A11_LM.drapeau,fr=11.35,fx=fr*Math.cos(ad),fz=fr*Math.sin(ad),fy=decorA(fx,fz),Kf=1.25;
   const hampe=new THREE.CylinderGeometry(.045,.05,1.0*Kf,12);hampe.translate(fx,fy+.47*Kf,fz);out.push(pos(hampe));
@@ -2245,7 +2223,12 @@ function apolloVolumes(){if(state.cadran.motif!=='apollo')return [];
   for(let k=0;k<tp.count;k++){const u=(tp.getX(k)+.26)/.52;tp.setZ(k,tp.getZ(k)+.035*Math.sin(u*Math.PI*2.2)*u);}
   toile.translate(.26,0,0);const canton=new THREE.BoxGeometry(.21,.15,.03);canton.translate(.105,.085,.03);
   const barreH=new THREE.CylinderGeometry(.022,.022,.54,8);barreH.rotateZ(Math.PI/2);barreH.translate(.27,.17,0);
-  for(const g of [toile,canton,barreH]){g.scale(Kf,Kf,Kf);g.rotateY(ang);g.translate(fx,fy+.78*Kf,fz);out.push(pos(g));}
+  // (15/11, Baptiste : « en dessous du drapeau fais un arc de cercle pour que le drapeau ne soit pas en porte-a-faux ») :
+  // quart de cercle du pied de la toile (cote hampe, 0,52 plus bas) au coin libre ; meme ondulation que la toile
+  const arc=new THREE.TubeGeometry(new THREE.CatmullRomCurve3(Array.from({length:17},(_,k)=>{const t=-Math.PI/2+k/16*Math.PI/2;return new THREE.Vector3(.52*Math.cos(t),.52*Math.sin(t),0);})),24,.03,6,false),ap=arc.getAttribute('position');
+  for(let k=0;k<ap.count;k++){const u=Math.max(0,Math.min(1,ap.getX(k)/.52));ap.setZ(k,ap.getZ(k)+.035*Math.sin(u*Math.PI*2.2)*u);}
+  arc.translate(0,-.16,0);
+  for(const g of [toile,canton,barreH,arc]){g.scale(Kf,Kf,Kf);g.rotateY(ang);g.translate(fx,fy+.78*Kf,fz);out.push(pos(g));}
   return out;}
 const _masqueIdx={};
 function masqueIndex(s){if(_masqueIdx[s])return _masqueIdx[s];const W=1024,L=2*C_R1,c=document.createElement('canvas');c.width=c.height=W;const x=c.getContext('2d');
@@ -3040,8 +3023,7 @@ function reconstruireCadran(){ const nf=bornerFab('cadran'); if(mCadran){groupeC
   // (15/11) EDITION APOLLO : le module lunaire et le drapeau sont DANS le cadran (export, controles) ; a l'ecran on les
   // double d'une peau POLIE pour qu'ils se detachent du sol sable (meme metal, finition polie)
   if(mApollo){groupeCadran.remove(mApollo);mApollo.geometry.dispose();mApollo=null;}
-  if(state.cadran.motif==='apollo'){const V=apolloVolumes();if(V.length){const g=mergeGeometries(V);g.computeVertexNormals();
-    mApollo=new THREE.Mesh(g,matApollo);groupeCadran.add(mApollo);}}}
+  /* (15/11, Baptiste : « la texture doit être la même que le cadran ») : plus de peau polie, le vaisseau est du cadran */}
 // (10/10) Le bandeau ne RELEVE plus en permanence les reglages par-dessus la
 // montre : ces trois chiffres sont deja lisibles dans le panneau, et les
 // reafficher sur la piece masquait ce qu'on est venu regarder.
