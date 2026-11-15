@@ -281,7 +281,9 @@
       // profondeur : coeur du trait plus sombre et dense, bord plus clair —
       // un vrai bas-relief, sans rotation ni calcul par frame.
       if(p.disturbed){
-        var light = 45 + (1 - p.relief) * 16;
+        // 15/11 (Baptiste) : meme luminosite en mouvement qu'au repos, sinon
+        // la particule s'assombrit d'un coup en s'arretant (45 % -> 37 %).
+        var light = 37 + (1 - p.relief) * 16;
         ctx.fillStyle = 'hsl(' + p.hue.toFixed(0) + ',70%,' + light.toFixed(0) + '%)';
       } else {
         ctx.fillStyle = p.restStyle;
