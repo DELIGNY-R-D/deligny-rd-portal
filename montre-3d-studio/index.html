@@ -360,14 +360,14 @@ const MOTIFS_CADRAN = {
   crateres:   {nom:'Cratères lunaires', r:{nombre:[30,420,220,1,'nombre'], taille:[1.5,7,5,.1,'cratère maxi mm'], mers:[0,1,.35,.05,'mers (plaines)'], usure:[0,1,.4,.05,'usure'], graine:[1,999,11,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
   /* (15/11, Baptiste : « fais des vrais secteurs de la Lune avec les données NASA », « les secteurs les plus intéressants »)
      relief REEL releve par l'altimetre laser de la sonde LRO (NASA, LOLA), voir outils/lune_secteurs.py */
-  lune:       {nom:'Lune réelle (relevés NASA)', r:{secteur:[0,9,0,1,'secteur'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.6,.05,'détail'], relief:[.1,1.2,.6,.01,'relief mm']}},
+  lune:       {nom:'Lune réelle (relevés NASA)', r:{secteur:[0,9,0,1,'secteur'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,1,.01,'relief mm']}},
   /* (15/11, Baptiste : « édition spéciale Apollo avec vaisseau sur la surface avec mini drapeau ; le vaisseau doit être à
      l'extérieur des aiguilles ») : terrain reel de la base de la Tranquillite, module lunaire et drapeau poses sur le site */
   /* (15/11, Baptiste : « chaîne de montagne, canyon, autre planète ») */
-  terre:      {nom:'Terre réelle (montagnes, canyons)', r:{lieu:[0,9,0,1,'lieu'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.3,.05,'détail'], relief:[.1,1.2,.7,.01,'relief mm']}},
-  ville:      {nom:'Ville célèbre (plan réel)', r:{ville:[0,9,0,1,'ville'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,.45,.01,'relief mm']}},
-  mars:       {nom:'Mars réelle (relevés NASA)', r:{region:[0,7,0,1,'région'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.5,.05,'détail'], relief:[.1,1.2,.6,.01,'relief mm']}},
-  apollo:     {nom:'Édition Apollo 11', r:{zoom:[1,2.5,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,.5,.01,'relief mm']}},
+  terre:      {nom:'Terre réelle (montagnes, canyons)', r:{lieu:[0,9,0,1,'lieu'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,1,.01,'relief mm']}},
+  ville:      {nom:'Ville célèbre (plan réel)', r:{ville:[0,19,0,1,'ville'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,1,.01,'relief mm']}},
+  mars:       {nom:'Mars réelle (relevés NASA)', r:{region:[0,7,0,1,'région'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,1,.01,'relief mm']}},
+  apollo:     {nom:'Édition Apollo 11', r:{zoom:[1,2.5,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,1,.01,'relief mm']}},
   bulles:     {nom:'Bulles et cratères', retire:1, r:{nombre:[4,60,24,1,'nombre'], taille:[.8,5,2.6,.05,'taille maxi mm'], cratere:[0,1,1,1,'cratères'], graine:[1,999,5,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
   terrasses:  {nom:'Terrasses (strates)', r:{couches:[3,14,8,1,'couches'], collines:[1,6,3,1,'collines'], taille:[2,8,4.5,.1,'taille mm'], diguette:[0,1,1,1,'diguettes'], graine:[1,999,21,1,'variante'], relief:[.1,1.2,.4,.01,'relief mm']}},
   /* (14/10, Baptiste : « enleve etoile ») motif « Ciel etoile » retire du catalogue */
@@ -720,7 +720,7 @@ const LUNE=[['tycho','Tycho',150,512],['copernic','Copernic',170,512],['clavius'
   ['hadley','Hadley (Apollo 15)',100,512],['tsiolkovski','Tsiolkovski (face cachée)',280,512],['orientale','Mer Orientale',1100,512],
   ['schrodinger','Schrödinger (pôle Sud)',380,512],['shackleton','Shackleton (pôle Sud, Artemis)',60,512]];
 // edition Apollo 11 : carre de 58 km CENTRE SUR LE SITE d'alunissage (0,674 N ; 23,473 E), 1,2 km par mm de cadran
-const LUNE_A11=['apollo11','Base de la Tranquillité',58,512],A11_KMMM=1.2,LUNE_V=6,_LUNE={};
+const LUNE_A11=['apollo11','Base de la Tranquillité',58,512],A11_KMMM=1.2,LUNE_V=11,_LUNE={};
 function chargerLune(s){const k=(s[4]||'lune')+'/'+s[0],D=_LUNE[k];if(D)return D.v?D:null;_LUNE[k]={};
   (async()=>{try{const r=await fetch('media/'+k+'.bin.gz?v='+LUNE_V);if(!r.ok)throw new Error('HTTP '+r.status);
       const d=new Uint16Array(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()),N=s[3],v=new Float32Array(N*N);
@@ -748,11 +748,11 @@ function luneH(s,e,n,det=0){const D=chargerLune(s);if(!D)return .5;const N=D.N,k
 // voir outils/relief_secteurs.py (Terre : tuiles Terrarium SRTM/3DEP/ETOPO ; Mars : NASA MOLA MEGDR).
 const TERRE=[['montblanc',"Massif du Mont-Blanc",24,512,'terre'],['cervin',"Cervin",9,512,'terre'],['everest',"Everest et Lhotse",26,512,'terre'],['grandcanyon',"Grand Canyon",30,512,'terre'],['yosemite',"Vallée de Yosemite",14,512,'terre'],['fuji',"Mont Fuji",36,512,'terre'],['kilimandjaro',"Kilimandjaro",60,512,'terre'],['ngorongoro',"Cratère du Ngorongoro",34,512,'terre'],['meteor',"Meteor Crater (Arizona)",2.6,512,'terre'],['mariannes',"Fosse des Mariannes",420,512,'terre']];
 // VILLES (15/11, Baptiste : « ville célèbre ») : plans OpenStreetMap, batiments a leur hauteur, rues et eau en creux
-const VILLES=[['etoile',"Paris, place de l'Étoile",1.5,512,'ville'],['cite',"Paris, île de la Cité",1.3,512,'ville'],['versailles',"Château de Versailles",1.4,512,'ville'],['bordeaux',"Bordeaux, place de la Bourse",1.2,512,'ville'],['manhattan',"New York, Midtown",1.6,512,'ville'],['venise',"Venise, Saint-Marc",1.0,512,'ville'],['rome',"Rome, le Colisée",0.9,512,'ville'],['vatican',"Rome, place Saint-Pierre",1.0,512,'ville'],['barcelone',"Barcelone, l'Eixample",1.2,512,'ville'],['palmanova',"Palmanova",1.9,512,'ville']];
+const VILLES=[['etoile',"Paris, place de l'Étoile",1.5,512,'ville'],['cite',"Paris, île de la Cité",1.3,512,'ville'],['versailles',"Château de Versailles",1.4,512,'ville'],['bordeaux',"Bordeaux, place de la Bourse",1.2,512,'ville'],['manhattan',"New York, Midtown",1.6,512,'ville'],['venise',"Venise, Saint-Marc",1.0,512,'ville'],['rome',"Rome, le Colisée",0.9,512,'ville'],['vatican',"Rome, place Saint-Pierre",1.0,512,'ville'],['barcelone',"Barcelone, l'Eixample",1.2,512,'ville'],['palmanova',"Palmanova",1.9,512,'ville'],['bourtange',"Bourtange (Pays-Bas)",0.8,512,'ville'],['naarden',"Naarden (Pays-Bas)",1.3,512,'ville'],['willemstad',"Willemstad (Pays-Bas)",1.1,512,'ville'],['coevorden',"Coevorden (Pays-Bas)",1.1,512,'ville'],['neufbrisach',"Neuf-Brisach (Vauban)",1.3,512,'ville'],['saintmartin',"Saint-Martin-de-Ré (Vauban)",1.5,512,'ville'],['goryokaku',"Goryōkaku (Hakodate, Japon)",0.75,512,'ville'],['grammichele',"Grammichele (Sicile)",1.1,512,'ville'],['karlsruhe',"Karlsruhe",1.8,512,'ville'],['nicosie',"Nicosie (Chypre)",2.0,512,'ville']];
 const MARS=[['olympus',"Olympus Mons",760,512,'mars'],['valles',"Valles Marineris",1100,512,'mars'],['noctis',"Noctis Labyrinthus",500,512,'mars'],['arsia',"Arsia Mons",420,512,'mars'],['gale',"Cratère Gale (Curiosity)",190,512,'mars'],['jezero',"Cratère Jezero (Perseverance)",110,512,'mars'],['elysium',"Elysium Mons",500,512,'mars'],['hellas',"Bassin Hellas",2600,512,'mars']];
 // MODULE LUNAIRE de l'edition Apollo : a 4 h 30, centre a 11,65 mm ; la pointe des minutes s'arrete a 10,6 mm,
 // les patins les plus proches sont a 10,96 mm : le vaisseau et le drapeau restent HORS de la course des aiguilles.
-const A11_LM={r:11.65,a:Math.PI/4,k:1.25,drapeau:.13};   // k : 1,25 x l'echelle 0,14 mm/m (lisible de face) ; patins a 10,96 mm du centre
+const A11_LM={r:12.4,a:-Math.PI/4,k:1.25,drapeau:.2};   // (v2) centre du LM a la jonction plat / chanfrein, a 1 h 30 (chanfrein tourne vers l'oeil en vue de trois quarts ; a 4 h 30 la lunette le cachait)   // k : 1,25 x l'echelle 0,14 mm/m (lisible de face) ; patins a 10,96 mm du centre
 const LISTES={tranche:['tranche lisse','tranche crantée (monnaie)'],texte:['heures (chiffres arabes)','heures (chiffres romains)','minutes (00 à 55)','monogramme répété','texte libre répété'],
   paysage:['vagues','houle','topographie','ondes concentriques','dunes','feuillage'],lisere:['sans liseré','liseré poli autour de la face'],jonction:['fondu','raccord exact','vue de dessus (sans jonction)'],finition:['mat (brut)','poli surface (sommets polis, creux bruts)','poli intégral'],
   dessin:DESSINS.map(d=>d.nom),forme:FORMES.map(f=>f[2]),secteur:LUNE.map(s=>s[1]),lieu:TERRE.map(s=>s[1]),region:MARS.map(s=>s[1]),ville:VILLES.map(s=>s[1])};
@@ -1100,7 +1100,7 @@ const FC = {
   // APOLLO 11 : le site d'alunissage tombe sous le module lunaire (a 4 h 30, hors des aiguilles) ; le sol est aplani
   // sous ses patins (0,7 mm autour) pour qu'il repose a plat
   apollo:(x,z,r,t,p)=>{const X=A11_LM.r*Math.cos(A11_LM.a),Z=A11_LM.r*Math.sin(A11_LM.a),k=A11_KMMM/(p.zoom||1),a=(p.rotation||0)*Math.PI/180,c=Math.cos(a),si=Math.sin(a);
-    const u=x-X,w=Z-z,d=p.detail??.6,h=luneH(LUNE_A11,(u*c-w*si)*k,(u*si+w*c)*k,d),h0=luneH(LUNE_A11,0,0,d),q=sm(.75,1.05,Math.hypot(u,w));
+    const u=x-X,w=Z-z,d=p.detail??.6,h=luneH(LUNE_A11,(u*c-w*si)*k,(u*si+w*c)*k,d),h0=luneH(LUNE_A11,0,0,d),q=sm(1.35,1.75,Math.hypot(u,w));
     return p.relief*(h0+(h-h0)*q);},
   bulles:(()=>{let cle='',B=[];return (x,z,r,t,p)=>{const c=p.graine+'/'+p.nombre+'/'+p.taille;
       if(c!==cle){cle=c;B=[];const R=rng(p.graine*9973+p.nombre);let essais=0;
@@ -2173,37 +2173,79 @@ function indexVolumes(){const s=styleIndex(),out=[];if(![0,1,2].includes(s))retu
     else if(s===1){const r=fort?.62:.42,b=new THREE.SphereGeometry(r,40,20,0,Math.PI*2,0,Math.PI/2);b.scale(1,Math.min(1,(Hi+.02)/r),1);b.translate(x,y0-.02,z);out.push(pos(b));}   // dome aplati si besoin
     else{const r=fort?.66:.46,n=4;for(let q=0;q<n;q++){const rq=r*Math.sqrt(1-(q/n)**2),h=Math.min(r,Hi+.02)/n,c=new THREE.CylinderGeometry(rq,rq,h,48);c.translate(x,y0-.02+h*(q+.5),z);out.push(pos(c));}}}
   return out;}
-// MODULE LUNAIRE ET DRAPEAU (edition Apollo 11, 15/11) : LM d'Apollo a l'echelle 0,14 mm pour 1 m (9,4 m entre patins
-// -> 1,3 mm), drapeau agrandi pour rester lisible. Chaque patin touche SON sol (le relief reel), le drapeau est plante.
-// A11_LM.k = 1,25 : 1,6 mm entre patins, 1,06 mm de haut (vaisseau), 1,25 mm (drapeau) ; hors de la course des aiguilles (voir A11_LM).
+// MODULE LUNAIRE ET DRAPEAU (edition Apollo 11, v2 15/11, Baptiste : « rapproche-toi au mieux du vrai design, augmente
+// la taille presque jusqu'en haut du verre, decale-le entre le chanfrein et le plat ») : LM-5 « Eagle » d'apres ses cotes
+// reelles (m) : 4 jambes a 4,7 m de l'axe (patins de 0,94 m), etage de descente octogonal de 4,2 m (1,25 a 2,95 m),
+// tuyere, etage de remontee (cabine cylindrique de 2,34 m, face avant a facettes et fenetres triangulaires, ecoutille,
+// baie arriere, reservoirs lateraux, tunnel d'amarrage), radar de rendez-vous, antenne bande S orientable, antennes VHF,
+// 4 blocs de propulseurs RCS, echelle sur la jambe avant, porche ; Aldrin au pied de l'echelle.
+// Centre a 12,4 mm (la jonction plat / chanfrein, 1 h 30), tourne de 45° : deux jambes sur le plat, deux sur le chanfrein.
+// Echelle calculee pour que le sommet arrive a 0,16 mm sous le verre (5,265 mm). Tout ce qui depasse le niveau des
+// aiguilles reste au-dela de 10,9 mm du centre (pointe des minutes a 10,6).
+const A11_V2={rc:12.4,haut:5.1,yVerre:5.265};
+function solApollo(x,z){const r=Math.hypot(x,z);if(r<=C_R1)return decorA(x,z);return C_Y+(Math.min(r,C_RH)-C_R1)/(C_RH-C_R1)*(C_YH-C_Y);}
 function apolloVolumes(){if(state.cadran.motif!=='apollo')return [];
-  const K=A11_LM.k,out=[],a=A11_LM.a,X=A11_LM.r*Math.cos(a),Z=A11_LM.r*Math.sin(a),M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3();
-  const ex=new THREE.Vector3(-Math.sin(a),0,Math.cos(a)),ez=new THREE.Vector3(Math.cos(a),0,Math.sin(a));   // ex tangent, ez radial (vers l'exterieur)
-  const loc=(lx,lz)=>[X+K*(ex.x*lx+ez.x*lz),Z+K*(ex.z*lx+ez.z*lz)];
-  const COINS=[[1,1],[1,-1],[-1,1],[-1,-1]],pieds=COINS.map(([i,j])=>{const [px,pz]=loc(.47*i,.47*j);return [px,pz,decorA(px,pz)];});
-  const y0=pieds.reduce((m,f)=>m+f[2],0)/4,rot=Math.atan2(ez.x,ez.z);
-  const poser=(g,lx,ly,lz,ry=0)=>{const [px,pz]=loc(lx,lz);g.scale(K,K,K);g.rotateY(rot+ry);g.translate(px,y0+K*ly,pz);out.push(pos(g));};
-  const barre=(A,B,r)=>{const d=new THREE.Vector3().subVectors(B,A),g=new THREE.CylinderGeometry(r*K,r*K,d.length(),10);
+  const out=[],a=A11_LM.a,X0=A11_V2.rc*Math.cos(a),Z0=A11_V2.rc*Math.sin(a),M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3();
+  const be=a+Math.PI+Math.PI/4,th=Math.atan2(-Math.cos(be),-Math.sin(be)),ct=Math.cos(th),st=Math.sin(th);   // avant (-Z) vers le centre, a 45°
+  const W=(bx,bz,s)=>[X0+s*(bx*ct+bz*st),Z0+s*(-bx*st+bz*ct)];
+  // echelle s (mm par m) et altitude yb du sol nominal : etage de descente au-dessus du sol le plus haut sous lui, sommet a A11_V2.haut
+  let s=.25,yb=0;for(let it=0;it<8;it++){let g=-9;for(let k=0;k<16;k++){const q=k/16*6.283;for(const rr of [0,1.2,2.25]){const [x,z]=W(rr*Math.cos(q),rr*Math.sin(q),s);g=Math.max(g,solApollo(x,z));}}
+    yb=g-1.1*s;s=Math.max(.12,Math.min(.4,(A11_V2.haut-g)/(6.95-1.1)));}
+  const mini=.035;   // rayon mini d'une barre (mm) : 0,07 mm de diametre
+  const pt=(bx,by,bz)=>{const [x,z]=W(bx,bz,s);return new THREE.Vector3(x,yb+by*s,z);};
+  const poser=(g,bx,by,bz,ry=0)=>{g.scale(s,s,s);g.rotateY(th+ry);const [x,z]=W(bx,bz,s);g.translate(x,yb+by*s,z);out.push(pos(g));};
+  const barre=(A,B,r)=>{const d=new THREE.Vector3().subVectors(B,A),g=new THREE.CylinderGeometry(Math.max(mini,r*s),Math.max(mini,r*s),d.length(),8);
     Q.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());M.compose(V.addVectors(A,B).multiplyScalar(.5),Q,new THREE.Vector3(1,1,1));g.applyMatrix4(M);out.push(pos(g));};
-  const pt=(lx,ly,lz)=>{const [px,pz]=loc(lx,lz);return new THREE.Vector3(px,y0+K*ly,pz);};
-  poser(new THREE.CylinderGeometry(.31,.31,.24,8),0,.33,0,Math.PI/8);                       // etage de descente, octogonal
-  poser(new THREE.CylinderGeometry(.07,.12,.12,16),0,.16,0);                                // tuyere de descente
-  poser(new THREE.BoxGeometry(.44,.3,.36),0,.6,-.02);                                       // etage de remontee
-  poser(new THREE.CylinderGeometry(.17,.17,.3,16),0,.6,-.14);                               // cabine de l'equipage (vers le centre)
-  poser(new THREE.CylinderGeometry(.09,.09,.08,16),0,.79,.02);                              // tunnel d'amarrage
-  poser(new THREE.BoxGeometry(.1,.04,.1),0,.27,-.38);                                       // plate-forme de l'ecoutille
-  COINS.forEach(([i,j],q)=>{const f=pieds[q],P=new THREE.Vector3(f[0],f[2]+.03*K,f[1]),H=pt(.2*i,.42,.2*j);
-    barre(H,P,.03);barre(pt(.24*i,.22,.24*j),P.clone().lerp(H,.45),.022);                   // jambe et contre-fiche
-    const pad=new THREE.CylinderGeometry(.08*K,.09*K,.04*K,16);pad.translate(f[0],f[2]+.01,f[1]);out.push(pos(pad));});   // patin, pose sur le sol reel
-  // drapeau : hampe plantee a cote du vaisseau (sens horaire), barre horizontale, toile ondulee, canton en relief
-  const ad=a+A11_LM.drapeau,fr=A11_LM.r-.15,fx=fr*Math.cos(ad),fz=fr*Math.sin(ad),fy=decorA(fx,fz);
-  const hampe=new THREE.CylinderGeometry(.045,.05,1.0*K,12);hampe.translate(fx,fy+.47*K,fz);out.push(pos(hampe));
-  const ang=-ad-Math.PI/2;   // la toile part dans le sens horaire, a l'oppose du vaisseau
+  const boite=(w,h,d,bx,by,bz,rx=0,ry=0)=>{const g=new THREE.BoxGeometry(w,h,d);if(rx)g.rotateX(rx);if(ry)g.rotateY(ry);poser(g,bx,by,bz);};
+  const cyl=(r1,r2,h,n,bx,by,bz,rx=0,rz=0,ry=0)=>{const g=new THREE.CylinderGeometry(r1,r2,h,n);if(rx)g.rotateX(rx);if(rz)g.rotateZ(rz);if(ry)g.rotateY(ry);poser(g,bx,by,bz);};
+  // ── ETAGE DE DESCENTE : octogone (faces planes face aux jambes), feuille d'or en bandes, tuyere
+  cyl(2.27,2.27,1.7,8,0,2.1,0,0,0,Math.PI/8);
+  for(const y of [1.45,2.05,2.65])cyl(2.31,2.31,.07,8,0,y,0,0,0,Math.PI/8);           // plis de la feuille d'or
+  cyl(.5,.82,.75,24,0,.88,0);                                                           // tuyere de descente
+  boite(1.3,.7,.12,0,1.85,-2.3);                                                        // baie MESA (avant gauche) / ALSEP
+  // ── JAMBES : jambe principale (amortisseur), deux contre-fiches, patin pose sur SON sol (plat ou chanfrein)
+  const JAMBES=[[0,-1],[1,0],[0,1],[-1,0]];
+  for(const [i,j] of JAMBES){const [px,pz]=W(4.7*i,4.7*j,s),gy=solApollo(px,pz),P=new THREE.Vector3(px,gy+.12*s,pz),H=pt(2.25*i,2.75,2.25*j);
+    barre(H,P,.11);
+    const Qj=P.clone().lerp(H,.32),lat=(u)=>pt(1.6*i+u*j,1.3,1.6*j-u*i);
+    barre(Qj,lat(1.2),.07);barre(Qj,lat(-1.2),.07);barre(pt(2.25*i,2.75,2.25*j),pt(2.25*i+.9*j,1.3,2.25*j-.9*i),.05);
+    const pad=new THREE.CylinderGeometry(.47*s,.4*s,.5*s,20);pad.translate(px,gy-.1*s,pz);out.push(pos(pad));}   // patin (enfonce sur la pente)
+  // echelle sur la jambe avant (vers le centre) et porche
+  {const P0=pt(0,.4,-4.3),P1=pt(0,2.7,-2.4);for(const u of [-.38,.38]){const d=pt(u,0,0).sub(pt(0,0,0));barre(P0.clone().add(d),P1.clone().add(d),.05);}
+   for(let k=1;k<9;k++){const t=k/9,c=P0.clone().lerp(P1,t);barre(c.clone().add(pt(-.38,0,0).sub(pt(0,0,0))),c.clone().add(pt(.38,0,0).sub(pt(0,0,0))),.035);}
+   boite(1.1,.1,1.0,0,2.98,-2.55);}
+  // ── ETAGE DE REMONTEE
+  cyl(1.17,1.17,1.25,28,0,4.3,-.85,Math.PI/2);                                          // cabine de l'equipage (axe avant-arriere)
+  {const f=new THREE.BoxGeometry(2.5,2.1,.3);f.rotateX(-.12);poser(f,0,4.25,-1.55);}    // face avant a facettes
+  for(const u of [-1,1]){
+    const w=new THREE.ExtrudeGeometry(new THREE.Shape([new THREE.Vector2(.08*u,.05),new THREE.Vector2(.75*u,.05),new THREE.Vector2(.2*u,.62)]),{depth:.12,bevelEnabled:false});
+    w.translate(0,0,-.06);poser(w,0,4.85,-1.76);}                                        // fenetres triangulaires (en relief : se lisent)
+  boite(.85,.85,.14,0,3.55,-1.74);                                                      // ecoutille avant
+  boite(2.9,2.55,1.65,0,4.22,.25);                                                      // section centrale
+  boite(3.1,1.55,1.05,0,4.55,1.55);                                                     // baie d'equipements arriere
+  cyl(.72,.72,1.5,20,-1.65,3.95,.35);cyl(.66,.66,1.4,20,1.62,3.9,.45);                 // reservoirs d'ergols (comburant, carburant)
+  cyl(.5,.5,.55,20,0,5.75,.15);                                                         // tunnel d'amarrage superieur
+  // radar de rendez-vous (avant, en haut) et antenne bande S orientable (cote droit)
+  barre(pt(0,5.45,-1.2),pt(0,5.95,-1.55),.09);cyl(.48,.48,.12,24,0,6.05,-1.6,-1.0);
+  barre(pt(1.2,5.4,.8),pt(1.75,6.05,.9),.07);cyl(.45,.45,.1,24,1.85,6.15,.9,0,-.9);
+  barre(pt(-1.25,5.45,-.3),pt(-1.6,6.9,-.7),.04);barre(pt(1.35,5.3,1.9),pt(1.75,6.8,2.25),.04);   // antennes VHF
+  // 4 blocs RCS aux coins (bloc + tuyeres haut / bas / laterale)
+  for(const [i,j] of [[1,1],[1,-1],[-1,1],[-1,-1]]){const bx=1.75*i,bz=1.45*j;boite(.38,.38,.38,bx,4.75,bz);
+    cyl(.09,.13,.3,10,bx,5.05,bz);cyl(.13,.09,.3,10,bx,4.45,bz);cyl(.09,.13,.3,10,bx+.3*i,4.75,bz,0,-Math.PI/2*i);}
+  // ── ALDRIN au pied de l'echelle (1,8 m) : bottes, jambes, torse, sac PLSS, casque
+  {const [ax,az]=W(.9,-5.4,s),ay=solApollo(ax,az),A=(dx,dy,dz)=>{const [x,z]=W(.9+dx,-5.4+dz,s);return [x,ay+dy*s,z];};
+   const mk=(g,dx,dy,dz)=>{g.scale(s,s,s);g.rotateY(th);const [x,y,z]=A(dx,dy,dz);g.translate(x,y,z);out.push(pos(g));};
+   mk(new THREE.BoxGeometry(.5,.8,.32),0,.4,0);mk(new THREE.BoxGeometry(.6,.7,.42),0,1.15,0);mk(new THREE.BoxGeometry(.55,.75,.3),0,1.2,.33);
+   mk(new THREE.SphereGeometry(.21,14,10),0,1.68,0);mk(new THREE.BoxGeometry(.16,.6,.18),.4,1.05,0);mk(new THREE.BoxGeometry(.16,.6,.18),-.4,1.05,0);}
+  // ── DRAPEAU plante sur le plat, a cote (sens horaire), hors de la course des aiguilles
+  const ad=a+A11_LM.drapeau,fr=11.35,fx=fr*Math.cos(ad),fz=fr*Math.sin(ad),fy=decorA(fx,fz),Kf=1.25;
+  const hampe=new THREE.CylinderGeometry(.045,.05,1.0*Kf,12);hampe.translate(fx,fy+.47*Kf,fz);out.push(pos(hampe));
+  const ang=-ad-Math.PI/2;
   const toile=new THREE.BoxGeometry(.52,.32,.035,12,1,1),tp=toile.getAttribute('position');
   for(let k=0;k<tp.count;k++){const u=(tp.getX(k)+.26)/.52;tp.setZ(k,tp.getZ(k)+.035*Math.sin(u*Math.PI*2.2)*u);}
   toile.translate(.26,0,0);const canton=new THREE.BoxGeometry(.21,.15,.03);canton.translate(.105,.085,.03);
   const barreH=new THREE.CylinderGeometry(.022,.022,.54,8);barreH.rotateZ(Math.PI/2);barreH.translate(.27,.17,0);
-  for(const g of [toile,canton,barreH]){g.scale(K,K,K);g.rotateY(ang);g.translate(fx,fy+.78*K,fz);out.push(pos(g));}
+  for(const g of [toile,canton,barreH]){g.scale(Kf,Kf,Kf);g.rotateY(ang);g.translate(fx,fy+.78*Kf,fz);out.push(pos(g));}
   return out;}
 const _masqueIdx={};
 function masqueIndex(s){if(_masqueIdx[s])return _masqueIdx[s];const W=1024,L=2*C_R1,c=document.createElement('canvas');c.width=c.height=W;const x=c.getContext('2d');
@@ -2219,7 +2261,15 @@ function ajouterIndexRelief(g,N,M,S=M){const s=styleIndex();if(![3,4,5,66].inclu
   for(let i=0;i<N;i++)for(let j=0;j<M;j++){const k=(i*S+j)*3,u=(P[k]/Mq.L+.5)*(Mq.w-1),v=(P[k+2]/Mq.L+.5)*(Mq.h-1);
     if(u<0||v<0||u>Mq.w-1||v>Mq.h-1)continue;const m=echantillon(Mq,u,v);if(m>.01)P[k+1]+=dh*sm(.2,.8,m);}
   g.getAttribute('position').needsUpdate=true;}
-function reliefMaxCadran(){const p=state.cadran.params;return state.cadran.motif==='montagnes'?p.hauteur:(p.relief||0)*(state.cadran.motif==='terrasses'&&p.diguette?1.05:1);}
+// RELIEFS REELS (15/11, Baptiste : « augmente le relief à au moins 1 mm par défaut pour la Lune ») : les aiguilles
+// restent FIXES a 0,8 mm (regle du 13/10) ; le relief garde toute sa hauteur hors de leur course (au-dela de 10,75 mm,
+// pointe des minutes a 10,6) et se comprime en douceur dessous, jamais au-dessus de 0,15 mm sous les aiguilles.
+const REEL=new Set(['lune','apollo','terre','mars','ville']);
+const limAig=()=>AIG_FIXE-FAB.jeu-indexMini();
+let DIAG_BRUT=false;   // vrai pendant diagCadran : les ilots se mesurent sur le relief AVANT compression (transformation monotone et douce des hauteurs : les formes, donc les largeurs, sont celles du dessin ; un seuil unique a mi-hauteur les lirait a des niveaux differents selon le rayon)
+function sousAiguilles(h,r){if(DIAG_BRUT)return h;const L=limAig(),a=.6*L;if(h<=a)return h;const c=a+(L-a)*Math.tanh((h-a)/(L-a));return c+(h-c)*sm(10.75,11.35,r);}
+function reliefMaxCadran(){const p=state.cadran.params;if(REEL.has(state.cadran.motif))return Math.min(p.relief||0,limAig());return state.cadran.motif==='montagnes'?p.hauteur:(p.relief||0)*(state.cadran.motif==='terrasses'&&p.diguette?1.05:1);}
+for(const m of REEL){const f=FC[m];FC[m]=(x,z,r,t,p)=>sousAiguilles(f(x,z,r,t,p),r);}
 
 // ───────────────────────────── scene ─────────────────────────────
 const vue=document.getElementById('vue');
@@ -2928,7 +2978,7 @@ function bornerFab(piece){const s=state[piece],p=s.params,m=s.motif,notes=[];
   else{/* (13/10, Baptiste : « les aiguilles ne doivent pas changer de hauteur ») : aiguilles FIXES a 0,8 mm ; c'est le
        relief du cadran (et la hauteur des index rapportes, voir indexVolumes) qui se borne pour passer dessous */
     const k=m==='montagnes'?'hauteur':'relief',f=m==='terrasses'&&p.diguette?1.05:1,lim=+((AIG_FIXE-FAB.jeu-indexMini())/f).toFixed(2);
-    cl(k,0,lim,`relief ramené à ${String(lim).replace('.',',')} mm (aiguilles fixes à 0,8 mm, 0,15 mm de jeu${indexMini()?', index compris':''})`);}
+    if(!REEL.has(m))cl(k,0,lim,`relief ramené à ${String(lim).replace('.',',')} mm (aiguilles fixes à 0,8 mm, 0,15 mm de jeu${indexMini()?', index compris':''})`);}
   return notes;}
 // mesure (apres construction, au repos) : null si fabricable, sinon les raisons
 function controleFab(piece){const s=state[piece],R=[];
@@ -2984,8 +3034,14 @@ function planifierFab(piece,notes){if(notes&&notes.length)noteFab(piece,notes.jo
 const _fabGarde={};
 function reconstruireLunette(){ filetJonction(); bornerFinition(); const nf=bornerFab('lunette'); majPrix(); if(mLunette){groupeLunette.remove(mLunette);mLunette.geometry.dispose();}
   mLunette=new THREE.Mesh(geoDefaut('lunette')||construireLunette(),[aluLunette,brutActif?brutCreux:aluLunette]); groupeLunette.add(mLunette); badge(); planifierFab('lunette',nf); }
+let mApollo=null;const matApollo=new THREE.MeshStandardMaterial({color:0xd9d6cf,metalness:1,roughness:.18,polygonOffset:true,polygonOffsetFactor:-2,polygonOffsetUnits:-2});
 function reconstruireCadran(){ const nf=bornerFab('cadran'); if(mCadran){groupeCadran.remove(mCadran);mCadran.geometry.dispose();}
-  mCadran=new THREE.Mesh(geoDefaut('cadran')||construireCadran(),state.cadranFin?aluCadran:titane); groupeCadran.add(mCadran); badge(); planifierFab('cadran',nf); }
+  mCadran=new THREE.Mesh(geoDefaut('cadran')||construireCadran(),state.cadranFin?aluCadran:titane); groupeCadran.add(mCadran); badge(); planifierFab('cadran',nf);
+  // (15/11) EDITION APOLLO : le module lunaire et le drapeau sont DANS le cadran (export, controles) ; a l'ecran on les
+  // double d'une peau POLIE pour qu'ils se detachent du sol sable (meme metal, finition polie)
+  if(mApollo){groupeCadran.remove(mApollo);mApollo.geometry.dispose();mApollo=null;}
+  if(state.cadran.motif==='apollo'){const V=apolloVolumes();if(V.length){const g=mergeGeometries(V);g.computeVertexNormals();
+    mApollo=new THREE.Mesh(g,matApollo);groupeCadran.add(mApollo);}}}
 // (10/10) Le bandeau ne RELEVE plus en permanence les reglages par-dessus la
 // montre : ces trois chiffres sont deja lisibles dans le panneau, et les
 // reafficher sur la piece masquait ce qu'on est venu regarder.
@@ -4009,13 +4065,14 @@ function diagLunette(Nd=2400){const {M}=grilleMotif(),Md=Math.max(M,72),H=new Fl
     for(let i=0;i<Nd;i++)for(let j=1;j<Md-1;j++){const a=H[i*Md+j],gu=(H[((i+1)%Nd)*Md+j]-H[((i+Nd-1)%Nd)*Md+j])/(2*du),gs=(H[i*Md+j+1]-H[i*Md+j-1])/(2*ds);pentes.push(Math.atan(Math.hypot(gu,gs))*180/Math.PI);}
     Object.assign(out,resumeIlots(ilots(H,Nd,Md,du,ds,true,seuil),FAB.detail));}
   return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),ep:ep<99?+ep.toFixed(3):null,crete:out.crete,creux:out.creux,pente:pct(pentes,.99)};}
-function diagCadran(pas=.04){const r1=C_R1-.25,n=Math.round(2*r1/pas),H=new Float32Array(n*n),pentes=[];let hmax=-9,hmin=9;
+function diagCadran(pas=.04){DIAG_BRUT=REEL.has(state.cadran.motif);try{return diagCadran_(pas);}finally{DIAG_BRUT=false;}}
+function diagCadran_(pas){const r1=C_R1-.25,n=Math.round(2*r1/pas),H=new Float32Array(n*n),pentes=[];let hmax=-9,hmin=9;
   for(let x=0;x<n;x++)for(let y=0;y<n;y++){const X=-r1+x*pas,Z=-r1+y*pas,h=Math.hypot(X,Z)<r1?reliefCadranSansLogo(X,Z):0;H[x*n+y]=h;if(h>hmax)hmax=h;if(h<hmin)hmin=h;}
   const amp=hmax-hmin;let o={crete:null,creux:null};
   if(amp>.03){for(let x=1;x<n-1;x++)for(let y=1;y<n-1;y+=2){const g=Math.hypot(H[(x+1)*n+y]-H[(x-1)*n+y],H[x*n+y+1]-H[x*n+y-1])/(2*pas);pentes.push(Math.atan(g)*180/Math.PI);}
     o=resumeIlots(ilots(H,n,n,pas,pas,false,hmin+amp/2),FAB.detail);}
   return {hmax:+hmax.toFixed(3),hmin:+hmin.toFixed(3),...o,pente:pct(pentes,.99),jeu:+(state.aiguilles-reliefMaxCadran()).toFixed(2)};}
-window.__studio={coupeZone,reconstruireFlancs,flancsSTL,PANNEAUX,texteSD,crantageSTL,ouvrirDessin,pointZone,hZ:()=>dernierH,exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
+window.__studio={apolloVolumes,solApollo,coupeZone,reconstruireFlancs,flancsSTL,PANNEAUX,texteSD,crantageSTL,ouvrirDessin,pointZone,hZ:()=>dernierH,exporterDefautHD,cleGeo,HD_DEFAUT,appliquerMatieres,vecMaillage,w1Maillage,b64stl,dessusCadranCart,C_R0,cadranCartesien,peauCadran,placerGravure,lignesGravure,largeurFond,largeurEm,scene,THREE,rendreFabricable,bornerFab,controleFab,profMaxEmbossage,diagLunette,diagCadran,MOTIFS_LUNETTE,MOTIFS_CADRAN,DESSINS,FORMES,ORN,reconstruireCadran,reliefMaxCadran,reseauParam,maillageReseau,reconstruireLunette,cam,ctl,chargerBibliotheque,appliquerIA,produire,peauLunette,peauCadran,afficherReelles,state,construireLunette,construireCadran,vueDe,volumeSigne,envoyer,appliquer,appliquerEntree,ENC,FAMILLES,grilleMotif,motifLunette,raccordExact,famille,PERIM,sZone,thetaArc,rangsLunette,gabaritLunette,chargerCarte,BASRELIEF,rayonTranche,tab,T_OUT,T_C4,T_TOP};
 document.getElementById('tBrut').onclick=e=>{const on=brutActif=e.target.classList.toggle('on');appliquerMatieres();if(mLunette)mLunette.material=[aluLunette,on?brutCreux:aluLunette];};
 document.getElementById('tVis').onclick=e=>{vis.visible=e.target.classList.toggle('on');};
 for(const id of ['tBracelet'])document.getElementById(id).onclick=e=>{e.target.classList.toggle('on');majPresentation();};
