@@ -191,9 +191,6 @@ main {
     gap: 22px 14px;
   }
 
-  .pf-card .pf-nom {
-    font-size: 14px;
-  }
 
   .pf-card figcaption {
     gap: 3px 7px;
@@ -284,6 +281,21 @@ main {
   line-height: 1.25;
   color: var(--ink);
   overflow-wrap: anywhere;
+}
+
+/* Telephone, deux planches par ligne (15/11, Baptiste : « Patron parametrique »
+   coupe en « parametriqu-e » sur iPhone). La regle a 14 px ecrite plus haut
+   etait annulee par celle-ci, de meme specificite et placee apres : elle vit
+   donc ici, apres. Et plus de coupure a l'interieur d'un mot : un mot long
+   descend entier a la ligne suivante. */
+@media (max-width: 560px) {
+  .pf-card .pf-nom {
+    font-size: 13px;
+    letter-spacing: -0.02em;
+    overflow-wrap: normal;
+    hyphens: manual;
+    -webkit-hyphens: manual;
+  }
 }
 
 .pf-card .pf-type {
