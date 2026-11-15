@@ -358,6 +358,16 @@ const MOTIFS_CADRAN = {
   /* (15/11, Baptiste : « remplace bulle par cratere, comme la surface de la lune, crateres embosses au lieu de bulles bossees »)
      les bulles quittent le catalogue (configurations deja enregistrees toujours lues) */
   crateres:   {nom:'Cratères lunaires', r:{nombre:[30,420,220,1,'nombre'], taille:[1.5,7,5,.1,'cratère maxi mm'], mers:[0,1,.35,.05,'mers (plaines)'], usure:[0,1,.4,.05,'usure'], graine:[1,999,11,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
+  /* (15/11, Baptiste : « fais des vrais secteurs de la Lune avec les données NASA », « les secteurs les plus intéressants »)
+     relief REEL releve par l'altimetre laser de la sonde LRO (NASA, LOLA), voir outils/lune_secteurs.py */
+  lune:       {nom:'Lune réelle (relevés NASA)', r:{secteur:[0,9,0,1,'secteur'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.6,.05,'détail'], relief:[.1,1.2,.6,.01,'relief mm']}},
+  /* (15/11, Baptiste : « édition spéciale Apollo avec vaisseau sur la surface avec mini drapeau ; le vaisseau doit être à
+     l'extérieur des aiguilles ») : terrain reel de la base de la Tranquillite, module lunaire et drapeau poses sur le site */
+  /* (15/11, Baptiste : « chaîne de montagne, canyon, autre planète ») */
+  terre:      {nom:'Terre réelle (montagnes, canyons)', r:{lieu:[0,9,0,1,'lieu'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.3,.05,'détail'], relief:[.1,1.2,.7,.01,'relief mm']}},
+  ville:      {nom:'Ville célèbre (plan réel)', r:{ville:[0,9,0,1,'ville'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,0,.05,'détail'], relief:[.1,1.2,.45,.01,'relief mm']}},
+  mars:       {nom:'Mars réelle (relevés NASA)', r:{region:[0,7,0,1,'région'], zoom:[1,3,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.5,.05,'détail'], relief:[.1,1.2,.6,.01,'relief mm']}},
+  apollo:     {nom:'Édition Apollo 11', r:{zoom:[1,2.5,1,.05,'zoom'], rotation:[0,359,0,1,'rotation °'], detail:[0,1,.6,.05,'détail'], relief:[.1,1.2,.5,.01,'relief mm']}},
   bulles:     {nom:'Bulles et cratères', retire:1, r:{nombre:[4,60,24,1,'nombre'], taille:[.8,5,2.6,.05,'taille maxi mm'], cratere:[0,1,1,1,'cratères'], graine:[1,999,5,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
   terrasses:  {nom:'Terrasses (strates)', r:{couches:[3,14,8,1,'couches'], collines:[1,6,3,1,'collines'], taille:[2,8,4.5,.1,'taille mm'], diguette:[0,1,1,1,'diguettes'], graine:[1,999,21,1,'variante'], relief:[.1,1.2,.4,.01,'relief mm']}},
   /* (14/10, Baptiste : « enleve etoile ») motif « Ciel etoile » retire du catalogue */
@@ -702,9 +712,50 @@ Object.assign(MOTIFS_LUNETTE,{
   arete:{nom:'3D arêtes vives',r:{forme:[0,FORMES.length-1,0,1,'forme'],pas:[.8,6,1.2,.05,'pas mm'],angle:[0,90,45,1,'angle °'],tronque:[0,.9,.5,.05,'troncature'],
     relief:[.05,1.2,.35,.01,'relief mm'],finition:[0,2,2,1,'finition'],...RC,...RT,...RJ}},
 });
+// ── LUNE REELLE (15/11) : secteurs du modele de terrain NASA LRO / LOLA (domaine public), reechantillonnes en carres
+// nord en haut par outils/lune_secteurs.py, ecrits dans media/lune/<cle>.bin.gz (N x N, 16 bits, ecarts par ligne).
+// [cle, nom, cote du carre km, N] ; le carre couvre le diametre du cadran (24,8 mm) au zoom 1.
+const LUNE=[['tycho','Tycho',150,512],['copernic','Copernic',170,512],['clavius','Clavius',300,512],
+  ['theophile','Théophile, Cyrille, Catherine',300,512],['aristarque','Aristarque et vallée de Schröter',200,512],
+  ['hadley','Hadley (Apollo 15)',100,512],['tsiolkovski','Tsiolkovski (face cachée)',280,512],['orientale','Mer Orientale',1100,512],
+  ['schrodinger','Schrödinger (pôle Sud)',380,512],['shackleton','Shackleton (pôle Sud, Artemis)',60,512]];
+// edition Apollo 11 : carre de 58 km CENTRE SUR LE SITE d'alunissage (0,674 N ; 23,473 E), 1,2 km par mm de cadran
+const LUNE_A11=['apollo11','Base de la Tranquillité',58,512],A11_KMMM=1.2,LUNE_V=5,_LUNE={};
+function chargerLune(s){const k=(s[4]||'lune')+'/'+s[0],D=_LUNE[k];if(D)return D.v?D:null;_LUNE[k]={};
+  (async()=>{try{const r=await fetch('media/'+k+'.bin.gz?v='+LUNE_V);if(!r.ok)throw new Error('HTTP '+r.status);
+      const d=new Uint16Array(await new Response(r.body.pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()),N=s[3],v=new Float32Array(N*N);
+      for(let i=0;i<N;i++){let a=0;for(let j=0;j<N;j++){a=(a+d[i*N+j])&65535;v[i*N+j]=a/65535;}}
+      // DETAIL : la Lune est plate a l'echelle (Tycho : 5 km de relief pour 150 km), le relief local (parois, remparts,
+      // rainures) est donc garde a part = ecart au relief lisse sur ~1/40 du carre, pour etre accentue a la demande
+      const hp=new Float32Array(N*N),t=new Float32Array(N*N),R=Math.max(2,Math.round(N/40));let b=Float32Array.from(v);
+      for(let pass=0;pass<3;pass++){for(let i=0;i<N;i++){let a=0;for(let j=-R;j<=R;j++)a+=b[i*N+Math.min(N-1,Math.max(0,j))];
+          for(let j=0;j<N;j++){t[i*N+j]=a/(2*R+1);a+=b[i*N+Math.min(N-1,j+R+1)]-b[i*N+Math.max(0,j-R)];}}
+        for(let j=0;j<N;j++){let a=0;for(let i=-R;i<=R;i++)a+=t[Math.min(N-1,Math.max(0,i))*N+j];
+          for(let i=0;i<N;i++){b[i*N+j]=a/(2*R+1);a+=t[Math.min(N-1,i+R+1)*N+j]-t[Math.max(0,i-R)*N+j];}}}
+      for(let q=0;q<N*N;q++)hp[q]=v[q]-b[q];
+      _LUNE[k]={v,hp,N};reconstruire('cadran');}
+    catch(e){console.info('secteur lunaire indisponible',k,e);_LUNE[k]={erreur:1};}})();
+  return null;}
+// carre reel pose sur le cadran : nord a 12 h, tourne et agrandi a la demande (Terre, Mars, villes)
+function FC_reel(s,x,z,p){const k=s[2]/24.8/(p.zoom||1),a=(p.rotation||0)*Math.PI/180,c=Math.cos(a),si=Math.sin(a),w=-z;
+  return p.relief*luneH(s,(x*c-w*si)*k,(x*si+w*c)*k,p.detail??.5);}
+// hauteur 0..1 au point (est, nord) en km depuis le centre du carre ; .5 tant que le secteur n'est pas charge
+function luneH(s,e,n,det=0){const D=chargerLune(s);if(!D)return .5;const N=D.N,km=s[2];
+  const fx=Math.max(0,Math.min(N-1.001,(e/km+.5)*N-.5)),fy=Math.max(0,Math.min(N-1.001,(.5-n/km)*N-.5)),i=Math.floor(fy),j=Math.floor(fx),a=fy-i,b=fx-j;
+  const L=V=>(V[i*N+j]*(1-b)+V[i*N+j+1]*b)*(1-a)+(V[(i+1)*N+j]*(1-b)+V[(i+1)*N+j+1]*b)*a;
+  return det?Math.max(0,Math.min(1,.5+(L(D.v)-.5)*(1-.45*det)+3*det*L(D.hp))):L(D.v);}
+// TERRE et MARS REELLES (15/11, Baptiste : « chaîne de montagne, canyon, autre planète ») : meme format, autre dossier,
+// voir outils/relief_secteurs.py (Terre : tuiles Terrarium SRTM/3DEP/ETOPO ; Mars : NASA MOLA MEGDR).
+const TERRE=[['montblanc',"Massif du Mont-Blanc",24,512,'terre'],['cervin',"Cervin",9,512,'terre'],['everest',"Everest et Lhotse",26,512,'terre'],['grandcanyon',"Grand Canyon",30,512,'terre'],['yosemite',"Vallée de Yosemite",14,512,'terre'],['fuji',"Mont Fuji",36,512,'terre'],['kilimandjaro',"Kilimandjaro",60,512,'terre'],['ngorongoro',"Cratère du Ngorongoro",34,512,'terre'],['meteor',"Meteor Crater (Arizona)",2.6,512,'terre'],['mariannes',"Fosse des Mariannes",420,512,'terre']];
+// VILLES (15/11, Baptiste : « ville célèbre ») : plans OpenStreetMap, batiments a leur hauteur, rues et eau en creux
+const VILLES=[['etoile',"Paris, place de l'Étoile",1.5,512,'ville'],['cite',"Paris, île de la Cité",1.3,512,'ville'],['versailles',"Château de Versailles",1.4,512,'ville'],['bordeaux',"Bordeaux, place de la Bourse",1.2,512,'ville'],['manhattan',"New York, Midtown",1.6,512,'ville'],['venise',"Venise, Saint-Marc",1.0,512,'ville'],['rome',"Rome, le Colisée",0.9,512,'ville'],['vatican',"Rome, place Saint-Pierre",1.0,512,'ville'],['barcelone',"Barcelone, l'Eixample",1.2,512,'ville'],['palmanova',"Palmanova",1.9,512,'ville']];
+const MARS=[['olympus',"Olympus Mons",760,512,'mars'],['valles',"Valles Marineris",1100,512,'mars'],['noctis',"Noctis Labyrinthus",500,512,'mars'],['arsia',"Arsia Mons",420,512,'mars'],['gale',"Cratère Gale (Curiosity)",190,512,'mars'],['jezero',"Cratère Jezero (Perseverance)",110,512,'mars'],['elysium',"Elysium Mons",500,512,'mars'],['hellas',"Bassin Hellas",2600,512,'mars']];
+// MODULE LUNAIRE de l'edition Apollo : a 4 h 30, centre a 11,65 mm ; la pointe des minutes s'arrete a 10,6 mm,
+// les patins les plus proches sont a 10,96 mm : le vaisseau et le drapeau restent HORS de la course des aiguilles.
+const A11_LM={r:11.65,a:Math.PI/4,k:1.25,drapeau:.13};   // k : 1,25 x l'echelle 0,14 mm/m (lisible de face) ; patins a 10,96 mm du centre
 const LISTES={tranche:['tranche lisse','tranche crantée (monnaie)'],texte:['heures (chiffres arabes)','heures (chiffres romains)','minutes (00 à 55)','monogramme répété','texte libre répété'],
   paysage:['vagues','houle','topographie','ondes concentriques','dunes','feuillage'],lisere:['sans liseré','liseré poli autour de la face'],jonction:['fondu','raccord exact','vue de dessus (sans jonction)'],finition:['mat (brut)','poli surface (sommets polis, creux bruts)','poli intégral'],
-  dessin:DESSINS.map(d=>d.nom),forme:FORMES.map(f=>f[2])};
+  dessin:DESSINS.map(d=>d.nom),forme:FORMES.map(f=>f[2]),secteur:LUNE.map(s=>s[1]),lieu:TERRE.map(s=>s[1]),region:MARS.map(s=>s[1]),ville:VILLES.map(s=>s[1])};
 const CASES = new Set(['soleil','concentriques','diguette','inverser','ventouses','cratere']);
 const defauts = M => Object.fromEntries(Object.entries(M.r).map(([k,v])=>[k,v[2]]));
 // Etat de depart du projet Montre T (07/10) : lunette ecailles de dragon, cadran terrasses.
@@ -1040,6 +1091,17 @@ const FC = {
       f+=rmx*.012*(n(x*2.7,z*2.7)-.5)*(1-.6*mer);
       const s=.62*p.relief/(.42*rmx);
       return Math.max(0,Math.min(p.relief,p.relief*(.62-.14*mer)+s*f))*(1-sm(11.3,11.9,r));};})(),
+  // LUNE REELLE : le cadran montre le carre NASA, nord a 12 h, tourne et agrandi a la demande ; les creux sont les vrais crateres
+  lune:(x,z,r,t,p)=>{const s=LUNE[Math.round(p.secteur)]||LUNE[0],k=s[2]/24.8/(p.zoom||1),a=(p.rotation||0)*Math.PI/180,c=Math.cos(a),si=Math.sin(a),w=-z;
+    return p.relief*luneH(s,(x*c-w*si)*k,(x*si+w*c)*k,p.detail??.6);},
+  terre:(x,z,r,t,p)=>FC_reel(TERRE[Math.round(p.lieu)]||TERRE[0],x,z,p),
+  ville:(x,z,r,t,p)=>FC_reel(VILLES[Math.round(p.ville)]||VILLES[0],x,z,p),
+  mars:(x,z,r,t,p)=>FC_reel(MARS[Math.round(p.region)]||MARS[0],x,z,p),
+  // APOLLO 11 : le site d'alunissage tombe sous le module lunaire (a 4 h 30, hors des aiguilles) ; le sol est aplani
+  // sous ses patins (0,7 mm autour) pour qu'il repose a plat
+  apollo:(x,z,r,t,p)=>{const X=A11_LM.r*Math.cos(A11_LM.a),Z=A11_LM.r*Math.sin(A11_LM.a),k=A11_KMMM/(p.zoom||1),a=(p.rotation||0)*Math.PI/180,c=Math.cos(a),si=Math.sin(a);
+    const u=x-X,w=Z-z,d=p.detail??.6,h=luneH(LUNE_A11,(u*c-w*si)*k,(u*si+w*c)*k,d),h0=luneH(LUNE_A11,0,0,d),q=sm(.75,1.05,Math.hypot(u,w));
+    return p.relief*(h0+(h-h0)*q);},
   bulles:(()=>{let cle='',B=[];return (x,z,r,t,p)=>{const c=p.graine+'/'+p.nombre+'/'+p.taille;
       if(c!==cle){cle=c;B=[];const R=rng(p.graine*9973+p.nombre);let essais=0;
         while(B.length<p.nombre&&essais++<4000){const rr=Math.sqrt(R())*10.6,a=R()*6.283,ra=p.taille/2*(.3+.7*R()*R());
@@ -2095,7 +2157,7 @@ function construireCadran(){
     bande2(N,th=>[C_RH,C_BAS],th=>[C_R0,C_BAS]),
     bande2(N,th=>[C_R0,C_BAS],th=>[C_R0,C_Y])];
   const g=mergeGeometries(parts.map(pos)); if(volumeSigne(g)<0) retourner(g);
-  const tout=mergeGeometries([g,...indexVolumes()]); tout.computeVertexNormals(); return uvBoite(tout,2.5);
+  const tout=mergeGeometries([g,...indexVolumes(),...apolloVolumes()]); tout.computeVertexNormals(); return uvBoite(tout,2.5);
 }
 // ───────────── INDEX DES HEURES (8 choix) ─────────────
 // 0 batons poses, 1 spheres, 2 spheres en strates : volumes rapportes, POSES sur le decor local ;
@@ -2110,6 +2172,38 @@ function indexVolumes(){const s=styleIndex(),out=[];if(![0,1,2].includes(s))retu
     if(s===0){const h=Math.min(.3,Hi),b=new THREE.BoxGeometry(2.4,h+.1,fort?.7:.45);b.translate(R_IDX,y0+h/2-.05,0);b.rotateY(-a);out.push(pos(b));}
     else if(s===1){const r=fort?.62:.42,b=new THREE.SphereGeometry(r,40,20,0,Math.PI*2,0,Math.PI/2);b.scale(1,Math.min(1,(Hi+.02)/r),1);b.translate(x,y0-.02,z);out.push(pos(b));}   // dome aplati si besoin
     else{const r=fort?.66:.46,n=4;for(let q=0;q<n;q++){const rq=r*Math.sqrt(1-(q/n)**2),h=Math.min(r,Hi+.02)/n,c=new THREE.CylinderGeometry(rq,rq,h,48);c.translate(x,y0-.02+h*(q+.5),z);out.push(pos(c));}}}
+  return out;}
+// MODULE LUNAIRE ET DRAPEAU (edition Apollo 11, 15/11) : LM d'Apollo a l'echelle 0,14 mm pour 1 m (9,4 m entre patins
+// -> 1,3 mm), drapeau agrandi pour rester lisible. Chaque patin touche SON sol (le relief reel), le drapeau est plante.
+// A11_LM.k = 1,25 : 1,6 mm entre patins, 1,06 mm de haut (vaisseau), 1,25 mm (drapeau) ; hors de la course des aiguilles (voir A11_LM).
+function apolloVolumes(){if(state.cadran.motif!=='apollo')return [];
+  const K=A11_LM.k,out=[],a=A11_LM.a,X=A11_LM.r*Math.cos(a),Z=A11_LM.r*Math.sin(a),M=new THREE.Matrix4(),Q=new THREE.Quaternion(),V=new THREE.Vector3();
+  const ex=new THREE.Vector3(-Math.sin(a),0,Math.cos(a)),ez=new THREE.Vector3(Math.cos(a),0,Math.sin(a));   // ex tangent, ez radial (vers l'exterieur)
+  const loc=(lx,lz)=>[X+K*(ex.x*lx+ez.x*lz),Z+K*(ex.z*lx+ez.z*lz)];
+  const COINS=[[1,1],[1,-1],[-1,1],[-1,-1]],pieds=COINS.map(([i,j])=>{const [px,pz]=loc(.47*i,.47*j);return [px,pz,decorA(px,pz)];});
+  const y0=pieds.reduce((m,f)=>m+f[2],0)/4,rot=Math.atan2(ez.x,ez.z);
+  const poser=(g,lx,ly,lz,ry=0)=>{const [px,pz]=loc(lx,lz);g.scale(K,K,K);g.rotateY(rot+ry);g.translate(px,y0+K*ly,pz);out.push(pos(g));};
+  const barre=(A,B,r)=>{const d=new THREE.Vector3().subVectors(B,A),g=new THREE.CylinderGeometry(r*K,r*K,d.length(),10);
+    Q.setFromUnitVectors(new THREE.Vector3(0,1,0),d.clone().normalize());M.compose(V.addVectors(A,B).multiplyScalar(.5),Q,new THREE.Vector3(1,1,1));g.applyMatrix4(M);out.push(pos(g));};
+  const pt=(lx,ly,lz)=>{const [px,pz]=loc(lx,lz);return new THREE.Vector3(px,y0+K*ly,pz);};
+  poser(new THREE.CylinderGeometry(.31,.31,.24,8),0,.33,0,Math.PI/8);                       // etage de descente, octogonal
+  poser(new THREE.CylinderGeometry(.07,.12,.12,16),0,.16,0);                                // tuyere de descente
+  poser(new THREE.BoxGeometry(.44,.3,.36),0,.6,-.02);                                       // etage de remontee
+  poser(new THREE.CylinderGeometry(.17,.17,.3,16),0,.6,-.14);                               // cabine de l'equipage (vers le centre)
+  poser(new THREE.CylinderGeometry(.09,.09,.08,16),0,.79,.02);                              // tunnel d'amarrage
+  poser(new THREE.BoxGeometry(.1,.04,.1),0,.27,-.38);                                       // plate-forme de l'ecoutille
+  COINS.forEach(([i,j],q)=>{const f=pieds[q],P=new THREE.Vector3(f[0],f[2]+.03*K,f[1]),H=pt(.2*i,.42,.2*j);
+    barre(H,P,.03);barre(pt(.24*i,.22,.24*j),P.clone().lerp(H,.45),.022);                   // jambe et contre-fiche
+    const pad=new THREE.CylinderGeometry(.08*K,.09*K,.04*K,16);pad.translate(f[0],f[2]+.01,f[1]);out.push(pos(pad));});   // patin, pose sur le sol reel
+  // drapeau : hampe plantee a cote du vaisseau (sens horaire), barre horizontale, toile ondulee, canton en relief
+  const ad=a+A11_LM.drapeau,fr=A11_LM.r-.15,fx=fr*Math.cos(ad),fz=fr*Math.sin(ad),fy=decorA(fx,fz);
+  const hampe=new THREE.CylinderGeometry(.045,.05,1.0*K,12);hampe.translate(fx,fy+.47*K,fz);out.push(pos(hampe));
+  const ang=-ad-Math.PI/2;   // la toile part dans le sens horaire, a l'oppose du vaisseau
+  const toile=new THREE.BoxGeometry(.52,.32,.035,12,1,1),tp=toile.getAttribute('position');
+  for(let k=0;k<tp.count;k++){const u=(tp.getX(k)+.26)/.52;tp.setZ(k,tp.getZ(k)+.035*Math.sin(u*Math.PI*2.2)*u);}
+  toile.translate(.26,0,0);const canton=new THREE.BoxGeometry(.21,.15,.03);canton.translate(.105,.085,.03);
+  const barreH=new THREE.CylinderGeometry(.022,.022,.54,8);barreH.rotateZ(Math.PI/2);barreH.translate(.27,.17,0);
+  for(const g of [toile,canton,barreH]){g.scale(K,K,K);g.rotateY(ang);g.translate(fx,fy+.78*K,fz);out.push(pos(g));}
   return out;}
 const _masqueIdx={};
 function masqueIndex(s){if(_masqueIdx[s])return _masqueIdx[s];const W=1024,L=2*C_R1,c=document.createElement('canvas');c.width=c.height=W;const x=c.getContext('2d');
@@ -2817,7 +2911,7 @@ const AIG_FIXE=.8;   // aiguilles Ronda 763 standard : 0,8 mm au-dessus du cadra
 function indexMini(){const s=styleIndex();return [0,1,2].includes(s)?.1:s===3?.18:0;}
 // hauteur disponible pour les index rapportes : du sommet du decor jusqu'a 0,15 mm sous les aiguilles
 const hauteurIndex=()=>Math.max(.1,AIG_FIXE-FAB.jeu-reliefMaxCadran());
-const FAB_FIXES=new Set(['tranche','texte','paysage','persoV','lisere','dessin','forme','mode','finition','jonction','graine','inverser','soleil','concentriques','diguette','cratere','pivot','angle','branches','zone']);
+const FAB_FIXES=new Set(['secteur','lieu','region','ville','rotation','tranche','texte','paysage','persoV','lisere','dessin','forme','mode','finition','jonction','graine','inverser','soleil','concentriques','diguette','cratere','pivot','angle','branches','zone']);
 // profondeur maxi de l'embossage : le creux suit la normale vers l'interieur ; il doit rester FAB.ep jusqu'a
 // l'alesage du verre (R_IN) et jusqu'au dessous de la lunette (Y_BAS), partout ou le motif peut creuser
 function profMaxEmbossage(){LZ=largeurZone();let d=9;
@@ -3547,6 +3641,12 @@ function panneau(piece){if(piece==='lunette'){bornerFinition();if(state.lunette.
       inp.onchange=()=>panneau(piece);}   // au relachement : apercus mis a jour avec le nouveau reglage
     (k==='finition'&&piece==='lunette'?box:fins).appendChild(d);}
   if(fins.children.length>1)box.appendChild(fins);
+  // (15/11) sources des reliefs reels : OpenStreetMap (ODbL) EXIGE la mention ; NASA et Terrarium citees par loyaute
+  const SRC_REEL={lune:'Relief : NASA / LRO / LOLA, domaine public.',apollo:'Relief : NASA / LRO / LOLA et SLDEM2015 (JAXA Kaguya).',
+    terre:'Relief : tuiles d\'altitude Terrarium (SRTM, 3DEP, ETOPO1, GMTED).',mars:'Relief : NASA / MGS / MOLA, domaine public.',
+    ville:'Plan : © contributeurs OpenStreetMap (ODbL), simplifié pour la gravure.'};
+  if(piece==='cadran'&&SRC_REEL[state.cadran.motif]){const d=document.createElement('p');d.className='aide';d.style.cssText='font-size:11px;opacity:.7;margin:6px 0 0';
+    d.innerHTML=SRC_REEL[state.cadran.motif].replace('OpenStreetMap','<a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a>');box.appendChild(d);}
   if(piece==='lunette'&&state.lunette.motif==='embossage'){const D_=DESSINS[Math.round(state.lunette.params.dessin||0)];
     if(D_?.texte){const d=document.createElement('div');d.className='ligne';d.innerHTML='<input type="text" maxlength="40" placeholder="monogramme ou texte (A-Z, 0-9)" style="flex:1">';
       const inp=d.querySelector('input');inp.value=state.lunette.texteLibre||'DELIGNY';inp.oninput=()=>{state.lunette.texteLibre=inp.value.toUpperCase().replace(/[^A-Z0-9 .·&-]/g,'');_TXT=null;reconstruire('lunette');};box.appendChild(d);}
@@ -3980,7 +4080,7 @@ document.getElementById('cfgSave').onclick=()=>{const n=document.getElementById(
 // Bas-relief IA seulement parmi ceux deja generes (pas de depense automatique).
 const tirer=a=>a[Math.floor(Math.random()*a.length)];
 const tirerPoids=o=>{let t=Math.random()*Object.values(o).reduce((a,b)=>a+b,0);for(const [k,w] of Object.entries(o)){if((t-=w)<0)return k;}return Object.keys(o)[0];};
-const DISCRETS=new Set(['dessin','mode','graine','inverser','soleil','cratere','diguette','concentriques','finition','jonction','pivot']);
+const DISCRETS=new Set(['secteur','lieu','region','ville','dessin','mode','graine','inverser','soleil','cratere','diguette','concentriques','finition','jonction','pivot']);
 const cloche=()=>(Math.random()+Math.random()+Math.random())/3;   // 0..1, centre 0,5
 function paramsAlea(M,calme=1){const out={};for(const [k,[lo,hi,def,pas]] of Object.entries(M.r)){
   if(['jonction','pivot','inverser'].includes(k)){out[k]=def;continue;}

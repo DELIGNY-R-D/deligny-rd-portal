@@ -1,0 +1,158 @@
+{
+ "source": "NASA / LRO / LOLA (PDS Geosciences Node), domaine public",
+ "secteurs": [
+  {
+   "cle": "tycho",
+   "nom": "Tycho",
+   "texte": "Cratère jeune (108 millions d'années), 85 km : parois en gradins et piton central.",
+   "lat": -43.31,
+   "lon": -11.220000000000027,
+   "km": 150,
+   "n": 512,
+   "kmmm": 6.0484,
+   "hmin": -3478.0,
+   "hmax": 1632.6,
+   "source": "NASA LRO LOLA LDEM_128"
+  },
+  {
+   "cle": "copernic",
+   "nom": "Copernic",
+   "texte": "Le « monarque de la Lune », 93 km : terrasses effondrées et pitons centraux.",
+   "lat": 9.62,
+   "lon": -20.079999999999984,
+   "km": 170,
+   "n": 512,
+   "kmmm": 6.8548,
+   "hmin": -3558.6,
+   "hmax": 507.2,
+   "source": "NASA LRO LOLA LDEM_128"
+  },
+  {
+   "cle": "clavius",
+   "nom": "Clavius",
+   "texte": "Un des plus grands cratères visibles, 225 km : un arc de cratères de plus en plus petits sur son fond.",
+   "lat": -58.4,
+   "lon": -14.399999999999977,
+   "km": 300,
+   "n": 512,
+   "kmmm": 12.0968,
+   "hmin": -4907.7,
+   "hmax": 1905.5,
+   "source": "NASA LRO LOLA LDEM_64"
+  },
+  {
+   "cle": "theophile",
+   "nom": "Théophile, Cyrille, Catherine",
+   "texte": "Trois cratères en chaîne, trois âges : le plus jeune mord sur son voisin.",
+   "lat": -14.6,
+   "lon": 24.8,
+   "km": 300,
+   "n": 512,
+   "kmmm": 12.0968,
+   "hmin": -4750.1,
+   "hmax": 2885.7,
+   "source": "NASA LRO LOLA LDEM_64"
+  },
+  {
+   "cle": "aristarque",
+   "nom": "Aristarque et vallée de Schröter",
+   "texte": "Le point le plus brillant de la Lune et la plus grande vallée sinueuse.",
+   "lat": 24.7,
+   "lon": -49.60000000000002,
+   "km": 200,
+   "n": 512,
+   "kmmm": 8.0645,
+   "hmin": -3212.8,
+   "hmax": 1130.1,
+   "source": "NASA LRO LOLA LDEM_128"
+  },
+  {
+   "cle": "hadley",
+   "nom": "Hadley (Apollo 15)",
+   "texte": "La rainure de Hadley au pied des Apennins, site d'Apollo 15.",
+   "lat": 26.08,
+   "lon": 3.66,
+   "km": 100,
+   "n": 512,
+   "kmmm": 4.0323,
+   "hmin": -2311.1,
+   "hmax": 2448.6,
+   "source": "NASA LRO LOLA LDEM_512",
+   "site": {
+    "nom": "Apollo 15",
+    "e": -0.711,
+    "n": 1.583
+   }
+  },
+  {
+   "cle": "tsiolkovski",
+   "nom": "Tsiolkovski (face cachée)",
+   "texte": "Face cachée : un fond de lave sombre autour d'un piton central, 185 km.",
+   "lat": -20.38,
+   "lon": 129.06,
+   "km": 280,
+   "n": 512,
+   "kmmm": 11.2903,
+   "hmin": -1850.4,
+   "hmax": 4258.0,
+   "source": "NASA LRO LOLA LDEM_64"
+  },
+  {
+   "cle": "orientale",
+   "nom": "Mer Orientale",
+   "texte": "Bassin d'impact à anneaux multiples, 930 km : le mieux conservé de la Lune.",
+   "lat": -19.87,
+   "lon": -94.80000000000001,
+   "km": 1100,
+   "n": 512,
+   "kmmm": 44.3548,
+   "hmin": -2983.6,
+   "hmax": 6897.7,
+   "source": "NASA LRO LOLA LDEM_16"
+  },
+  {
+   "cle": "schrodinger",
+   "nom": "Schrödinger",
+   "texte": "Bassin à anneau de pitons de 320 km, près du pôle Sud, face cachée.",
+   "lat": -75.0,
+   "lon": 132.4,
+   "km": 380,
+   "n": 512,
+   "kmmm": 15.3226,
+   "hmin": -5072.2,
+   "hmax": 2111.9,
+   "source": "NASA LRO LOLA LDEM_64"
+  },
+  {
+   "cle": "shackleton",
+   "nom": "Shackleton (pôle Sud)",
+   "texte": "Le pôle Sud, cible d'Artemis : un cratère de 21 km dans l'ombre permanente.",
+   "lat": -89.67,
+   "lon": 129.78,
+   "km": 60,
+   "n": 512,
+   "kmmm": 2.4194,
+   "hmin": -2782.7,
+   "hmax": 1813.9,
+   "source": "NASA LRO LOLA LDEM_256"
+  },
+  {
+   "cle": "apollo11",
+   "nom": "Base de la Tranquillité (Apollo 11)",
+   "texte": "Mer de la Tranquillité, 20 juillet 1969 : le site d'alunissage d'Apollo 11.",
+   "lat": 0.67408,
+   "lon": 23.47297,
+   "km": 58,
+   "n": 512,
+   "kmmm": 1.2,
+   "hmin": -2160.7,
+   "hmax": -1355.2,
+   "source": "NASA LRO LOLA LDEM_S512",
+   "site": {
+    "nom": "Apollo 11",
+    "e": 0.0,
+    "n": 0.0
+   }
+  }
+ ]
+}

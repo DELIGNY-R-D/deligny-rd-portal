@@ -1,0 +1,119 @@
+{
+ "source": "NASA / MGS / MOLA MEGDR (PDS Geosciences Node), domaine public",
+ "secteurs": [
+  {
+   "cle": "olympus",
+   "nom": "Olympus Mons",
+   "texte": "Le plus grand volcan du système solaire : 22 km de haut, 600 km de large.",
+   "lat": 18.65,
+   "lon": -133.8,
+   "km": 760,
+   "n": 512,
+   "kmmm": 30.6452,
+   "hmin": -2474.0,
+   "hmax": 21039.5,
+   "source": "NASA MGS MOLA MEGDR M128"
+  },
+  {
+   "cle": "valles",
+   "nom": "Valles Marineris",
+   "texte": "Un canyon de 4 000 km, jusqu'à 7 km de profondeur : ici Candor, Ophir et Melas.",
+   "lat": -7.0,
+   "lon": -71.0,
+   "km": 1100,
+   "n": 512,
+   "kmmm": 44.3548,
+   "hmin": -5073.2,
+   "hmax": 5690.5,
+   "source": "NASA MGS MOLA MEGDR M128"
+  },
+  {
+   "cle": "noctis",
+   "nom": "Noctis Labyrinthus",
+   "texte": "Le labyrinthe de la nuit : un réseau de canyons effondrés.",
+   "lat": -7.0,
+   "lon": -102.0,
+   "km": 500,
+   "n": 512,
+   "kmmm": 20.1613,
+   "hmin": 2286.9,
+   "hmax": 8301.2,
+   "source": "NASA MGS MOLA MEGDR M128"
+  },
+  {
+   "cle": "arsia",
+   "nom": "Arsia Mons",
+   "texte": "Volcan de Tharsis et sa caldeira de 110 km.",
+   "lat": -8.26,
+   "lon": -120.83000000000001,
+   "km": 420,
+   "n": 512,
+   "kmmm": 16.9355,
+   "hmin": 4863.5,
+   "hmax": 17582.6,
+   "source": "NASA MGS MOLA MEGDR M128"
+  },
+  {
+   "cle": "gale",
+   "nom": "Cratère Gale (Curiosity)",
+   "texte": "Le mont Sharp au centre du cratère, gravi par Curiosity depuis 2012.",
+   "lat": -5.4,
+   "lon": 137.8,
+   "km": 190,
+   "n": 512,
+   "kmmm": 7.6613,
+   "hmin": -4519.6,
+   "hmax": 845.6,
+   "source": "NASA MGS MOLA MEGDR M128",
+   "site": {
+    "nom": "Curiosity",
+    "e": -21.129,
+    "n": 47.942
+   }
+  },
+  {
+   "cle": "jezero",
+   "nom": "Cratère Jezero (Perseverance)",
+   "texte": "Un ancien lac et son delta, exploré par Perseverance depuis 2021.",
+   "lat": 18.4,
+   "lon": 77.6,
+   "km": 110,
+   "n": 512,
+   "kmmm": 4.4355,
+   "hmin": -3403.6,
+   "hmax": -819.1,
+   "source": "NASA MGS MOLA MEGDR M128",
+   "site": {
+    "nom": "Perseverance",
+    "e": -8.373,
+    "n": 2.648
+   }
+  },
+  {
+   "cle": "elysium",
+   "nom": "Elysium Mons",
+   "texte": "Le grand volcan de l'hémisphère est.",
+   "lat": 24.8,
+   "lon": 146.9,
+   "km": 500,
+   "n": 512,
+   "kmmm": 20.1613,
+   "hmin": -913.8,
+   "hmax": 12771.1,
+   "source": "NASA MGS MOLA MEGDR M128"
+  },
+  {
+   "cle": "hellas",
+   "nom": "Bassin Hellas",
+   "texte": "Le plus grand bassin d'impact visible : 2 300 km, 7 km de profondeur.",
+   "lat": -42.4,
+   "lon": 70.5,
+   "km": 2600,
+   "n": 512,
+   "kmmm": 104.8387,
+   "hmin": -7513.6,
+   "hmax": 2807.7,
+   "source": "NASA MGS MOLA MEGDR M32"
+  }
+ ]
+}
