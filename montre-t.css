@@ -4,6 +4,7 @@
 .mt-fig img { display: block; width: 100%; height: auto; border-radius: 14px; background: #000; }
 .mt-fig figcaption { margin-top: .6rem; font-size: .9rem; opacity: .75; text-align: center; }
 .mt-fig--hero { max-width: 980px; }
+.mt-fig--aleatoire { max-width: 560px; }   /* animation portrait (15/11) : moins haute que l'ecran */
 .mt-fig--portrait { max-width: 620px; }
 .mt-galerie { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; max-width: 980px; margin: 2rem auto; padding: 0 16px; }
 .mt-galerie img { display: block; width: 100%; height: auto; border-radius: 12px; }
