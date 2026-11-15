@@ -355,7 +355,10 @@ const MOTIFS_CADRAN = {
   topographie:{nom:'Topographie', r:{niveaux:[3,14,8,1,'niveaux'], echelle:[2,10,5,.1,'échelle mm'], graine:[1,999,3,1,'variante'], relief:[.1,1.2,.35,.01,'relief mm']}},
   clous:      {nom:'Clous de Paris', r:{pas:[.5,2.5,1,.05,'pas mm'], relief:[.05,1.2,.2,.01,'relief mm']}},
   image:      {nom:'Bas-relief IA', r:{relief:[.05,1.2,.35,.01,'relief mm'], cadrage:[.6,1.3,1,.01,'cadrage'], detail:[0,1,.5,.05,'détail'], contraste:[.5,2.5,1.2,.05,'contraste'], inverser:[0,1,0,1,'inverser']}},
-  bulles:     {nom:'Bulles et cratères', r:{nombre:[4,60,24,1,'nombre'], taille:[.8,5,2.6,.05,'taille maxi mm'], cratere:[0,1,1,1,'cratères'], graine:[1,999,5,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
+  /* (15/11, Baptiste : « remplace bulle par cratere, comme la surface de la lune, crateres embosses au lieu de bulles bossees »)
+     les bulles quittent le catalogue (configurations deja enregistrees toujours lues) */
+  crateres:   {nom:'Cratères lunaires', r:{nombre:[30,420,220,1,'nombre'], taille:[1.5,7,5,.1,'cratère maxi mm'], mers:[0,1,.35,.05,'mers (plaines)'], usure:[0,1,.4,.05,'usure'], graine:[1,999,11,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
+  bulles:     {nom:'Bulles et cratères', retire:1, r:{nombre:[4,60,24,1,'nombre'], taille:[.8,5,2.6,.05,'taille maxi mm'], cratere:[0,1,1,1,'cratères'], graine:[1,999,5,1,'variante'], relief:[.1,1.2,.6,.01,'relief mm']}},
   terrasses:  {nom:'Terrasses (strates)', r:{couches:[3,14,8,1,'couches'], collines:[1,6,3,1,'collines'], taille:[2,8,4.5,.1,'taille mm'], diguette:[0,1,1,1,'diguettes'], graine:[1,999,21,1,'variante'], relief:[.1,1.2,.4,.01,'relief mm']}},
   /* (14/10, Baptiste : « enleve etoile ») motif « Ciel etoile » retire du catalogue */
 };
@@ -678,6 +681,10 @@ const FORMES=[['reseau','pyramides carrées','clous de Paris'],['reseau','pyrami
   ['texture','pierre','pierre'],['texture','volcanique','roche volcanique'],['texture','craquelures','craquelures'],['texture','cratères','cratères'],
   ['texture','érosion','érosion'],['texture','dunes','dunes'],['texture','peau de requin','peau de requin'],['texture','météorite','météorite (Widmanstätten)'],
   ['generatif','gyroïde','gyroïde'],['generatif','Schwarz P','Schwarz P']];
+/* (15/11, Baptiste : « retire la gradins dans arete vive ») forme masquee, SANS la sortir du tableau : les numeros des autres
+   formes (enregistres dans les configurations) restent les memes. Une configuration en gradins passe en clous de Paris. */
+const FORMES_RETIREES=new Set(['gradins']);
+const formeRetiree=k=>FORMES_RETIREES.has((FORMES[Math.round(k||0)]||[])[1]);
 for(const k of Object.keys(MOTIFS_LUNETTE))delete MOTIFS_LUNETTE[k];
 const RT={tranche:[0,1,0,1,'tranche']},RC={contour:[0,3,0,.05,'contour du verre plat mm']};   // (14/10) RC : bossage et bas-reliefs seulement (l'embossage reste a fleur)
 // largeur plate cote verre (mm) : la marge fine, ou le contour plat choisi s'il est plus large
@@ -686,14 +693,14 @@ const RJ=ENC&&ENC.r_lunette||{jonction:[0,2,1,1,'jonctions'],pivot:[0,360,0,1,'p
 Object.assign(MOTIFS_LUNETTE,{
   lisse:{nom:'Lisse',r:{finition:[0,2,2,1,'finition'],...RT}},
   embossage:{nom:'Embossage',r:{dessin:[0,DESSINS.length-1,0,1,'dessin'],n:[12,160,64,1,'nombre'],rangs:[1,5,3,1,'rangs'],proportion:[.15,.85,.5,.01,'proportion'],
-    profondeur:[.1,1.2,.45,.01,'profondeur mm'],angle:[15,90,50,1,'angle °'],facettes:[1,4,2,1,'facettes'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré'],
+    profondeur:[.1,1.2,.45,.01,'profondeur mm'],angle:[15,90,50,1,'angle °'],facettes:[1,4,2,1,'facettes'],finition:[0,2,1,1,'finition'],
     texte:[0,4,0,1,'chiffres / texte'],hauteur:[1.4,2.4,1.6,.05,'hauteur des chiffres mm'],...RT,...RJ}},
   image:{nom:'Bas-relief',r:{relief:[.1,1.5,.6,.01,'relief mm'],echelle:[.4,2.5,1.8,.05,'échelle'],detail:[0,1,.3,.05,'détail'],contraste:[.5,2.5,1,.05,'contraste'],
-    inverser:[0,1,0,1,'inverser'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré'],...RC,...RT}},
+    inverser:[0,1,0,1,'inverser'],finition:[0,2,2,1,'finition'],...RC,...RT}},   /* (15/11) defaut poli integral : le poli surface est reserve a l'embossage */
   relief:{nom:'Bas-relief paramétrique',r:{paysage:[0,5,0,1,'sujet'],echelle:[.6,2.5,1.2,.05,'échelle'],relief:[.1,.8,.35,.01,'relief mm'],
-    graine:[1,999,7,1,'variante'],finition:[0,2,1,1,'finition'],lisere:[0,1,0,1,'liseré'],...RC,...RT}},
+    graine:[1,999,7,1,'variante'],finition:[0,2,2,1,'finition'],...RC,...RT}},
   arete:{nom:'3D arêtes vives',r:{forme:[0,FORMES.length-1,0,1,'forme'],pas:[.8,6,1.2,.05,'pas mm'],angle:[0,90,45,1,'angle °'],tronque:[0,.9,.5,.05,'troncature'],
-    relief:[.05,1.2,.35,.01,'relief mm'],finition:[0,2,2,1,'finition'],lisere:[0,1,0,1,'liseré'],...RC,...RT,...RJ}},
+    relief:[.05,1.2,.35,.01,'relief mm'],finition:[0,2,2,1,'finition'],...RC,...RT,...RJ}},
 });
 const LISTES={tranche:['tranche lisse','tranche crantée (monnaie)'],texte:['heures (chiffres arabes)','heures (chiffres romains)','minutes (00 à 55)','monogramme répété','texte libre répété'],
   paysage:['vagues','houle','topographie','ondes concentriques','dunes','feuillage'],lisere:['sans liseré','liseré poli autour de la face'],jonction:['fondu','raccord exact','vue de dessus (sans jonction)'],finition:['mat (brut)','poli surface (sommets polis, creux bruts)','poli intégral'],
@@ -1009,6 +1016,30 @@ const FC = {
   clous:(x,z,r,t,p)=>{const a=(x+z)/Math.SQRT2/p.pas,b=(x-z)/Math.SQRT2/p.pas;return p.relief*Math.max(0,1-2*Math.max(Math.abs(fract(a)-.5),Math.abs(fract(b)-.5)));},
   // Terrasses vues du dessus : collines lisses decoupees en strates a plat,
   // marches presque verticales, petite diguette au bord de chaque strate.
+  // CRATERES LUNAIRES (15/11) : morphologie des crateres de la Lune, CREUSES dans un plateau (le plateau est a 62 %
+  // du relief, les cuvettes descendent jusqu'au plan du cadran, les remparts montent au-dessus).
+  //  - tailles en loi de puissance N(>D) ~ D^-2 (comptage des crateres lunaires) : beaucoup de petits, peu de grands ;
+  //  - petit cratere = cuvette parabolique, profondeur ~ 1/5 du diametre, rempart ~ 4 % du diametre, ejecta en r^-3 ;
+  //  - grand cratere (complexe) = fond plat et piton central ;
+  //  - les plus grands sont les plus anciens : poses d'abord, usés, puis recoupes par les plus jeunes (un cratere
+  //    efface le relief anterieur dans sa cuvette) ;
+  //  - mers : plaines basses et lisses ou les crateres sont plus rares et plus frais ; regolithe en grain fin.
+  crateres:(()=>{let cle='',G=null,n=null,rmx=1;const CEL=1;return (x,z,r,t,p)=>{const c=[p.graine,p.nombre,p.taille,p.usure].join('/');
+      if(c!==cle){cle=c;G=new Map();n=bruit2(p.graine+101);const R=rng(p.graine*7919+p.nombre);rmx=p.taille/2;const rmn=Math.min(.12,rmx*.25),k2=1-(rmn/rmx)**2,L=[];
+        for(let i=0;i<p.nombre;i++){const ra=rmn/Math.sqrt(1-R()*k2),rr=Math.sqrt(R())*11.6,a=R()*6.283;L.push([rr*Math.cos(a),rr*Math.sin(a),ra]);}
+        L.sort((A,B)=>B[2]-A[2]);
+        L.forEach((k,i)=>{k.push(1-p.usure*.8*(1-i/L.length));const e=k[2]*2.2;
+          for(let gx=Math.floor((k[0]-e)/CEL);gx<=Math.floor((k[0]+e)/CEL);gx++)for(let gz=Math.floor((k[1]-e)/CEL);gz<=Math.floor((k[1]+e)/CEL);gz++){const q=gx+','+gz;(G.get(q)||G.set(q,[]).get(q)).push(k);}});}
+      const mer=p.mers*sm(.48,.62,n(x/7+3,z/7+5)),cal=sm(1.2,1.9,r);
+      let f=0;const lst=G.get(Math.floor(x/CEL)+','+Math.floor(z/CEL));
+      if(lst)for(const [cx,cz,ra,fr] of lst){const d=Math.hypot(x-cx,z-cz),q=d/ra;if(q>=2.2)continue;
+        const A=fr*(1-.75*mer)*cal,e=Math.sqrt(ra*rmx),prof=.42*e*A,rem=.13*e*A;let v;   // profondeur en racine du rayon : les petits restent lisibles a l'echelle d'une montre
+        if(q<1){const cx2=ra>.55*rmx?Math.min(1-q*q,.86):1-q*q;v=-prof*cx2+rem*Math.exp(-(((q-1)/.12)**2));if(ra>.55*rmx)v+=.45*prof*Math.exp(-((q/.13)**2));f*=sm(.55,1,q);}
+        else v=rem*(.55*Math.exp(-(((q-1)/.22)**2))+.45*(q**-3-2.2**-3)/(1-2.2**-3));
+        f+=v;}
+      f+=rmx*.012*(n(x*2.7,z*2.7)-.5)*(1-.6*mer);
+      const s=.62*p.relief/(.42*rmx);
+      return Math.max(0,Math.min(p.relief,p.relief*(.62-.14*mer)+s*f))*(1-sm(11.3,11.9,r));};})(),
   bulles:(()=>{let cle='',B=[];return (x,z,r,t,p)=>{const c=p.graine+'/'+p.nombre+'/'+p.taille;
       if(c!==cle){cle=c;B=[];const R=rng(p.graine*9973+p.nombre);let essais=0;
         while(B.length<p.nombre&&essais++<4000){const rr=Math.sqrt(R())*10.6,a=R()*6.283,ra=p.taille/2*(.3+.7*R()*R());
@@ -1610,7 +1641,8 @@ function pointZone(i,N,j,M,decal,brut){const ua=i/N,th=thetaArc(ua),P=profilZone
   dernierH=h;dernierN[0]=nr*Math.cos(th);dernierN[1]=ny;dernierN[2]=nr*Math.sin(th);const r=r0+h*nr;return [r*Math.cos(th),y0+h*ny,r*Math.sin(th)];}
 let dernierH=0,dernierD=NaN,dernierL=NaN;const dernierN=[0,1,0];
 const LISERE=.25;   // demi-largeur du lisere (mm) : 0,5 mm de bande polie sur le pli
-function lisereActif(){const L=state.lunette;return (L.zone||'biseau')==='tout'&&Math.round(L.params.lisere||0)===1&&['arete','embossage','image'].includes(L.motif)&&!w1Actif();}   // normale du profil au dernier point (arrondi d'affichage)
+/* (15/11, Baptiste : « retire ») le lisere poli n'est plus propose ; les configurations qui l'avaient ne l'affichent plus */
+function lisereActif(){return false;const L=state.lunette;return (L.zone||'biseau')==='tout'&&Math.round(L.params.lisere||0)===1&&['arete','embossage','image'].includes(L.motif)&&!w1Actif();}   // normale du profil au dernier point (arrondi d'affichage)
 const _extCol={i:-1,N:0,v:true};   // cote exterieur de la zone, une fois par colonne
 // POLISSAGE (photo des ecailles, 08/10) : le polisseur n'atteint que les SOMMETS du relief ;
 // les creux restent bruts (gris, grenus), avec une limite nette. Un triangle est poli si sa
@@ -3080,7 +3112,7 @@ function galerieApercus(piece,box){_fileVign=_fileVign.filter(j=>j.img.isConnect
       tuile(g2,d.nom,'S|emb|'+k+'|'+[p.n,p.rangs,p.proportion,p.profondeur,p.angle,p.facettes,p.finition,st.zone].join(','),()=>vignetteSphere('embossage',pp),Math.round(p.dessin)===k,()=>{state.lunette.params.dessin=k;panneau('lunette');reconstruire('lunette');});});}
     if(st.motif==='relief'){const g2=bloc('Sujet',1);LISTES.paysage.forEach((nm,k)=>{const pp={...p,paysage:k};
       tuile(g2,nm,'S|rel|'+k+'|'+[p.echelle,p.relief,p.graine,p.finition,st.zone].join(','),()=>vignetteSphere('relief',pp),Math.round(p.paysage||0)===k,()=>{state.lunette.params.paysage=k;panneau('lunette');reconstruire('lunette');});});}
-    if(st.motif==='arete'){const g2=bloc('Forme',1);FORMES.forEach((f,k)=>{const pp={...p,forme:k};
+    if(st.motif==='arete'){const g2=bloc('Forme',1);FORMES.forEach((f,k)=>{if(FORMES_RETIREES.has(f[1]))return;const pp={...p,forme:k};
       tuile(g2,f[2],'S|ar|'+k+'|'+[p.pas,p.angle,p.tronque,p.relief,p.finition,st.zone].join(','),()=>vignetteSphere('arete',pp),Math.round(p.forme)===k,()=>{state.lunette.params.forme=k;if(f[3])Object.assign(state.lunette.params,f[3]);panneau('lunette');reconstruire('lunette');});});}
   }else{
     const g=bloc('Motif du cadran');for(const [m,M] of Object.entries(MOTIFS_CADRAN)){if(m==='image'||M.retire)continue;const pp=st.motif===m?p:{};
@@ -3419,10 +3451,14 @@ function bornerFinCadran(){const id=state.matieres.cadran;if(state.cadranFin&&!p
 // placage), pas de brut. Consequences : boitier titane = entierement brut, boitier fonderie = entierement poli ;
 // finition de lunette limitee ; cadran (toujours brut) seulement en DMLS.
 const peutBrut=id=>(MATIERES[id]||MATIERES.alu).fin.includes('brut'),peutPoli=id=>(MATIERES[id]||MATIERES.alu).fin.includes('poli');
-const finitionsLunette=id=>peutBrut(id)&&peutPoli(id)?[0,1,2]:peutBrut(id)?[0]:[1,2];
+/* (15/11, Baptiste : « enleve la finition poli partiel pour les formes bossees, aussi de la demo ; forme bossee = brut
+   ou brillant ; poli partiel de la surface que pour la texture embossee ») : le poli surface (1) n'existe que pour
+   l'EMBOSSAGE. Bas-reliefs, arêtes vives et lisse : mat (0) ou poli integral (2). */
+const finitionsLunette=(id,motif=state.lunette.motif)=>{const f=peutBrut(id)&&peutPoli(id)?[0,1,2]:peutBrut(id)?[0]:[1,2];return motif==='embossage'?f:f.filter(v=>v!==1);};
 let mCarPoli=null;
 function bornerFinition(){const p=state.lunette.params,M=MOTIFS_LUNETTE[state.lunette.motif];if(!M||!M.r.finition)return false;const ok=finitionsLunette(state.matieres.lunette);
-  const f=Math.round(p.finition??M.r.finition[2]);if(ok.includes(f))return false;p.finition=ok.reduce((a,c)=>Math.abs(c-f)<Math.abs(a-f)?c:a,ok[0]);return true;}
+  const f=Math.round(p.finition??M.r.finition[2]);if(ok.includes(f)){p.finition=f;return false;}   /* valeur toujours ECRITE : le rendu lit p.finition??1 */
+  p.finition=f===1&&ok.includes(2)?2:ok.reduce((a,c)=>Math.abs(c-f)<Math.abs(a-f)?c:a,ok[0]);return true;}   /* poli surface sur une forme bossee -> poli integral (brillant) */
 const _hex=h=>[(h>>16)&255,(h>>8)&255,h&255];
 function appliquerMatieres(){const M=k=>MATIERES[state.matieres[k]]||MATIERES.alu;
   const b=M('boitier'),l=M('lunette'),c=M('cadran');
@@ -3482,7 +3518,7 @@ function panneauMatieres(){const BOX={boitier:'matBoitier',lunette:'matLunette',
       :piece==='lunette'?(peutBrut(id)&&peutPoli(id)?'Finitions mat, poli surface ou poli intégral.':peutBrut(id)?'Titane : lunette brute (mat) seulement.':'Fonderie : poli surface ou poli intégral.')
       :(peutBrut(id)&&peutPoli(id)?'Brut (arêtes cassées) ou poli intégral.':peutBrut(id)?'Titane : cadran brut seulement.':'Fonderie : cadran poli intégral.');box.appendChild(n);}
   try{panneauComposition();}catch(e){}   /* au demarrage, la composition n'est pas encore declaree : elle se dessine a sa definition */}
-function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, box=document.getElementById(REG[piece]);
+function panneau(piece){if(piece==='lunette'){bornerFinition();if(state.lunette.motif==='arete'&&formeRetiree(state.lunette.params.forme)){state.lunette.params.forme=0;setTimeout(()=>reconstruire('lunette'),0);}}   /* (15/11) finition valide pour le motif AVANT d'afficher les vignettes */const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, box=document.getElementById(REG[piece]);
   document.getElementById(SEL[piece]).value=valeurSelect(piece); box.innerHTML='';galerieApercus(piece,box);
   /* SIMPLICITE (12/10) : les choix visuels (billes, vignettes, finition) restent a l'ecran ; les curseurs numeriques
      passent dans « Réglages fins », replie par defaut (etat memorise par piece, la galerie se reconstruit souvent) */
@@ -3494,13 +3530,13 @@ function panneau(piece){const M=piece==='lunette'?MOTIFS_LUNETTE:MOTIFS_CADRAN, 
     if(CASES.has(k)){d.className='reg case';d.innerHTML=`<label>${lib}</label><input type="checkbox" ${val?'checked':''}>`;
       d.querySelector('input').onchange=e=>{state[piece].params[k]=e.target.checked?1:0;reconstruire(piece);};}
     else if(k==='finition'&&piece==='lunette'){d.className='reg';d.innerHTML='<label>finition</label>';const g=document.createElement('div');g.className='vign sph';
-      LISTES.finition.forEach((lib,i)=>{const pp={...state.lunette.params,finition:i},mo=state.lunette.motif;
+      LISTES.finition.forEach((lib,i)=>{const pp={...state.lunette.params,finition:i},mo=state.lunette.motif;if(i===1&&mo!=='embossage')return;   /* (15/11) poli surface : embossage seulement */
         tuile(g,['Mat (brut)','Poli surface','Poli intégral'][i]||lib,'S|'+mo+'|'+JSON.stringify(pp)+'|'+state.lunette.zone,()=>vignetteSphere(mo,pp),Math.round(val)===i,
           ()=>{state.lunette.params.finition=i;panneau('lunette');reconstruire('lunette');});
         if(!finitionsLunette(state.matieres.lunette).includes(i)){const v=g.lastChild;v.classList.add('off');v.onclick=null;
           v.title=MATIERES[state.matieres.lunette].nom+' : '+(peutPoli(state.matieres.lunette)?'livré poli (pas de brut)':'livré brut (pas de polissage)');}});d.appendChild(g);}
     else if(LISTES[k]){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
-      LISTES[k].forEach((m,i)=>{if(k==='dessin'&&DESSINS[i]?.retire)return;const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
+      LISTES[k].forEach((m,i)=>{if(k==='dessin'&&DESSINS[i]?.retire)return;if(k==='forme'&&formeRetiree(i))return;const o=document.createElement('option');o.value=i;o.textContent=m;se.appendChild(o);});
       se.value=String(Math.round(val));d.innerHTML=`<label>${lib}</label>`;d.appendChild(se);se.onchange=()=>{state[piece].params[k]=+se.value;reconstruire(piece);};}
     else if(k==='mode'&&estFamille(state[piece].motif)){d.className='reg case';const se=document.createElement('select');se.style.margin='0';
       FAMILLES[state[piece].motif].modes.forEach((m,i)=>{const o=document.createElement('option');o.value=i;o.textContent=nomMode(m);se.appendChild(o);});
@@ -3587,7 +3623,7 @@ function poser(piece,motif,params,extra){const M=piece==='lunette'?MOTIFS_LUNETT
 const LEGACY_DESSIN={ecailles:0,dragon:1,perles:2,damier:3,rayons:4,torsade:4,vagues:5};
 function versLunette(e){
   if(e.type==='parametrique'){const md=FAMILLES[e.motif].modes[e.params.mode||0];
-    const f=FORMES.findIndex(([k,m])=>k===e.motif&&m===md);if(f>=0)return {motif:'arete',params:{forme:f,...(e.params.pas?{pas:e.params.pas}:{}),...(e.params.angle!=null?{angle:e.params.angle}:{}),...(e.params.tronque!=null?{tronque:e.params.tronque}:{}),...(e.params.relief?{relief:e.params.relief}:{})}};
+    const f=FORMES.findIndex(([k,m])=>k===e.motif&&m===md&&!FORMES_RETIREES.has(m));if(f>=0)return {motif:'arete',params:{forme:f,...(e.params.pas?{pas:e.params.pas}:{}),...(e.params.angle!=null?{angle:e.params.angle}:{}),...(e.params.tronque!=null?{tronque:e.params.tronque}:{}),...(e.params.relief?{relief:e.params.relief}:{})}};
     const d=DESSINS.findIndex(x=>x.fam&&x.fam[0]===e.motif&&x.fam[1]===md);if(d>=0)return {motif:'embossage',params:{dessin:d}};return null;}
   if(e.type==='motif'&&LEGACY_DESSIN[e.motif]!=null)return {motif:'embossage',params:{dessin:LEGACY_DESSIN[e.motif]}};
   return null;}
@@ -3673,9 +3709,9 @@ async function construireOrnements(){const et=document.getElementById('ornEtat')
 // ── Extravagance : styles complets (volumes + cadran assorti) ──
 const EXTRAVAGANCE={
   'Bouillonnement':{orn:[{type:'grappe',params:{densite:.85,taille:2.6,pointes:10,hauteur_pointes:4,zone:2,graine:17}}],fusion:.35,
-    cadran:{motif:'bulles',params:{nombre:26,taille:3.2,cratere:1,relief:.9,graine:5}}},
+    cadran:{motif:'crateres',params:{nombre:120,taille:5,mers:.3,usure:.5,relief:.9,graine:5}}},
   'Cosmique':{orn:[{type:'coque',params:{epaisseur:2.2,trous:30,ondulation:.7,zone:2,graine:21}},{type:'etoile',params:{n:3,taille:8,branches:4,hauteur:3,rangee:.5,zone:2,graine:9}},{type:'bille',params:{n:7,taille:4,variation:.6,rangee:.5,dispersion:.9,zone:2,graine:3}}],fusion:.6,
-    cadran:{motif:'bulles',params:{nombre:26,taille:2.2,cratere:1,relief:.6,graine:9}}},
+    cadran:{motif:'crateres',params:{nombre:160,taille:3.5,mers:.5,usure:.4,relief:.6,graine:9}}},
   'Kraken ajouré':{orn:[{type:'coque',params:{epaisseur:2.6,trous:22,ondulation:1,zone:2,graine:33}},{type:'tentacule',params:{n:3,epaisseur:2.4,longueur:.3,ondulations:2,ventouses:1,graine:13}}],fusion:.7,
     cadran:{motif:'vagues',params:{longueur:2.2,ondulation:1.4,concentriques:0,relief:.8}}},
 };
@@ -3932,23 +3968,55 @@ function listerCfg(){const L=document.getElementById('cfgListe');L.innerHTML='';
     L.appendChild(d);});}
 document.getElementById('cfgSave').onclick=()=>{const n=document.getElementById('cfgNom'),nom=(n.value||'').trim()||('Configuration '+(lireCfg().length+1));
   const l=lireCfg();l.unshift({nom,date:new Date().toLocaleString('fr-FR'),etat:instantane()});ecrireCfg(l);n.value='';listerCfg();};
-// ALEATOIRE : tirage dans les bornes du vocabulaire (aucune valeur hors limites), bas-relief IA seulement
-// parmi ceux deja generes (pas de depense automatique)
+// ALEATOIRE HARMONISE (15/11, Baptiste : « ameliorer l'esthetique de l'aleatoire »). Avant : chaque grandeur tiree
+// au hasard uniforme, chaque piece dans n'importe quel metal (4 metaux differents sur une montre, reliefs extremes).
+// Maintenant, le hasard suit les usages de l'horlogerie :
+//  1. MATIERES par accord, pas piece par piece : monochrome (boitier = lunette), bicolore classique (lunette precieuse
+//     sur boitier acier/titane), ou ton sur ton ; cadran de la meme famille de teinte ou en contraste sombre ;
+//     fond = boitier s'il touche la peau sans risque, sinon le metal compatible le plus proche en teinte.
+//  2. GRANDEURS en cloche autour de la valeur de reference (le reglage dessine), les extremes restent possibles mais
+//     rares ; les choix discrets (dessin, mode, variante) restent equiprobables.
+//  3. EQUILIBRE : un seul element fort a la fois. Si la lunette est tres marquee, le cadran se calme, et inversement.
+// Bas-relief IA seulement parmi ceux deja generes (pas de depense automatique).
 const tirer=a=>a[Math.floor(Math.random()*a.length)];
-function paramsAlea(M){const out={};for(const [k,[lo,hi,def,pas]] of Object.entries(M.r)){
+const tirerPoids=o=>{let t=Math.random()*Object.values(o).reduce((a,b)=>a+b,0);for(const [k,w] of Object.entries(o)){if((t-=w)<0)return k;}return Object.keys(o)[0];};
+const DISCRETS=new Set(['dessin','mode','graine','inverser','soleil','cratere','diguette','concentriques','finition','jonction','pivot']);
+const cloche=()=>(Math.random()+Math.random()+Math.random())/3;   // 0..1, centre 0,5
+function paramsAlea(M,calme=1){const out={};for(const [k,[lo,hi,def,pas]] of Object.entries(M.r)){
   if(['jonction','pivot','inverser'].includes(k)){out[k]=def;continue;}
-  let v=lo+Math.random()*(hi-lo);v=Math.round(v/pas)*pas;out[k]=+Math.max(lo,Math.min(hi,v)).toFixed(4);}return out;}
+  let v;
+  if(DISCRETS.has(k)||(hi-lo)/pas<=6)v=lo+Math.random()*(hi-lo+pas*.999);
+  else{const u=cloche(),d=Math.min(hi,Math.max(lo,def));v=u<.5?d-(d-lo)*(1-2*u):d+(hi-d)*(2*u-1);}
+  if(k==='relief')v=lo+(v-lo)*calme;
+  v=Math.round(v/pas)*pas;out[k]=+Math.max(lo,Math.min(hi,v)).toFixed(4);}return out;}
+const TEINTE={alu:'blanc',titane:'gris',inox:'blanc',bronze:'jaune',laiton:'jaune',laitonOr:'jaune',laitonRose:'rose',rhodiumBlanc:'blanc',
+  rhodiumNoir:'noir',argent:'blanc',or18:'jaune',or18Rose:'rose',or18Blanc:'blanc',or14:'jaune',or14Rose:'rose',or14Blanc:'blanc',platine:'blanc'};
+const ACIERS=['alu','titane','inox'];
+const deTeinte=t=>Object.keys(MATIERES).filter(m=>TEINTE[m]===t);
+function matieresAlea(){
+  const accord=tirerPoids({mono:5,bicolore:3,tonSurTon:2});
+  const boitier=tirer(accord==='bicolore'?ACIERS:Object.keys(MATIERES));
+  let lunette=boitier;
+  if(accord==='bicolore')lunette=tirer(['or18','or18','or18Rose','or14','laitonOr','laitonRose','rhodiumNoir','platine'].filter(m=>MATIERES[m]));
+  else if(accord==='tonSurTon'){const pr=m=>ORS.includes(m)||m==='argent',v=deTeinte(TEINTE[boitier]).filter(m=>m!==boitier&&pr(m)===pr(boitier));if(v.length)lunette=tirer(v);}   // meme rang : jamais d'or 18 ct avec du laiton
+  // cadran : meme famille que la lunette (ton sur ton) ou contraste sombre (titane, rhodium noir)
+  const tc=TEINTE[lunette],cadran=tirerPoids({meme:5,sombre:4})==='meme'?tirer(deTeinte(tc==='gris'?'blanc':tc)):tirer(['titane','rhodiumNoir']);
+  const proche={blanc:['inox','titane','or18Blanc','platine'],gris:['titane'],jaune:['or18','titane'],rose:['or18Rose','titane'],noir:['titane']};
+  const fond=FOND_OK.includes(boitier)?boitier:tirer(proche[TEINTE[boitier]].filter(m=>FOND_OK.includes(m)));
+  return {boitier,lunette,cadran,fond};}
 document.getElementById('cfgAlea').onclick=()=>{
   const catL=tirer(BIB.lunette.length?['embossage','embossage','arete','image']:['embossage','embossage','arete']);
-  const lun={zone:tirer(['biseau','face','tout']),motif:catL,params:paramsAlea(MOTIFS_LUNETTE[catL])};
+  const forteL=Math.random()<.5;                                        // qui porte l'accent : lunette ou cadran
+  const lun={zone:tirer(['biseau','face','tout']),motif:catL,params:paramsAlea(MOTIFS_LUNETTE[catL],forteL?1:.55)};
   if(catL==='embossage'&&(DESSINS[lun.params.dessin]?.ia||DESSINS[lun.params.dessin]?.retire))lun.params.dessin=7;   // 7 = losanges
   if(catL==='image')lun.ia=tirer(BIB.lunette).id;
-  const motsC=Object.keys(MOTIFS_CADRAN).filter(k=>k!=='image'&&!MOTIFS_CADRAN[k].retire),catC=tirer(motsC);
-  const cad={motif:catC,params:paramsAlea(MOTIFS_CADRAN[catC])};
+  if(catL==='arete')while(formeRetiree(lun.params.forme))lun.params.forme=Math.floor(Math.random()*FORMES.length);
+  const motsC=Object.keys(MOTIFS_CADRAN).filter(k=>k!=='image'&&!MOTIFS_CADRAN[k].retire);
+  const catC=forteL&&Math.random()<.3?'lisse':tirer(motsC.filter(k=>k!=='lisse'));   // lunette forte : cadran parfois lisse
+  const cad={motif:catC,params:paramsAlea(MOTIFS_CADRAN[catC],forteL?.5:1)};
   if(cad.params.relief!=null)cad.params.relief=Math.min(cad.params.relief,.5);   // jeu sous les aiguilles standard
-  // (12/10) l'aleatoire tire aussi les MATIERES de chaque piece et la FINITION de la lunette
-  const mats=Object.keys(MATIERES),matieres={boitier:tirer(mats),lunette:tirer(mats),cadran:tirer(mats),fond:tirer(FOND_OK)};
-  if(lun.params.finition!=null)lun.params.finition=tirer(finitionsLunette(matieres.lunette));
+  const matieres=matieresAlea();
+  if(lun.params.finition!=null)lun.params.finition=tirer(finitionsLunette(matieres.lunette,catL));
   appliquerCfg({lunette:lun,cadran:cad,matieres,cadranFin:Math.random()<.5?1:0,index:Math.floor(Math.random()*7),aiguilles:.8});};
 
 // ───────────── COMMANDE DE LA MONTRE (12/10 certificat en aperçu ; 06/11 demande de commande) ─────────────
