@@ -1,6 +1,6 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-0Jvr7c611AOyy6msc5yLhKM8Ae2Mc+2Vwd/Yg5mD1pE='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-3agRwX6g2tmAKT1xvQWliBdqGzglm8bq/H57rezHk7s='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lampe Designer, la lampe imprimée sur mesure | DELIGNY R&D</title>
 <meta name="description" content="Lampe Designer : lampe à poser dessinée dans le configurateur, nervures fines calculées dans la matière, coque creuse en PLA translucide diffusant. 249 mm, 160 cm³, 5 V USB.">
@@ -27,9 +27,11 @@ body{background:var(--fond);font-family:var(--gro);color:var(--encre);line-heigh
 .barre{background:var(--barre);display:flex;align-items:center;justify-content:space-between;gap:16px;
   padding:16px clamp(18px,7vw,110px);position:sticky;top:0;z-index:10;flex-wrap:wrap}
 .signature{font-size:clamp(16px,1.7vw,22px);font-weight:700;letter-spacing:-.02em;line-height:1.25}
-.signature a{color:inherit;text-decoration:underline;text-decoration-color:var(--violet);
-  text-decoration-thickness:2px;text-underline-offset:4px}
-.signature a:hover{color:var(--violet)}
+.signature a{color:inherit;text-decoration:none}
+.signature .point{color:var(--violet)}
+.accroche a{color:inherit;text-decoration:underline;text-decoration-color:var(--violet);
+  text-decoration-thickness:4px;text-underline-offset:.12em}
+.accroche a:hover{color:var(--violet)}
 .liens{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
 .liens a{font-size:15.5px;font-weight:600;color:var(--encre);text-decoration:none;
   padding:11px 22px;border:1px solid var(--ligne);border-radius:14px;background:rgba(255,255,255,.5);
@@ -88,7 +90,7 @@ body{background:var(--fond);font-family:var(--gro);color:var(--encre);line-heigh
      que fabriquer. La signature dit ce partage, elle ne s'attribue pas la conception. Elle tient la place
      de la marque dans la barre, comme « Atlas Studio Pro. » sur la page d'Atlas. -->
 <header class="barre">
-  <p class="signature">Conçu par vous, fabriqué par <a href="https://deligny-rd.fr/index.html" title="Retour à l'accueil DELIGNY R&amp;D">DELIGNY R&amp;D</a></p>
+  <p class="signature"><a class="marque" href="index.html">Lampe Designer<span class="point">.</span></a></p>
   <nav class="liens" aria-label="Navigation">
     <a href="gamme.html">La gamme</a>
     <a href="index.html">Configurateur</a>
@@ -101,7 +103,7 @@ body{background:var(--fond);font-family:var(--gro);color:var(--encre);line-heigh
 <main>
   <section class="hero">
     <h1 class="geant">Lampe Designer.</h1>
-    <p class="accroche">La lampe qui définit l'atelier.</p>
+    <p class="accroche">Conçu par vous, fabriqué par <a href="https://deligny-rd.fr/index.html" title="Retour à l'accueil DELIGNY R&amp;D">DELIGNY R&amp;D</a></p>
     <p class="texte">
       <span>Profil dessiné point par point, relief nervuré calculé dans la matière et non plaqué dessus.</span>
       <span>Coque creuse en PLA translucide qui diffuse la lumière au lieu de la bloquer.</span>
