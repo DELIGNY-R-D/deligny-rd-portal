@@ -1,5 +1,5 @@
 <!doctype html><html lang="fr"><head><meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-dJKWWfAy7xzv0snKQITbesGUXgeauZ105u7ZbosY7qw='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-OdcxzNbDGFEqcQN2sb+kL30RmIaBZj9jRv4aREgV0xE='; style-src-attr 'unsafe-inline'; script-src 'sha256-LZhKikApQMyddH+ghUReEnwOFdpjWjY9OQ09Umy9CW8='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Custom 3D Lamp Studio — configurateur de lampe imprimée sur mesure</title>
 <meta name="description" content="Configure une lampe imprimée 3D sur mesure (suspension, à poser, applique) : profil paramétrique, culot électrique standard, prix automatique, dossier de fabrication. Un outil DELIGNY R&D.">
@@ -9508,7 +9508,14 @@ organiserEnEtapes();
     if(PANIER.lignes.length && confirm('Vider le panier ?')){ PANIER.lignes = []; enregistrerPanier(); renderPanier(); } }; }
 renderPanier();
 syncViewInputs();
-setPreset(TYPES[state.type].silhouettes[0]);
+/* 16/11 : la gamme ouvre le configurateur sur la forme choisie (index.html?forme=<silhouette>). Le tracé de profil
+ * se charge alors sur cette silhouette ; sans paramètre, ou avec un nom inconnu, on garde la forme par défaut. */
+{
+  let forme = null;
+  try{ forme = new URLSearchParams(location.search).get('forme'); }catch(e){}
+  if(forme && Object.prototype.hasOwnProperty.call(SILHOUETTES, forme)) setPreset(forme);
+  else setPreset(TYPES[state.type].silhouettes[0]);
+}
 /* Le lien vers le tableau de bord PROPAGATION n'apparaît QUE sur le poste de
  * travail. Test sur l'hôte, pas sur le protocole : une page ouverte en
  * file:// ou servie par le moteur local est un atelier ; tout le reste est le
