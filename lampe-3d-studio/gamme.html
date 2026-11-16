@@ -1,6 +1,6 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-JqU2/ZZ7/jzvkziO63EK8laiyf6hpq+EVOUf1hG+7Dk='; style-src-attr 'unsafe-inline'; script-src 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-xULQEBE74F+JMFUx2H4LIgs+lOg5ZiZs0QqjXUwao9M='; style-src-attr 'unsafe-inline'; script-src 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>La gamme, cinquante silhouettes | Lampe Designer, DELIGNY R&D</title>
 <meta name="description" content="Cinquante silhouettes de la Lampe Designer, rangées de la plus large à la plus élancée, chacune rendue depuis sa géométrie réelle : PLA translucide diffusant, nervures fines, base blanche, bois, noire ou transparente.">
@@ -10,84 +10,84 @@
 <meta property="og:title" content="La gamme, cinquante silhouettes">
 <meta property="og:description" content="Cinquante silhouettes rendues depuis leur géométrie réelle, de la plus large à la plus élancée. Chacune reste modifiable point par point.">
 <style>
-/* ============================================================================
- * PLANCHE DE GAMME
- * Meme grammaire que l'affiche : feuille creme, un mot en tres grand, bandeau
- * vert bord a bord. Ce qui change, c'est ce que la feuille doit FAIRE : ici on
- * compare cinquante pieces, donc une grille SANS marge interieure, comme une
- * planche contact d'atelier.
- *
- * ⚠️ Ces images sont des rendus BLENDER de la geometrie reelle, calcules a
- * l'atelier et servis en statique. Le rendu a la demande n'a pas sa place ici :
- * mesure faite, le serveur du site mettrait 57 minutes par image.
- * ========================================================================== */
+/* PLANCHE DE GAMME (16/11) : meme esthetique que la page de presentation (dune.html), elle-meme alignee sur la page
+   d'accueil d'Atlas Studio Pro : barre claire a pastilles, mot geant tres gras et serre, accroche, bouton degrade.
+   Les images sont des rendus BLENDER de la geometrie reelle, servis en statique : le rendu a la demande n'a pas sa
+   place ici (le serveur du site mettrait 57 minutes par image). Aucune police externe : CSP du portail. */
 *{box-sizing:border-box;margin:0;padding:0}
-:root{--creme:#efede6;--creme2:#e6e3d9;--vert:#2c4a38;--vert-clair:#3d6249;
-  --encre:#161616;--gris:#6b6b63;--page:#0a0a0a;
-  --gro:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif}
+:root{
+  --barre:#f4f2ee; --fond:#fff; --encre:#0e0e0e; --gris:#66665f; --ligne:#e3e0da;
+  --violet:#7b55c4; --bleu:#3a62a8; --vert:#2f7d4f;
+  --degrade:linear-gradient(100deg,var(--violet),var(--bleu) 55%,var(--vert));
+  --gro:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
+}
 html{-webkit-text-size-adjust:100%}
-body{background:var(--page);font-family:var(--gro);color:var(--encre);
-  display:flex;flex-direction:column;align-items:center;padding:26px 18px 60px;line-height:1.5}
-/* Meme traitement que l'affiche : la feuille suivait une largeur FIGEE de
-   880 px et laissait deux bandes noires sur un ecran large. Avec cinquante
-   vignettes, c'etait pire encore : la grille etouffait. */
-.feuille{--pad-x:clamp(22px,3.4vw,52px);
-  width:100%;max-width:min(1240px,95vw);background:var(--creme);border-radius:26px;
-  padding:clamp(24px,3vh,40px) var(--pad-x) 0;position:relative;overflow:hidden;
-  box-shadow:0 30px 90px rgba(0,0,0,.5)}
-.feuille::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
-  background-size:3px 3px;mix-blend-mode:multiply}
-.signature{font-size:clamp(15px,1.5vw,19px);font-weight:600;line-height:1.45;letter-spacing:.01em}
-.signature b{display:block;font-weight:600}
-nav{display:flex;align-items:center;justify-content:space-between;margin-top:46px}
-.mot-marque{font-size:16px;font-weight:700;letter-spacing:.02em}
-.liens{display:flex;align-items:center;gap:26px}
-.liens a{font-size:12.5px;color:var(--encre);text-decoration:none}
-.liens a:hover{text-decoration:underline;text-underline-offset:3px}
-.filet{height:1px;background:rgba(22,22,22,.35);margin-top:16px}
-.reference{font-size:clamp(19px,3.4vw,30px);font-weight:600;margin-top:22px}
-.geant{font-size:clamp(70px,20vw,190px);line-height:.80;font-weight:800;color:var(--vert);
-  letter-spacing:-.055em;margin-top:-.04em;white-space:nowrap;user-select:none}
-.intro{max-width:430px;margin-top:14px;font-size:12px;line-height:1.6}
-.tiret{width:34px;height:7px;background:var(--vert);border-radius:2px;margin-bottom:11px}
-/* grille sans marge interieure : les pieces se comparent bord a bord */
-/* 4 colonnes convenaient a douze modeles. A cinquante, la planche ferait deux
-   ecrans de haut : on passe a 6, et les colonnes se raréfient a la fenetre. */
-.grille{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;margin-top:26px;
-  background:rgba(22,22,22,.15);border-top:1px solid rgba(22,22,22,.15);
-  border-bottom:1px solid rgba(22,22,22,.15)}
-.case{background:var(--creme);padding:14px 10px 12px;display:flex;flex-direction:column;
-  align-items:center;gap:8px;text-decoration:none;color:var(--encre);transition:background .15s}
-.case:hover{background:#f6f4ee}
+body{background:var(--fond);font-family:var(--gro);color:var(--encre);line-height:1.5}
+
+.barre{background:var(--barre);display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:16px clamp(18px,7vw,110px);position:sticky;top:0;z-index:10;flex-wrap:wrap}
+.signature{font-size:clamp(16px,1.7vw,22px);font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.signature a{color:inherit;text-decoration:none}
+.signature .point{color:var(--violet)}
+.liens{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.liens a{font-size:15.5px;font-weight:600;color:var(--encre);text-decoration:none;
+  padding:11px 22px;border:1px solid var(--ligne);border-radius:14px;background:rgba(255,255,255,.5);
+  transition:background .15s,border-color .15s}
+.liens a:hover{background:#fff;border-color:#cfcbc3}
+
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:clamp(44px,8vh,100px) clamp(18px,5vw,60px) clamp(36px,6vh,64px)}
+.geant{font-size:clamp(35px,7.6vw,112px);line-height:.92;font-weight:900;letter-spacing:-.065em;white-space:nowrap}
+.accroche{font-size:clamp(26px,4.3vw,56px);font-weight:800;letter-spacing:-.05em;line-height:1.1;
+  margin-top:clamp(26px,4.5vh,54px);text-wrap:balance}
+.accroche a{color:inherit;text-decoration:underline;text-decoration-color:var(--violet);
+  text-decoration-thickness:4px;text-underline-offset:.12em}
+.accroche a:hover{color:var(--violet)}
+.texte{font-size:clamp(16px,1.6vw,21px);color:var(--gris);line-height:1.6;margin-top:22px;max-width:46em;text-wrap:balance}
+.texte span{display:block}
+.actions{display:flex;gap:14px;margin-top:32px;flex-wrap:wrap;justify-content:center}
+.pilule{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 34px;border-radius:12px;
+  border:1px solid var(--ligne);background:#fff;color:var(--encre);font:600 19px var(--gro);
+  text-decoration:none;cursor:pointer;transition:border-color .15s,transform .15s}
+.pilule:hover{border-color:#bdb8ae}
+.pilule.plein{background:var(--degrade);border-color:transparent;color:#fff}
+.pilule.plein:hover{transform:translateY(-1px);filter:brightness(1.06)}
+.reassure{font-size:14.5px;color:var(--gris);margin-top:22px;letter-spacing:.01em}
+
+.planche{max-width:1240px;margin:0 auto;padding:0 clamp(18px,4vw,48px)}
+/* grille sans marge interieure : les pieces se comparent bord a bord, comme une planche contact */
+.grille{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--ligne);
+  border:1px solid var(--ligne);border-radius:14px;overflow:hidden}
+.case{background:#fff;padding:16px 10px 14px;display:flex;flex-direction:column;align-items:center;gap:8px;
+  text-decoration:none;color:var(--encre);transition:background .15s}
+.case:hover{background:var(--barre)}
 .vignette{height:120px;display:grid;place-items:center}
-.vignette img{max-height:120px;width:auto;max-width:100%;
-  filter:drop-shadow(0 10px 12px rgba(44,74,56,.18))}
-.nom{font-size:11.5px;font-weight:600;letter-spacing:-.01em;text-align:center}
-/* La cote sous le nom : c'est elle qui rend la progression LISIBLE. Sans elle,
-   cinquante silhouettes blanches se ressemblent et le classement du plus large
-   au plus elance ne se voit pas. Chiffres tabulaires pour que la colonne
-   s'aligne d'une case a l'autre. */
-.cote{font-size:10px;color:var(--gris);text-align:center;margin-top:3px;
-  font-variant-numeric:tabular-nums;letter-spacing:.01em}
-.bandeau{margin:28px -44px 0;background:var(--vert);color:var(--creme);padding:15px 44px;
-  display:flex;align-items:center;justify-content:space-between;gap:14px;font-size:13px}
-.bandeau a{color:var(--creme);text-decoration:none;font-weight:600}
-.bandeau a:hover{text-decoration:underline;text-underline-offset:3px}
-.pied{display:flex;align-items:flex-end;justify-content:space-between;padding:14px 0 22px;
-  font-size:11.5px;color:var(--gris)}
+.vignette img{max-height:120px;width:auto;max-width:100%;filter:drop-shadow(0 10px 12px rgba(44,74,56,.18))}
+.nom{font-size:12px;font-weight:700;letter-spacing:-.01em;text-align:center}
+/* La cote sous le nom rend la progression LISIBLE : cinquante silhouettes blanches se ressemblent, le classement
+   du plus large au plus elance ne se voit pas sans elle. Chiffres tabulaires pour aligner les colonnes. */
+.cote{font-size:10.5px;color:var(--gris);text-align:center;margin-top:3px;font-variant-numeric:tabular-nums}
+
+.conclusion{display:flex;flex-direction:column;align-items:center;text-align:center;gap:20px;
+  padding:clamp(40px,7vh,80px) 18px clamp(28px,5vh,56px)}
+.conclusion p{font-size:clamp(20px,2.4vw,30px);font-weight:800;letter-spacing:-.04em;text-wrap:balance}
+.note{max-width:46em;margin:0 auto;padding:0 18px 36px;font-size:13px;color:var(--gris);line-height:1.65;text-align:center}
+.note a{color:var(--gris)}
+
+.pied{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:22px clamp(18px,7vw,110px) 30px;font-size:13px;color:var(--gris);border-top:1px solid var(--ligne)}
 .pied a{color:var(--gris);text-decoration:none}
-.monogramme{font-size:17px;font-weight:700;font-style:italic;color:var(--encre)}
-.note{max-width:880px;width:100%;margin:22px auto 0;font-size:11.5px;color:#8d8d84;line-height:1.65}
-.note a{color:#b9b9ae}
+.pied a:hover{color:var(--encre)}
+.monogramme{font-size:18px;font-weight:800;font-style:italic;color:var(--encre)}
+
 @media (max-width:1080px){.grille{grid-template-columns:repeat(5,1fr)}}
 @media (max-width:880px){.grille{grid-template-columns:repeat(4,1fr)}}
 @media (max-width:680px){.grille{grid-template-columns:repeat(3,1fr)}}
 @media (max-width:520px){
-  .feuille{border-radius:20px}          /* le padding suit deja --pad-x */
-  .bandeau{flex-wrap:wrap}
   .grille{grid-template-columns:repeat(2,1fr)}
+  .liens a{padding:9px 14px;font-size:14px}
   .liens a:nth-child(n+3){display:none}
+  .pilule{width:100%}
 }
 </style><meta property="og:url" content="https://deligny-rd.fr/lampe-3d-studio/gamme.html" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -96,33 +96,32 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 <meta property="og:image:height" content="630" />
 </head><body>
 
-<div class="feuille">
-  <!-- Meme signature que l'affiche : le client concoit, l'atelier fabrique. -->
-  <div class="signature">Conçu par vous, fabriqué par</div>
-  <nav>
-    <a class="mot-marque" href="../index.html" title="Retour à l'accueil DELIGNY R&amp;D" style="display:inline-block;color:inherit;text-decoration:none">DELIGNY R&amp;D</a>
-    <div class="liens">
-      <a href="dune.html">Présentation</a>
-      <a href="index.html">Configurateur</a>
-      <a href="../index.html">Atelier</a>
-      <a href="../contact.html">Contact</a>
-    </div>
+<header class="barre">
+  <p class="signature"><a href="dune.html">Lampe Designer<span class="point">.</span></a></p>
+  <nav class="liens" aria-label="Navigation">
+    <a href="dune.html">Présentation</a>
+    <a href="index.html">Configurateur</a>
+    <a href="../index.html">Atelier</a>
+    <a href="../factory.html">Boutique</a>
+    <a href="../contact.html">Contact</a>
   </nav>
-  <div class="filet"></div>
+</header>
 
-  <div class="reference">Lampe Designer</div>
-  <div class="geant">Gamme</div>
-  <div class="intro">
-    <div class="tiret"></div>
-    Cinquante points de départ, pas cinquante produits finis. La planche est
-    rangée de la plus large à la plus élancée, et la base change de finition
-    au fil des cases : blanche, bois, noire, transparente. Chaque silhouette
-    s'ouvre dans le configurateur et se reprend point par point : hauteur,
-    galbe, nervures, matière. Ce que tu vois ici est la géométrie réelle,
-    photographiée par le moteur de rendu de l'atelier, et les cotes sont
-    mesurées sur le maillage construit.
+<section class="hero">
+  <h1 class="geant">La gamme.</h1>
+  <p class="accroche">Conçu par vous, fabriqué par <a href="https://deligny-rd.fr/index.html" title="Retour à l'accueil DELIGNY R&amp;D">DELIGNY R&amp;D</a></p>
+  <p class="texte">
+    <span>Cinquante points de départ, pas cinquante produits finis, rangés de la plus large à la plus élancée.</span>
+    <span>Chaque silhouette s'ouvre dans le configurateur et se reprend point par point : hauteur, galbe, nervures, matière.</span>
+  </p>
+  <div class="actions">
+    <a class="pilule plein" href="index.html">Dessiner la mienne</a>
+    <a class="pilule" href="dune.html">Voir la présentation</a>
   </div>
+  <p class="reassure">Rendus de la géométrie réelle · Cotes mesurées sur le maillage · Base blanche, bois, noire ou transparente</p>
+</section>
 
+<main class="planche">
   <div class="grille">
       <a class="case" href="index.html?forme=cloche" title="Ouvrir cette forme dans le configurateur">
         <div class="vignette"><img src="media/gal01.png?v=7294261d" alt="Lampe Designer, silhouette Cloche, 98 mm de haut, diamètre 193 mm, base blanche" loading="lazy"></div>
@@ -376,21 +375,21 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
       </a>
   </div>
 
-  <div class="bandeau">
-    <span>Le prix se calcule sur la pièce, pas sur le catalogue</span>
-    <a href="index.html">Dessiner la mienne</a>
-  </div>
+</main>
 
-  <div class="pied">
-    <span><a href="https://deligny-rd.fr">deligny-rd.fr</a> · <a href="../mentions-legales.html">Mentions légales</a></span>
-    <div class="monogramme">D</div>
-  </div>
-</div>
+<section class="conclusion">
+  <p>Le prix se calcule sur la pièce, pas sur le catalogue.</p>
+  <a class="pilule plein" href="index.html">Dessiner la mienne</a>
+</section>
 
-<p class="note">Chaque image est un rendu Blender de la coque réellement
-exportée, en PLA translucide diffusant, lampe allumée. Aucune retouche, aucune
-image d'illustration. Les cotes et le prix de la pièce que tu dessines
-s'affichent en direct dans <a href="index.html">le configurateur</a>.</p>
+<p class="note">Chaque image est un rendu Blender de la coque réellement exportée, en PLA translucide diffusant, lampe allumée.
+Aucune retouche, aucune image d'illustration. Les cotes et le prix de la pièce que tu dessines s'affichent en direct dans
+<a href="index.html">le configurateur</a>.</p>
+
+<footer class="pied">
+  <span><a href="https://deligny-rd.fr">deligny-rd.fr</a> · <a href="../mentions-legales.html">Mentions légales</a> · 231 rue Saint-Honoré, 75001 Paris</span>
+  <div class="monogramme">D</div>
+</footer>
 
 <img src="https://atlas-studio.pro/deligny/api/px?page=lampe-3d-studio-gamme" alt="" width="1" height="1" loading="eager">
 </body></html>
