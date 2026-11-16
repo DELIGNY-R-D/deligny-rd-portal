@@ -1,6 +1,6 @@
 <!doctype html><html lang="fr"><head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-HUjDytXbyyOTMXA+WMj6XUqrt5LpcVFkufz5UHPxf48='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'; img-src 'self' data: https://atlas-studio.pro; style-src-elem 'sha256-7tc9jf3wGJfd12j/rn2saiwk5RtzAoTi5zHp7wdZlpI='; style-src-attr 'unsafe-inline'; script-src 'sha256-8+oAxO/HLibWQWktCN05++mR60QkzJYLblw7bi2TqGI='; connect-src 'self' http://127.0.0.1:4555 http://localhost:4555 https://moteur.deligny-rd.fr">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Lampe Designer, la lampe imprimée sur mesure | DELIGNY R&D</title>
 <meta name="description" content="Lampe Designer : lampe à poser dessinée dans le configurateur, nervures fines calculées dans la matière, coque creuse en PLA translucide diffusant. 249 mm, 160 cm³, 5 V USB.">
@@ -10,182 +10,73 @@
 <meta property="og:title" content="Lampe Designer, la lampe qui sort du configurateur">
 <meta property="og:description" content="Profil dessiné point par point, nervures fines calculées dans la matière, coque creuse imprimée à la commande.">
 <style>
-/* ============================================================================
- * PAGE DE PRESENTATION DU PRODUIT (ex-« affiche », renommee le 14/08 : depuis
- * qu'elle est en page pleine et non plus une feuille flottante, c'est une page
- * de presentation, plus un objet graphique).
- * Mise en page d'affiche : une feuille crème posée sur fond sombre, un mot en
- * très grand, le produit détouré qui chevauche la typographie. Le mot passe
- * DERRIÈRE la lampe et la lampe déborde sur lui : c'est ce recouvrement qui
- * fait lire une affiche plutôt qu'une fiche produit.
- *
- * Aucune police externe : la page doit tenir sous la CSP du portail
- * (default-src 'none') et se charger sans requête tierce. La graisse et le
- * crénage serré font le caractère, pas le fichier de police.
- * ========================================================================== */
+/* PAGE DE PRESENTATION DE LAMPE DESIGNER (16/11) : meme grammaire que la page d'accueil d'Atlas Studio Pro,
+   pour que les deux produits de DELIGNY R&D se lisent comme une famille : barre claire avec pastilles,
+   mot geant tres gras et serre, accroche, texte en deux lignes, bouton degrade, ligne de reassurance.
+   Aucune police externe : la page tient sous la CSP du portail. */
 *{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --creme:#efede6; --creme2:#e6e3d9;
-  --vert:#2c4a38; --vert-clair:#3d6249;
-  --encre:#161616; --gris:#6b6b63;
-  --page:#0a0a0a;
+  --barre:#f4f2ee; --fond:#fff; --encre:#0e0e0e; --gris:#66665f; --ligne:#e3e0da;
+  --violet:#7b55c4; --bleu:#3a62a8; --vert:#2f7d4f; --vert-fonce:#2c4a38;
+  --degrade:linear-gradient(100deg,var(--violet),var(--bleu) 55%,var(--vert));
   --gro:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,Arial,sans-serif;
 }
 html{-webkit-text-size-adjust:100%}
-body{background:var(--creme);font-family:var(--gro);color:var(--encre);
-     display:flex;flex-direction:column;align-items:center;
-     padding:clamp(12px,2.2vh,26px) clamp(10px,1.8vw,22px) clamp(22px,5vh,60px);
-     line-height:1.5}
+body{background:var(--fond);font-family:var(--gro);color:var(--encre);line-height:1.5}
 
-/* La feuille suivait une largeur FIGEE de 880 px : sur un ecran large elle
-   laissait deux bandes noires enormes et l'affiche paraissait perdue au milieu.
-   Elle respire maintenant avec la fenetre, jusqu'a 1240 px, et ses marges
-   internes suivent la meme echelle. */
-/* Ce n'est plus une carte posee sur du noir : c'est la page. Ni coins
-   arrondis, ni ombre portee, ni fond distinct — le conteneur ne sert plus
-   qu'a centrer le contenu et a lui donner ses marges. */
-.feuille{--pad-x:clamp(22px,3.4vw,52px);
-         width:100%;max-width:min(1240px,95vw);background:transparent;
-         padding:clamp(24px,3vh,40px) var(--pad-x) 0;position:relative}
-/* grain discret : sans lui l'aplat crème sonne « écran », pas « papier » */
-.feuille::after{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-  background-image:radial-gradient(rgba(0,0,0,.045) 1px,transparent 1px);
-  background-size:3px 3px;mix-blend-mode:multiply}
+.barre{background:var(--barre);display:flex;align-items:center;justify-content:space-between;gap:16px;
+  padding:16px clamp(18px,7vw,110px);position:sticky;top:0;z-index:10;flex-wrap:wrap}
+.signature{font-size:clamp(16px,1.7vw,22px);font-weight:700;letter-spacing:-.02em;line-height:1.25}
+.signature a{color:inherit;text-decoration:underline;text-decoration-color:var(--violet);
+  text-decoration-thickness:2px;text-underline-offset:4px}
+.signature a:hover{color:var(--violet)}
+.liens{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.liens a{font-size:15.5px;font-weight:600;color:var(--encre);text-decoration:none;
+  padding:11px 22px;border:1px solid var(--ligne);border-radius:14px;background:rgba(255,255,255,.5);
+  transition:background .15s,border-color .15s}
+.liens a:hover{background:#fff;border-color:#cfcbc3}
 
-.signature{font-size:clamp(15px,1.5vw,19px);font-weight:600;line-height:1.45;color:var(--encre);letter-spacing:.01em}
-.signature b{display:block;font-weight:600}
+.hero{display:flex;flex-direction:column;align-items:center;text-align:center;
+  padding:clamp(48px,9vh,110px) clamp(18px,5vw,60px) clamp(40px,6vh,72px)}
+.geant{font-size:clamp(52px,11.4vw,168px);line-height:.92;font-weight:900;letter-spacing:-.065em;
+  white-space:nowrap}
+.accroche{font-size:clamp(26px,4.3vw,56px);font-weight:800;letter-spacing:-.05em;line-height:1.1;
+  margin-top:clamp(28px,5vh,60px);text-wrap:balance}
+.texte{font-size:clamp(16px,1.6vw,21px);color:var(--gris);line-height:1.6;margin-top:22px;max-width:44em;
+  text-wrap:balance}
+.texte span{display:block}
+.actions{display:flex;gap:14px;margin-top:34px;flex-wrap:wrap;justify-content:center}
+.pilule{display:inline-flex;align-items:center;justify-content:center;min-height:56px;padding:0 34px;border-radius:12px;
+  border:1px solid var(--ligne);background:#fff;color:var(--encre);font:600 19px var(--gro);
+  text-decoration:none;cursor:pointer;transition:border-color .15s,transform .15s}
+.pilule:hover{border-color:#bdb8ae}
+.pilule.plein{background:var(--degrade);border-color:transparent;color:#fff}
+.pilule.plein:hover{transform:translateY(-1px);filter:brightness(1.06)}
+.reassure{font-size:14.5px;color:var(--gris);margin-top:22px;letter-spacing:.01em}
 
-nav{display:flex;align-items:center;justify-content:space-between;margin-top:46px}
-.mot-marque{font-size:16px;font-weight:700;letter-spacing:.02em}
-.liens{display:flex;align-items:center;gap:26px}
-.liens a{font-size:12.5px;color:var(--encre);text-decoration:none;letter-spacing:.01em}
-.liens a:hover{text-decoration:underline;text-underline-offset:3px}
-.pastille{width:26px;height:26px;border-radius:50%;background:var(--vert);
-  display:grid;place-items:center;color:var(--creme);font-size:12px;text-decoration:none;flex:none}
-.filet{height:1px;background:rgba(22,22,22,.35);margin-top:16px}
+.filet{height:1px;background:var(--ligne)}
 
-/* --- le bloc d'affiche : référence, mot géant, produit --- */
-/* GRILLE et non plus empilement a marges negatives. L'ancienne version posait
-   la lampe PAR-DESSUS le mot avec margin:-21% : sur un ecran large elle
-   recouvrait « tier » et « Métier » se lisait « Méti ». En grille, la lampe a
-   sa propre colonne et ne mord sur le mot que d'une valeur choisie. */
-.affiche{display:grid;margin-top:22px;grid-template-columns:1fr;
-  grid-template-areas:"mot" "produit" "citation" "texte"}
-.bloc-mot{grid-area:mot;position:relative;z-index:1}
-.bloc-texte{grid-area:texte;position:relative;z-index:3;margin-top:-11%}
+.vitrine{display:grid;grid-template-columns:1fr;gap:clamp(24px,5vw,72px);align-items:center;
+  max-width:1180px;margin:0 auto;padding:clamp(36px,7vh,84px) clamp(18px,5vw,60px)}
+.produit{display:block;width:min(100%,430px);height:auto;justify-self:center;
+  filter:drop-shadow(0 26px 26px rgba(44,74,56,.20))}
+.citation{border-left:3px solid var(--vert-fonce);padding-left:20px;max-width:30em}
+.citation p{font-size:clamp(16px,1.5vw,19px);line-height:1.65;color:var(--vert-fonce);font-style:italic}
+.citation p + p{margin-top:12px}
+.citation .auteur{margin-top:16px;font-size:12.5px;font-style:normal;color:var(--gris);
+  letter-spacing:.06em;text-transform:uppercase}
+@media (min-width:900px){.vitrine{grid-template-columns:minmax(0,1fr) minmax(0,1fr)}}
 
-/* --- la citation : c'est le PROPOS, pas de l'habillage --- */
-/* Elle est en italique et en vert, comme le cachet manuscrit : elle se lit
-   comme une voix, pas comme un argument de vente. Le filet vertical la tient
-   a distance de la lampe sans avoir besoin d'un encadre. */
-.citation{grid-area:citation;position:relative;z-index:3;
-  border-left:2px solid var(--vert);padding-left:16px;margin-top:26px;max-width:420px}
-.citation p{font-size:14px;line-height:1.62;color:var(--vert);font-style:italic;
-  letter-spacing:.005em}
-/* Les strophes respirent : sans cet ecart la mise en vers se lit comme un
-   paragraphe casse au hasard. */
-.citation p + p{margin-top:11px}
-.citation .auteur{margin-top:12px;font-size:11.5px;font-style:normal;
-  color:var(--gris);letter-spacing:.04em;text-transform:uppercase}
-
-.reference{font-size:clamp(19px,3.4vw,30px);font-weight:600;letter-spacing:-.01em}
-/* Le mot doit tenir dans sa colonne SANS être coupé : il est en nowrap, donc
-   sa taille est bornee par la largeur disponible, pas par le gout. */
-.geant{font-size:clamp(74px,20vw,196px);line-height:.80;font-weight:800;
-  color:var(--vert);letter-spacing:-.055em;margin-top:-.04em;
-  user-select:none;white-space:nowrap}
-
-/* Une chaise est un objet AJOURÉ : elle peut se poser au milieu du mot sans
-   l'effacer. Une lampe est un volume plein : elle chevauche la FIN du mot
-   seulement, les premieres lettres restent nettes. */
-/* Le decalage de 10 % a droite est RETIRE (13/08, « recentre la lampe ») :
-   il compensait un vide a droite que la citation occupe desormais.
-   ⚠️ Le chevauchement de 17 % ne tenait QUE grace a ce decalage : recentree,
-   la lampe recouvrait 94 % de la hauteur du mot a 820 px de large, mesure a
-   l'appui. En colonne unique elle ne mord donc plus que le bas du mot. */
-.produit{grid-area:produit;display:block;width:clamp(215px,62%,330px);height:auto;
-  justify-self:center;position:relative;z-index:2;margin-top:-4%;
-  /* l'ombre portée remplace le sol : la pièce est détourée, sans elle
-     elle flotte sans poids */
-  filter:drop-shadow(0 26px 26px rgba(44,74,56,.22))}
-
-/* --- notice, calée à gauche sous le mot --- */
-.notice{max-width:250px}
-
-/* ECRAN LARGE : deux colonnes. Le mot et la notice a gauche, la lampe a droite,
-   tiree vers la gauche pour mordre sur la fin du mot. La hauteur de la lampe
-   est bornee en vh pour que l'affiche entiere tienne dans la fenetre au lieu
-   d'obliger a faire defiler. */
-/* ECRAN LARGE : TROIS colonnes. Le mot et la notice a gauche, la lampe au
-   centre, la citation a droite sur toute la hauteur. La lampe n'est plus
-   poussee a droite : elle est au milieu, entre le propos et la piece. */
-@media (min-width:980px){
-  .affiche{grid-template-columns:minmax(0,42%) minmax(0,32%) minmax(0,26%);
-    grid-template-areas:"mot produit citation" "texte produit citation";
-    align-items:start;column-gap:18px}
-  /* le mot est en nowrap : sa taille est bornee par SA colonne, qui a maigri
-     de 57 % a 42 % pour laisser place a la citation */
-  .geant{font-size:clamp(64px,8.4vw,128px)}
-  .produit{width:100%;max-height:min(56vh,540px);object-fit:contain;object-position:center;
-    align-self:center;justify-self:center;margin:0}
-  .bloc-texte{margin-top:16px}
-  .notice{max-width:330px}
-  .citation{align-self:center;margin-top:0}
-}
-.tiret{width:34px;height:7px;background:var(--vert);border-radius:2px;margin-bottom:12px}
-.notice p{font-size:12px;line-height:1.6;color:var(--encre)}
-.cachet{margin-top:10px;font-size:15px;color:var(--vert-clair);
-  font-style:italic;font-family:"Snell Roundhand","Apple Chancery",cursive;letter-spacing:.01em}
-
-.actions{display:flex;gap:11px;margin-top:26px;position:relative;z-index:3;flex-wrap:wrap}
-.pilule{display:inline-flex;align-items:center;gap:8px;padding:9px 20px;border-radius:22px;
-  border:1.2px solid var(--encre);background:transparent;color:var(--encre);
-  font-size:13px;font-weight:500;text-decoration:none;cursor:pointer;font-family:inherit;
-  transition:background .15s,color .15s}
-.pilule:hover{background:var(--encre);color:var(--creme)}
-.pilule.plein{background:var(--vert);border-color:var(--vert);color:var(--creme)}
-.pilule.plein:hover{background:var(--vert-clair);border-color:var(--vert-clair)}
-
-/* --- bandeau vert, bord à bord : il ferme l'affiche --- */
-.bandeau{margin:30px calc(-1 * var(--pad-x)) 0;background:var(--vert);color:var(--creme);
-  padding:16px var(--pad-x);display:flex;align-items:center;justify-content:space-between;gap:16px}
-.bandeau a{color:var(--creme);text-decoration:none;font-size:14px;font-weight:500}
-.bandeau a:hover{text-decoration:underline;text-underline-offset:3px}
-.prix{font-size:15px;font-weight:600;font-variant-numeric:tabular-nums}
-
-.pied{display:flex;align-items:flex-end;justify-content:space-between;
-  padding:14px 0 22px;font-size:11.5px;color:var(--gris)}
+.pied{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;
+  padding:22px clamp(18px,7vw,110px) 30px;font-size:13px;color:var(--gris);border-top:1px solid var(--ligne)}
 .pied a{color:var(--gris);text-decoration:none}
 .pied a:hover{color:var(--encre)}
-.monogramme{font-size:17px;font-weight:700;font-style:italic;color:var(--encre)}
-
-/* --- fiche technique : les cotes réelles, sous l'affiche --- */
-.fiche{max-width:min(1240px,95vw);width:100%;margin:26px auto 0;color:var(--encre)}
-.fiche h2{font-size:12px;letter-spacing:.16em;text-transform:uppercase;
-  color:var(--gris);font-weight:600;margin-bottom:14px}
-.cotes{display:grid;grid-template-columns:repeat(auto-fit,minmax(132px,1fr));
-  gap:1px;background:rgba(22,22,22,.15);border:1px solid rgba(22,22,22,.15);
-  border-radius:12px;overflow:hidden}
-.cote{background:var(--creme);padding:13px 15px}
-.cote span{display:block;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--gris)}
-.cote b{display:block;font-size:16px;font-weight:600;margin-top:5px;
-  font-variant-numeric:tabular-nums;color:var(--encre)}
-.note{font-size:11.5px;color:var(--gris);margin-top:12px;line-height:1.6}
-.note a{color:var(--vert)}
+.monogramme{font-size:18px;font-weight:800;font-style:italic;color:var(--encre)}
 
 @media (max-width:640px){
-  /* plus de coins arrondis : ce n'est plus une carte */
-  .bandeau{flex-wrap:wrap}
-  .liens{gap:15px}
+  .liens a{padding:9px 14px;font-size:14px}
   .liens a:nth-child(n+3){display:none}
-  /* En colonne unique la lampe n'a plus de colonne a elle : recentree ET
-     remontee de 12 %, elle recouvrait « Métier », qui se lisait « Mé ». Elle
-     ne mord plus que le bas du mot, ce qui garde l'effet d'affiche sans manger
-     les lettres. */
-  .produit{width:66%;margin-top:-4%}
-  .citation{margin-top:20px}
-  .bloc-texte{margin-top:16px}
-  .notice{max-width:none}
+  .pilule{width:100%}
 }
 </style><meta property="og:url" content="https://deligny-rd.fr/lampe-3d-studio/dune.html" />
 <meta name="twitter:card" content="summary_large_image" />
@@ -194,41 +85,40 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
 <meta property="og:image:height" content="630" />
 </head><body>
 
-<div class="feuille">
-
-  <!-- « Conçu par vous » : c'est le client qui dessine la silhouette dans le
-       configurateur, l'atelier ne fait que fabriquer. La signature doit dire
-       ce partage, pas s'attribuer la conception. -->
-  <div class="signature">Conçu par vous, fabriqué par</div>
-
-  <nav>
-    <a class="mot-marque" href="../index.html" title="Retour à l'accueil DELIGNY R&amp;D" style="display:inline-block;color:inherit;text-decoration:none">DELIGNY R&amp;D</a>
-    <div class="liens">
-      <a href="gamme.html">La gamme</a>
-      <a href="index.html">Configurateur</a>
-      <a href="../index.html">Atelier</a>
-      <a href="../factory.html">Boutique</a>
-      <a href="../contact.html">Contact</a>
-      <a class="pastille" href="index.html" title="Ouvrir le configurateur">◔</a>
-    </div>
+<!-- « Conçu par vous » : c'est le client qui dessine la silhouette dans le configurateur, l'atelier ne fait
+     que fabriquer. La signature dit ce partage, elle ne s'attribue pas la conception. Elle tient la place
+     de la marque dans la barre, comme « Atlas Studio Pro. » sur la page d'Atlas. -->
+<header class="barre">
+  <p class="signature">Conçu par vous, fabriqué par <a href="https://deligny-rd.fr/index.html" title="Retour à l'accueil DELIGNY R&amp;D">DELIGNY R&amp;D</a></p>
+  <nav class="liens" aria-label="Navigation">
+    <a href="gamme.html">La gamme</a>
+    <a href="index.html">Configurateur</a>
+    <a href="../index.html">Atelier</a>
+    <a href="../factory.html">Boutique</a>
+    <a href="../contact.html">Contact</a>
   </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <h1 class="geant">Lampe Designer.</h1>
+    <p class="accroche">La lampe qui définit l'atelier.</p>
+    <p class="texte">
+      <span>Profil dessiné point par point, relief nervuré calculé dans la matière et non plaqué dessus.</span>
+      <span>Coque creuse en PLA translucide qui diffuse la lumière au lieu de la bloquer.</span>
+    </p>
+    <div class="actions">
+      <a class="pilule plein" href="index.html">Dessiner la mienne</a>
+      <button class="pilule" id="partager" type="button">Partager</button>
+    </div>
+    <p class="reassure">Sans compte · Tout se calcule dans votre navigateur · Imprimée à la commande · 5 V USB</p>
+  </section>
+
   <div class="filet"></div>
 
-  <!-- Trois blocs et non plus cinq elements a la suite : la grille de .affiche
-       les place cote a cote en fenetre large et les empile en fenetre etroite,
-       sans qu'aucun ne se recouvre par accident. -->
-  <div class="affiche">
-
-    <div class="bloc-mot">
-      <div class="reference">Lampe Designer</div>
-      <div class="geant">Métier</div>
-    </div>
-
+  <section class="vitrine">
     <img class="produit" src="media/design-hero.png" alt="Lampe Designer, silhouette Design : deux disques nervurés superposés en PLA translucide diffusant, 104 mm de haut, diamètre 188 mm, base noire">
-
-    <!-- Citation de Baptiste. Elle dit POURQUOI le configurateur existe : la
-         lampe n'est qu'un premier objet, l'outil est le sujet. Elle est
-         reproduite mot pour mot, sans retouche. -->
+    <!-- Citation de Baptiste, reproduite mot pour mot : elle dit POURQUOI le configurateur existe. -->
     <blockquote class="citation">
       <p>« Quand j’aurai créé assez de choses,<br>
          j’aimerais aider les autres à créer les leurs.</p>
@@ -240,31 +130,13 @@ nav{display:flex;align-items:center;justify-content:space-between;margin-top:46p
          ce qui nous ressemble. »</p>
       <div class="auteur">Baptiste Placier, DELIGNY R&amp;D</div>
     </blockquote>
+  </section>
+</main>
 
-    <div class="bloc-texte">
-      <div class="notice">
-        <div class="tiret"></div>
-        <p>La lampe qui définit l'atelier : profil dessiné point par point, relief
-           nervuré calculé dans la matière et non plaqué dessus, coque creuse
-           en PLA translucide qui diffuse la lumière au lieu de la bloquer.</p>
-        <div class="cachet">231 rue Saint-Honoré, 75001 Paris</div>
-      </div>
-
-      <div class="actions">
-        <a class="pilule plein" href="index.html">Dessiner la mienne</a>
-        <button class="pilule" id="partager">Partager</button>
-      </div>
-    </div>
-
-  </div>
-
-    <div class="pied">
-    <span><a href="https://deligny-rd.fr">deligny-rd.fr</a> · <a href="../mentions-legales.html">Mentions légales</a></span>
-    <div class="monogramme">D</div>
-  </div>
-
-</div>
-
+<footer class="pied">
+  <span><a href="https://deligny-rd.fr">deligny-rd.fr</a> · <a href="../mentions-legales.html">Mentions légales</a> · 231 rue Saint-Honoré, 75001 Paris</span>
+  <div class="monogramme">D</div>
+</footer>
 
 <script>
 /* Partage : l'API native quand elle existe, sinon copie du lien. Aucun
