@@ -665,7 +665,7 @@ const TYPES = {
     label: 'Lampe à poser',
     hint: "Lampe à poser (précédent atelier « lampe Dune ») : le point du haut loge la douille, la base (h=0) pose sur la table, le câble sort par le côté de la base. L'assise est vérifiée pour de vrai — angle de basculement calculé sur le centre de gravité du maillage exporté.",
     minHeightMm: 90, maxHeightMm: 252, maxRadiusMm: 115,
-    silhouettes: ['dune','galet','colonne','gradins','organiqueS','minimal','cubique','design','retro','baroque','artnouveau','artdeco'],
+    silhouettes: ['parametrique','dune','galet','colonne','gradins','organiqueS','minimal','cubique','design','retro','baroque','artnouveau','artdeco'],
     rules: { minTipAngleDeg: 25 },
     // le 1er corps sert de BASE en ligne/couronne : les autres se posent dessus
     compo: { maxBodies: 7, layouts: ['vertical','ligne','circulaire','imbrique','libre'], baseFirst: true,
@@ -686,6 +686,8 @@ const TYPES = {
 // Silhouettes = points de contrôle normalisés [t = h/hauteur, k = rayon/rayon max].
 // Servent aux presets ET au tirage aléatoire (jitter appliqué sur k).
 const SILHOUETTES = {
+  /* 16/11 : forme par defaut de la demo (capture de Baptiste), en millimetres exacts et non normalisee. */
+  parametrique: { label:'Lampe paramétrique', mm:[[0,52],[113,51],[146,87],[234,71.5],[247,55]], pts:[[0,1],[1,1]] },
   cloche:   { label:'Cloche',     pts:[[0,1.00],[0.14,0.97],[0.45,0.85],[0.76,0.60],[1,0.30]] },
   cone:     { label:'Cône évasé', pts:[[0,1.00],[0.34,0.76],[0.70,0.50],[1,0.26]] },
   ogive:    { label:'Ogive',      pts:[[0,0.90],[0.20,1.00],[0.55,0.87],[0.80,0.60],[1,0.28]] },
@@ -945,6 +947,7 @@ function bounds(){
 // Construit un profil concret depuis une silhouette normalisée.
 function profileFromSilhouette(name, H, Rmax, rng, jitter){
   const S = SILHOUETTES[name] || SILHOUETTES.cloche;
+  if(S.mm) return S.mm.map(([h,r])=>({h, r}));
   const topMin = SOCKETS[state.socket].housingMinRadiusMm;
   const pts = S.pts.map(([t,k])=>{
     const j = (rng && jitter) ? 1 + (rng()*2-1)*jitter : 1;
