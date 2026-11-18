@@ -2257,7 +2257,8 @@ for(const m of REEL){const f=FC[m];FC[m]=(x,z,r,t,p)=>sousAiguilles(f(x,z,r,t,p)
 // ───────────────────────────── scene ─────────────────────────────
 const vue=document.getElementById('vue');
 const renderer=new THREE.WebGLRenderer({antialias:true,alpha:true,preserveDrawingBuffer:true});
-renderer.setPixelRatio(Math.min(2,devicePixelRatio)); renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=.8;   // scene 20 % moins lumineuse (08/10)
+const DPR_ECRAN=+new URLSearchParams(location.search).get('dpr')||devicePixelRatio;   // ?dpr=1 : simule un ecran 1x (essais du surechantillonnage)
+renderer.setPixelRatio(Math.min(2,DPR_ECRAN)); renderer.toneMapping=THREE.ACESFilmicToneMapping; renderer.toneMappingExposure=.8;   // scene 20 % moins lumineuse (08/10)
 vue.prepend(renderer.domElement);renderer.domElement.style.opacity='0';renderer.domElement.style.transition='opacity .35s';   // montree seulement en HD (verifierPret)
 const scene=new THREE.Scene();
 const envAtelier=new THREE.PMREMGenerator(renderer).fromScene(new RoomEnvironment(),.04).texture;scene.environment=envAtelier;
@@ -2293,7 +2294,7 @@ scene.add(new THREE.HemisphereLight(0xffffff,0x9a958a,.5));
 // lumiere rasante : c'est elle qui fait lire les strates et les aretes
 const rasante=new THREE.DirectionalLight(0xfff4e6,1.4); rasante.position.set(-42,66,-42); scene.add(rasante);   // lumiere principale haute (~50°) venant de 10 h 30 : ombres portees vers 4 h 30, en 3/4
 // OMBRES : la lumiere rasante porte des ombres douces (aiguilles sur le cadran, lunette, relief, bracelet)
-renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;if(matchMedia('(pointer:coarse)').matches)renderer.setPixelRatio(Math.min(1.5,devicePixelRatio));
+renderer.shadowMap.enabled=true;renderer.shadowMap.type=THREE.PCFSoftShadowMap;if(matchMedia('(pointer:coarse)').matches)renderer.setPixelRatio(Math.min(1.5,DPR_ECRAN));
 rasante.castShadow=true;rasante.shadow.mapSize.set(2048,2048);rasante.shadow.bias=-.0004;rasante.shadow.normalBias=.02;rasante.shadow.radius=3;
 Object.assign(rasante.shadow.camera,{left:-45,right:45,top:45,bottom:-45,near:1,far:200});rasante.shadow.camera.updateProjectionMatrix();
 const zenith=new THREE.DirectionalLight(0xffffff,.35);zenith.position.set(-8,80,12);zenith.castShadow=false;   // une seule ombre nette (celle de la lumiere principale)
@@ -3097,8 +3098,41 @@ renderer.shadowMap.autoUpdate=false;renderer.shadowMap.needsUpdate=true;
 let _sale=true,_ombreSale=true,_bouge=0,_derniere=0,_secu=0;const DPR_PLEIN=renderer.getPixelRatio(),PALIERS=[DPR_PLEIN,1.25,1].filter((v,i,a)=>!i||v<a[0]);let _pal=0,_lent=0;
 let _palGeste=0;try{_palGeste=Math.min(PALIERS.length-1,parseInt(localStorage.getItem('montre-palier-geste')||'0')||0);}catch(e){}
 const poserPalier=p=>{if(p===_pal)return;_pal=p;_lent=0;renderer.setPixelRatio(PALIERS[p]);_sale=true;};
-const retenirPalier=p=>{if(p>_palGeste){_palGeste=p;try{localStorage.setItem('montre-palier-geste',String(p));}catch(e){}}};
-const debutGeste=()=>{_bouge=performance.now();_sale=true;if(_palGeste&&!_pal)poserPalier(_palGeste);};
+/* (18/11, Baptiste : « antialiasing possible ? ») SURECHANTILLONNAGE AU REPOS. Le MSAA du navigateur (antialias:true) lisse
+   les aretes mais pas les details fins des reliefs (guillochage, grain, aretes de la lunette) : sur un ecran en 1x
+   ils scintillent en escalier. Quand la montre est immobile depuis 0,4 s, on la rend UNE fois a 2x la definition de
+   l'ecran (le navigateur reduit ensuite l'image : c'est du SSAA 4 echantillons par pixel, en plus du MSAA) ; au
+   moindre geste ou reglage, retour immediat a la definition normale. Ecrans deja en 2x ou plus (Retina, iPhone) et
+   ecrans tactiles : inchange (deja assez fins, et la batterie compte). */
+const SSAA_MAX=2,PAS_TACTILE=!matchMedia('(pointer:coarse)').matches,SSAA_OK=DPR_PLEIN<SSAA_MAX&&PAS_TACTILE;let _ssaa=false;window.__ssaa=()=>({ok:SSAA_OK,actif:_ssaa,ratio:renderer.getPixelRatio(),eclat:!!_beaute});
+/* (18/11, Baptiste : « rajouter un peu de bloom et un lens flare ? ») IMAGE FIXE « BELLE » : au repos, sur ecran non tactile,
+   la montre est rendue par un compositeur : bloom discret (les reflets tres brillants des aretes polies debordent un
+   peu, comme sur une photo) puis un lens flare en CALQUE CSS (halo, trainee horizontale, trois fantomes alignes sur
+   le centre, melange « screen ») en haut a gauche ; un calque et non une passe : le canvas est transparent sur le
+   degrade de la page, une passe additive y fait des voiles gris. Aucun de ces deux effets pendant un geste (fluidite) ni sur tactile (batterie).
+   ?eclat=0 dans l'adresse les coupe. Les modules de post-traitement ne se chargent qu'au premier repos. */
+const BEAUTE_OK=PAS_TACTILE&&new URLSearchParams(location.search).get('eclat')!=='0';let _beaute=null,_beauteChargee=false;
+async function chargerBeaute(){if(_beauteChargee||!BEAUTE_OK)return;_beauteChargee=true;
+  try{const [{EffectComposer},{RenderPass},{UnrealBloomPass},{OutputPass}]=await Promise.all(['EffectComposer','RenderPass','UnrealBloomPass','OutputPass'].map(n=>import('three/addons/postprocessing/'+n+'.js')));
+    const rt=new THREE.WebGLRenderTarget(4,4,{type:THREE.HalfFloatType,samples:4}),comp=new EffectComposer(renderer,rt);
+    comp.addPass(new RenderPass(scene,cam));
+    const bloom=new UnrealBloomPass(new THREE.Vector2(256,256),.12,.25,1.0);comp.addPass(bloom);   // force, rayon, seuil (lineaire, avant exposition)
+    comp.addPass(new OutputPass());_beaute={comp,bloom};window.__beaute=_beaute;ajusterBeaute();_sale=true;}
+  catch(e){console.info('bloom et lens flare indisponibles',e);}}
+function ajusterBeaute(){if(!_beaute)return;const c=renderer.domElement;_beaute.comp.setPixelRatio(renderer.getPixelRatio());_beaute.comp.setSize(c.clientWidth,c.clientHeight);}
+const calqueEclat=(()=>{if(!BEAUTE_OK)return null;const st=document.createElement('style');
+  st.textContent=`#eclat{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .7s ease;mix-blend-mode:screen;overflow:hidden;
+    background:radial-gradient(circle 150px at 20% 14%,rgba(255,238,205,.55),rgba(255,238,205,.14) 45%,transparent 75%),
+      radial-gradient(circle 26px at 20% 14%,rgba(255,252,240,.95),rgba(255,248,225,.3) 60%,transparent),
+      radial-gradient(circle 17px at 33.5% 30.2%,rgba(255,205,140,0) 55%,rgba(255,205,140,.35) 80%,rgba(255,205,140,0) 100%),
+      radial-gradient(circle 11px at 44% 42.8%,rgba(150,200,255,.22) 55%,rgba(150,200,255,.4) 85%,transparent 100%),
+      radial-gradient(circle 21px at 57.5% 59%,rgba(180,255,190,0) 55%,rgba(180,255,190,.28) 82%,transparent 100%);}
+    #eclat::before{content:"";position:absolute;left:-5%;top:calc(14% - 1px);width:62%;height:2px;background:linear-gradient(90deg,transparent,rgba(210,225,255,.5) 30%,rgba(255,255,255,.7) 32%,rgba(210,225,255,.5) 34%,transparent);filter:blur(1px);}
+    #eclat.on{opacity:1}`;document.head.appendChild(st);const d=document.createElement('div');d.id='eclat';document.getElementById('vue').appendChild(d);return d;})();
+const finRepos=()=>{if(_ssaa){_ssaa=false;renderer.setPixelRatio(PALIERS[_pal]);if(calqueEclat)calqueEclat.classList.remove('on');_sale=true;}};
+const debutRepos=()=>{if(!(SSAA_OK||BEAUTE_OK)||_ssaa||_pal)return;const c=renderer.domElement,w=c.clientWidth*SSAA_MAX,h=c.clientHeight*SSAA_MAX;
+  _ssaa=true;if(SSAA_OK&&w*h<=9e6&&w<=8192&&h<=8192)renderer.setPixelRatio(SSAA_MAX);ajusterBeaute();chargerBeaute();if(calqueEclat)calqueEclat.classList.add('on');_sale=true;};
+const debutGeste=()=>{finRepos();_bouge=performance.now();_sale=true;if(_palGeste&&!_pal)poserPalier(_palGeste);};
 /* (13/11) TRAVAIL DE FOND SEULEMENT QUAND LA MONTRE EST AU REPOS. Sur iPhone 17, « la 3D saccade au debut quand je la
    manipule » : le visiteur tourne la montre pendant que l'environnement HDR se convertit (PMREM, carte graphique
    occupee), que le modele par defaut se decode et que les vignettes du panneau se calculent, tout sur le meme fil que
@@ -3109,16 +3143,17 @@ const marquerScene=()=>{_sale=true;_ombreSale=true;};window.__rafraichir=marquer
 {const add0=THREE.Object3D.prototype.add,rem0=THREE.Object3D.prototype.remove;
  THREE.Object3D.prototype.add=function(...o){marquerScene();return add0.apply(this,o);};THREE.Object3D.prototype.remove=function(...o){marquerScene();return rem0.apply(this,o);};
  const ld=THREE.DefaultLoadingManager,o0=ld.onLoad;ld.onLoad=(...a)=>{marquerScene();if(o0)o0(...a);};}
-ctl.addEventListener('change',()=>{_sale=true;_bouge=performance.now();});addEventListener('resize',()=>{_sale=true;});if(window.ResizeObserver)new ResizeObserver(()=>{_sale=true;}).observe(renderer.domElement);
-for(const e of ['pointerdown','keydown','input','change','click','wheel','touchstart'])addEventListener(e,ev=>{const t=performance.now();if(ev.target===renderer.domElement){debutGeste();return;}_sale=true;setTimeout(()=>{_sale=true;},150);setTimeout(marquerScene,600);setTimeout(()=>{_sale=true;},1500);},{capture:true,passive:true});
+ctl.addEventListener('change',()=>{finRepos();_sale=true;_bouge=performance.now();});addEventListener('resize',()=>{_sale=true;});if(window.ResizeObserver)new ResizeObserver(()=>{_sale=true;}).observe(renderer.domElement);
+for(const e of ['pointerdown','keydown','input','change','click','wheel','touchstart'])addEventListener(e,ev=>{const t=performance.now();finRepos();if(ev.target===renderer.domElement){debutGeste();return;}_sale=true;setTimeout(()=>{_sale=true;},150);setTimeout(marquerScene,600);setTimeout(()=>{_sale=true;},1500);},{capture:true,passive:true});
 (function boucle(t){requestAnimationFrame(boucle);const bouge=ctl.update();if(bouge)_sale=true;
-  if(t-_secu>1000){_secu=t;_sale=true;if(t-_bouge>250)_ombreSale=true;}   // pas de carte d'ombre pendant le geste : tourner la montre ne la change pas
+  if(t-_secu>(_ssaa?4000:1000)){_secu=t;_sale=true;if(t-_bouge>250)_ombreSale=true;}   // pas de carte d'ombre pendant le geste : tourner la montre ne la change pas
   if(_pal&&t-_bouge>250)poserPalier(0);   // retour pleine definition, file graphique vide
+  if(!_ssaa&&(SSAA_OK||BEAUTE_OK)&&!_pal&&t-_bouge>400)debutRepos();   // image fixe : une passe surechantillonnee
   if(!_sale)return;_sale=false;
   if(_ombreSale){ombres();renderer.shadowMap.needsUpdate=true;_ombreSale=false;}
   const dt=t-_derniere;_derniere=t;
   if(t-_bouge<100&&dt>22&&dt<250){if(++_lent>=3&&_pal<PALIERS.length-1){poserPalier(_pal+1);retenirPalier(_pal);}}else _lent=0;
-  renderer.render(scene,cam);})(0);
+  if(_ssaa&&_beaute)_beaute.comp.render();else renderer.render(scene,cam);})(0);
 
 // ───────────────────────────── panneau ─────────────────────────────
 // ── Bibliotheque : chaque bas-relief genere devient un motif (« IA : sujet ») ──
