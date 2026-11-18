@@ -53,12 +53,7 @@ DELAI_REFROIDISSEMENT_MIN = 10
 
 MODULES = ("controls/OrbitControls.js", "environments/RoomEnvironment.js",
            "exporters/STLExporter.js", "loaders/RGBELoader.js",
-           "loaders/STLLoader.js", "utils/BufferGeometryUtils.js",
-           # (18/11) image fixe « belle » : bloom au repos, charges a la demande
-           "postprocessing/EffectComposer.js", "postprocessing/RenderPass.js",
-           "postprocessing/UnrealBloomPass.js", "postprocessing/OutputPass.js",
-           "postprocessing/ShaderPass.js", "postprocessing/MaskPass.js", "postprocessing/Pass.js",
-           "shaders/CopyShader.js", "shaders/LuminosityHighPassShader.js", "shaders/OutputShader.js")
+           "loaders/STLLoader.js", "utils/BufferGeometryUtils.js")
 
 CSP = ("default-src 'none'; "
        "script-src-elem 'self' 'unsafe-inline'; script-src-attr 'unsafe-inline'; "

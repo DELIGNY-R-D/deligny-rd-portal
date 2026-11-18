@@ -3104,34 +3104,10 @@ const poserPalier=p=>{if(p===_pal)return;_pal=p;_lent=0;renderer.setPixelRatio(P
    l'ecran (le navigateur reduit ensuite l'image : c'est du SSAA 4 echantillons par pixel, en plus du MSAA) ; au
    moindre geste ou reglage, retour immediat a la definition normale. Ecrans deja en 2x ou plus (Retina, iPhone) et
    ecrans tactiles : inchange (deja assez fins, et la batterie compte). */
-const SSAA_MAX=2,PAS_TACTILE=!matchMedia('(pointer:coarse)').matches,SSAA_OK=DPR_PLEIN<SSAA_MAX&&PAS_TACTILE;let _ssaa=false;window.__ssaa=()=>({ok:SSAA_OK,actif:_ssaa,ratio:renderer.getPixelRatio(),eclat:!!_beaute});
-/* (18/11, Baptiste : « rajouter un peu de bloom et un lens flare ? ») IMAGE FIXE « BELLE » : au repos, sur ecran non tactile,
-   la montre est rendue par un compositeur : bloom discret (les reflets tres brillants des aretes polies debordent un
-   peu, comme sur une photo) puis un lens flare en CALQUE CSS (halo, trainee horizontale, trois fantomes alignes sur
-   le centre, melange « screen ») en haut a gauche ; un calque et non une passe : le canvas est transparent sur le
-   degrade de la page, une passe additive y fait des voiles gris. Aucun de ces deux effets pendant un geste (fluidite) ni sur tactile (batterie).
-   ?eclat=0 dans l'adresse les coupe. Les modules de post-traitement ne se chargent qu'au premier repos. */
-const BEAUTE_OK=PAS_TACTILE&&new URLSearchParams(location.search).get('eclat')!=='0';let _beaute=null,_beauteChargee=false;
-async function chargerBeaute(){if(_beauteChargee||!BEAUTE_OK)return;_beauteChargee=true;
-  try{const [{EffectComposer},{RenderPass},{UnrealBloomPass},{OutputPass}]=await Promise.all(['EffectComposer','RenderPass','UnrealBloomPass','OutputPass'].map(n=>import('three/addons/postprocessing/'+n+'.js')));
-    const rt=new THREE.WebGLRenderTarget(4,4,{type:THREE.HalfFloatType,samples:4}),comp=new EffectComposer(renderer,rt);
-    comp.addPass(new RenderPass(scene,cam));
-    const bloom=new UnrealBloomPass(new THREE.Vector2(256,256),.12,.25,1.0);comp.addPass(bloom);   // force, rayon, seuil (lineaire, avant exposition)
-    comp.addPass(new OutputPass());_beaute={comp,bloom};window.__beaute=_beaute;ajusterBeaute();_sale=true;}
-  catch(e){console.info('bloom et lens flare indisponibles',e);}}
-function ajusterBeaute(){if(!_beaute)return;const c=renderer.domElement;_beaute.comp.setPixelRatio(renderer.getPixelRatio());_beaute.comp.setSize(c.clientWidth,c.clientHeight);}
-const calqueEclat=(()=>{if(!BEAUTE_OK)return null;const st=document.createElement('style');
-  st.textContent=`#eclat{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .7s ease;mix-blend-mode:screen;overflow:hidden;
-    background:radial-gradient(circle 150px at 20% 14%,rgba(255,238,205,.55),rgba(255,238,205,.14) 45%,transparent 75%),
-      radial-gradient(circle 26px at 20% 14%,rgba(255,252,240,.95),rgba(255,248,225,.3) 60%,transparent),
-      radial-gradient(circle 17px at 33.5% 30.2%,rgba(255,205,140,0) 55%,rgba(255,205,140,.35) 80%,rgba(255,205,140,0) 100%),
-      radial-gradient(circle 11px at 44% 42.8%,rgba(150,200,255,.22) 55%,rgba(150,200,255,.4) 85%,transparent 100%),
-      radial-gradient(circle 21px at 57.5% 59%,rgba(180,255,190,0) 55%,rgba(180,255,190,.28) 82%,transparent 100%);}
-    #eclat::before{content:"";position:absolute;left:-5%;top:calc(14% - 1px);width:62%;height:2px;background:linear-gradient(90deg,transparent,rgba(210,225,255,.5) 30%,rgba(255,255,255,.7) 32%,rgba(210,225,255,.5) 34%,transparent);filter:blur(1px);}
-    #eclat.on{opacity:1}`;document.head.appendChild(st);const d=document.createElement('div');d.id='eclat';document.getElementById('vue').appendChild(d);return d;})();
-const finRepos=()=>{if(_ssaa){_ssaa=false;renderer.setPixelRatio(PALIERS[_pal]);if(calqueEclat)calqueEclat.classList.remove('on');_sale=true;}};
-const debutRepos=()=>{if(!(SSAA_OK||BEAUTE_OK)||_ssaa||_pal)return;const c=renderer.domElement,w=c.clientWidth*SSAA_MAX,h=c.clientHeight*SSAA_MAX;
-  _ssaa=true;if(SSAA_OK&&w*h<=9e6&&w<=8192&&h<=8192)renderer.setPixelRatio(SSAA_MAX);ajusterBeaute();chargerBeaute();if(calqueEclat)calqueEclat.classList.add('on');_sale=true;};
+const SSAA_MAX=2,PAS_TACTILE=!matchMedia('(pointer:coarse)').matches,SSAA_OK=DPR_PLEIN<SSAA_MAX&&PAS_TACTILE;let _ssaa=false;window.__ssaa=()=>({ok:SSAA_OK,actif:_ssaa,ratio:renderer.getPixelRatio()});
+const finRepos=()=>{if(_ssaa){_ssaa=false;renderer.setPixelRatio(PALIERS[_pal]);_sale=true;}};
+const debutRepos=()=>{if(!SSAA_OK||_ssaa||_pal)return;const c=renderer.domElement,w=c.clientWidth*SSAA_MAX,h=c.clientHeight*SSAA_MAX;
+  if(w*h>9e6||w>8192||h>8192)return;_ssaa=true;renderer.setPixelRatio(SSAA_MAX);_sale=true;};
 const debutGeste=()=>{finRepos();_bouge=performance.now();_sale=true;if(_palGeste&&!_pal)poserPalier(_palGeste);};
 /* (13/11) TRAVAIL DE FOND SEULEMENT QUAND LA MONTRE EST AU REPOS. Sur iPhone 17, « la 3D saccade au debut quand je la
    manipule » : le visiteur tourne la montre pendant que l'environnement HDR se convertit (PMREM, carte graphique
@@ -3148,12 +3124,12 @@ for(const e of ['pointerdown','keydown','input','change','click','wheel','touchs
 (function boucle(t){requestAnimationFrame(boucle);const bouge=ctl.update();if(bouge)_sale=true;
   if(t-_secu>(_ssaa?4000:1000)){_secu=t;_sale=true;if(t-_bouge>250)_ombreSale=true;}   // pas de carte d'ombre pendant le geste : tourner la montre ne la change pas
   if(_pal&&t-_bouge>250)poserPalier(0);   // retour pleine definition, file graphique vide
-  if(!_ssaa&&(SSAA_OK||BEAUTE_OK)&&!_pal&&t-_bouge>400)debutRepos();   // image fixe : une passe surechantillonnee
+  if(!_ssaa&&SSAA_OK&&!_pal&&t-_bouge>400)debutRepos();   // image fixe : une passe surechantillonnee
   if(!_sale)return;_sale=false;
   if(_ombreSale){ombres();renderer.shadowMap.needsUpdate=true;_ombreSale=false;}
   const dt=t-_derniere;_derniere=t;
   if(t-_bouge<100&&dt>22&&dt<250){if(++_lent>=3&&_pal<PALIERS.length-1){poserPalier(_pal+1);retenirPalier(_pal);}}else _lent=0;
-  if(_ssaa&&_beaute)_beaute.comp.render();else renderer.render(scene,cam);})(0);
+  renderer.render(scene,cam);})(0);
 
 // ───────────────────────────── panneau ─────────────────────────────
 // ── Bibliotheque : chaque bas-relief genere devient un motif (« IA : sujet ») ──
