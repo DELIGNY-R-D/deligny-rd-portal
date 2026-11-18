@@ -1,7 +1,7 @@
 {
   "version": "https://jsonfeed.org/version/1.1",
   "title": "Répertoire des œuvres — DELIGNY R&D",
-  "home_page_url": "https://deligny-rd.fr/art/galerie-3d/",
+  "home_page_url": "https://deligny-rd.fr/art/",
   "feed_url": "https://deligny-rd.fr/art/feed.json",
   "description": "Œuvres certifiées du studio : manifeste signé Ed25519, empreinte SHA-256 et page de vérification publique.",
   "items": [
@@ -16,7 +16,7 @@
       "id": "https://deligny-rd.fr/art/verify/DLG-ART-2026-ET3D-G8HV/",
       "url": "https://deligny-rd.fr/art/verify/DLG-ART-2026-ET3D-G8HV/",
       "title": "Le règne des signaux discordants — DLG-ART-2026-ET3D-G8HV",
-      "summary": "Baptiste Placier · 05/11/2026 · empreinte 1CFCE9114CFE",
+      "summary": "Baptiste Placier · 05/11/2026 · empreinte E34F58404937",
       "image": "https://deligny-rd.fr/art/verify/DLG-ART-2026-ET3D-G8HV/oeuvre.jpg"
     }
   ]

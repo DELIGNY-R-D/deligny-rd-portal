@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>DELIGNY R&D - DELIGNY R&amp;D</title>
-<meta name="description" content="Lien court d'une œuvre DELIGNY R&D : redirige vers sa fiche dans la galerie 3D, son certificat et son registre de provenance." />
+<title>Deligny R&D — Deligny R&amp;D</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -36,21 +35,12 @@
   .stat { font-family: Georgia, serif; font-size: 26px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .back { font-size: 11px; letter-spacing: .1em; }
-</style><meta property="og:type" content="website" />
-<meta property="og:site_name" content="DELIGNY R&amp;D" />
-<meta property="og:title" content="DELIGNY R&amp;D - DELIGNY R&amp;D" />
-<meta property="og:description" content="Lien court d'une œuvre DELIGNY R&D : redirige vers sa fiche dans la galerie 3D, son certificat et son registre de provenance." />
-<meta property="og:url" content="https://deligny-rd.fr/art/s/" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta property="og:image" content="https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/og-oeuvre.jpg" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-</head><body>
-<div class="back"><a href="../galerie-3d/">← GALERIE 3D</a></div>
+</style></head><body>
+<div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
 
 <h1>DELIGNY R&amp;D<small>DELIGNY R&amp;D · ART &amp; POCHOIR</small></h1>
 <div class="card" id="corps"><p class="note">Un instant…</p></div>
-<noscript><p class="note">Continue vers le <a href="../galerie-3d/">galerie 3D</a>.</p></noscript>
+<noscript><p class="note">Continue vers le <a href="../">répertoire des œuvres</a>.</p></noscript>
 
 <script>
 const API = "https://atlas-studio.pro/deligny/api";
@@ -82,7 +72,7 @@ const c = param("c");
                            ref: document.referrer, ua: navigator.userAgent.slice(0, 120) });
     $("corps").innerHTML = `<p class="note">Merci d'avoir scanné.<br>Redirection vers ${esc(cible)}…</p>`;
   } catch (e) {
-    $("corps").innerHTML = '<p class="note">Ce code ne correspond à aucun support connu. <a href="../galerie-3d/">Voir les œuvres →</a></p>';
+    $("corps").innerHTML = '<p class="note">Ce code ne correspond à aucun support connu. <a href="../">Voir les œuvres →</a></p>';
     return;
   }
   setTimeout(() => location.replace(cible), 700);

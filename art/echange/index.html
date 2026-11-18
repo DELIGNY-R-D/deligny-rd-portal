@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Espace d'échange - DELIGNY R&amp;D</title>
-<meta name="description" content="Œuvres DELIGNY R&D proposées à la cession entre collectionneurs : offre directe au propriétaire, cession déclarée et provenance tracée.">
+<title>Espace d'échange — Deligny R&amp;D</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -36,31 +35,22 @@
   .stat { font-family: Georgia, serif; font-size: 26px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .back { font-size: 11px; letter-spacing: .1em; }
-</style><meta property="og:type" content="website" />
-<meta property="og:site_name" content="DELIGNY R&amp;D" />
-<meta property="og:title" content="Espace d&#x27;échange - DELIGNY R&amp;D" />
-<meta property="og:description" content="Œuvres DELIGNY R&D proposées à la cession entre collectionneurs : offre directe au propriétaire, cession déclarée et provenance tracée." />
-<meta property="og:url" content="https://deligny-rd.fr/art/echange/" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta property="og:image" content="https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/og-oeuvre.jpg" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-</head><body>
-<div class="back"><a href="../galerie-3d/">← GALERIE 3D</a></div>
+</style></head><body>
+<div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
 
-<h1>DELIGNY R&amp;D<small>ŒUVRES À CÉDER - ENTRE COLLECTIONNEURS</small></h1>
+<h1>DELIGNY R&amp;D<small>ŒUVRES À CÉDER — ENTRE COLLECTIONNEURS</small></h1>
 <p class="note">Ces œuvres sont proposées par leurs propriétaires actuels. <b>Aucun paiement ne transite
 par cette plateforme</b> : tu adresses une offre, le propriétaire te répond, la transaction se fait
-directement entre vous, puis la cession est déclarée et contresignée : la provenance reste continue.</p>
+directement entre vous, puis la cession est déclarée et contresignée — la provenance reste continue.</p>
 <div id="liste"><p class="note">Chargement…</p></div>
 <h2>Faire une offre</h2>
 <div class="card">
-  <label for="oeuvre">Œuvre</label><select id="oeuvre"></select>
-  <label for="pseudo">Pseudonyme</label><input id="pseudo" maxlength="40">
-  <label for="pays">Pays</label><input id="pays" maxlength="40">
-  <label for="prix">Prix proposé</label><input id="prix" maxlength="40">
-  <label for="contact">Contact (email ou réseau, transmis au propriétaire)</label><input id="contact" maxlength="120">
-  <label for="message">Message</label><textarea id="message" maxlength="600"></textarea>
+  <label>Œuvre</label><select id="oeuvre"></select>
+  <label>Pseudonyme</label><input id="pseudo" maxlength="40">
+  <label>Pays</label><input id="pays" maxlength="40">
+  <label>Prix proposé</label><input id="prix" maxlength="40">
+  <label>Contact (email ou réseau, transmis au propriétaire)</label><input id="contact" maxlength="120">
+  <label>Message</label><textarea id="message" maxlength="600"></textarea>
   <button id="go">ENVOYER L'OFFRE</button>
   <div class="msg" id="msg"></div>
 </div>
@@ -94,15 +84,14 @@ async function charger() {
       <div class="card">
         <div class="titre" style="font-size:19px">${esc(o.titre)}</div>
         <div class="mono">${esc(o.id)}</div>
-        <p class="note">${esc(o.artiste)} · ${esc(String(o.date_creation || "").replace(/\b(\d{4})-(\d{2})-(\d{2})\b/g, "$3/$2/$1"))}<br>
-        Propriétaire : ${esc(o.proprietaire_pseudo || "-")} (${esc(o.proprietaire_pays || "-")})<br>
+        <p class="note">${esc(o.artiste)} · ${esc(String(o.date_creation || "").replace(/\b(\d{{4}})-(\d{{2}})-(\d{{2}})\b/g, "$3/$2/$1"))}<br>
+        Propriétaire : ${esc(o.proprietaire_pseudo || "—")} (${esc(o.proprietaire_pays || "—")})<br>
         <span class="pill">${esc(o.prix || "prix sur demande")}</span>
         <span class="pill">${o.scans_uniques} vérif.</span></p>
         <a href="../verify/${esc(o.id)}/">certificat →</a>
       </div>`).join("") + "</div>"
       : '<p class="note">Aucune œuvre proposée à la cession pour l\'instant.</p>';
-    $("oeuvre").innerHTML = dispo.map(o => `<option value="${esc(o.id)}">${esc(o.id)} - ${esc(o.titre)}</option>`).join("");
-    if (param("o") && dispo.some(o => o.id === param("o"))) $("oeuvre").value = param("o");   /* lien depuis Achat / Vente */
+    $("oeuvre").innerHTML = dispo.map(o => `<option value="${esc(o.id)}">${esc(o.id)} — ${esc(o.titre)}</option>`).join("");
   } catch (e) { $("liste").innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
 }
 $("go").onclick = async () => {

@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="fr"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta name="referrer" content="strict-origin-when-cross-origin">
+<title>Activation — Deligny R&amp;D</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
+         max-width: 760px; margin: 0 auto; padding: 28px 20px 60px; line-height: 1.55; }
+  a { color: #7e1e14; }
+  h1 { font-size: 20px; letter-spacing: .18em; }
+  h1 small { display: block; font-size: 11px; letter-spacing: .3em; color: #5b4632; margin-top: 4px; }
+  h2 { font-size: 12px; letter-spacing: .2em; color: #5b4632; margin: 26px 0 10px; text-transform: uppercase; }
+  .titre { font-family: Georgia, serif; font-style: italic; font-size: 24px; margin: 10px 0 2px; }
+  .card { border: 1px solid #191713; background: #fffdf6; padding: 14px 16px; margin-bottom: 14px; }
+  label { display: block; font-size: 11px; letter-spacing: .12em; text-transform: uppercase;
+          color: #5b4632; margin: 12px 0 4px; }
+  input, textarea, select { width: 100%; padding: 9px 10px; border: 1px solid #b4a583;
+          background: #fffdf6; font-family: inherit; font-size: 14px; color: #191713; }
+  textarea { min-height: 90px; resize: vertical; }
+  button { margin-top: 16px; padding: 12px 18px; background: #191713; color: #f5efdf; border: none;
+           font-size: 13px; letter-spacing: .1em; cursor: pointer; font-weight: 700; }
+  button:disabled { opacity: .45; cursor: default; }
+  button.sec { background: none; color: #191713; border: 1px solid #191713; }
+  .note { font-size: 11.5px; color: #5b4632; line-height: 1.5; }
+  .msg { margin-top: 14px; padding: 11px 13px; border: 1px solid #191713; font-size: 13px; display: none; }
+  .msg.ok { border-color: #2d5c2f; color: #2d5c2f; } .msg.ko { border-color: #7e1e14; color: #7e1e14; }
+  table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+  td, th { border-bottom: 1px solid #c9bb9c; padding: 7px 6px; text-align: left; vertical-align: top; }
+  th { font-size: 10px; letter-spacing: .14em; color: #5b4632; }
+  .mono { font-family: Menlo, monospace; font-size: 11px; }
+  .pill { display: inline-block; border: 1px solid #b4a583; padding: 2px 9px; font-size: 10.5px;
+          letter-spacing: .1em; margin-right: 5px; }
+  .stat { font-family: Georgia, serif; font-size: 26px; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
+  .back { font-size: 11px; letter-spacing: .1em; }
+</style></head><body>
+<div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
+
+<h1>DELIGNY R&amp;D<small>ACTIVATION · ACHAT / VENTE</small></h1>
+<div class="card">
+  <h2 style="margin-top:0">J'ai l'œuvre en main</h2>
+  <p class="note">Photographie le tableau <b>avec sa feuille de certificat</b>, le <b>QR rouge</b> (jeton de
+  propriété) bien visible et net. Cette photo prouve que l'œuvre et son certificat sont ensemble, chez toi.
+  Le QR est lu ici, dans ton navigateur ; la photo est transmise à l'artiste, qui contresigne.</p>
+  <label>Photo de l'œuvre avec le QR rouge</label><input type="file" id="photo" accept="image/*">
+  <div id="lecture" class="note" style="margin-top:8px"></div>
+  <label>Pseudonyme public</label><input id="pseudo" maxlength="40" placeholder="ex : Collectionneur78">
+  <label>Pays</label><input id="pays" maxlength="40" placeholder="ex : France">
+  <button id="go" disabled>REVENDIQUER LA PROPRIÉTÉ</button>
+  <div class="msg" id="msg"></div>
+  <p class="note" style="margin-top:12px">Si le site répond que le jeton n'est pas encore activé, l'artiste
+  ne l'a pas encore mis en service : demande-lui, puis réessaie. Après contreseing, l'artiste te remet la
+  feuille de propriété qui porte ton lien d'espace propriétaire.</p>
+</div>
+<div class="card">
+  <h2 style="margin-top:0">Artiste : mise en service des jetons</h2>
+  <p class="note">Le QR rouge d'une feuille reste <b>dormant</b> tant qu'il n'est pas activé ici. Active-le
+  au moment de remettre l'œuvre. La clé d'activation ne sait rien faire d'autre.</p>
+  <label>Clé d'activation</label><input id="cle" maxlength="64" autocomplete="off" placeholder="24 caractères">
+  <button id="ouvrir" class="sec">OUVRIR</button>
+  <div class="msg" id="msgcle"></div>
+  <div id="liste"></div>
+</div>
+<script src="jsQR.js?v=bc40c8a1"></script>
+
+<script>
+const API = "https://atlas-studio.pro/deligny/api";
+const $ = i => document.getElementById(i);
+function say(el, txt, ok) { el.className = "msg " + (ok ? "ok" : "ko"); el.style.display = "block"; el.innerHTML = txt; }
+async function post(path, body) {
+  const r = await fetch(API + path, { method: "POST", headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body) });
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("erreur " + r.status));
+  return d;
+}
+async function get(path) {
+  const r = await fetch(API + path);
+  const d = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(d.error || ("erreur " + r.status));
+  return d;
+}
+const param = k => new URLSearchParams(location.search).get(k) || "";
+const esc = s => String(s == null ? "" : s).replace(/[<>&"]/g, c => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" }[c]));
+
+// ---- acquéreur : photo -> QR rouge -> jeton
+let JETON = "", PHOTO = "";
+function lireQR(img) {
+  for (const scale of [1, 0.6, 0.35, 0.2]) {
+    const w = Math.round(img.naturalWidth * scale), h = Math.round(img.naturalHeight * scale);
+    if (w < 200) break;
+    const c = document.createElement("canvas"); c.width = w; c.height = h;
+    const ctx = c.getContext("2d"); ctx.drawImage(img, 0, 0, w, h);
+    const d = ctx.getImageData(0, 0, w, h);
+    const r = (typeof jsQR === "function") ? jsQR(d.data, w, h, { inversionAttempts: "attemptBoth" }) : null;
+    if (r && r.data) {
+      const m = r.data.match(/[?&]t=([^&\s]+)/);
+      if (m) return { jeton: m[1], texte: r.data };
+    }
+  }
+  return null;
+}
+$("photo").onchange = () => {
+  const f = $("photo").files[0]; if (!f) return;
+  JETON = ""; $("go").disabled = true;
+  $("lecture").textContent = "Lecture du QR…";
+  const rd = new FileReader();
+  rd.onload = () => {
+    const img = new Image();
+    img.onload = () => {
+      const r = lireQR(img);
+      if (!r) { $("lecture").innerHTML = "<b style='color:#7e1e14'>QR rouge illisible.</b> Rapproche-toi, évite les reflets, garde l'œuvre et la feuille dans le cadre."; return; }
+      JETON = r.jeton;
+      const c = document.createElement("canvas"), k = Math.min(1, 1600 / Math.max(img.naturalWidth, img.naturalHeight));
+      c.width = Math.round(img.naturalWidth * k); c.height = Math.round(img.naturalHeight * k);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      PHOTO = c.toDataURL("image/jpeg", 0.86);
+      $("lecture").innerHTML = "<b style='color:#2d5c2f'>QR rouge lu.</b> Jeton de propriété reconnu, photo prête.";
+      $("go").disabled = false;
+    };
+    img.src = rd.result;
+  };
+  rd.readAsDataURL(f);
+};
+$("go").onclick = async () => {
+  $("go").disabled = true;
+  try {
+    const d = await post("/claim", { token: JETON, pseudo: $("pseudo").value, pays: $("pays").value, photo: PHOTO });
+    say($("msg"), "<b>" + esc(d.titre) + "</b> — " + esc(d.message), true);
+  } catch (e) { say($("msg"), esc(e.message), false); $("go").disabled = false; }
+};
+
+// ---- artiste : clé d'activation
+let CLE = "";
+try { CLE = sessionStorage.getItem("dlg_activation") || ""; } catch (e) {}
+if (CLE) $("cle").value = CLE;
+function peindre(oeuvres) {
+  if (!oeuvres.length) { $("liste").innerHTML = "<p class='note'>Aucun jeton en attente : toutes les œuvres ont un propriétaire, ou aucune feuille n'a été émise.</p>"; return; }
+  $("liste").innerHTML = "<table><tr><th>Œuvre</th><th>Jeton</th><th></th></tr>" + oeuvres.map(o =>
+    "<tr><td><div class='titre' style='font-size:17px;margin:0'>" + esc(o.titre || "") + "</div><span class='mono'>" + esc(o.id) + "</span></td>" +
+    "<td>" + (o.actif ? "<span class='pill' style='border-color:#2d5c2f;color:#2d5c2f'>ACTIVÉ</span>" : "<span class='pill'>DORMANT</span>") + "</td>" +
+    "<td><button class='" + (o.actif ? "sec" : "") + "' style='margin:0' data-id='" + esc(o.id) + "' data-actif='" + (o.actif ? 0 : 1) + "'>" +
+    (o.actif ? "DÉSACTIVER" : "ACTIVER") + "</button></td></tr>").join("") + "</table>";
+  $("liste").querySelectorAll("button").forEach(b => b.onclick = () => envoyer(b.dataset.id, b.dataset.actif === "1"));
+}
+async function envoyer(oeuvre, actif) {
+  try {
+    const d = await post("/activation", oeuvre ? { cle: CLE, oeuvre, actif } : { cle: CLE });
+    try { sessionStorage.setItem("dlg_activation", CLE); } catch (e) {}
+    say($("msgcle"), oeuvre ? ("Jeton " + (actif ? "activé" : "désactivé") + " pour " + esc(oeuvre) + ".") : "Clé reconnue.", true);
+    peindre(d.oeuvres || []);
+  } catch (e) { say($("msgcle"), esc(e.message), false); }
+}
+$("ouvrir").onclick = () => { CLE = $("cle").value.trim(); if (!CLE) return say($("msgcle"), "Clé manquante.", false); envoyer(); };
+if (CLE) envoyer();
+</script>
+</body></html>

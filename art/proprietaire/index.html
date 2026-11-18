@@ -1,10 +1,9 @@
 <!DOCTYPE html>
 <html lang="fr"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data: blob:; style-src 'unsafe-inline'; script-src 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src 'self' data:; style-src 'unsafe-inline'; script-src 'self' 'unsafe-inline'; connect-src https://atlas-studio.pro; base-uri 'self'; form-action 'none'; frame-ancestors 'none'">
 <meta name="referrer" content="strict-origin-when-cross-origin">
-<title>Espace propriétaire - DELIGNY R&amp;D</title>
-<meta name="description" content="Espace propriétaire d'une œuvre DELIGNY R&D : certificat, registre de provenance et transfert de la pièce, accessibles depuis le jeton de l'étiquette." />
+<title>Espace propriétaire — Deligny R&amp;D</title>
 <style>
   * { box-sizing: border-box; }
   body { font-family: "Helvetica Neue", Arial, sans-serif; background: #f5efdf; color: #191713;
@@ -36,31 +35,11 @@
   .stat { font-family: Georgia, serif; font-size: 26px; }
   .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 14px; }
   .back { font-size: 11px; letter-spacing: .1em; }
-  .coul { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 12px; margin-top: 10px; }
-  .coul figure { margin: 0; }
-  .coul img { width: 100%; display: block; border: 1px solid #191713; background: #e9e0c9; cursor: zoom-in; }
-  .coul figcaption { font-size: 12px; color: #5b4632; margin-top: 5px; }
-  .notecoul { font-family: Georgia, serif; font-style: italic; font-size: 15px; white-space: pre-line; margin: 0; }
-  .liens a { margin-right: 14px; }
-  #zoom { position: fixed; inset: 0; background: rgba(25,23,19,.92); display: none; align-items: center;
-          justify-content: center; padding: 16px; z-index: 9; cursor: zoom-out; }
-  #zoom img { max-width: 100%; max-height: 100%; }
-  @media (max-width: 560px) { .coul { grid-template-columns: minmax(0,1fr); } }
-</style><meta property="og:type" content="website" />
-<meta property="og:site_name" content="DELIGNY R&amp;D" />
-<meta property="og:title" content="Espace propriétaire - DELIGNY R&amp;D" />
-<meta property="og:description" content="Espace propriétaire d'une œuvre DELIGNY R&D : certificat, registre de provenance et transfert de la pièce, accessibles depuis le jeton de l'étiquette." />
-<meta property="og:url" content="https://deligny-rd.fr/art/proprietaire/" />
-<meta name="twitter:card" content="summary_large_image" />
-<meta property="og:image" content="https://deligny-rd.fr/art/verify/DLG-ART-2026-UV9R-M7NP/og-oeuvre.jpg" />
-<meta property="og:image:width" content="1200" />
-<meta property="og:image:height" content="630" />
-</head><body>
-<div class="back"><a href="../galerie-3d/">← GALERIE 3D</a></div>
+</style></head><body>
+<div class="back"><a href="../">← RÉPERTOIRE DES ŒUVRES</a></div>
 
 <h1>DELIGNY R&amp;D<small>ESPACE PROPRIÉTAIRE</small></h1>
 <div id="corps"><p class="note">Chargement…</p></div>
-<div id="zoom"><img id="zoomImg" alt=""></div>
 
 <script>
 const API = "https://atlas-studio.pro/deligny/api";
@@ -93,16 +72,12 @@ async function charger() {
         <div class="titre">${esc(o.titre)}</div>
         <div class="mono">${esc(o.id)}</div>
         <p class="note" style="margin-top:8px">
-          Propriétaire déclaré : <b>${esc(o.proprietaire_pseudo || "-")}</b> (${esc(o.proprietaire_pays || "-")})<br>
+          Propriétaire déclaré : <b>${esc(o.proprietaire_pseudo || "—")}</b> (${esc(o.proprietaire_pays || "—")})<br>
           Possession confirmée le : ${esc(o.possession_confirmee_le || "jamais")}<br>
           Vérifications du certificat : <b>${o.scans_uniques}</b>
         </p>
-        <p class="liens"><a href="../galerie-3d/?t=${encodeURIComponent(t)}#${esc(o.id)}">Voir le dossier en 3D →</a>
-          <a href="../verify/${esc(o.id)}/">Certificat public →</a>
-          <a href="../verify/${esc(o.id)}/?t=${encodeURIComponent(t)}">Vérification complète (signature) →</a></p>
+        <p><a href="../verify/${esc(o.id)}/">Voir le certificat public →</a></p>
       </div>
-      ${popHtml(d.popularite)}
-      ${coulissesHtml(d.coulisses)}
 
       <h2>Confirmer que tu détiens toujours l'œuvre</h2>
       <div class="card">
@@ -126,6 +101,19 @@ async function charger() {
         <div class="msg" id="mlist"></div>
       </div>
 
+      <h2>Être recontacté à la revente</h2>
+      <div class="card">
+        <p class="note">Facultatif. Si tu laisses une adresse, l'artiste peut te prévenir quand une
+        occasion de revente se présente pour cette œuvre. <b>C'est la seule donnée nominative de la
+        plateforme</b> : elle n'apparaît jamais sur la fiche publique, n'est transmise à personne, et
+        tu l'effaces en vidant le champ.</p>
+        <label>Adresse courriel${d.contact_revente ? " (enregistrée : " + esc(d.contact_revente) + ")" : ""}</label>
+        <input id="courriel" maxlength="254" placeholder="ex : moi@exemple.fr">
+        <button id="majcontact">ENREGISTRER</button>
+        ${d.contact_revente ? '<button class="sec" id="delcontact">EFFACER</button>' : ""}
+        <div class="msg" id="mcontact"></div>
+      </div>
+
       <h2>Offres reçues</h2>
       <div class="card">${d.offres.length ? `<table>
         <tr><th>pseudonyme</th><th>pays</th><th>prix</th><th>message</th></tr>
@@ -144,44 +132,7 @@ async function charger() {
         <div class="msg" id="mced"></div>
       </div>`;
     brancher(o);
-    chargerPhotos(d.coulisses);
   } catch (e) { $("corps").innerHTML = '<p class="note">' + esc(e.message) + '</p>'; }
-}
-// Popularité : réservée au propriétaire (retirée de la fiche publique le 05/10/2026).
-function popHtml(a) {
-  if (!a) return "";
-  return `<h2>Popularité</h2>
-    <div class="card"><table>
-      <tr><th>vues de la fiche</th><td>${a.vues || 0}</td></tr>
-      <tr><th>vérifications du certificat</th><td>${a.scans_certificat || 0}</td></tr>
-      <tr><th>attention moyenne</th><td>${a.attention_moyenne_s || 0} s (max ${a.attention_max_s || 0} s)</td></tr>
-      <tr><th>clics sur le prix</th><td>${a.clics_prix || 0}</td></tr>
-      <tr><th>offres reçues</th><td>${a.offres || 0}</td></tr>
-      ${(a.fuseaux || []).length ? `<tr><th>fuseaux des visiteurs</th><td>${a.fuseaux.map(esc).join(", ")}</td></tr>` : ""}
-    </table><p class="note">Mesure anonyme : aucune adresse IP ni cookie.</p></div>`;
-}
-// Coulisses : réservées au propriétaire. Les photos se lisent avec le jeton,
-// via fetch (pas d'URL d'image publique), puis s'affichent en blob local.
-function coulissesHtml(c) {
-  if (!c || (!c.note && !(c.photos || []).length)) return "";
-  return `<h2>Coulisses de l'œuvre</h2>
-    <div class="card">
-      <p class="note">Réservé au propriétaire : la fabrication de la pièce, vue de l'atelier.</p>
-      ${c.note ? `<p class="notecoul">${esc(c.note)}</p>` : ""}
-      <div class="coul">${(c.photos || []).map((p, i) => `<figure>
-        <img id="coul${i}" alt="${esc(p.legende || "photo de l'atelier")}">
-        ${p.legende ? `<figcaption>${esc(p.legende)}</figcaption>` : ""}</figure>`).join("")}</div>
-    </div>`;
-}
-async function chargerPhotos(c) {
-  for (const [i, p] of ((c && c.photos) || []).entries()) {
-    try {
-      const r = await fetch(API + "/owner/" + encodeURIComponent(t) + "/photo/" + encodeURIComponent(p.nom));
-      if (!r.ok) continue;
-      const img = $("coul" + i); img.src = URL.createObjectURL(await r.blob());
-      img.onclick = () => { $("zoomImg").src = img.src; $("zoom").style.display = "flex"; };
-    } catch (e) {}
-  }
 }
 function lire(f) { return new Promise(r => { const fr = new FileReader(); fr.onload = () => r(fr.result); fr.readAsDataURL(f); }); }
 function brancher(o) {
@@ -206,6 +157,17 @@ function brancher(o) {
       say($("mlist"), "Retirée de l'espace d'échange.", true); setTimeout(charger, 900);
     } catch (e) { say($("mlist"), esc(e.message), false); }
   };
+  $("majcontact").onclick = async () => {
+    try { const d = await post("/contact", { token: t, courriel: $("courriel").value });
+      say($("mcontact"), d.courriel ? "Adresse enregistrée : " + esc(d.courriel) : "Adresse effacée.", true);
+      setTimeout(charger, 900);
+    } catch (e) { say($("mcontact"), esc(e.message), false); }
+  };
+  if ($("delcontact")) $("delcontact").onclick = async () => {
+    try { await post("/contact", { token: t, courriel: "" });
+      say($("mcontact"), "Adresse effacée.", true); setTimeout(charger, 900);
+    } catch (e) { say($("mcontact"), esc(e.message), false); }
+  };
   $("ceder").onclick = async () => {
     if (!confirm("Confirmer la cession ? Ton jeton sera révoqué après contreseing.")) return;
     try {
@@ -215,7 +177,6 @@ function brancher(o) {
     } catch (e) { say($("mced"), esc(e.message), false); }
   };
 }
-$("zoom").onclick = () => { $("zoom").style.display = "none"; };
 charger();
 </script>
 </body></html>

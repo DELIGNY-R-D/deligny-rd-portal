@@ -516,7 +516,7 @@
     img.src = o.image_3d;
     try { localStorage.setItem("galerie.choix", o.id); } catch (e) {}
   }
-  fetch("data.json?v=06337837").then(r => r.json()).then(d => {
+  fetch("data.json?v=72662812").then(r => r.json()).then(d => {
     ITEMS = d.items || [];
     $("liste").innerHTML = ITEMS.map((o, i) => `<button type="button" class="oeuvre" data-i="${i}" aria-pressed="false">
         <img src="${esc(o.photo)}" alt="" loading="lazy">
