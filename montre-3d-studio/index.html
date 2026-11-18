@@ -1795,7 +1795,11 @@ function grilleSeparee(N,M){coupeZone.lisse=false;
       const r=separer(g,C.H,C.LI,C.D);
       /* reliefs au profil lisse (embossage, bas-reliefs) : normales de la surface ENTIERE (ponderees par l'aire, aucune
          couture poli / brut) -> parois sans reflet en zigzag. Les aretes vives gardent leur angle de cassure. */
-      if(state.lunette.motif!=='arete'){g.computeVertexNormals();for(const q of r)q.setAttribute('normal',g.getAttribute('normal'));coupeZone.lisse=true;}else coupeZone.lisse=false;
+      /* (18/11, Baptiste : « la reflexion zigzag ») EMBOSSAGE en poli surface : les normales de la surface ENTIERE melangeaient,
+         le long du bord poli / creux, la normale du dessus plat et celle de la paroi : les triangles du bord, alternes par la
+         grille, renvoyaient un reflet en dents de scie. L'embossage prend donc des normales PAR GROUPE a angle de cassure
+         (autoLisse) : le dessus reste plat jusqu'a l'arete, les parois restent lisses entre elles. */
+      if(!['arete','embossage'].includes(state.lunette.motif)){g.computeVertexNormals();for(const q of r)q.setAttribute('normal',g.getAttribute('normal'));coupeZone.lisse=true;}else coupeZone.lisse=false;
       return r;}}
   const Z=zoneAjustee(N,M),H=Z.H,NV=Z.NV,g=indexGrille(N,M,Z.P,Z.H,Z.LI,Z.D);
   /* POLI SURFACE, ECRAN SEULEMENT (12/10, Baptiste) : le polissage casse l'arete des sommets -> on arrondit les
@@ -1827,10 +1831,15 @@ function separer(g,H,LI,D){
   const I=g.index.array,haut=[],bas=[];
   // embossage : un triangle est poli s'il est ENTIEREMENT sur la surface d'origine (ses 3 sommets ; le bord du creux est
   // une chaine de sommets, voir zoneAjustee) -> limite poli / brut nette, sans dents de scie
-  const emb=m==='embossage'&&fin===1,dOk=D&&D.some(Number.isFinite);   // (14/10) avec la distance au contour (calee) : limite poli / brut exactement sur le contour
+  const emb=m==='embossage'&&fin===1,dOk=D&&D.some(Number.isFinite);
+  /* (18/11, Baptiste : « il y a des surfaces qui doivent etre polies : si la face chanfreinee est plate elle doit etre polie, et
+     le dessus pareil ») : dans les MARGES plates de la zone (0,5 mm de chaque bord : portee du verre, arete), le motif est
+     coupe (garde = 0) et la distance au contour n'est pas calculee (NaN) : ces triangles tombaient dans le brut alors qu'ils
+     sont sur la surface d'origine. Sans distance, la hauteur decide : a fleur de la surface d'origine = polie. */
+  const dd=v=>Number.isFinite(D[v])?D[v]:(H[v]>-2e-4?1:-1);   // (14/10) avec la distance au contour (calee) : limite poli / brut exactement sur le contour
   // lisere : bande polie (sauf finition mate), ses 3 sommets dans la bande ou sur son bord
   const lis=LI&&fin!==0?t=>LI[I[t]]<=1e-6&&LI[I[t+1]]<=1e-6&&LI[I[t+2]]<=1e-6:()=>false;
-  for(let t=0;t<I.length;t+=3){const a=H[I[t]],b=H[I[t+1]],c=H[I[t+2]];(lis(t)||(emb&&dOk?Math.min(D[I[t]],D[I[t+1]],D[I[t+2]])>-1e-4:emb?Math.min(a,b,c)>(w1Actif()&&_W1&&_W1.paves?-.85*(p.profondeur||.35):-2e-4):poli((a+b+c)/3)))?haut.push(I[t],I[t+1],I[t+2]):bas.push(I[t],I[t+1],I[t+2]);}
+  for(let t=0;t<I.length;t+=3){const a=H[I[t]],b=H[I[t+1]],c=H[I[t+2]];(lis(t)||(emb&&dOk?Math.min(dd(I[t]),dd(I[t+1]),dd(I[t+2]))>-1e-4:emb?Math.min(a,b,c)>(w1Actif()&&_W1&&_W1.paves?-.85*(p.profondeur||.35):-2e-4):poli((a+b+c)/3)))?haut.push(I[t],I[t+1],I[t+2]):bas.push(I[t],I[t+1],I[t+2]);}
   const mk=ix=>{const n=new THREE.BufferGeometry();n.setAttribute('position',g.getAttribute('position'));n.setAttribute('color',g.getAttribute('color'));n.setIndex(ix);return n;};
   return [mk(haut),mk(bas)];}
 // ── MAILLAGE PARAMETRIQUE DES RESEAUX (12/10, Baptiste : « la 3D la plus propre et la plus parfaite possible,
